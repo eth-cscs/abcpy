@@ -24,4 +24,5 @@ Contact one of us:
 
 ## Status
 [![Documentation Status](https://readthedocs.org/projects/abcpy/badge/?version=latest)](http://abcpy.readthedocs.io/en/latest/?badge=latest)
+[![Build Status](https://travis-ci.org/mschoengens/abcpy.svg?branch=master)](https://travis-ci.org/mschoengens/abcpy)
 
