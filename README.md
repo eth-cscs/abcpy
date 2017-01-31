@@ -8,7 +8,9 @@ scientists by providing
 * a non-intrusive, user-friendly way to parallelize inference computations
 
 ## Main Features
-TBD
+* Quickly infer parameters for already existing models
+* Quickly integrate your model into the framework
+* Easily parallelize the inferrence computation when models become complex
 
 ## Getting Started
 * [User Documentation](http://abcpy.readthedocs.io/en/latest/README.html)
