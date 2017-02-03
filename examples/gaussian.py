@@ -39,7 +39,20 @@ eps_arr = np.array([.75])
 epsilon_percentile = 10
 journal = sampler.sample(y_obs,  T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
 
-# output 
+# output parameters and weights
+print(journal.parameters)
+print(journal.weights)
+
+# do post analysis
 print(journal.posterior_mean())
 print(journal.posterior_cov())
+print(journal.posterior_histogram())
 
+# print configuration
+print(journal.configuration)
+
+# save and load journal
+journal.save("experiments.jnl")
+
+from abcpy.output import Journal
+new_journal = Journal.fromFile('experiments.jnl')

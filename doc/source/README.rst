@@ -3,7 +3,7 @@ Installation
 
 If you prefer to work on the source, clone the repository
 ::
-   git clone https://github.com/eth-cscs/abcpy.git
+    git clone https://github.com/eth-cscs/abcpy.git
 
 Make sure all requirements are installed
 ::
@@ -81,14 +81,51 @@ Finally, we need to parametrize and start the actualy sampling:
     :language: python
     :lines: 37-40
 
-The full source can be found `here <../../../examples/gaussian.py>`_
+The full source can be found `here <https://github.com/eth-cscs/abcpy/blob/master/examples/gaussian.py>`_
 
-Visualizing Results
-===================
+Post Analysis
+=============
+
+The output when sampling from an inferrence scheme is a Journal
+(:py:class:`abcpy.output.Journal`) which holds all the necessary results and
+convenient methods to do the post analysis.
+
+For example, one can easily access the sampled parameters and corresponding
+weights using:
+
+.. literalinclude:: ../../examples/gaussian.py
+    :language: python
+    :lines: 43-44
+
+For the post analysis basic functions are provided:	    
+
+.. literalinclude:: ../../examples/gaussian.py
+    :language: python
+    :lines: 47-49
+
+Also, to ensure reproducibility, every journal stores the parameters of the
+algorithm that created it:
+
+.. literalinclude:: ../../examples/gaussian.py
+    :language: python
+    :lines: 52
+
+And certainly, a journal can easily be saved to and loaded from disk:
+
+.. literalinclude:: ../../examples/gaussian.py
+    :language: python
+    :lines: 55, 58
+
+	    
+Extending: Add your Model
+=========================
 TBD
 
-Extending
-=========
+Extending: Add your Distance
+============================
 TBD
 
+Extending: Add your Statistics
+==============================
+TBD
 
