@@ -52,7 +52,7 @@ class RejectionABCTest(unittest.TestCase):
 
 
 class PMCTests(unittest.TestCase):
-        
+
     def test_sample(self):
         # setup backend
         backend = BackendDummy()

@@ -81,6 +81,10 @@ Finally, we need to parametrize and start the actualy sampling:
     :language: python
     :lines: 37-40
 
+With this the inferrence process is done and the probabilities of the inferred
+parameters are stored in the journal object. See `Post Analysis`_ for further
+information on extracting results.
+
 The full source can be found `here <https://github.com/eth-cscs/abcpy/blob/master/examples/gaussian.py>`_
 
 Post Analysis
@@ -117,8 +121,65 @@ And certainly, a journal can easily be saved to and loaded from disk:
     :lines: 55, 58
 
 	    
-Extending: Add your Model
-=========================
+Use ABCpy with a new Model
+==========================
+
+Often one wants to use one of the provided inference schemes on a new model, which is not part of ABCpy. We now go through the details of such a scenario using the Gaussian model to exemplify the mechanics.
+
+Every model has to conform to the API specified by the abstract base class
+:py:class:`abcpy.models.Model`. Thus, making a new model compatible with ABCpy, essentially boils down to implementing the following methods:
+
+.. literalinclude:: ../../abcpy/models.py
+    :language: python
+    :lines: 6, 13, 35, 61, 69, 88
+
+In the following we go through a few of the required methods, explain what is expected, and
+show how it would be implemented for the Gaussian model.
+
+As a general note, one can say that it is always a good  idea to
+consult the reference for implementation details. For the constructor, the reference states the following:
+
+.. automethod:: abcpy.models.Model.__init__
+
+Consequently, we would implement a simple version of a Gaussian model as follows:
+
+.. literalinclude:: ../../examples/gaussian_extended_with_model.py
+    :language: python
+    :lines: 5-9
+
+Here we actually initialize the model parameters by calling :py:class:`abcpy.models.Model.sample_from_prior`, which is another functions that must be implemented.
+Its requirements are quite simple:
+
+.. automethod:: abcpy.models.Model.sample_from_prior
+
+.. literalinclude:: ../../examples/gaussian_extended_with_model.py
+    :language: python
+    :lines: 24-26
+
+Let us have a look at the details on implementing :py:class:`abcpy.models.Model.set_parameters`:
+
+.. automethod:: abcpy.models.Model.set_parameters
+
+For a Gaussian model a simple implementation would look like the following:
+
+.. literalinclude:: ../../examples/gaussian_extended_with_model.py
+    :language: python
+    :lines: 11-19
+
+Note that :py:class:`abcpy.models.Model.set_parameters` is expected to return a boolean dependent on whether the provided parameters are suitable for the model. Thus, we added a few tests to the method.
+
+
+For the remaining methods that must be implemented, namely :py:class:`abcpy.models.Model.get_parameters`
+and :py:class:`abcpy.models.Model.simulate`, we proceed in exactly the same way. This leads to an implementation that might look like the following:
+
+.. literalinclude:: ../../examples/gaussian_extended_with_model.py
+    :language: python
+    :lines: 21- 23, 27-29
+
+Our model now conforms to ABCpy and we can start inferring parameters in the same way (see `Getting Started`_) as we would do with shipped models. The complete example code can be found `here <https://github.com/eth-cscs/abcpy/blob/master/examples/gaussian_extended_with_model.py>`_
+
+Use ABCpy with a C++ model
+==========================
 TBD
 
 Extending: Add your Distance

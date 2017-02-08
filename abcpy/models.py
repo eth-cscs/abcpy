@@ -11,21 +11,51 @@ class Model(metaclass = ABCMeta):
 
     @abstractmethod
     def __init__(self, prior, seed = None): 
-        """Constructor that must be overwritten by the sub-class. Initialize model
-        either from the given prior or directly from the parameters.
+        """The constructor must be overwritten by a sub-class to initialize the model
+        with a given prior.
 
-        The parameters can be omitted. In this case the model parameters are sampled
-        from the prior. If both method parameters mu and sigma are present, the model
-        is initialized with these parameters.
+        The standard behaviour is that concrete model parameters are sampled
+        from the provided prior. However, it is alo possible for the constructor
+        to provide optional (!) model parameters. In the latter case, the model
+        should be initialized by the provided parameters instead from sampling
+        from the prior.
     
         Parameters
         ----------
-        prior: Distribution
-            Prior distribution
+        prior: abcpy.distributions.Distribution
+            A prior distribution
         seed: int, optional
-            Optional initial seed for the random number generator. The default value is generated randomly.
+            Optional initial seed for the random number generator that can be used in the model. The
+            default value is generated randomly.
         """
         raise NotImplemented
+
+
+    @abstractmethod
+    def set_parameters(self, theta):
+        """This method properly sets the parameters of the model and must be overwritten by a sub-class.
+
+        Notes
+        -----
+        Make sure to test whether the provided parameters are
+        compatible with the model. Return true if the parameters are accepted
+        by the model and false otherwise. This behavior is expected e.g. by
+        the inference schemes.
+
+        Parameters
+        ----------
+        theta:
+            An array-like structure containing the p parameter of the model,
+            where theta[0] is the first and theta[p-1] is the last parameter.
+
+        Returns
+        -------
+        boolean
+            TRUE if model accepts the provided parameters, FALSE otherwise
+        """
+
+        raise NotImplemented
+
 
     @abstractmethod
     def sample_from_prior():
@@ -33,8 +63,8 @@ class Model(metaclass = ABCMeta):
         from the prior distribution.
         """        
         raise NotImplemented
+
     
-     
     @abstractmethod
     def simulate(self, k):
         """To be overwritten by any sub-class: should create k possible outcomes of
@@ -66,75 +96,48 @@ class Model(metaclass = ABCMeta):
 
         raise NotImplemented
 
-    
-    @abstractmethod
-    def set_parameters(self, theta):
-        """To be overwritten by any sub-class: should assign new parameters theta
-        (a p-dimensional array) to the model parameters.
-
-        Notes
-        -----
-        Make sure to test the provided parameters and return true if the parameters are accepted by the model and false
-        otherwise. This behavior is expected e.g. by the sampling schemes.
-        
-        Parameters
-        ----------
-        theta: numpy.ndarray
-            An array containing the values of the parameter of the model to be set
-            
-        Returns
-        -------
-        boolean
-            TRUE if model accepts the provided parameters, FALSE otherwise
-        """
-
-        raise NotImplemented          
 
 class Gaussian(Model):
     """This class implements the Gaussian model with unknown mean \
     :math:`\mu` and unknown standard deviation :math:`\sigma`.
     """
-   
-    def __init__(self, prior, mu = None, sigma = None, seed=None):
 
+    def __init__(self, prior, mu = None, sigma = None, seed=None):
         """
         Parameters
         ----------
         prior: abcpy.distributions.Distribution
-            Prior distribution        
+            Prior distribution
         mu: float, optional
             Mean of the Gaussian distribution. If the parameters is omitted, sampled
             from the prior.
         sigma: float, optional
             Standard deviation of the Gaussian distribution. If the parameters is omitted, sampled
-            from the prior.  
+            from the prior.
         seed: int, optional
-            Initial seed. The default value is generated randomly.             
+            Initial seed. The default value is generated randomly.
         """
-        assert(not (mu == None) != (sigma == None))
-        param = prior.sample(1)
-        assert(np.shape(param) == (1,2))
-        
-        self.prior = prior
-        if mu == None and sigma == None:
+
+        # test and set prior
+        if np.shape(prior.sample(1)) == (1,2):
+            self.prior = prior
             self.sample_from_prior()
         else:
+            raise ValueError("Prior generates values outside the model "
+                             "parameter domain. ")
+
+        # test provided model parameters
+        if (mu == None) != (sigma == None):
+            raise ValueError("Both or neither of the model parameters have to be provided.")
+
+        # set model parameters directly if specified
+        if mu != None and sigma != None:
             if self.set_parameters(np.array([mu, sigma])) == False:
                 raise ValueError("The parameter values are out of the model parameter domain.")
-                
+
+        # set random number generator
         self.rng = np.random.RandomState(seed)
-        
-    def sample_from_prior(self):
-        sample = self.prior.sample(1).reshape(-1)
-        if self.set_parameters(sample) == False:
-            raise ValueError("Prior generates values that are out the model parameter domain.")     
-            
-    def simulate(self, k):
-        return list((self.rng.normal(self.mu, self.sigma, k)).reshape(-1)) 
-        
-    def get_parameters(self):
-        return np.array([self.mu, self.sigma])  
-    
+
     def set_parameters(self, theta):
         if isinstance(theta, (list,np.ndarray)):
             theta = np.array(theta)
@@ -144,8 +147,21 @@ class Gaussian(Model):
         if theta.shape[0] > 2: return False
         if theta[1] <= 0: return False
         self.mu = theta[0]
-        self.sigma = theta[1]                
+        self.sigma = theta[1]
         return True
+
+    def get_parameters(self):
+        return np.array([self.mu, self.sigma])
+
+    def sample_from_prior(self):
+        sample = self.prior.sample(1).reshape(-1)
+        if self.set_parameters(sample) == False:
+            raise ValueError("Prior generates values that are out the model parameter domain.")
+
+    def simulate(self, k):
+        return list((self.rng.normal(self.mu, self.sigma, k)).reshape(-1))
+
+
 
 class Student_t(Model):
     """This class implements the Student_t distribution with unknown mean :math:`\mu` and unknown degrees of freedom.
@@ -189,7 +205,7 @@ class Student_t(Model):
 
     def get_parameters(self):
         return np.array([self.mu, self.df])
-    
+
     def set_parameters(self,theta):
         if isinstance(theta, (list,np.ndarray)):
             theta = np.array(theta)
