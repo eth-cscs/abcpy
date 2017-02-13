@@ -118,10 +118,9 @@ class Gaussian(Model):
             Initial seed. The default value is generated randomly.
         """
 
-        # test and set prior
+        # test prior
         if np.shape(prior.sample(1)) == (1,2):
             self.prior = prior
-            self.sample_from_prior()
         else:
             raise ValueError("Prior generates values outside the model "
                              "parameter domain. ")
@@ -134,6 +133,9 @@ class Gaussian(Model):
         if mu != None and sigma != None:
             if self.set_parameters(np.array([mu, sigma])) == False:
                 raise ValueError("The parameter values are out of the model parameter domain.")
+        else:
+            self.sample_from_prior()
+
 
         # set random number generator
         self.rng = np.random.RandomState(seed)
