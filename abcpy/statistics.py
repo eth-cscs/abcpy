@@ -17,8 +17,8 @@ class Statistics(metaclass = ABCMeta):
         The constructor of a sub-class must accept arguments for the polynomial 
         expansion after extraction of the summary statistics, one has to define 
         the degree of polynomial expansion and cross, indicating whether cross-prodcut
-        terms are included.
-        
+        terms are included. 
+
         Parameters
         ----------
         degree: integer, optional
@@ -107,7 +107,7 @@ class Identity(Statistics):
         else:
             raise TypeError('Input data should be of type list, but found type {}'.format(type(data)))
         
-        # EXpand the data with polynomial expansion            
+        # Expand the data with polynomial expansion            
         result = self._polynomial_expansion(data)  
         
         return result    
@@ -162,9 +162,9 @@ class HakkarainenLorenzStatistics(Statistics):
             
             result[ind_element,:] = [s1, s2, s3, s4, s5, s6] 
             
-        # EXpand the data with polynomial expansion            
+        # Expand the data with polynomial expansion            
         result = self._polynomial_expansion(result) 
-        
+                
         return np.array(result)
     
     def _cross_covariance(self, x, y):

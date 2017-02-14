@@ -13,7 +13,7 @@ from abcpy.distributions import Uniform
 
 from abcpy.statistics import Identity
 
-from abcpy.inferences import RejectionABC, PMC, PMCABC, _RemoteContextPMCABC
+from abcpy.inferences import RejectionABC, PMC, PMCABC, _RemoteContextPMCABC, SABC, ABCsubsim
 
 class RejectionABCTest(unittest.TestCase):
     def test_sample(self):
@@ -52,7 +52,7 @@ class RejectionABCTest(unittest.TestCase):
 
 
 class PMCTests(unittest.TestCase):
-
+        
     def test_sample(self):
         # setup backend
         backend = BackendDummy()
@@ -157,7 +157,7 @@ class PMCABCTests(unittest.TestCase):
         accepted_parameters = np.array([[1.0], [1.0 + np.sqrt(2)]])
         accepted_weights = np.array([[.5], [.5]])
         accepted_cov_mat = np.array([[1.0]])
-        rc.update_broadcasts(self.backend, accepted_parameters, accepted_weights, accepted_cov_mat)
+        rc._update_broadcasts(self.backend, accepted_parameters, accepted_weights, accepted_cov_mat)
         weight = rc._calculate_weight(theta)
         expected_weight = (2.0 * np.sqrt(2.0 * np.pi)) /(( 1 + np.exp(-1))*100)
         self.assertEqual(weight, expected_weight)
@@ -201,6 +201,132 @@ class PMCABCTests(unittest.TestCase):
         self.assertLess(mu_post_mean - 3.80593164247, 10e-2)
         self.assertLess(sigma_post_mean - 7.21421951262, 10e-2)     
 
+
+class SABCTests(unittest.TestCase):
+    def setUp(self):
+        # find spark and initialize it
+        self.backend = BackendDummy()
+
+        # define a uniform prior distribution
+        lb = np.array([-5, 0])
+        ub = np.array([5,10])
+        prior = Uniform(lb, ub, seed=1)
+
+        # define a Gaussian model
+        self.model = Gaussian(prior, mu=2.1, sigma=5.0, seed=1)
+
+        # define a distance function
+        stat_calc = Identity(degree=2, cross=0)
+        self.dist_calc = Euclidean(stat_calc)
+
+        # create fake observed data
+        self.observation = self.model.simulate(1)
+        
+        # define kernel
+        mean = np.array([-13.0, .0, 7.0])
+        cov = np.eye(3)
+        self.kernel = MultiNormal(mean, cov, seed=1)
+
+       
+    def test_sample(self):
+        # use the sABC scheme for T = 1
+        steps, epsilon, n_samples, n_samples_per_param = 1, .1, 10, 1
+        sampler = SABC(self.model, self.dist_calc, self.kernel, self.backend, seed = 1)
+        journal = sampler.sample(self.observation, steps, epsilon, n_samples, n_samples_per_param)
+        samples = (journal.get_parameters(), journal.get_weights())
+          
+        # Compute posterior mean
+        mu_post_sample, sigma_post_sample, post_Weights = np.asarray(samples[0][:,0]), np.asarray(samples[0][:,1]), np.asarray(samples[1][:,0])
+        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights = post_Weights), np.average(sigma_post_sample, weights = post_Weights)
+
+        # test shape of sample
+        mu_sample_shape, sigma_sample_shape, Weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_Weights)
+        self.assertEqual(mu_sample_shape, (10,))
+        self.assertEqual(sigma_sample_shape, (10,))
+        self.assertEqual(Weights_sample_shape, (10,))
+
+
+        # use the sABC scheme for T = 2
+        steps, epsilon, n_samples, n_samples_per_param = 2, .1, 10, 1
+        sampler = SABC(self.model, self.dist_calc, self.kernel, self.backend, seed = 1)
+        journal = sampler.sample(self.observation, steps, epsilon, n_samples, n_samples_per_param)
+        samples = (journal.get_parameters(), journal.get_weights())
+          
+        # Compute posterior mean
+        mu_post_sample, sigma_post_sample, post_Weights = np.asarray(samples[0][:,0]), np.asarray(samples[0][:,1]), np.asarray(samples[1][:,0])
+        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights = post_Weights), np.average(sigma_post_sample, weights = post_Weights)
+        
+        # test shape of sample
+        mu_sample_shape, sigma_sample_shape, Weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_Weights)
+        self.assertEqual(mu_sample_shape, (10,))
+        self.assertEqual(sigma_sample_shape, (10,))
+        self.assertEqual(Weights_sample_shape, (10,))
+        print(mu_post_mean)
+        print(sigma_post_mean)
+        self.assertLess(mu_post_mean - 1.51315443746, 10e-2)
+        self.assertLess(sigma_post_mean - 6.85230360302, 10e-2)     
+
+class ABCsubsimTests(unittest.TestCase):
+    def setUp(self):
+        # find spark and initialize it
+        self.backend = BackendDummy()
+
+        # define a uniform prior distribution
+        lb = np.array([-5, 0])
+        ub = np.array([5,10])
+        prior = Uniform(lb, ub, seed=1)
+
+        # define a Gaussian model
+        self.model = Gaussian(prior, mu=2.1, sigma=5.0, seed=1)
+
+        # define a distance function
+        stat_calc = Identity(degree=2, cross=0)
+        self.dist_calc = Euclidean(stat_calc)
+
+        # create fake observed data
+        self.observation = self.model.simulate(1)
+        
+        # define kernel
+        mean = np.array([-13.0, .0, 7.0])
+        cov = np.eye(3)
+        self.kernel = MultiNormal(mean, cov, seed=1)
+
+       
+    def test_sample(self):
+
+        steps, n_samples, n_samples_per_param = 1, 10, 1
+        sampler = ABCsubsim(self.model, self.dist_calc, self.kernel, self.backend, seed = 1)
+        journal = sampler.sample(self.observation, steps, n_samples, n_samples_per_param)
+        samples = (journal.get_parameters(), journal.get_weights())
+          
+        # Compute posterior mean
+        mu_post_sample, sigma_post_sample, post_Weights = np.asarray(samples[0][:,0]), np.asarray(samples[0][:,1]), np.asarray(samples[1][:,0])
+        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights = post_Weights), np.average(sigma_post_sample, weights = post_Weights)
+
+        # test shape of sample
+        mu_sample_shape, sigma_sample_shape, Weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_Weights)
+        self.assertEqual(mu_sample_shape, (10,))
+        self.assertEqual(sigma_sample_shape, (10,))
+        self.assertEqual(Weights_sample_shape, (10,))
+
+
+        # use the sABC scheme for T = 2
+        steps, n_samples, n_samples_per_param = 2, 10, 1
+        sampler = ABCsubsim(self.model, self.dist_calc, self.kernel, self.backend, seed = 1)
+        journal = sampler.sample(self.observation, steps, n_samples, n_samples_per_param)
+        samples = (journal.get_parameters(), journal.get_weights())
+          
+        # Compute posterior mean
+        mu_post_sample, sigma_post_sample, post_Weights = np.asarray(samples[0][:,0]), np.asarray(samples[0][:,1]), np.asarray(samples[1][:,0])
+        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights = post_Weights), np.average(sigma_post_sample, weights = post_Weights)
+        
+        # test shape of sample
+        mu_sample_shape, sigma_sample_shape, Weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_Weights)
+        self.assertEqual(mu_sample_shape, (10,))
+        self.assertEqual(sigma_sample_shape, (10,))
+        self.assertEqual(Weights_sample_shape, (10,))
+        self.assertLess(mu_post_mean - (-2.98633946126), 10e-2)
+        self.assertLess(sigma_post_mean - 6.40146881524, 10e-2)     
 
 
 

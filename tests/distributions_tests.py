@@ -112,8 +112,8 @@ class MultiStudentTTests(unittest.TestCase):
         expected_var = np.array([1.9978, 2.0005])
         diff_mean = np.abs(samples.mean(axis=0) - expected_mean)
         diff_var = np.abs(samples.var(axis=0) - expected_var)
-        self.assertLess(diff_mean.sum(), 1e-2)
-        self.assertLess(diff_var.sum(), 1e-2)
+        self.assertLess(diff_mean.sum(), 2e-2)
+        self.assertLess(diff_var.sum(), 2e-2)
 
 
         
