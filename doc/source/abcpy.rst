@@ -77,4 +77,12 @@ abcpy.statistics module
    :undoc-members:
    :show-inheritance:
 
+abcpy.summaryselections module
+-----------------------
+
+.. automodule:: abcpy.summaryselections
+   :members:
+   :special-members: __init__
+   :undoc-members:
+   :show-inheritance:
 
