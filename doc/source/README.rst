@@ -178,10 +178,6 @@ and :py:class:`abcpy.models.Model.simulate`, we proceed in exactly the same way.
 
 Our model now conforms to ABCpy and we can start inferring parameters in the same way (see `Getting Started`_) as we would do with shipped models. The complete example code can be found `here <https://github.com/eth-cscs/abcpy/blob/master/examples/gaussian_extended_with_model.py>`_
 
-Use ABCpy with a C++ model
-==========================
-TBD
-
 Extending: Add your Distance
 ============================
 TBD
@@ -189,4 +185,21 @@ TBD
 Extending: Add your Statistics
 ==============================
 TBD
+
+Extending: Add your approx_likelihood
+=====================================
+TBD
+
+Extending: Add you prior
+========================
+TBD
+
+Extending: Add your own inference scheme
+========================================
+TBD
+
+Use ABCpy with a C++ model
+==========================
+TBD
+
 
