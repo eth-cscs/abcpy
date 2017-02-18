@@ -294,3 +294,49 @@ class MultiStudentT(Distribution):
 
         if df <= 0:
             raise ValueError("Parameter df is smaller than 0.")
+            
+class Normal(Distribution):
+    """
+    This class implements a 1-dimensional Normal distribution.
+    """    
+    def __init__(self, mean, var, seed=None):
+        """        
+        Defines and mean and variance of normal distribution.
+        
+        Parameters
+        ----------
+        mean: numpy.ndarray
+            mean
+        var: numpy.ndarray
+            variance
+        seed: integer
+            Initial seed for the random number generator
+
+        """
+
+        self.rng = np.random.RandomState(seed)
+        self.mean = mean
+        self.var = var
+
+
+
+    def set_parameters(self, params):      
+        self.mean = params[0]
+        self.var = params[1]
+
+
+
+    def reseed(self, seed):
+        self.rng.seed(seed)
+        
+
+        
+    def sample(self, k):
+        #samples = self.distribution.rvs(k).reshape(k,p)
+        samples = self.rng.normal(self.mean, self.var, k)
+        return samples.reshape((k,1))
+    
+    def pdf(self, x):
+        return norm(self.mean, self.var).pdf(x)
+            
+            
