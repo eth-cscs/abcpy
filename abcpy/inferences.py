@@ -770,10 +770,13 @@ class SABC:
                 U = self._avergae_redefined_distance(self._smoother_distance(all_distances,all_distances), epsilon)
             else:               
                 U = np.mean(smooth_distances)
-            epsilon = self._schedule(U,v)   
-            accepted_cov_mat = beta*np.cov(np.transpose(accepted_parameters)) + \
-            0.0001*np.trace(np.cov(np.transpose(accepted_parameters)))*np.eye(accepted_parameters.shape[1])
-                  
+            epsilon = self._schedule(U,v) 
+            if accepted_parameters.shape[1] > 1:
+                accepted_cov_mat = beta*np.cov(np.transpose(accepted_parameters)) + \
+                0.0001*np.trace(np.cov(np.transpose(accepted_parameters)))*np.eye(accepted_parameters.shape[1])
+            else:
+                accepted_cov_mat = beta*np.cov(np.transpose(accepted_parameters)) + \
+                0.0001*(np.cov(np.transpose(accepted_parameters)))*np.eye(accepted_parameters.shape[1]) 
             ## 4: Show progress and if acceptance rate smaller than a value break the iteration
             
             # print("INFO: Saving intermediate configuration to output journal.")
