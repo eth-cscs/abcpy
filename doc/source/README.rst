@@ -3,15 +3,18 @@ Installation
 
 If you prefer to work on the source, clone the repository
 ::
-    git clone https://github.com/eth-cscs/abcpy.git
+
+   git clone https://github.com/eth-cscs/abcpy.git
 
 Make sure all requirements are installed
 ::
+   
    cd abcpy
    pip3 install -r requirements.txt
 
 To create a package and install it do
 ::
+
    make package
    pip3 install pip3 install build/dist/abcpy-0.1-py3-none-any.whl
 
@@ -121,6 +124,7 @@ And certainly, a journal can easily be saved to and loaded from disk:
     :lines: 55, 58
 
 	    
+	    
 Use ABCpy with a new Model
 ==========================
 
@@ -140,10 +144,11 @@ As a general note, one can say that it is always a good  idea to
 consult the reference for implementation details. For the constructor, the reference states the following:
 
 .. automethod:: abcpy.models.Model.__init__
+   :noindex:
 
 Consequently, we would implement a simple version of a Gaussian model as follows:
 
-.. literalinclude:: ../../examples/gaussian_extended_with_model.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc-gaussian_model_simple.py
     :language: python
     :lines: 5-9
 
@@ -151,18 +156,20 @@ Here we actually initialize the model parameters by calling :py:class:`abcpy.mod
 Its requirements are quite simple:
 
 .. automethod:: abcpy.models.Model.sample_from_prior
+   :noindex:
 
-.. literalinclude:: ../../examples/gaussian_extended_with_model.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc-gaussian_model_simple.py
     :language: python
     :lines: 24-26
 
 Let us have a look at the details on implementing :py:class:`abcpy.models.Model.set_parameters`:
 
 .. automethod:: abcpy.models.Model.set_parameters
-
+   :noindex:
+      
 For a Gaussian model a simple implementation would look like the following:
 
-.. literalinclude:: ../../examples/gaussian_extended_with_model.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc-gaussian_model_simple.py
     :language: python
     :lines: 11-19
 
@@ -172,7 +179,7 @@ Note that :py:class:`abcpy.models.Model.set_parameters` is expected to return a 
 For the remaining methods that must be implemented, namely :py:class:`abcpy.models.Model.get_parameters`
 and :py:class:`abcpy.models.Model.simulate`, we proceed in exactly the same way. This leads to an implementation that might look like the following:
 
-.. literalinclude:: ../../examples/gaussian_extended_with_model.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc-gaussian_model_simple.py
     :language: python
     :lines: 21- 23, 27-29
 

@@ -15,6 +15,8 @@ clean:
 
 test:
 	python3 -m unittest discover -s tests -v -p "*_tests.py"
+	make -C doc html
+
 
 testcoverage:
 	command -v coverage >/dev/null 2>&1 || { echo >&2 "Python package 'coverage' has to be installed. Please, run 'pip3 install coverage'."; exit;}
