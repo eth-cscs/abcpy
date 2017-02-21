@@ -14,8 +14,8 @@ clean:
 	find . -name "#*#" -delete
 
 test:
-	python3 -m unittest discover -s tests -v -p "*_tests.py"
-	make -C doc html
+	python3 -m unittest discover -s tests -v -p "*_tests.py" || (echo "Error in unit tests."; exit 1)
+	make -C doc html || (echo "Error in documentation generator."; exit 1)
 
 
 testcoverage:
