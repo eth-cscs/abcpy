@@ -28,15 +28,15 @@ class RandomForestTests(unittest.TestCase):
         self.backend = Backend()
 
 
-    def test_modelchoice(self):
+    def test_select_model(self):
         modelselection = RandomForest(self.model_array, self.statistics_calc, self.backend, seed = 1)
-        model = modelselection.modelchoice(self.y_obs,n_samples = 100, n_samples_per_param = 1)
+        model = modelselection.select_model(self.y_obs,n_samples = 100, n_samples_per_param = 1)
 
         self.assertTrue(self.model_array[1] == model)
     
-    def test_posteriorprobability(self):
+    def test_posterior_probability(self):
         modelselection = RandomForest(self.model_array, self.statistics_calc, self.backend, seed = 1)
-        model_prob = modelselection.posteriorprobability(self.y_obs)
+        model_prob = modelselection.posterior_probability(self.y_obs)
 
         self.assertTrue(model_prob == 0.8238)
  

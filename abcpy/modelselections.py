@@ -1,12 +1,12 @@
 from abc import ABCMeta, abstractmethod
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+from sklearn import ensemble
 
 
 
 class ModelSelections(metaclass = ABCMeta):
-    """This abstract base class defines a model selection rulr of how to choose model from a set of models
-    given an observation.
+    """This abstract base class defines a model selection rule of how to choose a model from a set of models
+    given an observation. 
  
             
     """
@@ -42,8 +42,8 @@ class ModelSelections(metaclass = ABCMeta):
         
         
     @abstractmethod
-    def modelchoice(self, observations, n_samples = 1000, n_samplee_per_param = 100):
-        """To be overwritten by any sub-class: returns a model chosen by the modelselection
+    def select_model(self, observations, n_samples = 1000, n_samples_per_param = 100):
+        """To be overwritten by any sub-class: returns a model selected by the modelselection
         procedure most suitable to the obersved data set observations. It is assumed that observations is a 
         list of n same type elements(eg., The observations can be a list containing n timeseries, n 
         graphs or n np.ndarray). Further two optional integer arguments n_samples and n_samples_per_param
@@ -52,8 +52,8 @@ class ModelSelections(metaclass = ABCMeta):
         
         Parameters
         ----------
-        data: python list
-            Contains n data sets.
+        observations: python list
+            The observed data set.
         n_samples : integer, optional
             Number of samples to generate for reference table.
         n_samples_per_param : integer, optional 
@@ -68,7 +68,7 @@ class ModelSelections(metaclass = ABCMeta):
         raise NotImplemented
 
     @abstractmethod
-    def posteriorprobability(self, observations):
+    def posterior_probability(self, observations):
         """To be overwritten by any sub-class: returns the approximate posterior probability
         of the chosen model given the observed data set observations. It is assumed that observations 
         is a  list of n same type elements(eg., The observations can be a list containing n timeseries, n graphs or n np.ndarray).
@@ -76,49 +76,54 @@ class ModelSelections(metaclass = ABCMeta):
         Parameters
         ----------
         observations: python list
-            Contains n data sets.
+            The observed data set.
         Returns
         -------
         np.ndarray
-            A vector containing the approximate posterior probabilities of the models in 
-            model_array. The elements in the array should sum upto 1.            
-                
+            A vector containing the approximate posterior probability of the model chosen.                
         """
         
         raise NotImplemented
         
 class RandomForest(ModelSelections):
     """
-    This class implements the model selection procedure based on the k-nearest neighbour 
-    classifier as described in Pudlo et. al. [1].
+    This class implements the model selection procedure based on the Random Forest ensemble learner
+    as described in Pudlo et. al. [1].
     
     [1] Pudlo, P., Marin, J.-M., Estoup, A., Cornuet, J.-M., Gautier, M. and Robert, C.
     (2016). Reliable ABC model choice via random forests. Bioinformatics, 32 859–866.
     """
-    def __init__(self, model_array, statistics_calc, backend, seed = None):
+    def __init__(self, model_array, statistics_calc, backend, N_tree = 100, n_try_fraction = 0.5, seed = None):
+        """        
+        Parameters
+        ----------
+        N_tree : integer, optional
+            Number of trees in the random forest. The default value is 100.
+        n_try_fraction : float, optional 
+            The fraction of number of summary statistics to be considered as the size of 
+            the number of covariates randomly sampled at each node by the randomised CART.
+            The default value is 0.5.           
+        """
+        
         self.model_array = model_array
         self.statistics_calc = statistics_calc
         self.backend = backend
         self.rng = np.random.RandomState(seed)
         self.seed = seed 
         self.reference_table_calculated = 0
+        self.N_tree = N_tree
+        self.n_try_fraction = n_try_fraction
 
-    def modelchoice(self, observations, n_samples = 1000, n_samples_per_param = 1, N_tree = 100, n_try_fraction = 0.5):
+    def select_model(self, observations, n_samples = 1000, n_samples_per_param = 1):
         """        
         Parameters
         ----------
-        data: python list
-            Contains n data sets.
+        observations: python list
+            The observed data set.
         n_samples : integer, optional
             Number of samples to generate for reference table. The default value is 1000.
         n_samples_per_param : integer, optional 
             Number of data points in each simulated data set. The default value is 1.
-        N_tree : integer, optional
-            Number of trees in the random forest. The default value is 100.
-        n_try_fraction : float, optional 
-            The fraction of number of summary statistics to be considered as the size of 
-            the number of covariates randomly sampled at each node by the randomised CART.
-            he default value is 0.5.
         Returns
         -------
         abcpy.models.Model
@@ -127,7 +132,7 @@ class RandomForest(ModelSelections):
         """
         # Creation of reference table
         if self.reference_table_calculated is 0:        
-            rc = _RemoteContextgeneratereferencetable(self.backend, self.model_array, self.statistics_calc, observations, n_samples_per_param)
+            rc = _RemoteContextForReferenceTable(self.backend, self.model_array, self.statistics_calc, observations, n_samples_per_param)
 
             # Simulating the data, distance and statistics                
             seed_arr = self.rng.randint(1, n_samples*n_samples, size=n_samples, dtype=np.int32)
@@ -149,27 +154,22 @@ class RandomForest(ModelSelections):
                     label[ind1] = ind2 
 
         # Define the classifier 
-        classifier = RandomForestClassifier(n_estimators = N_tree, max_features=int(n_try_fraction*self.reference_table_statistics.shape[1]), bootstrap=True, random_state=self.seed)
+        classifier = ensemble.RandomForestClassifier(n_estimators = self.N_tree, \
+        max_features=int(self.n_try_fraction*self.reference_table_statistics.shape[1]), bootstrap=True, random_state=self.seed)
         classifier.fit(self.reference_table_statistics, label)            
 
         return(self.model_array[int(classifier.predict(self.statistics_calc.statistics(observations)))])
 
-    def posteriorprobability(self, observations, n_samples = 1000, n_samples_per_param = 1, N_tree = 100, n_try_fraction = 0.5):
+    def posterior_probability(self, observations, n_samples = 1000, n_samples_per_param = 1):
         """        
         Parameters
         ----------
-        data: python list
-            Contains n data sets.
+        observations: python list
+            The observed data set.
         n_samples : integer, optional
             Number of samples to generate for reference table. The default value is 1000.
         n_samples_per_param : integer, optional 
             Number of data points in each simulated data set. The default value is 1.
-        N_tree : integer, optional
-            Number of trees in the random forest. The default value is 100.
-        n_try_fraction : float, optional 
-            The fraction of number of summary statistics to be considered as the size of 
-            the number of covariates randomly sampled at each node by the randomised CART.
-            The default value is 0.5.
         Returns
         -------
         abcpy.models.Model
@@ -178,7 +178,7 @@ class RandomForest(ModelSelections):
         """        
         # Creation of reference table
         if self.reference_table_calculated is 0:        
-            rc = _RemoteContextgeneratereferencetable(self.backend, self.model_array, self.statistics_calc, observations, n_samples_per_param)
+            rc = _RemoteContextForReferenceTable(self.backend, self.model_array, self.statistics_calc, observations, n_samples_per_param)
 
             # Simulating the data, distance and statistics                
             seed_arr = self.rng.randint(1, n_samples*n_samples, size=n_samples, dtype=np.int32)
@@ -200,7 +200,8 @@ class RandomForest(ModelSelections):
                     label[ind1] = ind2 
 
         # Define the classifier 
-        classifier = RandomForestClassifier(n_estimators = N_tree, max_features=int(n_try_fraction*self.reference_table_statistics.shape[1]), bootstrap=True, random_state=self.seed)
+        classifier = ensemble.RandomForestClassifier(n_estimators = self.N_tree, \
+        max_features=int(self.n_try_fraction*self.reference_table_statistics.shape[1]), bootstrap=True, random_state=self.seed)
         classifier.fit(self.reference_table_statistics, label)  
 
         pred_error = np.zeros(len(self.reference_table_models),)
@@ -209,12 +210,12 @@ class RandomForest(ModelSelections):
             pred_error[ind] = 1 - classifier.predict_proba(self.statistics_calc.statistics(self.reference_table_data[ind]))[0][int(label[ind])] 
 
         # Estimate a regression function with prediction error as response on summary statitistics of the reference table                
-        regressor = RandomForestRegressor(n_estimators = N_tree)
+        regressor = ensemble.RandomForestRegressor(n_estimators = self.N_tree)
         regressor.fit(self.reference_table_statistics,pred_error)
 
         return(1-regressor.predict(self.statistics_calc.statistics(observations)))
         
-class _RemoteContextgeneratereferencetable:
+class _RemoteContextForReferenceTable:
     """
     Contains everything that is sent over the network like broadcast vars and map functions
     """
