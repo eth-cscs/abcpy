@@ -1,8 +1,8 @@
 from abc import ABCMeta, abstractmethod
 
 import numpy as np
-from scipy.stats import multivariate_normal
-from scipy.special import gamma, norm
+from scipy.stats import multivariate_normal, norm
+from scipy.special import gamma
 
 
 class Distribution(metaclass = ABCMeta):
