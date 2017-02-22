@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 
 import numpy as np
 from scipy.stats import multivariate_normal
-from scipy.special import gamma
+from scipy.special import gamma, norm
 
 
 class Distribution(metaclass = ABCMeta):
