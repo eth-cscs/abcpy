@@ -1,6 +1,6 @@
 import numpy as np
 from abcpy.output import Journal
-from scipy.optimize import fsolve
+from scipy import optimize
 
 class RejectionABC:
     """This base class implements the rejection algorithm based inference scheme [1] for
@@ -853,7 +853,7 @@ class SABC:
           epsilon = 0
       else:
           fun = lambda epsilon: pow(epsilon,2) + v*pow(epsilon,3/2) - pow(rho,2)
-          epsilon = fsolve(fun,rho/2)
+          epsilon = optimize.fsolve(fun,rho/2)
              
       return(epsilon)
       
