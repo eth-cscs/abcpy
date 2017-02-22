@@ -1,6 +1,6 @@
 import numpy as np
 from abcpy.output import Journal
-from scipy.optimize import fsolve
+from scipy import optimize
 
 class RejectionABC:
     """This base class implements the rejection algorithm based inference scheme [1] for
@@ -771,8 +771,12 @@ class SABC:
             else:               
                 U = np.mean(smooth_distances)
             epsilon = self._schedule(U,v)   
-            accepted_cov_mat = beta*np.cov(np.transpose(accepted_parameters)) + \
-            0.0001*np.trace(np.cov(np.transpose(accepted_parameters)))*np.eye(accepted_parameters.shape[1])
+            if accepted_parameters.shape[1] > 1:
+                accepted_cov_mat = beta*np.cov(np.transpose(accepted_parameters)) + \
+                0.0001*np.trace(np.cov(np.transpose(accepted_parameters)))*np.eye(accepted_parameters.shape[1])
+            else:
+                accepted_cov_mat = beta*np.cov(np.transpose(accepted_parameters)) + \
+                0.0001*(np.cov(np.transpose(accepted_parameters)))*np.eye(accepted_parameters.shape[1]) 
                   
             ## 4: Show progress and if acceptance rate smaller than a value break the iteration
             
@@ -850,7 +854,7 @@ class SABC:
           epsilon = 0
       else:
           fun = lambda epsilon: pow(epsilon,2) + v*pow(epsilon,3/2) - pow(rho,2)
-          epsilon = fsolve(fun,rho/2)
+          epsilon = optimize.fsolve(fun,rho/2)
              
       return(epsilon)
       
