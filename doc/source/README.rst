@@ -3,15 +3,18 @@ Installation
 
 If you prefer to work on the source, clone the repository
 ::
-    git clone https://github.com/eth-cscs/abcpy.git
+
+   git clone https://github.com/eth-cscs/abcpy.git
 
 Make sure all requirements are installed
 ::
+   
    cd abcpy
    pip3 install -r requirements.txt
 
 To create a package and install it do
 ::
+
    make package
    pip3 install pip3 install build/dist/abcpy-0.1-py3-none-any.whl
 
@@ -25,7 +28,7 @@ data. As a simple example we consider a Gaussian model, where we want to model
 the height of grown up humans given the following set of measurement
 (observation, observed data).
 
-.. literalinclude:: ../../examples/gaussian.py
+.. literalinclude:: ../../examples/backends/dummy/gaussian.py
     :language: python
     :lines: 4
 
@@ -39,7 +42,7 @@ parameters we want to infer. In our case it is quite simple, we know from
 experience that the average height should be somewhere between 150cm and 200cm,
 and the standard deviation is around 5 to 25.
 
-.. literalinclude:: ../../examples/gaussian.py
+.. literalinclude:: ../../examples/backends/dummy/gaussian.py
     :language: python
     :lines: 7-9, 11-12
 
@@ -49,14 +52,14 @@ compared directly in a reasonable of efficient way. Thus, *summary statistics*
 are used to extract relevant properties from the observations, with the idea the
 these stastistics then compared.
 
-.. literalinclude:: ../../examples/gaussian.py
+.. literalinclude:: ../../examples/backends/dummy/gaussian.py
     :language: python
     :lines: 15-16
 
 As a distance we chose the LogReg distance here. Note that in ABCpy distance
 functions operate not on the observations, but on summary statistice.
 
-.. literalinclude:: ../../examples/gaussian.py
+.. literalinclude:: ../../examples/backends/dummy/gaussian.py
     :language: python
     :lines: 19-20
 
@@ -64,20 +67,20 @@ We can now setup a inference scheme -- let us chose PMCABC as our inference
 algorithm of choice. As a pre-requisit it requires a perturbation kernel and a
 backend. We define both in the following:
 
-.. literalinclude:: ../../examples/gaussian.py
+.. literalinclude:: ../../examples/backends/dummy/gaussian.py
     :language: python
     :lines: 23-26, 29-30
 
 We instanciate an PMCABC object and pass the kernel and backend objects to the
 constructor:
 
-.. literalinclude:: ../../examples/gaussian.py
+.. literalinclude:: ../../examples/backends/dummy/gaussian.py
     :language: python
     :lines: 33-34
 
 Finally, we need to parametrize and start the actualy sampling:
 
-.. literalinclude:: ../../examples/gaussian.py
+.. literalinclude:: ../../examples/backends/dummy/gaussian.py
     :language: python
     :lines: 37-40
 
@@ -97,32 +100,67 @@ convenient methods to do the post analysis.
 For example, one can easily access the sampled parameters and corresponding
 weights using:
 
-.. literalinclude:: ../../examples/gaussian.py
+.. literalinclude:: ../../examples/backends/dummy/gaussian.py
     :language: python
     :lines: 43-44
 
 For the post analysis basic functions are provided:	    
 
-.. literalinclude:: ../../examples/gaussian.py
+.. literalinclude:: ../../examples/backends/dummy/gaussian.py
     :language: python
     :lines: 47-49
 
 Also, to ensure reproducibility, every journal stores the parameters of the
 algorithm that created it:
 
-.. literalinclude:: ../../examples/gaussian.py
+.. literalinclude:: ../../examples/backends/dummy/gaussian.py
     :language: python
     :lines: 52
 
 And certainly, a journal can easily be saved to and loaded from disk:
 
-.. literalinclude:: ../../examples/gaussian.py
+.. literalinclude:: ../../examples/backends/dummy/gaussian.py
     :language: python
     :lines: 55, 58
 
 	    
-Use ABCpy with a new Model
-==========================
+Using the Spark Backend
+=======================
+
+To run ABCpy in parallel using Apache Spark, one only needs to use the provided
+Spark backend. Considering the example from above, the statements for the
+backend have to be changed to
+
+.. literalinclude:: ../../examples/backends/apache_spark/gaussian.py
+    :language: python
+    :lines: 28-31
+
+In words, a Spark context has to be created and passed to the Spark
+backend. Additionally, the level of parallelism can be provided, which defines in
+a sense in how many blocks the work should be split up. It corresponds to the
+parallelism of an RDD in Apache Spark terminology. A good value is usually a
+small multiple of the total number of available cores.
+
+The standard way to run the script on Spark is via the spark-submit command:
+
+::
+   
+   PYSPARK_PYTHON=python3 spark-submit gaussian.py
+
+Often Spark installations use Python 2 by default. To make Spark use the
+required Python 3 interpreter, the `PYSPARK_PYTHON` environment variable can be
+set.
+   
+Note that in order to run jobs in parallel you need to have Apache Spark
+installed on the system in question. Details on the installation can be found on
+the official `homepage <http://spark.apache.org>`_. Further, keep in mind that
+the ABCpy library has to be properly installed on the cluster, such that it is
+available to the Python interpreters on the master and the worker nodes.
+
+
+	    
+Implementing a new Model
+========================
 
 Often one wants to use one of the provided inference schemes on a new model, which is not part of ABCpy. We now go through the details of such a scenario using the Gaussian model to exemplify the mechanics.
 
@@ -140,10 +178,11 @@ As a general note, one can say that it is always a good  idea to
 consult the reference for implementation details. For the constructor, the reference states the following:
 
 .. automethod:: abcpy.models.Model.__init__
+   :noindex:
 
 Consequently, we would implement a simple version of a Gaussian model as follows:
 
-.. literalinclude:: ../../examples/gaussian_extended_with_model.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc-gaussian_model_simple.py
     :language: python
     :lines: 5-9
 
@@ -151,18 +190,20 @@ Here we actually initialize the model parameters by calling :py:class:`abcpy.mod
 Its requirements are quite simple:
 
 .. automethod:: abcpy.models.Model.sample_from_prior
+   :noindex:
 
-.. literalinclude:: ../../examples/gaussian_extended_with_model.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc-gaussian_model_simple.py
     :language: python
     :lines: 24-26
 
 Let us have a look at the details on implementing :py:class:`abcpy.models.Model.set_parameters`:
 
 .. automethod:: abcpy.models.Model.set_parameters
-
+   :noindex:
+      
 For a Gaussian model a simple implementation would look like the following:
 
-.. literalinclude:: ../../examples/gaussian_extended_with_model.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc-gaussian_model_simple.py
     :language: python
     :lines: 11-19
 
@@ -172,21 +213,33 @@ Note that :py:class:`abcpy.models.Model.set_parameters` is expected to return a 
 For the remaining methods that must be implemented, namely :py:class:`abcpy.models.Model.get_parameters`
 and :py:class:`abcpy.models.Model.simulate`, we proceed in exactly the same way. This leads to an implementation that might look like the following:
 
-.. literalinclude:: ../../examples/gaussian_extended_with_model.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc-gaussian_model_simple.py
     :language: python
     :lines: 21- 23, 27-29
 
-Our model now conforms to ABCpy and we can start inferring parameters in the same way (see `Getting Started`_) as we would do with shipped models. The complete example code can be found `here <https://github.com/eth-cscs/abcpy/blob/master/examples/gaussian_extended_with_model.py>`_
+Our model now conforms to ABCpy and we can start inferring parameters in the
+same way (see `Getting Started`_) as we would do with shipped models. The
+complete example code can be found `here
+<https://github.com/eth-cscs/abcpy/blob/master/examples/gaussian_extended_with_model.py>`_
 
-Use ABCpy with a C++ model
-==========================
-TBD
+..
+  Extending: Add your Distance
+  ============================
+  TBD
+  Extending: Add your Statistics
+  ==============================
+  TBD
+  Extending: Add your approx_likelihood
+  =====================================
+  TBD
+  Extending: Add you prior
+  ========================
+  TBD
+  Extending: Add your own inference scheme
+  ========================================
+  TBD
+  Use ABCpy with a C++ model
+  ==========================
+  TBD
 
-Extending: Add your Distance
-============================
-TBD
-
-Extending: Add your Statistics
-==============================
-TBD
 

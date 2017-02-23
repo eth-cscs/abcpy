@@ -14,7 +14,9 @@ clean:
 	find . -name "#*#" -delete
 
 test:
-	python3 -m unittest discover -s tests -v -p "*_tests.py"
+	python3 -m unittest discover -s tests -v -p "*_tests.py" || (echo "Error in unit tests."; exit 1)
+	make -C doc html || (echo "Error in documentation generator."; exit 1)
+
 
 testcoverage:
 	command -v coverage >/dev/null 2>&1 || { echo >&2 "Python package 'coverage' has to be installed. Please, run 'pip3 install coverage'."; exit;}
