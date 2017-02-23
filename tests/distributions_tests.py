@@ -4,7 +4,7 @@ import numpy as np
 from abcpy.distributions import MultiNormal
 from abcpy.distributions import Uniform
 from abcpy.distributions import MultiStudentT
-
+from abcpy.distributions import Normal
 
 class MultiNormalTests(unittest.TestCase):
     def setUp(self):
@@ -115,7 +115,40 @@ class MultiStudentTTests(unittest.TestCase):
         self.assertLess(diff_mean.sum(), 2e-2)
         self.assertLess(diff_var.sum(), 2e-2)
 
+class NormalTests(unittest.TestCase):
+    def setUp(self):
+        np.random.seed(1)
+        self.mean = np.array([-13.0])
+        self.var = 1
+        self.distribution = Normal(self.mean, self.var, seed=1)
+        
 
+        
+    def test_sample(self):
+        samples = self.distribution.sample(100)
+        computed_means = samples.mean(axis=0)
+        computed_vars = samples.var(axis=0)
+        expected_means = np.array([-12.93941715])
+        expected_vars = np.array([0.78350152])
+        self.assertTrue((computed_means - expected_means < 1e-5).all())
+        self.assertTrue((computed_vars - expected_vars < 1e-5).all())
+
+
+        
+    def test_set_parameters(self):
+        new_mean = np.array([130.0])
+        new_var = 4*1e-2
+        self.distribution.set_parameters([new_mean, new_var])
+        pdf_value = self.distribution.pdf(new_mean)
+        self.assertLess(abs(pdf_value - 9.97355701), 1e-6)
+
+        samples = self.distribution.sample(100)
+        computed_means = samples.mean(axis=0)
+        computed_vars = samples.var(axis=0)
+        expected_means = np.array([130.00242331])
+        expected_vars = np.array([0.0012536])
+        self.assertTrue((computed_means - expected_means < 1e-5).all())
+        self.assertTrue((computed_vars - expected_vars < 1e-5).all())
         
         
 if __name__ == '__main__':
