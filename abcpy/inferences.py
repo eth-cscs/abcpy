@@ -724,7 +724,7 @@ class SABC:
         samples_until = 0
         
         # Initialize variables that need to be available remotely
-        rc = _RemoteContextSABC(self.backend, self.model, self.distance, self.kernel, self._smoother_distance, \
+        rc = _RemoteContextSABC(self.backend, self.model, self.distance, self.kernel, \
         observations, n_samples, n_samples_per_param)
         
         for aStep in range(0,steps):
@@ -864,14 +864,14 @@ class _RemoteContextSABC:
     Contains everything that is sent over the network like broadcast vars and map functions
     """
     
-    def __init__(self, backend, model, distance, kernel, _smoother_distance, observations, n_samples, n_samples_per_param):
+    def __init__(self, backend, model, distance, kernel, observations, n_samples, n_samples_per_param):
         self.model = model
         self.distance = distance
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param     
         self.epsilon = None
         self.kernel = kernel
-        self._smoother_distance = _smoother_distance
+        #self._smoother_distance = _smoother_distance
 
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
@@ -895,6 +895,23 @@ class _RemoteContextSABC:
             self.smooth_distances_bds = backend.broadcast(smooth_distances)
         if not all_distances is None:
             self.all_distances_bds = backend.broadcast(all_distances)
+    
+    def _smoother_distance_remote(self, distance, old_distance):
+        """Smooths the distance using the Equation 14 of [1].
+        
+        [1] C. Albert, H. R. Kuensch and A. Scheidegger. A Simulated Annealing Approach to 
+        Approximate Bayes Computations. Statistics and Computing 0960-3174 (2014).     
+        """
+        
+        smoothed_distance = np.zeros(shape=(len(distance),))        
+        
+        for ind in range(0,len(distance)):
+            if distance[ind] < np.min(old_distance):
+                smoothed_distance[ind] = (distance[ind]/np.min(old_distance))/len(old_distance)
+            else:
+                smoothed_distance[ind] = np.mean(np.array(old_distance)<distance[ind])
+                
+        return smoothed_distance
         
     # define helper functions for map step
     def _accept_parameter(self, seed):
@@ -942,7 +959,7 @@ class _RemoteContextSABC:
                     break
             y_sim = self.model.simulate(self.n_samples_per_param)
             distance = self.distance.distance(self.observations_bds.value(), y_sim)          
-            smooth_distance = self._smoother_distance([distance],self.all_distances_bds.value())
+            smooth_distance = self._smoother_distance_remote([distance],self.all_distances_bds.value())
             
             ## Calculate acceptance probability:
             ratio_prior_prob  = self.model.prior.pdf(new_theta)/self.model.prior.pdf(self.accepted_parameters_bds.value()[index,:])
