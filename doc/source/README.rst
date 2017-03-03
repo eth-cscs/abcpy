@@ -88,7 +88,17 @@ With this the inferrence process is done and the probabilities of the inferred
 parameters are stored in the journal object. See `Post Analysis`_ for further
 information on extracting results.
 
-The full source can be found `here <https://github.com/eth-cscs/abcpy/blob/master/examples/gaussian.py>`_
+The code currently uses the dummy backend `BackendDummy` which does not
+parallelize the execution of the inference schemes, but is very handy quick
+prototyping and testing. To execute the code you only need to run
+
+::
+   
+   python3 gaussian.py
+
+
+The full source can be found `here
+<https://github.com/eth-cscs/abcpy/blob/master/examples/gaussian.py>`_.
 
 Post Analysis
 =============
@@ -157,12 +167,13 @@ the official `homepage <http://spark.apache.org>`_. Further, keep in mind that
 the ABCpy library has to be properly installed on the cluster, such that it is
 available to the Python interpreters on the master and the worker nodes.
 
-
 	    
 Implementing a new Model
 ========================
 
-Often one wants to use one of the provided inference schemes on a new model, which is not part of ABCpy. We now go through the details of such a scenario using the Gaussian model to exemplify the mechanics.
+Often one wants to use one of the provided inference schemes on a new model,
+which is not part of ABCpy. We now go through the details of such a scenario
+using the Gaussian model to exemplify the mechanics.
 
 Every model has to conform to the API specified by the abstract base class
 :py:class:`abcpy.models.Model`. Thus, making a new model compatible with ABCpy, essentially boils down to implementing the following methods:
