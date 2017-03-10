@@ -1,5 +1,6 @@
 SWIG=swig
 SWIGFLAGS=-python -c++
+WGET=wget -q
 
 CC=g++
 CPPFLAGS=-fPIC
@@ -7,10 +8,10 @@ INCLUDEPATH=/usr/include/python3.5
 
 cpp_simple: _gaussian_model_simple.so gaussian_model_simple.py
 
-%.py: %i
+%.py: %.i
 	$(SWIG) $(SWIGFLAGS) -o $@ $<
 
-%_wrap.cpp: %.i
+%_wrap.cpp: %.i numpy.i
 	$(SWIG) $(SWIGFLAGS) -o $@ $<
 
 %.o: %.cpp
@@ -19,4 +20,5 @@ cpp_simple: _gaussian_model_simple.so gaussian_model_simple.py
 _%.so: %.o %_wrap.o
 	$(CC) -shared $< -o $@
 
-
+%.i:
+	$(WGET) "https://raw.githubusercontent.com/numpy/numpy/master/tools/swig/numpy.i"

@@ -1,11 +1,12 @@
 whl_file = abcpy-0.1-py3-none-any.whl
 UNITTESTS=$(shell find tests -type f -name '*_tests.py')
+MAKEDIRS=$(shell find examples -name Makefile -exec dirname {} \;)
 
 .DEFAULT: help
-.PHONY: help test testcoverage clean doc package uninstall install reinstall
+.PHONY: help examples test testcoverage clean doc package uninstall install reinstall $(MAKEDIRS)
 
 help:
-	@echo Targets are: clean, test, doc, package
+	@echo Targets are: clean, doc, examples, package, uninstall, tests
 
 clean:
 	find . -name "*.pyc" -type f -delete
@@ -13,10 +14,15 @@ clean:
 	find . -name ".#*" -delete
 	find . -name "#*#" -delete
 
-test:
+tests:
 	python3 -m unittest discover -s tests -v -p "*_tests.py" || (echo "Error in unit tests."; exit 1)
 	make -C doc html || (echo "Error in documentation generator."; exit 1)
 
+$(MAKEDIRS):
+	make -C $@
+
+examples: $(MAKEDIRS)
+	python3 -m unittest discover -s examples -v -p "*.py" || (echo "Error in example tests."; exit 1)
 
 testcoverage:
 	command -v coverage >/dev/null 2>&1 || { echo >&2 "Python package 'coverage' has to be installed. Please, run 'pip3 install coverage'."; exit;}
