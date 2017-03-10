@@ -3,7 +3,7 @@ UNITTESTS=$(shell find tests -type f -name '*_tests.py')
 MAKEDIRS=$(shell find examples -name Makefile -exec dirname {} \;)
 
 .DEFAULT: help
-.PHONY: help examples test testcoverage clean doc package uninstall install reinstall $(MAKEDIRS)
+.PHONY: help examples testall tests testcoverage clean doc package uninstall install reinstall $(MAKEDIRS)
 
 help:
 	@echo Targets are: clean, doc, examples, package, uninstall, tests
@@ -13,6 +13,8 @@ clean:
 	find . -name "__pycache__" -delete
 	find . -name ".#*" -delete
 	find . -name "#*#" -delete
+
+testall: tests examples
 
 tests:
 	python3 -m unittest discover -s tests -v -p "*_tests.py" || (echo "Error in unit tests."; exit 1)
