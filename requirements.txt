@@ -1,7 +1,7 @@
 numpy
 scipy
 sklearn
-glmnet
+glmnet==1.0.0
 findspark
 sphinx_rtd_theme 
 coverage
