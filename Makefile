@@ -3,10 +3,10 @@ UNITTESTS=$(shell find tests -type f -name '*_tests.py')
 MAKEDIRS=$(shell find examples -name Makefile -exec dirname {} \;)
 
 .DEFAULT: help
-.PHONY: help examples testall tests testcoverage clean doc package uninstall install reinstall $(MAKEDIRS)
+.PHONY: help clean doc doctest exampletest package test uninstall unittest install reinstall $(MAKEDIRS)
 
 help:
-	@echo Targets are: clean, doc, examples, package, uninstall, tests
+	@echo Targets are: clean, doc, doctest, exampletest, package, uninstall, unittest, test
 
 clean:
 	find . -name "*.pyc" -type f -delete
@@ -14,19 +14,22 @@ clean:
 	find . -name ".#*" -delete
 	find . -name "#*#" -delete
 
-testall: tests examples
+test: unittest exampletest doctest
 
-tests:
+unittest:
 	python3 -m unittest discover -s tests -v -p "*_tests.py" || (echo "Error in unit tests."; exit 1)
-	make -C doc html || (echo "Error in documentation generator."; exit 1)
+
 
 $(MAKEDIRS):
 	make -C $@
 
-examples: $(MAKEDIRS)
+doctest:
+	make -C doc html || (echo "Error in documentation generator."; exit 1)
+
+exampletest: $(MAKEDIRS)
 	python3 -m unittest discover -s examples -v -p "*.py" || (echo "Error in example tests."; exit 1)
 
-testcoverage:
+coveragetest:
 	command -v coverage >/dev/null 2>&1 || { echo >&2 "Python package 'coverage' has to be installed. Please, run 'pip3 install coverage'."; exit;}
 	@- $(foreach TEST, $(UNITTESTS), \
 		echo === Testing code coverage: $(TEST); \

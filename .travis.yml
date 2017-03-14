@@ -7,10 +7,13 @@ addons:
   apt:
     packages:
       - gfortran
-      - python3-sphinx
-
+      - libboost-random-dev
+      - libpython3-dev
+      - swig
   
-install: "pip install -r requirements.txt"
+install:
+  - pip install -r requirements.txt
 
-script: "make testall"
+script:
+  - make test
 
