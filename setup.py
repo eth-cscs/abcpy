@@ -10,13 +10,16 @@ with open(path.join(here, 'README.md'), encoding='utf-8') as f:
 with open(path.join(here, 'requirements.txt')) as f:
     dependencies = f.readlines()
 
+with open(path.join(here, 'VERSION')) as f:
+    version = f.read()
+    
 setup(
     name='abcpy',
 
     # Versions should comply with PEP440.  For a discussion on single-sourcing
     # the version across setup.py and the project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.1',
+    version=version,
 
     description='An framework for parallel approximate bayesian computation.',
     long_description=long_description,
