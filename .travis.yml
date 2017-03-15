@@ -1,3 +1,5 @@
+dist: trusty
+
 language: python
 
 python:
@@ -7,8 +9,14 @@ addons:
   apt:
     packages:
       - gfortran
-
+      - libboost-random-dev
+      - libpython3.4-dev
+      - python3-numpy
+      - swig
   
-install: "pip install -r requirements.txt"
+install:
+  - pip install -r requirements.txt
 
-script: "make test"
+script:
+  - make test
+
