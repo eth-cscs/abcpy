@@ -1,4 +1,4 @@
-dist: precise
+dist: trusty
 
 language: python
 
@@ -10,7 +10,7 @@ addons:
     packages:
       - gfortran
       - libboost-random-dev
-      - python3.2-dev
+      - libpython3-dev
       - python3-numpy
       - swig
   
