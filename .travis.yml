@@ -11,6 +11,7 @@ addons:
       - gfortran
       - libboost-random-dev
       - python3.2-dev
+      - python3-numpy
       - swig
   
 install:
