@@ -1,3 +1,5 @@
+dist: precise
+
 language: python
 
 python:
@@ -8,7 +10,7 @@ addons:
     packages:
       - gfortran
       - libboost-random-dev
-      - libpython3-dev
+      - python3.2-dev
       - swig
   
 install:
