@@ -18,7 +18,7 @@ cpp_simple: _gaussian_model_simple.so gaussian_model_simple.py
 	$(CC) $(CPPFLAGS) -I $(INCLUDEPATH) -c $< -o $@
 
 _%.so: %.o %_wrap.o
-	$(CC) -shared $< -o $@
+	$(CC) -shared $^ -o $@
 
 %.i:
 	$(WGET) "https://raw.githubusercontent.com/numpy/numpy/master/tools/swig/numpy.i"
