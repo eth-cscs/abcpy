@@ -21,7 +21,15 @@ scientists by providing
 ABCpy is published under the BSD 3-clause license, see [here](LICENSE).
 
 ## Contribute
-Contact one of us:
+You are very welcome to contribute to ABCpy. 
+
+If you want to contribute code, there are a few things to consider:
+* a good start is to fork the repository
+* use GitHub pull requests to merge your contribution
+* consider documenting your code according to the [NumPy documentation style guide](https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt)
+* consider writing reasonable [unit tests](https://docs.python.org/3.5/library/unittest.html)
+
+In case of any questions, feel free to contact one of us:
 * Ritabrata Dutta, University of Lugano
 * Marcel Schoengens, CSCS, ETH Zurich
 
