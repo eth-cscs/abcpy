@@ -1,10 +1,13 @@
 # Always prefer setuptools over distutils
 from setuptools import setup, find_packages
+from pip.req import parse_requirements
+from pip.download import PipSession
 from os import path
+
 here = path.abspath(path.dirname(__file__))
 
-with open(path.join(here, 'requirements.txt')) as f:
-    dependencies = f.readlines()
+install_reqs_raw = parse_requirements('requirements.txt', session=PipSession())
+install_reqs = [str(ir.req) for ir in install_reqs_raw]
 
 with open(path.join(here, 'VERSION')) as f:
     version = f.readline().strip()
@@ -62,7 +65,7 @@ setup(
     # requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
     # install_requires=['numpy', 'scipy'],
-    # install_requires=dependencies,
+    install_requires=install_reqs,
 
 
     # List additional groups of dependencies here (e.g. development
