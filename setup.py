@@ -3,15 +3,12 @@ from setuptools import setup, find_packages
 from os import path
 here = path.abspath(path.dirname(__file__))
 
-# Get the long description from the README file
-with open(path.join(here, 'README.md'), encoding='utf-8') as f:
-    long_description = f.read()
-
 with open(path.join(here, 'requirements.txt')) as f:
     dependencies = f.readlines()
 
 with open(path.join(here, 'VERSION')) as f:
-    version = f.read()
+    version = f.readline().strip()
+    file_tgz = 'v' + version + '.tar.gz'
     
 setup(
     name='abcpy',
@@ -21,18 +18,18 @@ setup(
     # https://packaging.python.org/en/latest/single_source_version.html
     version=version,
 
-    description='An framework for parallel approximate bayesian computation.',
-    long_description=long_description,
+    description='A framework for parallel approximate bayesian computation.',
+    long_description='A framework for parallel approximate bayesian computation.',
 
     # The project's main homepage.
-    url='https://bitbucket.org/statrita/abcpy',
+    url='https://github.com/eth-cscs/abcpy',
 
     # Author details
     author='The abcpy authors',
     author_email='',
 
     # Choose your license
-    license='GPL',
+    license='BSD-3',
 
     # See https://pypi.python.org/pypi?%3Aaction=list_classifiers
     classifiers=[
@@ -43,7 +40,6 @@ setup(
         'Development Status :: 4 - Beta',
 
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
     ],
@@ -54,6 +50,8 @@ setup(
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
     packages=find_packages(),
+
+    download_url = 'https://github.com/eth-cscs/abcpy/archive/' + file_tgz,
 
     # Alternatively, if you want to distribute just a my_module.py, uncomment
     # this:
