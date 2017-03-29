@@ -10,7 +10,7 @@ addons:
     packages:
       - gfortran
       - libboost-random-dev
-      - libpython3-dev
+      - libpython3.4-dev
       - python3-numpy
       - swig
   
