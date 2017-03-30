@@ -1,5 +1,8 @@
 from abc import ABCMeta, abstractmethod
 
+import numpy as np
+import sys
+
 class Backend(metaclass = ABCMeta):
     """
     This is the base class for every parallelization backend. It essentially
@@ -371,3 +374,157 @@ class BDSSpark(BDS):
         """
         
         return self.bcv.value
+
+
+class BackendMPI(Backend):
+    """
+    A parallelization backend for MPI.
+
+    """
+
+    comm = None
+    size = None
+    rank = None
+
+    def __init__(self):
+        """
+        Initialize the backend identifying all the ranks.
+
+        """
+        # Extremely unpythonic. 
+        #Find a cleaner way to check this and import conditionally on the backend.
+        global MPI
+        from mpi4py import MPI
+
+        self.comm = MPI.COMM_WORLD
+        self.size = self.comm.Get_size()
+        self.rank = self.comm.Get_rank()
+
+        if (self.rank == 0):
+            print("Hello World, I am the master.")
+        else:
+            print("Hello World, I am worker number %s." % (self.rank))
+
+
+    def parallelize(self, python_list):
+        """
+        This method distributes the list on the available workers and returns a
+        reference object.
+
+        The list is split into number of workers many parts as a numpy array.
+        Each part is sent to a separate worker node using the MPI scatter.
+
+        Parameters
+        ----------
+        list: Python list
+            the list that should get distributed on the worker nodes
+        Returns
+        -------
+        PDSMPI class (parallel data set)
+            A reference object that represents the parallelized list
+        """
+
+        rdd = np.array_split(python_list, self.size, axis=0)
+        data_chunk = self.comm.scatter(rdd, root=0)
+        return PDSMPI(data_chunk)
+
+
+    def broadcast(self, object):
+        """
+        Send object to all worker nodes without splitting it up.
+
+        Parameters
+        ----------
+        object: Python object
+            An arbitrary object that should be available on all workers
+
+        Returns
+        -------
+        BDS class (broadcast data set)
+            A reference to the broadcasted object
+        """
+
+        bcv = self.comm.bcast(object, root=0)
+        bds = BDSMPI(bcv)
+
+        return bds
+
+
+    def map(self, func, pds):
+        """
+        A distributed implementation of map that works on parallel data sets (PDS).
+
+        On every element of pds the function func is called.
+
+        Parameters
+        ----------
+        func: Python func
+            A function that can be applied to every element of the pds
+        pds: PDS class
+            A parallel data set to which func should be applied
+
+        Returns
+        -------
+        PDSMPI class
+            a new parallel data set that contains the result of the map
+        """
+
+        rdd = list(map(func, pds.python_list))
+        pds_res = PDSMPI(rdd)
+
+        return pds_res
+
+
+    def collect(self, pds):
+        """
+        Gather the pds from all the workers, send it to the master and return it as a standard Python list.
+
+        Parameters
+        ----------
+        pds: PDS class
+            a parallel data set
+
+        Returns
+        -------
+        Python list
+            all elements of pds as a list
+        """
+
+        python_list = self.comm.gather(pds.python_list, root=0)
+
+        return python_list
+
+
+
+class PDSMPI(PDS):
+    """
+    This is a wrapper for a Python parallel data set.
+    """
+
+    def __init__(self, python_list):
+        """
+        Returns
+        -------
+        python_list
+            a Python list
+        """
+
+        self.python_list = python_list
+
+
+
+class BDSMPI(BDS):
+    """
+    The reference class for broadcast data set (BDS).
+    """
+
+    def __init__(self, object):
+
+        self.object = object
+
+    def value(self):
+        """
+        This method returns the actual object that the broadcast data set represents.
+        """
+
+        return self.object
