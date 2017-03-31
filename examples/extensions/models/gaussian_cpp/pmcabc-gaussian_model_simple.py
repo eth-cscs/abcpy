@@ -26,9 +26,8 @@ class Gaussian(Model):
         self.set_parameters(sample)
 
     def simulate(self, k):
-        cseed = self.rng.randint(np.iinfo(np.int32).max)
-        crng = get_rng(cseed);
-        result = gaussian_model(k, self.mu, self.sigma, crng)
+        seed = self.rng.randint(np.iinfo(np.int32).max)
+        result = gaussian_model(k, self.mu, self.sigma, seed)
         return list(result)
 	    
 
