@@ -1,7 +1,8 @@
 import numpy as np
 
 from abcpy.models import Model
-from gaussian_model import gaussian_model, get_rng
+from gaussian_model_simple import gaussian_model
+
 class Gaussian(Model):
     def __init__(self, prior, seed=None):
         self.prior = prior
