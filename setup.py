@@ -26,7 +26,8 @@ setup(
 
     # The project's main homepage.
     url='https://github.com/eth-cscs/abcpy',
-
+    download_url = 'https://github.com/eth-cscs/abcpy/archive/' + file_tgz,
+    
     # Author details
     author='The abcpy authors',
     author_email='',
@@ -53,8 +54,6 @@ setup(
     # You can just specify the packages manually here if your project is
     # simple. Or you can use find_packages().
     packages=find_packages(),
-
-    download_url = 'https://github.com/eth-cscs/abcpy/archive/' + file_tgz,
 
     # Alternatively, if you want to distribute just a my_module.py, uncomment
     # this:
