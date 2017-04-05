@@ -385,6 +385,7 @@ class BackendMPI(Backend):
     comm = None
     size = None
     rank = None
+    MPI = None
 
     def __init__(self):
         """
@@ -393,18 +394,103 @@ class BackendMPI(Backend):
         """
         # Extremely unpythonic. 
         #Find a cleaner way to check this and import conditionally on the backend.
-        global MPI
         from mpi4py import MPI
-
+        self.MPI = MPI
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
+        self.current_tag = 0
 
-        if (self.rank == 0):
+        self.is_master = (self.rank==0)
+
+        if (self.is_master):
             print("Hello World, I am the master.")
         else:
             print("Hello World, I am worker number %s." % (self.rank))
+            self.slave_run()
 
+
+
+    def slave_run(self):
+        """
+        This method is the infinite loop a slave enters directly from init.
+        It makes the slave wait for a command to perform from the master and
+        then calls the appropriate function.
+
+        This method also takes care of the synchronization of data between the 
+        master and the slaves by matching PDSs based on the tags sent by the master 
+        with the command.
+
+        Commands received from the master are of the form of a tuple. 
+        The first component of the tuple is always the operation to be performed
+        and the rest are conditional on the operation.
+
+        (op) where op=="par" for parallelize 
+        (op,tag,func) where op=="map" for map.
+        (op,tag) where op=="col" for a collect operation
+        (op,) where op=="die" for the slave to break and die
+        """
+        self.data_store = {}
+
+        while True:
+            #Get the next broadcasted operation from the root.
+            data = self.comm.bcast(None, root=0)
+
+            if data[0]=="par":
+                pds = self.parallelize([])
+                self.data_store[pds.tag] = pds
+
+            elif data[0] == "map":
+                tag, func = data[1:]
+                #Access an existing PDS
+                pds = self.data_store[tag]
+                pds_new = self.map(func,pds)
+
+                #Store the result in a newly gnerated PDS tag.
+                self.data_store[pds_new.tag] = pds_new
+
+            elif data[0] =="col":
+                tag = data[1]
+                #Access an existing PDS
+                pds = self.data_store[tag]
+                self.collect(pds)
+
+            elif data[0] =="die":
+                quit()
+
+
+    def master_run(self,command,tag =None,remote_function = None):
+        """
+        This method handles the sending of the command to the slaves 
+        telling them what operation to perform next.
+
+
+        Parameters
+        ----------
+        command: str
+            A string telling the slave what the next operation is.
+            valid options are (par,map,col,dir)
+        tag: int (Default: None)
+            A "tag" telling the slave which pds it should operate on
+        remote_function: Python Function (Default:None)
+            A python function passed for the "map". Is None otherwise
+
+        """
+        _ = self.comm.bcast((command,tag,remote_function),root=0)
+
+
+    def generate_new_tag(self):
+        """
+        This method generates a new tag to associate a PDS with it's remote counterpart
+        that slaves use to store & index data based on the tag they receive
+
+        Returns
+        -------
+        Returns a unique integer.
+
+        """
+        self.current_tag+=1
+        return self.current_tag
 
     def parallelize(self, python_list):
         """
@@ -414,40 +500,35 @@ class BackendMPI(Backend):
         The list is split into number of workers many parts as a numpy array.
         Each part is sent to a separate worker node using the MPI scatter.
 
+        MASTER: python_list is the real data that is to be split up
+        SLAVE: python_list should be [] and is ignored by the scatter()
+
         Parameters
         ----------
         list: Python list
             the list that should get distributed on the worker nodes
+
         Returns
         -------
         PDSMPI class (parallel data set)
             A reference object that represents the parallelized list
         """
+        if self.is_master:
+            #Tell the slaves to enter parallelize()
+            self.master_run("par",None)
+
 
         rdd = np.array_split(python_list, self.size, axis=0)
+
         data_chunk = self.comm.scatter(rdd, root=0)
-        return PDSMPI(data_chunk)
 
 
-    def broadcast(self, object):
-        """
-        Send object to all worker nodes without splitting it up.
+        #Generate a new tag to associate the data to.
+        #Assumption: It's in sync with master
+        tag = self.generate_new_tag()
+        pds = PDSMPI(data_chunk,tag)
 
-        Parameters
-        ----------
-        object: Python object
-            An arbitrary object that should be available on all workers
-
-        Returns
-        -------
-        BDS class (broadcast data set)
-            A reference to the broadcasted object
-        """
-
-        bcv = self.comm.bcast(object, root=0)
-        bds = BDSMPI(bcv)
-
-        return bds
+        return pds
 
 
     def map(self, func, pds):
@@ -469,8 +550,16 @@ class BackendMPI(Backend):
             a new parallel data set that contains the result of the map
         """
 
+
+        if self.is_master:
+            #Tell the slaves to enter the map() with the current tag & func.
+            self.master_run("map",pds.tag,remote_function = func)
+
+
         rdd = list(map(func, pds.python_list))
-        pds_res = PDSMPI(rdd)
+
+        tag_res = self.generate_new_tag()
+        pds_res = PDSMPI(rdd,tag_res)
 
         return pds_res
 
@@ -490,9 +579,52 @@ class BackendMPI(Backend):
             all elements of pds as a list
         """
 
+        if self.is_master:
+            #Tell the slaves to enter collect with the pds's tag
+            self.master_run("col",pds.tag)
+
         python_list = self.comm.gather(pds.python_list, root=0)
 
         return python_list
+
+    def __del__(self):
+        """
+        Overriding the delete function to explicitly call MPI.finalize().
+        This is also required so we can tell the slaves to get out of the
+        while loop they are in and exit gracefully and they themselves call
+        finalize when they die.
+        """
+        if self.is_master:
+            self.master_run("die")
+        self.MPI.Finalize()
+
+
+
+    def broadcast(self, object, tag = None):
+        """
+        Send object to all worker nodes without splitting it up.
+
+        Parameters
+        ----------
+        object: Python object
+            An arbitrary object that should be available on all workers
+
+        tag: Int (Default: None)
+            the tag identifier of the parallelize. The master will overwrite
+            but the slaves will use it.
+
+        Returns
+        -------
+        BDS class (broadcast data set)
+            A reference to the broadcasted object
+        """
+
+        raise NotImplementedError
+
+        bcv = self.comm.bcast(object, root=0)
+        bds = BDSMPI(bcv)
+
+        return bds
 
 
 
@@ -501,16 +633,9 @@ class PDSMPI(PDS):
     This is a wrapper for a Python parallel data set.
     """
 
-    def __init__(self, python_list):
-        """
-        Returns
-        -------
-        python_list
-            a Python list
-        """
-
+    def __init__(self, python_list,tag):
         self.python_list = python_list
-
+        self.tag = tag
 
 
 class BDSMPI(BDS):
@@ -518,9 +643,11 @@ class BDSMPI(BDS):
     The reference class for broadcast data set (BDS).
     """
 
-    def __init__(self, object):
+    def __init__(self, object,tag):
 
         self.object = object
+        self.tag = tag
+    
 
     def value(self):
         """
