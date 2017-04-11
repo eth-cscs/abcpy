@@ -122,6 +122,7 @@ class BackendMPI(Backend):
             elif op == self.OP_DELETEPDS:
                 #Delete the remote PDS when the master tells it to.
                 tag = data[self.ATTR_TAG]
+                # print("Deleting the PDS with tag",tag)
                 del self.data_store[tag]
 
             elif op == self.OP_FINISH:
