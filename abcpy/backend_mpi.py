@@ -1,132 +1,9 @@
 from abc import ABCMeta, abstractmethod
-
+from abcpy.backends import Backend,PDS,BDS
 from mpi4py import MPI
 import numpy as np
-import marshal
+import cloudpickle
 import sys
-
-class Backend(metaclass = ABCMeta):
-    """
-    This is the base class for every parallelization backend. It essentially
-    resembles the map/reduce API from Spark.
-
-    An idea for the future is to implement a MPI version of the backend with the
-    hope to be more complient with standard HPC infrastructure and a potential
-    speed-up.
-
-    """
-
-    @abstractmethod
-    def parallelize(self, list):
-        """
-        This method distributes the list on the available workers and returns a
-        reference object.
-
-        The list should be split into number of workers many parts. Each
-        part should then be sent to a separate worker node.
-
-        Parameters
-        ----------
-        list: Python list
-            the list that should get distributed on the worker nodes
-        Returns
-        -------
-        PDS class (parallel data set)
-            A reference object that represents the parallelized list
-        """
-        
-        raise NotImplemented
-
-
-    @abstractmethod
-    def broadcast(self, object):
-        """
-        Send object to all worker nodes without splitting it up.
-
-        Parameters
-        ----------
-        object: Python object
-            An abitrary object that should be available on all workers
-
-        Returns
-        -------
-        BDS class (broadcast data set)
-            A reference to the broadcasted object
-        """
-        
-        raise NotImplemented
-
-
-    @abstractmethod
-    def map(self, func, pds):
-        """
-        A distributed implementation of map that works on parallel data sets (PDS).
-
-        On every element of pds the function func is called.
-
-        Parameters
-        ----------
-        func: Python func
-            A function that can be applied to every element of the pds
-        pds: PDS class
-            A parallel data set to which func should be applied
-        
-        Returns
-        -------
-        PDS class
-            a new parallel data set that contains the result of the map
-        """
-        
-        raise NotImplemented
-
-
-    @abstractmethod
-    def collect(self, pds):
-        """
-        Gather the pds from all the workers, send it to the master and return it as a standard Python list.
-
-        Parameters
-        ----------
-        pds: PDS class
-            a parallel data set
-            
-        Returns
-        -------
-        Python list
-            all elements of pds as a list
-        """
-        
-        raise NotImplemented
-
-    
-class PDS:
-    """
-    The reference class for parallel data sets (PDS).
-    """
-
-    @abstractmethod
-    def __init__(self):
-        raise NotImplemented
-
-
-class BDS:
-    """
-    The reference class for broadcast data set (BDS).
-    """
-    
-    @abstractmethod
-    def __init__(self):
-        raise NotImplemented
-
-
-    @abstractmethod
-    def value(self):
-        """
-        This method should return the actual object that the broadcast data set represents. 
-        """
-        raise NotImplemented
-
-
 
 class BackendMPI(Backend):
     """
@@ -137,7 +14,18 @@ class BackendMPI(Backend):
     comm = None
     size = None
     rank = None
-    MPI = None
+
+    OP_PARALLELIZE = 1
+    OP_MAP = 2
+    OP_COLLECT = 3
+    OP_BROADCAST = 4
+    OP_DELETEPDS = 5
+    OP_DELETEBDS = 6
+    OP_FINISH = 7
+
+    ATTR_TAG = 11
+    ATTR_RESTAG = 12
+    ATTR_FUNC = 13
 
 
     def __init__(self):
@@ -146,24 +34,32 @@ class BackendMPI(Backend):
 
         """
 
-        self.MPI = MPI
+        #Initialize some private variables for tags we need for communication 
+        #.. between Master and slaves
+        self.__current_tag = 0
+        self.__rec_tag = None
+        self.__rec_tag_new = None
+
+
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
-        self.current_tag = 0
+
+
 
         self.is_master = (self.rank == 0)
         if self.size < 2:
             raise ValueError('Please, use at least 2 ranks.')
 
         # List of available workes, check on Master node
-        avail_workers = list(range(1, size))
+        avail_workers = list(range(1, self.size))
 
         if (self.is_master):
             print("Hello World, I am the master.")
         else:
             print("Hello World, I am worker number %s." % (self.rank))
             self.slave_run()
+
 
 
     def slave_run(self):
@@ -188,16 +84,26 @@ class BackendMPI(Backend):
 
         self.data_store = {}
 
+
         while True:
-            # Get the next broadcasted operation from the root
             data = self.comm.bcast(None, root=0)
 
-            if data[0] == "par":
+            op = data["op"]
+
+            if op == self.OP_PARALLELIZE:
+                tag = data[self.ATTR_TAG]
+                self.__rec_tag = tag
                 pds = self.parallelize([])
                 self.data_store[pds.tag] = pds
 
-            elif data[0] == "map":
-                tag, func = data[1:]
+
+            elif op == self.OP_MAP:
+                tag,tag_new,func_dump = data[self.ATTR_TAG],data[self.ATTR_RESTAG],data[self.ATTR_FUNC]
+                self.__rec_tag, self.__rec_tag_new = tag,tag_new
+
+                #Use cloudpickle to convert back our string into a function
+                func = cloudpickle.loads(func_dump)
+
                 # Access an existing PDS
                 pds = self.data_store[tag]
                 pds_new = self.map(func, pds)
@@ -205,38 +111,72 @@ class BackendMPI(Backend):
                 # Store the result in a newly gnerated PDS tag
                 self.data_store[pds_new.tag] = pds_new
 
-            elif data[0] == "col":
-                tag = data[1]
+            elif op == self.OP_COLLECT:
+                tag = data[self.ATTR_TAG]
+
                 # Access an existing PDS
                 pds = self.data_store[tag]
+
                 self.collect(pds)
 
-            elif data[0] == "die":
+            elif op == self.OP_DELETEPDS:
+                #Delete the remote PDS when the master tells it to.
+                tag = data[self.ATTR_TAG]
+                del self.data_store[tag]
+
+            elif op == self.OP_FINISH:
                 quit()
 
-
-    def master_run(self, command, tag = None, remote_function = None):
+    def __get_received_tag(self):
         """
+        Function to retrieve the tag(s) we received from the master to associate
+        our slave's created PDS with the master's.
+        """
+        return self.__rec_tag,self.__rec_tag_new
+
+    def command_slaves(self,command,data):
+        """ 
         This method handles the sending of the command to the slaves 
         telling them what operation to perform next.
 
-
         Parameters
         ----------
-        command: str
-            A string telling the slave what the next operation is.
-            valid options are (par,map,col,dir)
-        tag: int (Default: None)
-            A "tag" telling the slave which pds it should operate on
-        remote_function: Python Function (Default:None)
-            A python function passed for the "map". Is None otherwise
-
+        command: operation code of OP_xxx
+            One of the operation codes defined in the class definition as OP_xxx
+            which tell the slaves what operation they're performing.
+        data:  tuple
+            Any of the data required for the operation which needs to be bundled 
+            in the data packet sent.
         """
+        data_packet = {}
+        data_packet["op"] = command
 
-        _ = self.comm.bcast((command, tag, remote_function), root=0)
+        if command == self.OP_PARALLELIZE:
+            #In parallelize, we get only one entry of tuple data
+            # which is the tag of the data we are going to receive.
+            tag = data[0]
+            data_packet[self.ATTR_TAG] = tag
+
+        elif command == self.OP_MAP:
+            #In map we recieve data as (tag,tag_new,func)
+            tag,tag_new,func = data
+
+            #Use cloudpickle to dump the function into a string.
+            func_dump = cloudpickle.dumps(func)
+            data_packet[self.ATTR_TAG] = tag
+            data_packet[self.ATTR_RESTAG] = tag_new
+            data_packet[self.ATTR_FUNC] = func_dump
 
 
-    def generate_new_tag(self):
+        elif command == self.OP_COLLECT:
+            #In collect we receive data as (tag)
+            tag = data[0]
+            data_packet[self.ATTR_TAG] = tag
+
+
+        _ = self.comm.bcast(data_packet, root=0)
+
+    def __generate_new_tag(self):
         """
         This method generates a new tag to associate a PDS with it's remote counterpart
         that slaves use to store & index data based on the tag they receive
@@ -247,8 +187,8 @@ class BackendMPI(Backend):
 
         """
 
-        self.current_tag += 1
-        return self.current_tag
+        self.__current_tag += 1
+        return self.__current_tag
 
 
     def parallelize(self, python_list):
@@ -275,15 +215,15 @@ class BackendMPI(Backend):
 
         if self.is_master:
             # Tell the slaves to enter parallelize()
-            self.master_run("par", None)
+            tag = self.__generate_new_tag()
+            self.command_slaves(self.OP_PARALLELIZE,(tag,))
+        else:
+            tag,tag_new = self.__get_received_tag()
 
         rdd = np.array_split(python_list, self.size, axis=0)
 
         data_chunk = self.comm.scatter(rdd, root=0)
 
-        # Generate a new tag to associate the data to.
-        # Assumption: It's in sync with master
-        tag = self.generate_new_tag()
         pds = PDSMPI(data_chunk, tag)
 
         return pds
@@ -310,13 +250,22 @@ class BackendMPI(Backend):
 
         if self.is_master:
             # Tell the slaves to enter the map() with the current tag & func.
-            self.master_run("map", pds.tag, remote_function = func)
+
+            #Get tag of dataset we want to operate on
+            tag = pds.tag
+
+            #Generate a new tag to be used by the slaves for the resultant PDS
+            tag_new = self.__generate_new_tag()
+            
+            data = (tag,tag_new,func)
+            self.command_slaves(self.OP_MAP,data)
+
+        else:
+            tag,tag_new = self.__get_received_tag()
 
         rdd = list(map(func, pds.python_list))
 
-        tag_res = self.generate_new_tag()
-        pds_res = PDSMPI(rdd, tag_res)
-
+        pds_res = PDSMPI(rdd, tag_new)
         return pds_res
 
 
@@ -337,7 +286,7 @@ class BackendMPI(Backend):
 
         if self.is_master:
             # Tell the slaves to enter collect with the pds's tag
-            self.master_run("col", pds.tag)
+            self.command_slaves(self.OP_COLLECT,(pds.tag,))
 
         python_list = self.comm.gather(pds.python_list, root=0)
 
@@ -353,9 +302,9 @@ class BackendMPI(Backend):
         """
 
         if self.is_master:
-            self.master_run("die")
+            self.command_slaves(self.OP_FINISH,None)
 
-        self.MPI.Finalize()
+        MPI.Finalize()
 
 
     def broadcast(self, object, tag = None):
@@ -396,9 +345,16 @@ class PDSMPI(PDS):
 
     def __del__(self):
         """
-        Destructor
+        Destructor to be called when a PDS falls out of scope and\or is being deleted.
+        Tells the slaves to delete their copy of the PDS.
         """
-        print self.tag, 'Died'
+        if MPI.Is_finalized()==False:
+            comm = MPI.COMM_WORLD
+            rank = comm.Get_rank()
+            if rank ==0:
+                data_packet = {"op":BackendMPI.OP_DELETEPDS,BackendMPI.ATTR_TAG:self.tag}
+                _ = comm.bcast(data_packet, root=0)
+
 
 
 class BDSMPI(BDS):

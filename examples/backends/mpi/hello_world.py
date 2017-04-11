@@ -1,13 +1,22 @@
-from abcpy.backends import BackendMPI
+from abcpy.backend_mpi import BackendMPI
 
-def square(x):
-    return x**2
+
 
 
 if __name__ == "__main__":
 
     backend = BackendMPI()
     data = list(range(100))
+
+
+    def square(x):
+        return x**2
+
+    class staticfunctest:
+        @staticmethod 
+        def cube(x):
+            return x**3
+
 
     datachunk_pds = backend.parallelize(data)
     print("Worker with Rank", backend.rank, "has", datachunk_pds.python_list)
@@ -17,3 +26,8 @@ if __name__ == "__main__":
 
     print("Result of the map is:",backend.collect(mapres_pds))
     print("Original Data was:",backend.collect(datachunk_pds))
+
+
+    mapres_pds = backend.map(staticfunctest.cube, datachunk_pds)
+    print("Result of the map is:",backend.collect(mapres_pds))
+
