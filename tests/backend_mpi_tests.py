@@ -4,6 +4,13 @@ from mpi4py import MPI
 from abcpy.backend_mpi import BackendMPI
 
 
+class remoteContext:
+    def __init__(self):
+        self.bds = backend.broadcast(1)
+
+    def func(self,x):
+        print("Real Rank:",MPI.COMM_WORLD.Get_rank(),"self.bds's backend rank:",self.bds.backend.rank)
+        return self.bds.value()+x
 
 def setUpModule():
     '''
@@ -47,18 +54,10 @@ class MPIBackendTests(unittest.TestCase):
     def test_broadcast(self):
         data = [1,2,3,4,5]
         pds = backend.parallelize(data)
-
-        bds = backend.broadcast(100)
-
-        def test_map(x):
-            return x + bds.value()
-
-        pds_map = backend.map(test_map, pds)
+        rc = remoteContext()
+        pds_map = backend.map(rc.func, pds)
         res = backend.collect(pds_map)
         print(res)
-        res1 = backend.map(lambda x: x-50, pds_map)
-        print(backend.collect(res1))
-
 
     def test_function_pickle(self):
         return
