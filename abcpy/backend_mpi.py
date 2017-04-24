@@ -41,6 +41,7 @@ class BackendMPI(Backend):
         #Initialize some private variables for pds_ids we need for communication 
         #.. between Master and slaves
         self.__current_pds_id = 0
+        self.__current_bds_id = 0
         self.__rec_pds_id = None
         self.__rec_pds_id_result = None
 
@@ -49,7 +50,7 @@ class BackendMPI(Backend):
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
 
-
+        self.bds_ids = {}
 
         self.is_master = (self.rank == 0)
         if self.size < 2:
@@ -91,8 +92,8 @@ class BackendMPI(Backend):
 
         while True:
             data = self.comm.bcast(None, root=0)
-
             op = data[0]
+            
             if op == self.OP_PARALLELIZE:
                 pds_id = data[1]
                 self.__rec_pds_id = pds_id
@@ -121,6 +122,11 @@ class BackendMPI(Backend):
                 pds = self.data_store[pds_id]
 
                 self.collect(pds)
+
+            elif op == self.OP_BROADCAST:
+                bds_id = data[1]
+                value = data[2]
+                self.broadcast(value, id=bds_id)
 
             elif op == self.OP_DELETEPDS:
                 pds_id = data[1]
@@ -168,6 +174,10 @@ class BackendMPI(Backend):
             #In collect we receive data as (pds_id)
             data_packet = (command,data[0])
 
+        elif command == self.OP_BROADCAST:
+            #In collect we receive data as (pds_id)
+            data_packet = (command,data[0],data[1])
+
         elif command == self.OP_DELETEPDS:
             #In deletepds we receive data as (pds_id)
             data_packet = (command,data[0])
@@ -175,6 +185,7 @@ class BackendMPI(Backend):
         elif command == self.OP_FINISH:
             data_packet = (command,)
 
+        print(data_packet)
         _ = self.comm.bcast(data_packet, root=0)
 
     def __generate_new_pds_id(self):
@@ -335,7 +346,7 @@ class BackendMPI(Backend):
         self.finalized = True
 
 
-    def broadcast(self, object, pds_id = None):
+    def broadcast(self, value, id=None):
         """
         Send object to all worker nodes without splitting it up.
 
@@ -353,13 +364,18 @@ class BackendMPI(Backend):
         BDS class (broadcast data set)
             A reference to the broadcasted object
         """
+        
+        if self.is_master:
+            id = self.__current_bds_id
+            self.__current_bds_id += 1
+            self.__command_slaves(self.OP_BROADCAST, (id, value,))
 
-        raise NotImplementedError
+        self.bds_ids[id] = value
 
-        bcv = self.comm.bcast(object, root=0)
-        bds = BDSMPI(bcv)
-
-        return bds
+        if self.is_master:
+            bds = BDSMPI(id)
+            bds.backend = self
+            return bds
 
 
 class PDSMPI(PDS):
@@ -385,14 +401,14 @@ class BDSMPI(BDS):
     The reference class for broadcast data set (BDS).
     """
 
-    def __init__(self, object, pds_id):
-
-        self.object = object
-        self.pds_id = pds_id
-
+    def __init__(self, id):
+        self.id = id
+        self.backend = None
+        
     def value(self):
         """
         This method returns the actual object that the broadcast data set represents.
         """
+        return self.backend.bds_ids[self.id]
 
-        return self.object
+        
