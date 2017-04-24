@@ -107,6 +107,7 @@ class BackendMPI(Backend):
 
                 #Use cloudpickle to convert back function string to a function
                 func = cloudpickle.loads(function_packed)
+                func.__globals__['backend'] = self
 
                 # Access an existing PDS
                 pds = self.data_store[pds_id]
@@ -371,10 +372,10 @@ class BackendMPI(Backend):
             self.__command_slaves(self.OP_BROADCAST, (id, value,))
 
         self.bds_ids[id] = value
-
+        globals()['backend']  = self
+        
         if self.is_master:
             bds = BDSMPI(id)
-            bds.backend = self
             return bds
 
 
@@ -403,12 +404,11 @@ class BDSMPI(BDS):
 
     def __init__(self, id):
         self.id = id
-        self.backend = None
         
     def value(self):
         """
         This method returns the actual object that the broadcast data set represents.
         """
-        return self.backend.bds_ids[self.id]
+        return backend.bds_ids[self.id]
 
         
