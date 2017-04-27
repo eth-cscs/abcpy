@@ -27,9 +27,12 @@ class BackendMPIMaster(Backend):
 
         self.master_node_ranks = master_node_ranks
 
-        #Initialize the current_pds_id
+        #Initialize the current_pds_id and bds_id
         self.__current_pds_id = 0
+        self.__current_bds_id = 0
 
+        #Initialize a BDS store for both master & slave.
+        self.bds_store = {}
 
     def __command_slaves(self,command,data):
         """ 
@@ -53,8 +56,11 @@ class BackendMPIMaster(Backend):
         elif command == self.OP_MAP:
             #In map we receive data as (pds_id,pds_id_new,func)
             #Use cloudpickle to dump the function into a string.
-            function_packed = cloudpickle.dumps(data[2])
+            function_packed = self.__sanitize_and_pack_func(data[2])
             data_packet = (command,data[0],data[1],function_packed)
+
+        elif command == self.OP_BROADCAST:
+            data_packet = (command,data[0])
 
         elif command == self.OP_COLLECT:
             #In collect we receive data as (pds_id)
@@ -69,6 +75,35 @@ class BackendMPIMaster(Backend):
 
         _ = self.comm.bcast(data_packet, root=0)
 
+
+    def __sanitize_and_pack_func(self,func):
+        """
+        Prevents the function from packing the backend by temporarily
+        setting it to another variable and then uses cloudpickle 
+        to pack it into a string to be sent.
+
+        Parameters
+        ----------
+        func: Python Function
+            The function we are supposed to pack while sending it along to the slaves
+            during the map function
+
+        Returns
+        -------
+        Returns a string of the function packed by cloudpickle
+
+        """
+
+        #Set the backend to None to prevent it from being packed
+        globals()['backend']  = {}
+
+        function_packed = cloudpickle.dumps(func)
+
+        #Reset the backend to self after it's been packed
+        globals()['backend']  = self
+
+        return function_packed
+
     def __generate_new_pds_id(self):
         """
         This method generates a new pds_id to associate a PDS with it's remote counterpart
@@ -82,6 +117,21 @@ class BackendMPIMaster(Backend):
 
         self.__current_pds_id += 1
         return self.__current_pds_id
+
+
+    def __generate_new_pds_id(self):
+        """
+        This method generates a new bds_id to associate a BDS with it's remote counterpart
+        that slaves use to store & index data based on the bds_id they receive
+
+        Returns
+        -------
+        Returns a unique integer.
+
+        """
+
+        self.__current_bds_id += 1
+        return self.__current_bds_id
 
 
 
@@ -191,8 +241,17 @@ class BackendMPIMaster(Backend):
         return combined_result
 
 
-    def broadcast(self):
-        pass
+    def broadcast(self,value):
+        # Tell the slaves to enter broadcast()
+        bds_id = self.__generate_new_bds_id()
+        self.__command_slaves(self.OP_BROADCAST,(bds_id,))
+
+        _ = self.comm.broadcast(value, root=0)
+
+        bds = BDSMPI(value, bds_id, self)
+        return bds
+
+
 
     def delete_remote_pds(self,pds_id):
         """
@@ -206,6 +265,13 @@ class BackendMPIMaster(Backend):
         """
         if  not self.finalized:
             self.__command_slaves(self.OP_DELETEPDS,(pds_id,))
+
+    def delete_remote_bds(self,bds_id):
+        """
+        """
+        if  not self.finalized:
+            self.__command_slaves(self.OP_DELETEBDS,(bds_id,))
+
 
     def __del__(self):
         """
@@ -239,6 +305,9 @@ class BackendMPISlave(Backend):
         #Define the vars that will hold the pds ids received from master to operate on
         self.__rec_pds_id = None
         self.__rec_pds_id_result = None
+
+        #Initialize a BDS store for both master & slave.
+        self.bds_store = {}
 
         #Go into an infinite loop waiting for commands from the user.
         self.slave_run()
@@ -284,6 +353,10 @@ class BackendMPISlave(Backend):
 
                 #Use cloudpickle to convert back function string to a function
                 func = cloudpickle.loads(function_packed)
+                #Set the function's backend to current class
+                #so it can access bds_store properly
+                func.backend = self
+
 
                 # Access an existing PDS
                 pds = self.pds_store[pds_id]
@@ -291,6 +364,10 @@ class BackendMPISlave(Backend):
 
                 # Store the result in a newly gnerated PDS pds_id
                 self.pds_store[pds_res.pds_id] = pds_res
+
+            elif op == self.OP_BROADCAST:
+                self.__bds_id = data[1]
+                self.broadcast(None)
 
             elif op == self.OP_COLLECT:
                 pds_id = data[1]
@@ -394,8 +471,12 @@ class BackendMPISlave(Backend):
         #Send the data we have back to the master
         _ = self.comm.gather(pds.python_list, root=0)
 
-    def broadcast(self):
-        pass
+    def broadcast(self,value):
+        """
+        Value is ignored for the slaves. We get data from master
+        """
+        value = self.comm.broadcast(None, root=0)
+        self.bds_store[self.__rec_bds_id] = value
 
 
 class BackendMPI(BackendMPIMaster if MPI.COMM_WORLD.Get_rank() == 0 else BackendMPISlave):
@@ -450,14 +531,28 @@ class BDSMPI(BDS):
     The reference class for broadcast data set (BDS).
     """
 
-    def __init__(self, object, pds_id):
-
-        self.object = object
-        self.pds_id = pds_id
+    def __init__(self, object, bds_id, backend_obj):
+        #The BDS data is no longer saved in the BDS object.
+        #It will access & store the data only from the current backend
+        self.bds_id = bds_id
+        backend.bds_store[self.bds_id] = object
+        self.backend_obj = backend_obj
 
     def value(self):
         """
         This method returns the actual object that the broadcast data set represents.
         """
+        return backend.bds_store[self.bds_id]
 
-        return self.object
+    def __del__(self):
+        """
+        Destructor to be called when a BDS falls out of scope and\or is being deleted.
+        Uses the backend to send a message to destroy the slaves' copy of the bds.
+        """
+        del backend.bds_store[self.bds_id]
+        try:
+            self.backend_obj.delete_remote_bds(self.bds_id)
+        except AttributeError:
+            #Catch "delete_remote_pds not defined" for slaves and ignore.
+            pass
+
