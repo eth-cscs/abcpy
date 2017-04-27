@@ -29,7 +29,6 @@ class MPIBackendTests(unittest.TestCase):
         pds_map = backend.map(lambda x: x + MPI.COMM_WORLD.Get_rank(), pds)
         res = backend.collect(pds_map)
 
-        print(">>>",res)
         for master_index in backend.master_node_ranks:
             self.assertTrue(master_index not in res,"Node in master_node_ranks performed map.")
 
@@ -40,14 +39,6 @@ class MPIBackendTests(unittest.TestCase):
         res = backend.collect(pds_map)
         assert res==list(map(lambda x:x**2,data))
 
-    # def test_broadcast(self):
-    #     data = [1,2,3,4,5]
-    #     pds = backend.parallelize(data)
-    #     pds_map = backend.map(lambda x:x**2,pds)
-    #     res = backend.collect(pds_map)
-
-    #     bds = backend.broadcast(res)
-    #     assert bds.value()==list(map(lambda x:x**2,data))
 
     def test_broadcast(self):
         data = [1,2,3,4,5]
@@ -58,11 +49,9 @@ class MPIBackendTests(unittest.TestCase):
         def test_map(x):
             return x + bds.value()
 
-        pds_map1 = backend.map(test_map, pds)
-        print(backend.collect(pds_map1))
+        pds_m = backend.map(test_map, pds)
+        self.assertTrue(backend.collect(pds_m)==[101,102,103,104,105])
 
-        pds_map2 = backend.map(lambda x: x-50, pds_map1)
-        print(backend.collect(pds_map2))
 
     def test_function_pickle(self):
         def square(x):

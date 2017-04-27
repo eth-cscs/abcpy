@@ -66,8 +66,8 @@ class BackendMPIMaster(Backend):
             #In collect we receive data as (pds_id)
             data_packet = (command,data[0])
 
-        elif command == self.OP_DELETEPDS:
-            #In deletepds we receive data as (pds_id)
+        elif command == self.OP_DELETEPDS or command == self.OP_DELETEBDS:
+            #In deletepds we receive data as (pds_id) or bds_id
             data_packet = (command,data[0])
 
         elif command == self.OP_FINISH:
@@ -360,7 +360,7 @@ class BackendMPISlave(Backend):
                 func = cloudpickle.loads(function_packed)
                 #Set the function's backend to current class
                 #so it can access bds_store properly
-                func.backend = self
+                # func.backend = self
 
 
                 # Access an existing PDS
@@ -505,6 +505,11 @@ class BackendMPI(BackendMPIMaster if MPI.COMM_WORLD.Get_rank() == 0 else Backend
 
         if self.size<2:
             raise ValueError('Please, use at least 2 ranks.')
+
+
+        #Set the global backend
+        globals()['backend']  = self
+
 
         if self.rank==0:
             super().__init__(master_node_ranks)

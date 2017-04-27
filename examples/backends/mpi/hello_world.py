@@ -29,5 +29,3 @@ if __name__ == "__main__":
     bcast_bds = backend.broadcast(data)
     #print("Broadcast at Rank", backend.rank, "has", backend.bds_store[bcast_bds.bds_id])
 
-    for i in range(0, backend.size):
-        print("Broadcasted data at Rank", i, "has", backend.bds_store[bcast_bds.bds_id])
