@@ -1,13 +1,9 @@
 from abcpy.backend_mpi import BackendMPI
 
-
-
-
 if __name__ == "__main__":
 
     backend = BackendMPI()
     data = list(range(100))
-
 
     def square(x):
         return x**2
@@ -27,7 +23,11 @@ if __name__ == "__main__":
     print("Result of the map is:",backend.collect(mapres_pds))
     print("Original Data was:",backend.collect(datachunk_pds))
 
-
     mapres_pds = backend.map(staticfunctest.cube, datachunk_pds)
     print("Result of the map is:",backend.collect(mapres_pds))
 
+    bcast_bds = backend.broadcast(data)
+    #print("Broadcast at Rank", backend.rank, "has", backend.bds_store[bcast_bds.bds_id])
+
+    for i in range(0, backend.size):
+        print("Broadcasted data at Rank", i, "has", backend.bds_store[bcast_bds.bds_id])

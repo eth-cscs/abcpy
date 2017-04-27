@@ -6,7 +6,6 @@ import cloudpickle
 import sys
 
 
-
 class BackendMPIMaster(Backend):
     """Defines the behavior of the master process 
     
@@ -14,8 +13,8 @@ class BackendMPIMaster(Backend):
     with rank==0) in MPI.
 
     """
-    #Define some operation codes to make it more readable
 
+    #Define some operation codes to make it more readable
     OP_PARALLELIZE,OP_MAP,OP_COLLECT,OP_BROADCAST,OP_DELETEPDS,OP_DELETEBDS,OP_FINISH=[1,2,3,4,5,6,7]
     finalized = False
 
@@ -33,6 +32,7 @@ class BackendMPIMaster(Backend):
 
         #Initialize a BDS store for both master & slave.
         self.bds_store = {}
+
 
     def __command_slaves(self,command,data):
         """ 
@@ -104,6 +104,7 @@ class BackendMPIMaster(Backend):
 
         return function_packed
 
+
     def __generate_new_pds_id(self):
         """
         This method generates a new pds_id to associate a PDS with it's remote counterpart
@@ -119,7 +120,7 @@ class BackendMPIMaster(Backend):
         return self.__current_pds_id
 
 
-    def __generate_new_pds_id(self):
+    def __generate_new_bds_id(self):
         """
         This method generates a new bds_id to associate a BDS with it's remote counterpart
         that slaves use to store & index data based on the bds_id they receive
@@ -132,7 +133,6 @@ class BackendMPIMaster(Backend):
 
         self.__current_bds_id += 1
         return self.__current_bds_id
-
 
 
     def parallelize(self, python_list):
@@ -246,11 +246,10 @@ class BackendMPIMaster(Backend):
         bds_id = self.__generate_new_bds_id()
         self.__command_slaves(self.OP_BROADCAST,(bds_id,))
 
-        _ = self.comm.broadcast(value, root=0)
+        _ = self.comm.bcast(value, root=0)
 
         bds = BDSMPI(value, bds_id, self)
         return bds
-
 
 
     def delete_remote_pds(self,pds_id):
@@ -263,12 +262,15 @@ class BackendMPIMaster(Backend):
         pds_id: int
             A pds_id identifying the remote PDS on the slaves to delete.
         """
+
         if  not self.finalized:
             self.__command_slaves(self.OP_DELETEPDS,(pds_id,))
+
 
     def delete_remote_bds(self,bds_id):
         """
         """
+
         if  not self.finalized:
             self.__command_slaves(self.OP_DELETEBDS,(bds_id,))
 
@@ -280,6 +282,7 @@ class BackendMPIMaster(Backend):
         while loop they are in and exit gracefully and they themselves call
         finalize when they die.
         """
+
         #Tell the slaves they can exit gracefully.
         self.__command_slaves(self.OP_FINISH,None)
 
@@ -295,6 +298,7 @@ class BackendMPISlave(Backend):
     Slaves are those processes(not nodes like Spark) that have rank!=0
     and whose ids are not present in the list of non workers. 
     """
+
     OP_PARALLELIZE,OP_MAP,OP_COLLECT,OP_BROADCAST,OP_DELETEPDS,OP_DELETEBDS,OP_FINISH=[1,2,3,4,5,6,7]
     
     def __init__(self):
@@ -311,6 +315,7 @@ class BackendMPISlave(Backend):
 
         #Go into an infinite loop waiting for commands from the user.
         self.slave_run()
+
 
     def slave_run(self):
         """
@@ -385,11 +390,13 @@ class BackendMPISlave(Backend):
             elif op == self.OP_FINISH:
                 quit()
 
+
     def __get_received_pds_id(self):
         """
         Function to retrieve the pds_id(s) we received from the master to associate
         our slave's created PDS with the master's.
         """
+
         return self.__rec_pds_id,self.__rec_pds_id_result
 
 
@@ -471,12 +478,14 @@ class BackendMPISlave(Backend):
         #Send the data we have back to the master
         _ = self.comm.gather(pds.python_list, root=0)
 
+
     def broadcast(self,value):
         """
         Value is ignored for the slaves. We get data from master
         """
-        value = self.comm.broadcast(None, root=0)
-        self.bds_store[self.__rec_bds_id] = value
+
+        value = self.comm.bcast(None, root=0)
+        self.bds_store[self.__bds_id] = value
 
 
 class BackendMPI(BackendMPIMaster if MPI.COMM_WORLD.Get_rank() == 0 else BackendMPISlave):
@@ -555,4 +564,3 @@ class BDSMPI(BDS):
         except AttributeError:
             #Catch "delete_remote_pds not defined" for slaves and ignore.
             pass
-

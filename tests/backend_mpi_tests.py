@@ -1,8 +1,6 @@
-
 import unittest
 from mpi4py import MPI
 from abcpy.backend_mpi import BackendMPI
-
 
 
 def setUpModule():
@@ -24,6 +22,7 @@ def setUpModule():
     backend = BackendMPI()
 
 class MPIBackendTests(unittest.TestCase):
+
     def test_parallelize(self):
         data = [0]*backend.size
         pds = backend.parallelize(data)
@@ -40,6 +39,30 @@ class MPIBackendTests(unittest.TestCase):
         pds_map = backend.map(lambda x:x**2,pds)
         res = backend.collect(pds_map)
         assert res==list(map(lambda x:x**2,data))
+
+    # def test_broadcast(self):
+    #     data = [1,2,3,4,5]
+    #     pds = backend.parallelize(data)
+    #     pds_map = backend.map(lambda x:x**2,pds)
+    #     res = backend.collect(pds_map)
+
+    #     bds = backend.broadcast(res)
+    #     assert bds.value()==list(map(lambda x:x**2,data))
+
+    def test_broadcast(self):
+        data = [1,2,3,4,5]
+        pds = backend.parallelize(data)
+
+        bds = backend.broadcast(100)
+
+        def test_map(x):
+            return x + bds.value()
+
+        pds_map1 = backend.map(test_map, pds)
+        print(backend.collect(pds_map1))
+
+        pds_map2 = backend.map(lambda x: x-50, pds_map1)
+        print(backend.collect(pds_map2))
 
     def test_function_pickle(self):
         def square(x):
@@ -72,6 +95,7 @@ class MPIBackendTests(unittest.TestCase):
         pds_map3 = backend.map(staticfunctest.square,pds)
         pds_res3 = backend.collect(pds_map3)
         self.assertTrue(pds_res3==expected_result,"Failed pickle test for static function")
+
 
         obj = nonstaticfunctest()
         pds_map4 = backend.map(obj.square ,pds)
