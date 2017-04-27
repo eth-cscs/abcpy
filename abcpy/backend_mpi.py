@@ -272,6 +272,9 @@ class BackendMPIMaster(Backend):
         """
 
         if  not self.finalized:
+            #The master deallocates it's BDS data. Explicit because 
+            #.. bds_store and BDSMPI object are disconnected.
+            del backend.bds_store[bds_id]
             self.__command_slaves(self.OP_DELETEBDS,(bds_id,))
 
 
@@ -300,6 +303,7 @@ class BackendMPISlave(Backend):
     """
 
     OP_PARALLELIZE,OP_MAP,OP_COLLECT,OP_BROADCAST,OP_DELETEPDS,OP_DELETEBDS,OP_FINISH=[1,2,3,4,5,6,7]
+
     
     def __init__(self):
         self.comm = MPI.COMM_WORLD
@@ -384,11 +388,16 @@ class BackendMPISlave(Backend):
 
             elif op == self.OP_DELETEPDS:
                 pds_id = data[1]
-
                 del self.pds_store[pds_id]
+
+            elif op == self.OP_DELETEBDS:
+                bds_id = data[1]
+                del self.bds_store[bds_id]
 
             elif op == self.OP_FINISH:
                 quit()
+            else:
+                raise Exception("Slave recieved unknown command code")
 
 
     def __get_received_pds_id(self):
@@ -539,6 +548,12 @@ class PDSMPI(PDS):
             #Catch "delete_remote_pds not defined" for slaves and ignore.
             pass
 
+class BackendMPITestHelper:
+    def check_pds(self,k):
+        return k in backend.pds_store.keys()
+
+    def check_bds(self,k):
+        return k in backend.bds_store.keys()
 
 class BDSMPI(BDS):
     """
@@ -550,7 +565,7 @@ class BDSMPI(BDS):
         #It will access & store the data only from the current backend
         self.bds_id = bds_id
         backend.bds_store[self.bds_id] = object
-        self.backend_obj = backend_obj
+        # self.backend_obj = backend_obj
 
     def value(self):
         """
@@ -563,9 +578,9 @@ class BDSMPI(BDS):
         Destructor to be called when a BDS falls out of scope and\or is being deleted.
         Uses the backend to send a message to destroy the slaves' copy of the bds.
         """
-        del backend.bds_store[self.bds_id]
+    
         try:
-            self.backend_obj.delete_remote_bds(self.bds_id)
+            backend.delete_remote_bds(self.bds_id)
         except AttributeError:
             #Catch "delete_remote_pds not defined" for slaves and ignore.
             pass
