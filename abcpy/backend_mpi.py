@@ -264,8 +264,8 @@ class BackendMPISlave(Backend):
         (op,) where op==OP_FINISH for the slave to break out of the loop and terminate
         """
 
-        # Initialized data store here because only slaves need to do it.
-        self.data_store = {}
+        # Initialize PDS data store here because only slaves need to do it.
+        self.pds_store = {}
 
         while True:
             data = self.comm.bcast(None, root=0)
@@ -275,7 +275,7 @@ class BackendMPISlave(Backend):
                 pds_id = data[1]
                 self.__rec_pds_id = pds_id
                 pds = self.parallelize([])
-                self.data_store[pds.pds_id] = pds
+                self.pds_store[pds.pds_id] = pds
 
 
             elif op == self.OP_MAP:
@@ -286,24 +286,24 @@ class BackendMPISlave(Backend):
                 func = cloudpickle.loads(function_packed)
 
                 # Access an existing PDS
-                pds = self.data_store[pds_id]
+                pds = self.pds_store[pds_id]
                 pds_res = self.map(func, pds)
 
                 # Store the result in a newly gnerated PDS pds_id
-                self.data_store[pds_res.pds_id] = pds_res
+                self.pds_store[pds_res.pds_id] = pds_res
 
             elif op == self.OP_COLLECT:
                 pds_id = data[1]
 
                 # Access an existing PDS from data store
-                pds = self.data_store[pds_id]
+                pds = self.pds_store[pds_id]
 
                 self.collect(pds)
 
             elif op == self.OP_DELETEPDS:
                 pds_id = data[1]
 
-                del self.data_store[pds_id]
+                del self.pds_store[pds_id]
 
             elif op == self.OP_FINISH:
                 quit()
