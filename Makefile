@@ -21,7 +21,7 @@ unittest:
 
 
 unittest_mpi:
-	mpirun -np 4 python3 -m unittest discover -s tests -v -p "backend_tests.py" || (echo "Error in unit tests."; exit 1)
+	mpirun -np 4 python3 -m unittest discover -s tests -v -p "backend_mpi_tests.py" || (echo "Error in unit tests."; exit 1)
 
 
 $(MAKEDIRS):

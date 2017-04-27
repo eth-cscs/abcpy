@@ -5,65 +5,243 @@ import numpy as np
 import cloudpickle
 import sys
 
-class BackendMPI(Backend):
-    """
-    A parallelization backend for MPI.
+
+
+class BackendMPIMaster(Backend):
+    """Defines the behavior of the master process 
+    
+    This class defines the behavior of the master process (The one
+    with rank==0) in MPI.
 
     """
+    #Define some operation codes to make it more readable
 
-    comm = None
-    size = None
-    rank = None
+    OP_PARALLELIZE,OP_MAP,OP_COLLECT,OP_BROADCAST,OP_DELETEPDS,OP_DELETEBDS,OP_FINISH=[1,2,3,4,5,6,7]
     finalized = False
 
-    #Define some operation codes to make it more readable
-    OP_PARALLELIZE = 1
-    OP_MAP = 2
-    OP_COLLECT = 3
-    OP_BROADCAST = 4
-    OP_DELETEPDS = 5
-    OP_DELETEBDS = 6
-    OP_FINISH = 7
-
-
-
-    def __init__(self,master_node_ranks = [0,]):
-        """
-        Initialize the backend identifying all the ranks.
-
-        """
-
-
-        # Define a list of processes on the master node which should *not* perform
-        # .. any computation
-        self.master_node_ranks = master_node_ranks
-
-        #Initialize some private variables for pds_ids we need for communication 
-        #.. between Master and slaves
-        self.__current_pds_id = 0
-        self.__rec_pds_id = None
-        self.__rec_pds_id_result = None
-
+    def __init__(self,master_node_ranks=[0,]):
 
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
 
+        self.master_node_ranks = master_node_ranks
+
+        #Initialize the current_pds_id
+        self.__current_pds_id = 0
 
 
-        self.is_master = (self.rank == 0)
-        if self.size < 2:
-            raise ValueError('Please, use at least 2 ranks.')
+    def __command_slaves(self,command,data):
+        """ 
+        This method handles the sending of the command to the slaves 
+        telling them what operation to perform next.
+
+        Parameters
+        ----------
+        command: operation code of OP_xxx
+            One of the operation codes defined in the class definition as OP_xxx
+            which tell the slaves what operation they're performing.
+        data:  tuple
+            Any of the data required for the operation which needs to be bundled 
+            in the data packet sent.
+        """
+
+        if command == self.OP_PARALLELIZE:
+            #In parallelize we receive data as (pds_id)
+            data_packet = (command , data[0])
+
+        elif command == self.OP_MAP:
+            #In map we receive data as (pds_id,pds_id_new,func)
+            #Use cloudpickle to dump the function into a string.
+            function_packed = cloudpickle.dumps(data[2])
+            data_packet = (command,data[0],data[1],function_packed)
+
+        elif command == self.OP_COLLECT:
+            #In collect we receive data as (pds_id)
+            data_packet = (command,data[0])
+
+        elif command == self.OP_DELETEPDS:
+            #In deletepds we receive data as (pds_id)
+            data_packet = (command,data[0])
+
+        elif command == self.OP_FINISH:
+            data_packet = (command,)
+
+        _ = self.comm.bcast(data_packet, root=0)
+
+    def __generate_new_pds_id(self):
+        """
+        This method generates a new pds_id to associate a PDS with it's remote counterpart
+        that slaves use to store & index data based on the pds_id they receive
+
+        Returns
+        -------
+        Returns a unique integer.
+
+        """
+
+        self.__current_pds_id += 1
+        return self.__current_pds_id
 
 
 
-        if (self.is_master):
-            print("Hello World, I am the master.")
-        else:
-            print("Hello World, I am worker number %s." % (self.rank))
-            self.slave_run()
-            raise Exception("Slaves exitted main loop.")
+    def parallelize(self, python_list):
+        """
+        This method distributes the list on the available workers and returns a
+        reference object.
 
+        The list is split into number of workers many parts as a numpy array.
+        Each part is sent to a separate worker node using the MPI scatter.
+
+        MASTER: python_list is the real data that is to be split up
+
+        Parameters
+        ----------
+        list: Python list
+            the list that should get distributed on the worker nodes
+
+        Returns
+        -------
+        PDSMPI class (parallel data set)
+            A reference object that represents the parallelized list
+        """
+
+        # Tell the slaves to enter parallelize()
+        pds_id = self.__generate_new_pds_id()
+        self.__command_slaves(self.OP_PARALLELIZE,(pds_id,))
+
+       #Initialize empty data lists for the processes on the master node
+        rdd_masters = [[] for i in range(len(self.master_node_ranks))]
+
+        #Split the data only amongst the number of workers
+        rdd_slaves = np.array_split(python_list, self.size - len(self.master_node_ranks), axis=0)
+
+        #Combine the lists into the final rdd before we split it across all ranks.
+        rdd = rdd_masters + rdd_slaves
+
+        data_chunk = self.comm.scatter(rdd, root=0)
+
+        pds = PDSMPI(data_chunk, pds_id, self)
+
+        return pds
+
+
+    def map(self, func, pds):
+        """
+        A distributed implementation of map that works on parallel data sets (PDS).
+
+        On every element of pds the function func is called.
+
+        Parameters
+        ----------
+        func: Python func
+            A function that can be applied to every element of the pds
+        pds: PDS class
+            A parallel data set to which func should be applied
+
+        Returns
+        -------
+        PDSMPI class
+            a new parallel data set that contains the result of the map
+        """
+
+        # Tell the slaves to enter the map() with the current pds_id & func.
+        #Get pds_id of dataset we want to operate on
+        pds_id = pds.pds_id
+
+        #Generate a new pds_id to be used by the slaves for the resultant PDS
+        pds_id_new = self.__generate_new_pds_id()
+        
+        data = (pds_id,pds_id_new,func)
+        self.__command_slaves(self.OP_MAP,data)
+
+        rdd = list(map(func, pds.python_list))
+
+        pds_res = PDSMPI(rdd, pds_id_new, self)
+
+        return pds_res
+
+
+    def collect(self, pds):
+        """
+        Gather the pds from all the workers, send it to the master and return it as a standard Python list.
+
+        Parameters
+        ----------
+        pds: PDS class
+            a parallel data set
+
+        Returns
+        -------
+        Python list
+            all elements of pds as a list
+        """
+
+        # Tell the slaves to enter collect with the pds's pds_id
+        self.__command_slaves(self.OP_COLLECT,(pds.pds_id,))
+
+        python_list = self.comm.gather(pds.python_list, root=0)
+
+
+        # When we gather, the results are a list of lists one
+        # .. per rank. Undo that by one level and still maintain multi
+        # .. dimensional output (which is why we cannot use np.flatten)
+        combined_result = []
+        list(map(combined_result.extend, python_list))
+        return combined_result
+
+
+    def broadcast(self):
+        pass
+
+    def delete_remote_pds(self,pds_id):
+        """
+        A public function for the PDS objects on the master to call when they go out of 
+        scope or are deleted in order to ensure the same happens on the slaves. 
+
+        Parameters
+        ----------
+        pds_id: int
+            A pds_id identifying the remote PDS on the slaves to delete.
+        """
+        if  not self.finalized:
+            self.__command_slaves(self.OP_DELETEPDS,(pds_id,))
+
+    def __del__(self):
+        """
+        Overriding the delete function to explicitly call MPI.finalize().
+        This is also required so we can tell the slaves to get out of the
+        while loop they are in and exit gracefully and they themselves call
+        finalize when they die.
+        """
+        #Tell the slaves they can exit gracefully.
+        self.__command_slaves(self.OP_FINISH,None)
+
+        #Finalize the connection because the slaves should have finished.
+        MPI.Finalize()
+        self.finalized = True
+
+
+class BackendMPISlave(Backend):
+    """Defines the behavior of the slaves processes
+
+    This class defines how the slaves should behave during operation.
+    Slaves are those processes(not nodes like Spark) that have rank!=0
+    and whose ids are not present in the list of non workers. 
+    """
+    OP_PARALLELIZE,OP_MAP,OP_COLLECT,OP_BROADCAST,OP_DELETEPDS,OP_DELETEBDS,OP_FINISH=[1,2,3,4,5,6,7]
+    
+    def __init__(self):
+        self.comm = MPI.COMM_WORLD
+        self.size = self.comm.Get_size()
+        self.rank = self.comm.Get_rank()
+
+        #Define the vars that will hold the pds ids received from master to operate on
+        self.__rec_pds_id = None
+        self.__rec_pds_id_result = None
+
+        #Go into an infinite loop waiting for commands from the user.
+        self.slave_run()
 
     def slave_run(self):
         """
@@ -137,60 +315,6 @@ class BackendMPI(Backend):
         """
         return self.__rec_pds_id,self.__rec_pds_id_result
 
-    def __command_slaves(self,command,data):
-        """ 
-        This method handles the sending of the command to the slaves 
-        telling them what operation to perform next.
-
-        Parameters
-        ----------
-        command: operation code of OP_xxx
-            One of the operation codes defined in the class definition as OP_xxx
-            which tell the slaves what operation they're performing.
-        data:  tuple
-            Any of the data required for the operation which needs to be bundled 
-            in the data packet sent.
-        """
-
-        assert self.is_master,"Slaves are not allowed to call this function"
-
-        if command == self.OP_PARALLELIZE:
-            #In parallelize we receive data as (pds_id)
-            data_packet = (command , data[0])
-
-        elif command == self.OP_MAP:
-            #In map we receive data as (pds_id,pds_id_new,func)
-            #Use cloudpickle to dump the function into a string.
-            function_packed = cloudpickle.dumps(data[2])
-            data_packet = (command,data[0],data[1],function_packed)
-
-        elif command == self.OP_COLLECT:
-            #In collect we receive data as (pds_id)
-            data_packet = (command,data[0])
-
-        elif command == self.OP_DELETEPDS:
-            #In deletepds we receive data as (pds_id)
-            data_packet = (command,data[0])
-
-        elif command == self.OP_FINISH:
-            data_packet = (command,)
-
-        _ = self.comm.bcast(data_packet, root=0)
-
-    def __generate_new_pds_id(self):
-        """
-        This method generates a new pds_id to associate a PDS with it's remote counterpart
-        that slaves use to store & index data based on the pds_id they receive
-
-        Returns
-        -------
-        Returns a unique integer.
-
-        """
-
-        self.__current_pds_id += 1
-        return self.__current_pds_id
-
 
     def parallelize(self, python_list):
         """
@@ -200,7 +324,6 @@ class BackendMPI(Backend):
         The list is split into number of workers many parts as a numpy array.
         Each part is sent to a separate worker node using the MPI scatter.
 
-        MASTER: python_list is the real data that is to be split up
         SLAVE: python_list should be [] and is ignored by the scatter()
 
         Parameters
@@ -214,23 +337,10 @@ class BackendMPI(Backend):
             A reference object that represents the parallelized list
         """
 
-        if self.is_master:
-            # Tell the slaves to enter parallelize()
-            pds_id = self.__generate_new_pds_id()
-            self.__command_slaves(self.OP_PARALLELIZE,(pds_id,))
-        else:
-            pds_id,pds_id_new = self.__get_received_pds_id()
+        #Get the PDS id we should store this data in
+        pds_id,pds_id_new = self.__get_received_pds_id()
 
-        #Initialize empty data lists for the processes on the master node
-        rdd_masters = [[] for i in range(len(self.master_node_ranks))]
-
-        #Split the data only amongst the number of workers
-        rdd_slaves = np.array_split(python_list, self.size - len(self.master_node_ranks), axis=0)
-
-        #Combine the lists into the final rdd before we split it across all ranks.
-        rdd = rdd_masters + rdd_slaves
-
-        data_chunk = self.comm.scatter(rdd, root=0)
+        data_chunk = self.comm.scatter(None, root=0)
 
         pds = PDSMPI(data_chunk, pds_id, self)
 
@@ -256,24 +366,13 @@ class BackendMPI(Backend):
             a new parallel data set that contains the result of the map
         """
 
-        if self.is_master:
-            # Tell the slaves to enter the map() with the current pds_id & func.
-
-            #Get pds_id of dataset we want to operate on
-            pds_id = pds.pds_id
-
-            #Generate a new pds_id to be used by the slaves for the resultant PDS
-            pds_id_new = self.__generate_new_pds_id()
-            
-            data = (pds_id,pds_id_new,func)
-            self.__command_slaves(self.OP_MAP,data)
-
-        else:
-            pds_id,pds_id_new = self.__get_received_pds_id()
+        #Get the PDS id we operate on and the new one to store the result in
+        pds_id,pds_id_new = self.__get_received_pds_id()
 
         rdd = list(map(func, pds.python_list))
 
         pds_res = PDSMPI(rdd, pds_id_new, self)
+
         return pds_res
 
 
@@ -292,74 +391,36 @@ class BackendMPI(Backend):
             all elements of pds as a list
         """
 
-        if self.is_master:
-            # Tell the slaves to enter collect with the pds's pds_id
-            self.__command_slaves(self.OP_COLLECT,(pds.pds_id,))
+        #Send the data we have back to the master
+        _ = self.comm.gather(pds.python_list, root=0)
 
-        python_list = self.comm.gather(pds.python_list, root=0)
-
-
-        if self.is_master:
-            # When we gather, the results are a list of lists one
-            # .. per rank. Undo that by one level and still maintain multi
-            # .. dimensional output (which is why we cannot use np.flatten)
-            combined_result = []
-            list(map(combined_result.extend, python_list))
-            return combined_result
-
-    def delete_remote_pds(self,pds_id):
-        """
-        A public function for the PDS objects on the master to call when they go out of 
-        scope or are deleted in order to ensure the same happens on the slaves. 
-
-        Parameters
-        ----------
-        pds_id: int
-            A pds_id identifying the remote PDS on the slaves to delete.
-        """
-        if self.is_master and not self.finalized:
-            self.__command_slaves(self.OP_DELETEPDS,(pds_id,))
-
-    def __del__(self):
-        """
-        Overriding the delete function to explicitly call MPI.finalize().
-        This is also required so we can tell the slaves to get out of the
-        while loop they are in and exit gracefully and they themselves call
-        finalize when they die.
-        """
-
-        if self.is_master:
-            self.__command_slaves(self.OP_FINISH,None)
-
-        MPI.Finalize()
-        self.finalized = True
+    def broadcast(self):
+        pass
 
 
-    def broadcast(self, object, pds_id = None):
-        """
-        Send object to all worker nodes without splitting it up.
+class BackendMPI(BackendMPIMaster if MPI.COMM_WORLD.Get_rank() == 0 else BackendMPISlave):
+    """A backend parallelized by using MPI 
 
-        Parameters
-        ----------
-        object: Python object
-            An arbitrary object that should be available on all workers
+    The backend conditionally inherits either the BackendMPIMaster class
+    or the BackendMPISlave class depending on it's rank. This lets 
+    BackendMPI have a uniform interface for the user but allows for a 
+    logical split between functions performed by the master 
+    and the slaves.
+    """
 
-        pds_id: Int (Default: None)
-            the pds_id identifier of the parallelize. The master will overwrite
-            but the slaves will use it.
+    def __init__(self,master_node_ranks=[0,]):
+        self.comm = MPI.COMM_WORLD
+        self.size = self.comm.Get_size()
+        self.rank = self.comm.Get_rank()
 
-        Returns
-        -------
-        BDS class (broadcast data set)
-            A reference to the broadcasted object
-        """
+        if self.size<2:
+            raise ValueError('Please, use at least 2 ranks.')
 
-        raise NotImplementedError
-
-        bcv = self.comm.bcast(object, root=0)
-        bds = BDSMPI(bcv)
-
-        return bds
+        if self.rank==0:
+            super().__init__(master_node_ranks)
+        else:
+            super().__init__()
+            raise Exception("Slaves exitted main loop.")
 
 
 class PDSMPI(PDS):
@@ -377,7 +438,11 @@ class PDSMPI(PDS):
         Destructor to be called when a PDS falls out of scope and\or is being deleted.
         Uses the backend to send a message to destroy the slaves' copy of the pds.
         """
-        self.backend_obj.delete_remote_pds(self.pds_id)
+        try:
+            self.backend_obj.delete_remote_pds(self.pds_id)
+        except AttributeError:
+            #Catch "delete_remote_pds not defined" for slaves and ignore.
+            pass
 
 
 class BDSMPI(BDS):
