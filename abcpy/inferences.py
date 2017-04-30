@@ -1397,7 +1397,6 @@ class RSMCABC:
             #print(new_index)
             prob_acceptance = sum(new_index)/(R*n_replenish)
             if prob_acceptance == 1 or prob_acceptance == 0:
-                print(prob_acceptance)
                 R = 1
             else:
                 R = int(np.log(const)/np.log(1-prob_acceptance))
