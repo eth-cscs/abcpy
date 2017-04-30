@@ -775,8 +775,8 @@ class SABC:
                 accepted_cov_mat = beta*np.cov(np.transpose(accepted_parameters)) + \
                 0.0001*np.trace(np.cov(np.transpose(accepted_parameters)))*np.eye(accepted_parameters.shape[1])
             else:
-                accepted_cov_mat = beta*np.cov(np.transpose(accepted_parameters)) + \
-                0.0001*(np.cov(np.transpose(accepted_parameters)))*np.eye(accepted_parameters.shape[1]) 
+                accepted_cov_mat = beta*np.var(np.transpose(accepted_parameters)) + \
+                0.0001*(np.var(np.transpose(accepted_parameters)))*np.eye(accepted_parameters.shape[1]) 
                   
             ## 4: Show progress and if acceptance rate smaller than a value break the iteration
             
