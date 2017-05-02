@@ -214,10 +214,10 @@ class PMCABC:
         # Initialize variables that need to be available remotely
         rc = _RemoteContextPMCABC(self.backend, self.model, self.distance, self.kernel, observations, n_samples, n_samples_per_param)
 
-        # main SMC ABC algorithm
-        # print("INFO: Starting SMCABC iterations.")
+        # main PMCABC algorithm
+        # print("INFO: Starting PMCABC iterations.")
         for aStep in range(0, steps):
-            # print("DEBUG: Iteration " + str(aStep) + " of SMCABC algorithm.")
+            # print("DEBUG: Iteration " + str(aStep) + " of PMCABC algorithm.")
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
             seed_pds = self.backend.parallelize(seed_arr)
 
@@ -483,9 +483,9 @@ class PMC:
         accepted_cov_mat = covFactor * np.cov(accepted_parameters, aweights = accepted_weights.reshape(-1), rowvar=False)                            
         
         # main SMC algorithm  
-        # print("INFO: Starting SMC iterations.")
+        # print("INFO: Starting PMC iterations.")
         for aStep in range(0, steps):
-            # print("DEBUG: Iteration " + str(aStep) + " of SMC algorithm.")
+            # print("DEBUG: Iteration " + str(aStep) + " of PMC algorithm.")
             
             # 0: update remotely required variables
             # print("INFO: Broadcasting parameters.")
@@ -1047,12 +1047,12 @@ class ABCsubsim:
         anneal_parameter_old = 0
         temp_chain_length = 1
         
-                # Initialize variables that need to be available remotely
+        # Initialize variables that need to be available remotely
         rc = _RemoteContextABCsubsim(self.backend, self.model, self.distance, self.kernel, observations, n_samples, n_samples_per_param, chain_length)
         
         for aStep in range(0,steps):
-            # main SABC algorithm 
-            # print("INFO: Initialization of SABC")
+            # main ABCsubsim algorithm 
+            # print("INFO: Initialization of ABCsubsim")
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=int(n_samples/temp_chain_length), dtype=np.uint32)
             index_arr = np.linspace(0,n_samples/temp_chain_length-1,n_samples/temp_chain_length).astype(int).reshape(int(n_samples/temp_chain_length),)
             seed_index_arr = np.column_stack((seed_arr,index_arr))            
@@ -1338,12 +1338,13 @@ class RSMCABC:
         # Initialize variables that need to be available remotely
         rc = _RemoteContextRSMCABC(self.backend, self.model, self.distance, self.kernel, observations, n_samples, n_samples_per_param, alpha)
 
-        # main SMC ABC algorithm
-        # print("INFO: Starting SMCABC iterations.")
+        # main RSMCABC algorithm
+        # print("INFO: Starting RSMCABC iterations.")
         for aStep in range(steps):
             
-            # 0: Drawing new new/perturbed samples using prior or MCMC Kernel
-            # print("DEBUG: Iteration " + str(aStep) + " of SMCABC algorithm.")
+            # 0: Compute epsilon, compute new covariance matrix for Kernel, 
+            # and finally Drawing new new/perturbed samples using prior or MCMC Kernel
+            # print("DEBUG: Iteration " + str(aStep) + " of RSMCABC algorithm.")
             if aStep == 0:         
                 n_replenish = n_samples
                 # Compute epsilon                
@@ -1392,7 +1393,7 @@ class RSMCABC:
                 accepted_parameters = np.concatenate((accepted_parameters,new_parameters))
                 accepted_dist = np.concatenate((accepted_dist, new_dist))
 
-            # Compute acceptance probabilty and set R 
+            # 2: Compute acceptance probabilty and set R 
             #print(aStep)
             #print(new_index)
             prob_acceptance = sum(new_index)/(R*n_replenish)
@@ -1467,7 +1468,6 @@ class _RemoteContextRSMCABC:
         self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
         
         distance = self.distance.dist_max()
-        #print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
         if self.accepted_parameters_bds == None:
             while distance > self.epsilon[-1]:
                 self.model.sample_from_prior()
@@ -1477,8 +1477,6 @@ class _RemoteContextRSMCABC:
         else:
             index = rng.choice(len(self.accepted_parameters_bds.value()), size=1)
             theta = self.accepted_parameters_bds.value()[index[0]]
-            # trucate the normal to the bounds of parameter space of the model
-            # truncating the normal like this is fine: https://arxiv.org/pdf/0907.4010v1.pdf
             index_accept = 0.0
             for ind in range(self.R):
                 while True:
@@ -1580,12 +1578,12 @@ class APMCABC:
         # Initialize variables that need to be available remotely
         rc = _RemoteContextAPMCABC(self.backend, self.model, self.distance, self.kernel, observations, n_samples, n_samples_per_param, alpha)
 
-        # main SMC ABC algorithm
-        # print("INFO: Starting SMCABC iterations.")
+        # main APMCABC algorithm
+        # print("INFO: Starting APMCABC iterations.")
         for aStep in range(steps):
             
             # 0: Drawing new new/perturbed samples using prior or MCMC Kernel
-            # print("DEBUG: Iteration " + str(aStep) + " of SMCABC algorithm.")
+            # print("DEBUG: Iteration " + str(aStep) + " of APMCABC algorithm.")
             if aStep > 0:
                 n_additional_samples = n_samples - round(n_samples*alpha)
             else:
@@ -1706,7 +1704,6 @@ class _RemoteContextAPMCABC:
         self.model.prior.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
         self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
         
-        #print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
         if self.alpha_accepted_parameters_bds == None:
             self.model.sample_from_prior()
             y_sim = self.model.simulate(self.n_samples_per_param)
@@ -1726,7 +1723,7 @@ class _RemoteContextAPMCABC:
 
             y_sim = self.model.simulate(self.n_samples_per_param)
             dist = self.distance.distance(self.observations_bds.value(), y_sim)
-            # Weight computation                        
+            
             prior_prob = self.model.prior.pdf(new_theta)
             denominator = 0.0
             for i in range(0, len(self.alpha_accepted_weights_bds.value())):
