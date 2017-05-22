@@ -953,7 +953,10 @@ class _RemoteContextSABC:
             theta = self.accepted_parameters_bds.value()[index,:]
             while True:
                 self.kernel.set_parameters([theta, self.accepted_cov_mat_bds.value()])
-                new_theta = self.kernel.sample(1)[0,:]
+                if len(theta) > 1:
+                    new_theta = self.kernel.sample(1)[0,:]
+                else:
+                    new_theta = self.kernel.sample(1)
                 theta_is_accepted = self.model.set_parameters(new_theta)
                 if theta_is_accepted and self.model.prior.pdf(self.model.get_parameters()) != 0:
                     break
