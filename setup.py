@@ -21,8 +21,8 @@ setup(
     # https://packaging.python.org/en/latest/single_source_version.html
     version=version,
 
-    description='A framework for parallel approximate bayesian computation.',
-    long_description='A framework for parallel approximate bayesian computation.',
+    description='A framework for approximate Bayesian computation (ABC) using high performance computing (HPC).',
+    long_description='ABCpy is a highly modular, scientific library for approximate Bayesian computation (ABC) written in Python using high performance Computing (HPC) tools SPARK and MPI. The modularity helps domain scientists to easily apply ABC to their research without being ABC experts; using ABCpy they can easily run large parallel simulations without much knowledge about parallelization, even without much additional effort to parallelize their code. Further, ABCpy enables ABC experts to easily develop new inference schemes and evaluate them in a standardized environment, and to extend the library with new algorithms. These benefits come mainly from the modularity of ABCpy.',
 
     # The project's main homepage.
     url='https://github.com/eth-cscs/abcpy',
