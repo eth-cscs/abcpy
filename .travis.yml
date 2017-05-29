@@ -24,9 +24,3 @@ deploy:
   on:
     tags: true
     branch: master
-- provider: releases
-  api_key: $GITHUB_OAUTH_TOKEN
-  skip_cleanup: true
-  on:
-    tags: true
-    branch: master
