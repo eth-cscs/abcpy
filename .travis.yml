@@ -1,7 +1,10 @@
 dist: trusty
+
 language: python
+
 python:
 - '3.5'
+
 addons:
   apt:
     packages:
@@ -10,18 +13,26 @@ addons:
     - libpython3.4-dev
     - python3-numpy
     - swig
-install:
+
+    install:
 - pip install -r requirements.txt
+
 script:
 - make test
+
 deploy:
-  provider: pypi
-  server: https://testpypi.python.org/pypi
-  user: mschoengens
-  password:
-    secure: tLopsTVkRfraHb/T1qfNvXk4L3StqpqFTflK0iAq/V+WSdARy7PDccj3P13aDo+Qvd2XYDPTSIVTveTOSHj46oser7+OmqrUYH9jQt681bmJ5aooHhw+3+NHa+fVBxMgzvCqJ+4Gvbf+3eDKowXICfPlTj5UrEil7s1jv91bSIm0HdI+mLyg1YstHOGt0O2Y6QEDPyEVRmFtyq7hB7EPheUvaJAfEl70LxV9fHiOuuQNcp9pnGRO6t9Sx4NIfIPIYzSdBoLaMSwgjy6ua1wF4iyMdKaDhMSajYb2+fWY1iyDJnmFj0/olpYUiZTrfWfQqz2j+uGT/YbmfZmSCcBTQI9ixJCtawqExoZODSq34uzc+N61riXdLEMOroxMobeBhuNj+bykp1IKaE99vYL/q8ta5dID15MtWIjWbLDVYQTQPkJ7fWllyxqOVRwa2rN37QbCctPbKpCs7WvEE7mJAaWJuOprw0AYjd2IH76YULkzbk3nR/v1nwyM2hGTYjePAy6Ue9jPgfeu9jEWu23O4u7+KMa1+scuLRP4DB1nlMStixjAJdiPMIo4OrvAiC8+ocntgi8t9+Quu5N8deyr9nM1pvWQyaNuHt3Yxd5oey3Q5UMtQFRCl5IyQKMTKttBg2p2L4wd0RdfrLgJXWkw/s6SBIyylCCDROr5gMEnPfY=
-  distributions: "sdist bdist_wheel"
+  - provider: pypi
+    server: https://pypi.python.org/pypi
+    user: mschoengens
+    password:
+      secure: tLopsTVkRfraHb/T1qfNvXk4L3StqpqFTflK0iAq/V+WSdARy7PDccj3P13aDo+Qvd2XYDPTSIVTveTOSHj46oser7+OmqrUYH9jQt681bmJ5aooHhw+3+NHa+fVBxMgzvCqJ+4Gvbf+3eDKowXICfPlTj5UrEil7s1jv91bSIm0HdI+mLyg1YstHOGt0O2Y6QEDPyEVRmFtyq7hB7EPheUvaJAfEl70LxV9fHiOuuQNcp9pnGRO6t9Sx4NIfIPIYzSdBoLaMSwgjy6ua1wF4iyMdKaDhMSajYb2+fWY1iyDJnmFj0/olpYUiZTrfWfQqz2j+uGT/YbmfZmSCcBTQI9ixJCtawqExoZODSq34uzc+N61riXdLEMOroxMobeBhuNj+bykp1IKaE99vYL/q8ta5dID15MtWIjWbLDVYQTQPkJ7fWllyxqOVRwa2rN37QbCctPbKpCs7WvEE7mJAaWJuOprw0AYjd2IH76YULkzbk3nR/v1nwyM2hGTYjePAy6Ue9jPgfeu9jEWu23O4u7+KMa1+scuLRP4DB1nlMStixjAJdiPMIo4OrvAiC8+ocntgi8t9+Quu5N8deyr9nM1pvWQyaNuHt3Yxd5oey3Q5UMtQFRCl5IyQKMTKttBg2p2L4wd0RdfrLgJXWkw/s6SBIyylCCDROr5gMEnPfY=
+      distributions: "sdist bdist_wheel"
   on:
-    tags: false
-    branch: pypi_setup
-    
+    tags: true
+    branch: master
+  - provider: releases
+    api_key: $GITHUB_OAUTH_TOKEN
+    skip_cleanup: true
+    on:
+      tags: true
+      branch: master
