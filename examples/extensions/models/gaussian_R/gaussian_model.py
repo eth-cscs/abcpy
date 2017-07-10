@@ -2,7 +2,7 @@ import numpy as np
 
 from abcpy.models import Model
 
-import rpy2
+
 import rpy2.robjects as robjects
 import rpy2.robjects.numpy2ri
 rpy2.robjects.numpy2ri.activate()
