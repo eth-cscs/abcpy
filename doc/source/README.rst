@@ -247,8 +247,86 @@ same way (see `Getting Started`_) as we would do with shipped models. The
 complete example code can be found `here
 <https://github.com/eth-cscs/abcpy/blob/master/examples/gaussian_extended_with_model.py>`_
 
+
+Use ABCpy with a model written in C++ 
+======================================
+
+There are several frameworks that help you integrating your C++/C code into Python. We showcase examples for
+
+* `Swig <http://www.swig.org/>`_
+* `Pybind <https://github.com/pybind>`_
+
+Using Swig
+----------
+
+Swig is a tool that creates a Python wrapper for our C++/C code using an
+interface (file) that we have to specify. We can then import the wrapper and
+in turn use your C++ code with ABCpy as if it was written in Python.
+
+We go through a complete example to illustrate how to use a simple Gaussian
+model written in C++ with ABCpy. First, have a look at our C++ model:
+
+.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/gaussian_model_simple.cpp
+   :language: c++
+   :lines: 9 - 17
+
+To use this code in Python, we need to specify exactly how to expose the C++
+function to Python. Therefore, we write a Swig interface file that look as
+follows:
+
+.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/gaussian_model_simple.i
+   :language: c++
+
+In the first line we define the module name we later have to import in your
+ABCpy Python code. Then, in curly brackets, we specify which libraries we want
+to include and which function we want to expose through the wrapper.
+
+Now comes the tricky part. The model class expects a method `simulate` that
+forward-simulates our model and which returns an array of syntetic
+observations. However, C++/C does not know the concept of returning an array,
+instead in C++/C we would provide a memory position (pointer) where to write
+the results. Swig has to translate between the two concepts. We use actually an
+Swig interface definition from numpy called `import_array`. The line
+
+.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/gaussian_model_simple.i
+   :language: c++
+   :lines: 18
+
+states that we want the two parameters `result` and `k` of the `gaussian_model`
+C++ function be interpreted as an array of length k that is returned. Have a
+look at the Python code below and observe how the wrapped Python function takes only two
+instead of four parameters and returns a numpy array.
+
+The first stop to get everything running is to translate the Swig interface file
+to wrapper code in C++ and Python.
+::
+   swig -python -c++ -o gaussian_model_simple_wrap.cpp gaussian_model_simple.i
+
+This creates two wrapper files `gaussian_model_simple_wrap.cpp` and
+`gaussian_model_simple.py`. Now the C++ files can be compiled:
+::
+   g++ -fPIC -I /usr/include/python3.5m -c gaussian_model_simple.cpp -o gaussian_model_simple.o
+   g++ -fPIC -I /usr/include/python3.5m -c gaussian_model_simple_wrap.cpp -o gaussian_model_simple_wrap.o
+   g++ -shared gaussian_model_simple.o gaussian_model_simple_wrap.o -o _gaussian_model_simple.so
+
+Note that the include paths might need to be adapted to your system. Finally, we
+can write a Python model which uses our C++ code:
+
+.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/pmcabc-gaussian_model_simple.py
+   :language: python
+   :lines: 3 - 32
+
+The important lines are where we import the wrapper code as a module (line 2) and call
+the respective model function (line -2).
+
+The full code is available in `examples/extensions/models/gaussion_cpp/`. To
+simplify compilation of SWIG and C++ code we created a Makefile. Note that you
+might need to adapt some paths in the Makefile.
+
+
+	    
 Use ABCpy with a model written in R
-==========================
+===================================
 
 Statisticians often use the R language to build statistical models. R models can be incorporated within the ABCpy language with the `rpy2` Python package. We show how to use the `rpy2` package to connect with a model written in R. 
 
@@ -274,6 +352,7 @@ This imports the R function `simple_gaussian` into the python environment. We ne
     :lines: 40 - 42
 
 The default output for R functions in python is a float vector. This must be converted into a list for the purposes of ABCpy. 
+
 
 ..
   Extending: Add your Distance
