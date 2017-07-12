@@ -251,7 +251,8 @@ complete example code can be found `here
 Use ABCpy with a model written in C++ 
 ======================================
 
-There are several frameworks that help you integrating your C++/C code into Python. We showcase examples for
+There are several frameworks that help you integrating your C++/C code into
+Python. We showcase examples for
 
 * `Swig <http://www.swig.org/>`_
 * `Pybind <https://github.com/pybind>`_
@@ -323,26 +324,32 @@ The full code is available in `examples/extensions/models/gaussion_cpp/`. To
 simplify compilation of SWIG and C++ code we created a Makefile. Note that you
 might need to adapt some paths in the Makefile.
 
-
 	    
 Use ABCpy with a model written in R
 ===================================
 
-Statisticians often use the R language to build statistical models. R models can be incorporated within the ABCpy language with the `rpy2` Python package. We show how to use the `rpy2` package to connect with a model written in R. 
+Statisticians often use the R language to build statistical models. R models can
+be incorporated within the ABCpy language with the `rpy2` Python package. We
+show how to use the `rpy2` package to connect with a model written in R.
 
-Continuing from the previous section we use a simple Gaussian model as an example. The following R code is the contents of the R file `gaussian_model.R`.
+Continuing from the previous sections we use a simple Gaussian model as an
+example. The following R code is the contents of the R file `gaussian_model.R`:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.R
     :language: R
     :lines: 1 - 4
 
-More complex R models are incorporated in the same way. To include this function within the ABCpy script we include the following code at the beginning of our python script. 
+More complex R models are incorporated in the same way. To include this function
+within ABCpy we include the following code at the beginning of our Python
+file:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
     :language: python
     :lines: 5 - 14
 
-This imports the R function `simple_gaussian` into the python environment. We need to build our own model to incorporate this R function as in the previous section. The only difference is the `simulate` method of the class `Gaussian'. 
+This imports the R function `simple_gaussian` into the Python environment. We
+need to build our own model to incorporate this R function as in the previous
+section. The only difference is the `simulate` method of the class `Gaussian'.
 
 .. automethod:: abcpy.models.Model.simulate
    :noindex:
@@ -351,7 +358,8 @@ This imports the R function `simple_gaussian` into the python environment. We ne
     :language: python
     :lines: 40 - 42
 
-The default output for R functions in python is a float vector. This must be converted into a list for the purposes of ABCpy. 
+The default output for R functions in Python is a float vector. This must be
+converted into a Python list for the purposes of ABCpy.
 
 
 ..
