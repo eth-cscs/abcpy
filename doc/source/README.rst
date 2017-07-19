@@ -181,6 +181,74 @@ the official `homepage <http://spark.apache.org>`_. Further, keep in mind that
 the ABCpy library has to be properly installed on the cluster, such that it is
 available to the Python interpreters on the master and the worker nodes.
 
+
+Using Cluster Infrastructure
+============================
+
+When your model is computationally expensive and/or other factors require
+compute infrastructure that goes beyond a single notebook or workstation you can
+easily run ABCpy on infrastructure for cluster or high-performance computing.
+
+Running on Amazon Web Services
+------------------------------
+
+We show with high level steps how to get ABCpy running on Amazon Web Services
+(AWS). Please note, that this is not a complete guide to AWS, so we would like
+to refer you to the respective documentation. The first step would be to setup a
+AWS Elastic Map Reduce (EMR) cluster which comes with the option of a
+pre-configured Apache Spark. Then, we show how to run a simple inference code on
+this cluster.
+
+Setting up the EMR Cluster
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When we setup an EMR cluster we want to install ABCpy on every node of the
+cluster. Therefore, we provide a bootstrap script that does this job for us. On
+your local machine create a file named `emr_bootstrap.sh` with the following
+content:
+
+::
+   
+   #!/bin/sh
+   sudo yum -y install git
+   sudo pip-3.4 install ipython findspark abcpy
+
+In AWS go to Services, then S3 under the Storage Section. Create a new bucket
+called `abcpy` and upload your bootstrap script `emr_bootstap.sh`.
+
+To create a cluster, in AWS go to Services and then EMR under the Analytics
+Section. Click 'Create Cluster', then choose 'Advanced Options'. In Step 1
+choose the emr-5.7.0 image and make sure only Spark is selected for your cluster
+(the other software packages are not required). In Step 2 choose for example one
+master node and 4 core nodes (16 vCPUs if you have 4 vCPUs instances). In Step 3
+under the boostrap action, choose custom, and select the script
+`abcpy/emr_bootstrap.sh`. In the last step (Step 4), choose a key to access the
+master node (we assume that you already setup keys). Start the cluster.
+
+
+Running ABCpy on AWS
+~~~~~~~~~~~~~~~~~~~~
+
+Log in via SSH and run the following commands to get an example code from ABCpy
+running with Python3 support:
+
+::
+   
+   sudo bash -c 'echo export PYSPARK_PYTHON=python34 >> /etc/spark/conf/spark-env.sh'
+   git clone https://github.com/eth-cscs/abcpy.git
+
+Then, to submit a job to the Spark cluster we run the following commands:
+
+::
+   
+   cd abcpy/examples/backends/
+   spark-submit --num-executors 16 pmcabc_gaussian.py
+
+Clearly the setup can be extended and optimized. For this and basic information
+we refer you to the `AWS documentation on
+EMR <http://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-overview.html>`_.
+   
+
 	    
 Implementing a new Model
 ========================
@@ -248,8 +316,8 @@ complete example code can be found `here
 <https://github.com/eth-cscs/abcpy/blob/master/examples/gaussian_extended_with_model.py>`_
 
 
-Use ABCpy with a model written in C++ 
-======================================
+Wrap a Model Written in C++
+---------------------------
 
 There are several frameworks that help you integrating your C++/C code into
 Python. We showcase examples for
@@ -258,7 +326,7 @@ Python. We showcase examples for
 * `Pybind <https://github.com/pybind>`_
 
 Using Swig
-----------
+~~~~~~~~~~
 
 Swig is a tool that creates a Python wrapper for our C++/C code using an
 interface (file) that we have to specify. We can then import the wrapper and
@@ -301,11 +369,13 @@ instead of four parameters and returns a numpy array.
 The first stop to get everything running is to translate the Swig interface file
 to wrapper code in C++ and Python.
 ::
+
    swig -python -c++ -o gaussian_model_simple_wrap.cpp gaussian_model_simple.i
 
 This creates two wrapper files `gaussian_model_simple_wrap.cpp` and
 `gaussian_model_simple.py`. Now the C++ files can be compiled:
 ::
+   
    g++ -fPIC -I /usr/include/python3.5m -c gaussian_model_simple.cpp -o gaussian_model_simple.o
    g++ -fPIC -I /usr/include/python3.5m -c gaussian_model_simple_wrap.cpp -o gaussian_model_simple_wrap.o
    g++ -shared gaussian_model_simple.o gaussian_model_simple_wrap.o -o _gaussian_model_simple.so
@@ -323,10 +393,9 @@ the respective model function (line -2).
 The full code is available in `examples/extensions/models/gaussion_cpp/`. To
 simplify compilation of SWIG and C++ code we created a Makefile. Note that you
 might need to adapt some paths in the Makefile.
-
 	    
-Use ABCpy with a model written in R
-===================================
+Wrap a Model Written in R
+-------------------------
 
 Statisticians often use the R language to build statistical models. R models can
 be incorporated within the ABCpy language with the `rpy2` Python package. We
