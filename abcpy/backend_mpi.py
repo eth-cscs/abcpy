@@ -1,24 +1,22 @@
-from abc import ABCMeta, abstractmethod
-from abcpy.backends import Backend,PDS,BDS
-from mpi4py import MPI
 import numpy as np
 import cloudpickle
-import sys
 
+from mpi4py import MPI
+from abcpy.backends import Backend, PDS, BDS
 
 class BackendMPIMaster(Backend):
-    """Defines the behavior of the master process 
-    
+    """Defines the behavior of the master process
+
     This class defines the behavior of the master process (The one
     with rank==0) in MPI.
 
     """
 
     #Define some operation codes to make it more readable
-    OP_PARALLELIZE,OP_MAP,OP_COLLECT,OP_BROADCAST,OP_DELETEPDS,OP_DELETEBDS,OP_FINISH=[1,2,3,4,5,6,7]
+    OP_PARALLELIZE, OP_MAP, OP_COLLECT, OP_BROADCAST, OP_DELETEPDS, OP_DELETEBDS, OP_FINISH = [1, 2, 3, 4, 5, 6, 7]
     finalized = False
 
-    def __init__(self,master_node_ranks = list(range(36))):
+    def __init__(self, master_node_ranks=list(range(36))):
 
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
@@ -34,9 +32,9 @@ class BackendMPIMaster(Backend):
         self.bds_store = {}
 
 
-    def __command_slaves(self,command,data):
-        """ 
-        This method handles the sending of the command to the slaves 
+    def __command_slaves(self, command, data):
+        """
+        This method handles the sending of the command to the slaves
         telling them what operation to perform next.
 
         Parameters
@@ -45,30 +43,30 @@ class BackendMPIMaster(Backend):
             One of the operation codes defined in the class definition as OP_xxx
             which tell the slaves what operation they're performing.
         data:  tuple
-            Any of the data required for the operation which needs to be bundled 
+            Any of the data required for the operation which needs to be bundled
             in the data packet sent.
         """
 
         if command == self.OP_PARALLELIZE:
             #In parallelize we receive data as (pds_id)
-            data_packet = (command , data[0])
+            data_packet = (command, data[0])
 
         elif command == self.OP_MAP:
             #In map we receive data as (pds_id,pds_id_new,func)
             #Use cloudpickle to dump the function into a string.
             function_packed = self.__sanitize_and_pack_func(data[2])
-            data_packet = (command,data[0],data[1],function_packed)
+            data_packet = (command, data[0], data[1], function_packed)
 
         elif command == self.OP_BROADCAST:
-            data_packet = (command,data[0])
+            data_packet = (command, data[0])
 
         elif command == self.OP_COLLECT:
             #In collect we receive data as (pds_id)
-            data_packet = (command,data[0])
+            data_packet = (command, data[0])
 
         elif command == self.OP_DELETEPDS or command == self.OP_DELETEBDS:
             #In deletepds we receive data as (pds_id) or bds_id
-            data_packet = (command,data[0])
+            data_packet = (command, data[0])
 
         elif command == self.OP_FINISH:
             data_packet = (command,)
@@ -76,10 +74,10 @@ class BackendMPIMaster(Backend):
         _ = self.comm.bcast(data_packet, root=0)
 
 
-    def __sanitize_and_pack_func(self,func):
+    def __sanitize_and_pack_func(self, func):
         """
         Prevents the function from packing the backend by temporarily
-        setting it to another variable and then uses cloudpickle 
+        setting it to another variable and then uses cloudpickle
         to pack it into a string to be sent.
 
         Parameters
@@ -95,12 +93,12 @@ class BackendMPIMaster(Backend):
         """
 
         #Set the backend to None to prevent it from being packed
-        globals()['backend']  = {}
+        globals()['backend'] = {}
 
         function_packed = cloudpickle.dumps(func)
 
         #Reset the backend to self after it's been packed
-        globals()['backend']  = self
+        globals()['backend'] = self
 
         return function_packed
 
@@ -112,7 +110,7 @@ class BackendMPIMaster(Backend):
 
         Returns
         -------
-        Returns a unique integer.
+        Returns a unique integer id.
 
         """
 
@@ -127,7 +125,7 @@ class BackendMPIMaster(Backend):
 
         Returns
         -------
-        Returns a unique integer.
+        Returns a unique integer id.
 
         """
 
@@ -158,9 +156,9 @@ class BackendMPIMaster(Backend):
 
         # Tell the slaves to enter parallelize()
         pds_id = self.__generate_new_pds_id()
-        self.__command_slaves(self.OP_PARALLELIZE,(pds_id,))
+        self.__command_slaves(self.OP_PARALLELIZE, (pds_id,))
 
-       #Initialize empty data lists for the processes on the master node
+        #Initialize empty data lists for the processes on the master node
         rdd_masters = [[] for i in range(len(self.master_node_ranks))]
 
         #Split the data only amongst the number of workers
@@ -201,9 +199,9 @@ class BackendMPIMaster(Backend):
 
         #Generate a new pds_id to be used by the slaves for the resultant PDS
         pds_id_new = self.__generate_new_pds_id()
-        
-        data = (pds_id,pds_id_new,func)
-        self.__command_slaves(self.OP_MAP,data)
+
+        data = (pds_id, pds_id_new, func)
+        self.__command_slaves(self.OP_MAP, data)
 
         rdd = list(map(func, pds.python_list))
 
@@ -214,7 +212,8 @@ class BackendMPIMaster(Backend):
 
     def collect(self, pds):
         """
-        Gather the pds from all the workers, send it to the master and return it as a standard Python list.
+        Gather the pds from all the workers,
+            send it to the master and return it as a standard Python list.
 
         Parameters
         ----------
@@ -228,7 +227,7 @@ class BackendMPIMaster(Backend):
         """
 
         # Tell the slaves to enter collect with the pds's pds_id
-        self.__command_slaves(self.OP_COLLECT,(pds.pds_id,))
+        self.__command_slaves(self.OP_COLLECT, (pds.pds_id,))
 
         python_list = self.comm.gather(pds.python_list, root=0)
 
@@ -241,10 +240,10 @@ class BackendMPIMaster(Backend):
         return combined_result
 
 
-    def broadcast(self,value):
+    def broadcast(self, value):
         # Tell the slaves to enter broadcast()
         bds_id = self.__generate_new_bds_id()
-        self.__command_slaves(self.OP_BROADCAST,(bds_id,))
+        self.__command_slaves(self.OP_BROADCAST, (bds_id,))
 
         _ = self.comm.bcast(value, root=0)
 
@@ -252,10 +251,10 @@ class BackendMPIMaster(Backend):
         return bds
 
 
-    def delete_remote_pds(self,pds_id):
+    def delete_remote_pds(self, pds_id):
         """
-        A public function for the PDS objects on the master to call when they go out of 
-        scope or are deleted in order to ensure the same happens on the slaves. 
+        A public function for the PDS objects on the master to call when they go out of
+        scope or are deleted in order to ensure the same happens on the slaves.
 
         Parameters
         ----------
@@ -264,18 +263,26 @@ class BackendMPIMaster(Backend):
         """
 
         if  not self.finalized:
-            self.__command_slaves(self.OP_DELETEPDS,(pds_id,))
+            self.__command_slaves(self.OP_DELETEPDS, (pds_id,))
 
 
-    def delete_remote_bds(self,bds_id):
+    def delete_remote_bds(self, bds_id):
         """
+        Public function for the BDS objects on the master to call when they go
+        out of score or are deleted in order to ensure they are deleted
+        ont he slaves as well.
+
+        Parameters
+        ----------
+        bds_id: int
+            A bds_id identifying the remote BDS on the slaves to delete.
         """
 
         if  not self.finalized:
-            #The master deallocates it's BDS data. Explicit because 
+            #The master deallocates it's BDS data. Explicit because
             #.. bds_store and BDSMPI object are disconnected.
             del backend.bds_store[bds_id]
-            self.__command_slaves(self.OP_DELETEBDS,(bds_id,))
+            self.__command_slaves(self.OP_DELETEBDS, (bds_id,))
 
 
     def __del__(self):
@@ -287,7 +294,7 @@ class BackendMPIMaster(Backend):
         """
 
         #Tell the slaves they can exit gracefully.
-        self.__command_slaves(self.OP_FINISH,None)
+        self.__command_slaves(self.OP_FINISH, None)
 
         #Finalize the connection because the slaves should have finished.
         MPI.Finalize()
@@ -299,12 +306,12 @@ class BackendMPISlave(Backend):
 
     This class defines how the slaves should behave during operation.
     Slaves are those processes(not nodes like Spark) that have rank!=0
-    and whose ids are not present in the list of non workers. 
+    and whose ids are not present in the list of non workers.
     """
 
-    OP_PARALLELIZE,OP_MAP,OP_COLLECT,OP_BROADCAST,OP_DELETEPDS,OP_DELETEBDS,OP_FINISH=[1,2,3,4,5,6,7]
+    OP_PARALLELIZE, OP_MAP, OP_COLLECT, OP_BROADCAST, OP_DELETEPDS, OP_DELETEBDS, OP_FINISH = [1, 2, 3, 4, 5, 6, 7]
 
-    
+
     def __init__(self):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
@@ -327,16 +334,16 @@ class BackendMPISlave(Backend):
         It makes the slave wait for a command to perform from the master and
         then calls the appropriate function.
 
-        This method also takes care of the synchronization of data between the 
-        master and the slaves by matching PDSs based on the pds_ids sent by the master 
+        This method also takes care of the synchronization of data between the
+        master and the slaves by matching PDSs based on the pds_ids sent by the master
         with the command.
 
-        Commands received from the master are of the form of a tuple. 
+        Commands received from the master are of the form of a tuple.
         The first component of the tuple is always the operation to be performed
         and the rest are conditional on the operation.
 
-        (op,pds_id) where op == OP_PARALLELIZE for parallelize 
-        (op,pds_id,pds_id_result,func) where op == OP_MAP for map.
+        (op,pds_id) where op == OP_PARALLELIZE for parallelize
+        (op,pds_id, pds_id_result,func) where op == OP_MAP for map.
         (op,pds_id) where op == OP_COLLECT for a collect operation
         (op,pds_id) where op == OP_DELETEPDS for a delete of the remote PDS on slaves
         (op,) where op==OP_FINISH for the slave to break out of the loop and terminate
@@ -357,8 +364,8 @@ class BackendMPISlave(Backend):
 
 
             elif op == self.OP_MAP:
-                pds_id,pds_id_result,function_packed = data[1:]
-                self.__rec_pds_id, self.__rec_pds_id_result = pds_id,pds_id_result
+                pds_id, pds_id_result, function_packed = data[1:]
+                self.__rec_pds_id, self.__rec_pds_id_result = pds_id, pds_id_result
 
                 #Use cloudpickle to convert back function string to a function
                 func = cloudpickle.loads(function_packed)
@@ -406,7 +413,7 @@ class BackendMPISlave(Backend):
         our slave's created PDS with the master's.
         """
 
-        return self.__rec_pds_id,self.__rec_pds_id_result
+        return self.__rec_pds_id, self.__rec_pds_id_result
 
 
     def parallelize(self, python_list):
@@ -431,7 +438,7 @@ class BackendMPISlave(Backend):
         """
 
         #Get the PDS id we should store this data in
-        pds_id,pds_id_new = self.__get_received_pds_id()
+        pds_id, pds_id_new = self.__get_received_pds_id()
 
         data_chunk = self.comm.scatter(None, root=0)
 
@@ -460,7 +467,7 @@ class BackendMPISlave(Backend):
         """
 
         #Get the PDS id we operate on and the new one to store the result in
-        pds_id,pds_id_new = self.__get_received_pds_id()
+        pds_id, pds_id_new = self.__get_received_pds_id()
 
         rdd = list(map(func, pds.python_list))
 
@@ -471,7 +478,8 @@ class BackendMPISlave(Backend):
 
     def collect(self, pds):
         """
-        Gather the pds from all the workers, send it to the master and return it as a standard Python list.
+        Gather the pds from all the workers,
+        send it to the master and return it as a standard Python list.
 
         Parameters
         ----------
@@ -488,39 +496,39 @@ class BackendMPISlave(Backend):
         _ = self.comm.gather(pds.python_list, root=0)
 
 
-    def broadcast(self,value):
+    def broadcast(self, value):
         """
         Value is ignored for the slaves. We get data from master
         """
-
         value = self.comm.bcast(None, root=0)
         self.bds_store[self.__bds_id] = value
 
 
 class BackendMPI(BackendMPIMaster if MPI.COMM_WORLD.Get_rank() == 0 else BackendMPISlave):
-    """A backend parallelized by using MPI 
+    """A backend parallelized by using MPI
 
     The backend conditionally inherits either the BackendMPIMaster class
-    or the BackendMPISlave class depending on it's rank. This lets 
-    BackendMPI have a uniform interface for the user but allows for a 
-    logical split between functions performed by the master 
+    or the BackendMPISlave class depending on it's rank. This lets
+    BackendMPI have a uniform interface for the user but allows for a
+    logical split between functions performed by the master
     and the slaves.
     """
 
-    def __init__(self,master_node_ranks = list(range(36))):
+    def __init__(self, master_node_ranks=list(range(36))):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
 
-        if self.size<2:
-            raise ValueError('Please, use at least 2 ranks.')
+        if self.size < 2:
+            raise ValueError('A minimum of 2 ranks are required for the MPI backend')
 
 
         #Set the global backend
-        globals()['backend']  = self
+        globals()['backend'] = self
 
 
-        if self.rank==0:
+        #Call the appropriate constructors and pass the required data
+        if self.rank == 0:
             super().__init__(master_node_ranks)
         else:
             super().__init__()
@@ -529,17 +537,17 @@ class BackendMPI(BackendMPIMaster if MPI.COMM_WORLD.Get_rank() == 0 else Backend
 
 class PDSMPI(PDS):
     """
-    This is a wrapper for a Python parallel data set.
+    This is an MPI wrapper for a Python parallel data set.
     """
 
-    def __init__(self, python_list, pds_id , backend_obj):
+    def __init__(self, python_list, pds_id, backend_obj):
         self.python_list = python_list
         self.pds_id = pds_id
         self.backend_obj = backend_obj
 
     def __del__(self):
         """
-        Destructor to be called when a PDS falls out of scope and\or is being deleted.
+        Destructor to be called when a PDS falls out of scope and/or is being deleted.
         Uses the backend to send a message to destroy the slaves' copy of the pds.
         """
         try:
@@ -548,16 +556,10 @@ class PDSMPI(PDS):
             #Catch "delete_remote_pds not defined" for slaves and ignore.
             pass
 
-class BackendMPITestHelper:
-    def check_pds(self,k):
-        return k in backend.pds_store.keys()
-
-    def check_bds(self,k):
-        return k in backend.bds_store.keys()
 
 class BDSMPI(BDS):
     """
-    The reference class for broadcast data set (BDS).
+    This is a wrapper for MPI's BDS class.
     """
 
     def __init__(self, object, bds_id, backend_obj):
@@ -575,12 +577,26 @@ class BDSMPI(BDS):
 
     def __del__(self):
         """
-        Destructor to be called when a BDS falls out of scope and\or is being deleted.
+        Destructor to be called when a BDS falls out of scope and/or is being deleted.
         Uses the backend to send a message to destroy the slaves' copy of the bds.
         """
-    
+
         try:
             backend.delete_remote_bds(self.bds_id)
         except AttributeError:
             #Catch "delete_remote_pds not defined" for slaves and ignore.
             pass
+
+class BackendMPITestHelper:
+    """
+    Helper function for some of the test cases to be able to access and verify class members.
+    """
+    def check_pds(self, k):
+        """Checks if a PDS exists in the pds data store. Used to verify deletion and creation
+        """
+        return k in backend.pds_store.keys()
+
+    def check_bds(self, k):
+        """Checks if a BDS exists in the BDS data store. Used to verify deletion and creation
+        """
+        return k in backend.bds_store.keys()
