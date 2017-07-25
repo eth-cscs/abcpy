@@ -169,7 +169,7 @@ class PenLogReg(Distance):
         label_s2 = np.ones(shape=(len(s2), 1))
         training_set_labels = np.concatenate((label_s1, label_s2), axis=0).ravel()
 
-        m = LogitNet(alpha=1, n_folds= 10)
+        m = LogitNet(alpha = 1, n_splits = 10)
         m = m.fit(training_set_features, training_set_labels)
         distance = 2.0 * (m.cv_mean_score_[np.where(m.lambda_path_== m.lambda_max_)[0][0]] - 0.5)
     

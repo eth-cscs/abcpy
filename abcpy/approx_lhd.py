@@ -108,7 +108,7 @@ class PenLogReg(Approx_likelihood):
     paths for generalized linear models via coordinate descent. Journal of Statistical 
     Software, 33(1), 1–22.      
     """
-    def __init__(self, statistics_calc, model, n_simulate, n_folds=10):
+    def __init__(self, statistics_calc, model, n_simulate, n_folds=10, max_iter = 100000, seed = None):
         """
     Parameters
     ----------
@@ -120,14 +120,23 @@ class PenLogReg(Approx_likelihood):
         Number of data points in the simulated data set.
     n_folds: int, optional
         Number of folds for cross-validation. The default value is 10.
+    max_iter: int, optional
+        Maximum passes over the data. The default is 100000.
+    seed: int, optional
+        Seed for the random number generator. The used glmnet solver is not
+        deterministic, this seed is used for determining the cv folds. The default value is 
+        None.
         """
         
         self.model = model
         self.statistics_calc = statistics_calc
         self.n_folds = n_folds
         self.n_simulate = n_simulate
+        self.seed = seed
+        self.max_iter = max_iter
         # Simulate reference data and extract summary statistics from the reffernce data      
         self.ref_data_stat = self._simulate_ref_data()
+        
 
         
     def likelihood(self, y_obs, y_sim):
@@ -146,7 +155,7 @@ class PenLogReg(Approx_likelihood):
         # Compute the approximate likelihood for the y_obs given theta
         y = np.append(np.zeros(self.n_simulate),np.ones(self.n_simulate))
         X = np.array(np.concatenate((stat_sim,self.ref_data_stat),axis=0))
-        m = LogitNet(alpha=1, n_folds= self.n_folds)
+        m = LogitNet(alpha = 1, n_splits = self.n_folds, max_iter = self.max_iter, random_state= self.seed)
         m = m.fit(X, y)
         result = np.exp(-np.sum((m.intercept_+np.sum(np.multiply(m.coef_,stat_obs),axis=1)),axis=0))
         

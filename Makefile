@@ -1,6 +1,7 @@
-whl_file = abcpy-0.1-py3-none-any.whl
+VERSION=$(shell cat VERSION)
 UNITTESTS=$(shell find tests -type f -name '*_tests.py')
 MAKEDIRS=$(shell find examples -name Makefile -exec dirname {} \;)
+whl_file = abcpy-${VERSION}-py3-none-any.whl
 
 .DEFAULT: help
 .PHONY: help clean doc doctest exampletest package test uninstall unittest install reinstall $(MAKEDIRS)
