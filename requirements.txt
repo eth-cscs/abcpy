@@ -6,4 +6,3 @@ findspark
 sphinx==1.4.8
 sphinx_rtd_theme 
 coverage
-cloudpickle
