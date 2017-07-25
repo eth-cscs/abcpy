@@ -26,8 +26,10 @@ def infer_parameters():
     kernel = MultiStudentT(mean, cov, df, seed=1)
 
     # define backend
+    global backend
     from abcpy.backend_mpi import BackendMPI as Backend
-    backend = Backend()
+    #Load and initialize backend only if it hasn't been set up already
+    backend = Backend() if backend is None else backend 
 
     # define sampling scheme
     from abcpy.inferences import PMCABC
@@ -63,11 +65,30 @@ def analyse_journal(journal):
 
 
 import unittest
-import findspark
-class ExampleGaussianSparkTest(unittest.TestCase):
-    def setUp(self):
-        findspark.init()
-        
+from mpi4py import MPI
+
+def setUpModule():
+    '''
+    If an exception is raised in a setUpModule then none of 
+    the tests in the module will be run. 
+    
+    This is useful because the slaves run in a while loop on initialization
+    only responding to the master's commands and will never execute anything else.
+
+    On termination of master, the slaves call quit() that raises a SystemExit(). 
+    Because of the behaviour of setUpModule, it will not run any unit tests
+    for the slave and we now only need to write unit-tests from the master's 
+    point of view. 
+    '''
+    global rank,backend
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+
+    from abcpy.backend_mpi import BackendMPI as Backend
+    backend = Backend()
+
+
+class ExampleGaussianMPITest(unittest.TestCase):
     def test_example(self):
         journal = infer_parameters()
         test_result = journal.posterior_mean()[0]
