@@ -1,6 +1,6 @@
 import unittest
 from mpi4py import MPI
-from abcpy.backend_mpi import BackendMPI,BackendMPITestHelper
+from abcpy.backends import BackendMPI,BackendMPITestHelper
 
 
 def setUpModule():
