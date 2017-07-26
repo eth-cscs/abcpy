@@ -16,7 +16,7 @@ class BackendMPIMaster(Backend):
     OP_PARALLELIZE, OP_MAP, OP_COLLECT, OP_BROADCAST, OP_DELETEPDS, OP_DELETEBDS, OP_FINISH = [1, 2, 3, 4, 5, 6, 7]
     finalized = False
 
-    def __init__(self, master_node_ranks=list(range(36))):
+    def __init__(self, master_node_ranks=[0]):
 
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
@@ -514,7 +514,7 @@ class BackendMPI(BackendMPIMaster if MPI.COMM_WORLD.Get_rank() == 0 else Backend
     and the slaves.
     """
 
-    def __init__(self, master_node_ranks=list(range(36))):
+    def __init__(self, master_node_ranks=[0]):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
