@@ -21,9 +21,44 @@ scientists by providing
 ABCpy is published under the BSD 3-clause license, see [here](LICENSE).
 
 ## Contribute
-Contact one of us:
+You are very welcome to contribute to ABCpy. 
+
+If you want to contribute code, there are a few things to consider:
+* a good start is to fork the repository
+* know our [branching strategy](http://nvie.com/posts/a-successful-git-branching-model/)
+* use GitHub pull requests to merge your contribution
+* consider documenting your code according to the [NumPy documentation style guide](https://github.com/numpy/numpy/blob/master/doc/HOWTO_DOCUMENT.rst.txt)
+* consider writing reasonable [unit tests](https://docs.python.org/3.5/library/unittest.html)
+
+
+In case of any questions, feel free to contact one of us:
 * Ritabrata Dutta, University of Lugano
 * Marcel Schoengens, CSCS, ETH Zurich
+
+## Citation
+
+There is a paper in the proceedings of the 2017 PASC conference. We would appreciate a citation. 
+
+```
+@inproceedings{Dutta:2017:AUE:3093172.3093233,
+ author = {Dutta, Ritabrata and Schoengens, Marcel and Onnela, Jukka-Pekka and Mira, Antonietta},
+ title = {ABCpy: A User-Friendly, Extensible, and Parallel Library for Approximate Bayesian Computation},
+ booktitle = {Proceedings of the Platform for Advanced Scientific Computing Conference},
+ series = {PASC '17},
+ year = {2017},
+ isbn = {978-1-4503-5062-4},
+ location = {Lugano, Switzerland},
+ pages = {8:1--8:9},
+ articleno = {8},
+ numpages = {9},
+ url = {http://doi.acm.org/10.1145/3093172.3093233},
+ doi = {10.1145/3093172.3093233},
+ acmid = {3093233},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+ keywords = {ABC, Library, Parallel, Spark},
+} 
+```
 
 ## Status
 [![Documentation Status](https://readthedocs.org/projects/abcpy/badge/?version=latest)](http://abcpy.readthedocs.io/en/latest/?badge=latest)

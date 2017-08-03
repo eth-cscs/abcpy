@@ -16,7 +16,7 @@ To create a package and install it do
 ::
 
    make package
-   pip3 install pip3 install build/dist/abcpy-0.1-py3-none-any.whl
+   pip3 install build/dist/abcpy-0.1-py3-none-any.whl
 
 Note that ABCpy requires Python3.
 

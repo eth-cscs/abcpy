@@ -68,6 +68,17 @@ abcpy.inferences module
     :undoc-members:
     :show-inheritance:
 
+
+abcpy.modelselections module
+----------------------------
+
+.. automodule:: abcpy.modelselections
+   :members:
+   :special-members: __init__
+   :undoc-members:
+   :show-inheritance:
+
+
 abcpy.statistics module
 -----------------------
 
