@@ -181,6 +181,74 @@ the official `homepage <http://spark.apache.org>`_. Further, keep in mind that
 the ABCpy library has to be properly installed on the cluster, such that it is
 available to the Python interpreters on the master and the worker nodes.
 
+
+Using Cluster Infrastructure
+============================
+
+When your model is computationally expensive and/or other factors require
+compute infrastructure that goes beyond a single notebook or workstation you can
+easily run ABCpy on infrastructure for cluster or high-performance computing.
+
+Running on Amazon Web Services
+------------------------------
+
+We show with high level steps how to get ABCpy running on Amazon Web Services
+(AWS). Please note, that this is not a complete guide to AWS, so we would like
+to refer you to the respective documentation. The first step would be to setup a
+AWS Elastic Map Reduce (EMR) cluster which comes with the option of a
+pre-configured Apache Spark. Then, we show how to run a simple inference code on
+this cluster.
+
+Setting up the EMR Cluster
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When we setup an EMR cluster we want to install ABCpy on every node of the
+cluster. Therefore, we provide a bootstrap script that does this job for us. On
+your local machine create a file named `emr_bootstrap.sh` with the following
+content:
+
+::
+   
+   #!/bin/sh
+   sudo yum -y install git
+   sudo pip-3.4 install ipython findspark abcpy
+
+In AWS go to Services, then S3 under the Storage Section. Create a new bucket
+called `abcpy` and upload your bootstrap script `emr_bootstap.sh`.
+
+To create a cluster, in AWS go to Services and then EMR under the Analytics
+Section. Click 'Create Cluster', then choose 'Advanced Options'. In Step 1
+choose the emr-5.7.0 image and make sure only Spark is selected for your cluster
+(the other software packages are not required). In Step 2 choose for example one
+master node and 4 core nodes (16 vCPUs if you have 4 vCPUs instances). In Step 3
+under the boostrap action, choose custom, and select the script
+`abcpy/emr_bootstrap.sh`. In the last step (Step 4), choose a key to access the
+master node (we assume that you already setup keys). Start the cluster.
+
+
+Running ABCpy on AWS
+~~~~~~~~~~~~~~~~~~~~
+
+Log in via SSH and run the following commands to get an example code from ABCpy
+running with Python3 support:
+
+::
+   
+   sudo bash -c 'echo export PYSPARK_PYTHON=python34 >> /etc/spark/conf/spark-env.sh'
+   git clone https://github.com/eth-cscs/abcpy.git
+
+Then, to submit a job to the Spark cluster we run the following commands:
+
+::
+   
+   cd abcpy/examples/backends/
+   spark-submit --num-executors 16 pmcabc_gaussian.py
+
+Clearly the setup can be extended and optimized. For this and basic information
+we refer you to the `AWS documentation on
+EMR <http://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-overview.html>`_.
+   
+
 	    
 Implementing a new Model
 ========================
@@ -246,6 +314,122 @@ Our model now conforms to ABCpy and we can start inferring parameters in the
 same way (see `Getting Started`_) as we would do with shipped models. The
 complete example code can be found `here
 <https://github.com/eth-cscs/abcpy/blob/master/examples/gaussian_extended_with_model.py>`_
+
+
+Wrap a Model Written in C++
+---------------------------
+
+There are several frameworks that help you integrating your C++/C code into
+Python. We showcase examples for
+
+* `Swig <http://www.swig.org/>`_
+* `Pybind <https://github.com/pybind>`_
+
+Using Swig
+~~~~~~~~~~
+
+Swig is a tool that creates a Python wrapper for our C++/C code using an
+interface (file) that we have to specify. We can then import the wrapper and
+in turn use your C++ code with ABCpy as if it was written in Python.
+
+We go through a complete example to illustrate how to use a simple Gaussian
+model written in C++ with ABCpy. First, have a look at our C++ model:
+
+.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/gaussian_model_simple.cpp
+   :language: c++
+   :lines: 9 - 17
+
+To use this code in Python, we need to specify exactly how to expose the C++
+function to Python. Therefore, we write a Swig interface file that look as
+follows:
+
+.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/gaussian_model_simple.i
+   :language: c++
+
+In the first line we define the module name we later have to import in your
+ABCpy Python code. Then, in curly brackets, we specify which libraries we want
+to include and which function we want to expose through the wrapper.
+
+Now comes the tricky part. The model class expects a method `simulate` that
+forward-simulates our model and which returns an array of syntetic
+observations. However, C++/C does not know the concept of returning an array,
+instead in C++/C we would provide a memory position (pointer) where to write
+the results. Swig has to translate between the two concepts. We use actually an
+Swig interface definition from numpy called `import_array`. The line
+
+.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/gaussian_model_simple.i
+   :language: c++
+   :lines: 18
+
+states that we want the two parameters `result` and `k` of the `gaussian_model`
+C++ function be interpreted as an array of length k that is returned. Have a
+look at the Python code below and observe how the wrapped Python function takes only two
+instead of four parameters and returns a numpy array.
+
+The first stop to get everything running is to translate the Swig interface file
+to wrapper code in C++ and Python.
+::
+
+   swig -python -c++ -o gaussian_model_simple_wrap.cpp gaussian_model_simple.i
+
+This creates two wrapper files `gaussian_model_simple_wrap.cpp` and
+`gaussian_model_simple.py`. Now the C++ files can be compiled:
+::
+   
+   g++ -fPIC -I /usr/include/python3.5m -c gaussian_model_simple.cpp -o gaussian_model_simple.o
+   g++ -fPIC -I /usr/include/python3.5m -c gaussian_model_simple_wrap.cpp -o gaussian_model_simple_wrap.o
+   g++ -shared gaussian_model_simple.o gaussian_model_simple_wrap.o -o _gaussian_model_simple.so
+
+Note that the include paths might need to be adapted to your system. Finally, we
+can write a Python model which uses our C++ code:
+
+.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/pmcabc-gaussian_model_simple.py
+   :language: python
+   :lines: 3 - 32
+
+The important lines are where we import the wrapper code as a module (line 2) and call
+the respective model function (line -2).
+
+The full code is available in `examples/extensions/models/gaussion_cpp/`. To
+simplify compilation of SWIG and C++ code we created a Makefile. Note that you
+might need to adapt some paths in the Makefile.
+	    
+Wrap a Model Written in R
+-------------------------
+
+Statisticians often use the R language to build statistical models. R models can
+be incorporated within the ABCpy language with the `rpy2` Python package. We
+show how to use the `rpy2` package to connect with a model written in R.
+
+Continuing from the previous sections we use a simple Gaussian model as an
+example. The following R code is the contents of the R file `gaussian_model.R`:
+
+.. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.R
+    :language: R
+    :lines: 1 - 4
+
+More complex R models are incorporated in the same way. To include this function
+within ABCpy we include the following code at the beginning of our Python
+file:
+
+.. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
+    :language: python
+    :lines: 5 - 14
+
+This imports the R function `simple_gaussian` into the Python environment. We
+need to build our own model to incorporate this R function as in the previous
+section. The only difference is the `simulate` method of the class `Gaussian'.
+
+.. automethod:: abcpy.models.Model.simulate
+   :noindex:
+
+.. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
+    :language: python
+    :lines: 40 - 42
+
+The default output for R functions in Python is a float vector. This must be
+converted into a Python list for the purposes of ABCpy.
+
 
 ..
   Extending: Add your Distance
