@@ -1,8 +1,8 @@
 import numpy as np
-backend = None
 
 def setup_backend():
     global backend
+    
     from abcpy.backends import BackendMPI as Backend
     backend = Backend()
 

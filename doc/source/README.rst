@@ -153,7 +153,7 @@ backend have to be changed to
 
 .. literalinclude:: ../../examples/backends/apache_spark/pmcabc_gaussian.py
     :language: python
-    :lines: 29-32
+    :lines: 6-9
     :dedent: 4
 
 In words, a Spark context has to be created and passed to the Spark
@@ -166,14 +166,14 @@ The standard way to run the script on Spark is via the spark-submit command:
 
 ::
    
-   PYSPARK_PYTHON=python3 spark-submit gaussian.py
+   PYSPARK_PYTHON=python3 spark-submit pmcabc_gaussian.py
 
 Often Spark installations use Python 2 by default. To make Spark use the
 required Python 3 interpreter, the `PYSPARK_PYTHON` environment variable can be
 set.
 
 The adapted python code can be found in
-`examples/backend/apache_spark/gaussian.py`.
+`examples/backend/apache_spark/pmcabc_gaussian.py`.
    
 Note that in order to run jobs in parallel you need to have Apache Spark
 installed on the system in question. Details on the installation can be found on
@@ -181,6 +181,39 @@ the official `homepage <http://spark.apache.org>`_. Further, keep in mind that
 the ABCpy library has to be properly installed on the cluster, such that it is
 available to the Python interpreters on the master and the worker nodes.
 
+
+Using the MPI Backend
+=======================
+
+To run ABCpy in parallel using Open MPI, one only needs to use the provided
+MPI backend. Using the same example as above, the statements for the
+backend have to be changed to
+
+.. literalinclude:: ../../examples/backends/mpi/pmcabc_gaussian.py
+    :language: python
+    :lines: 6-7
+    :dedent: 4
+
+In words, one only needs to initialize an instance of the MPI backend. The number
+of ranks to spawn are specified at runtime through the way the script is run.
+
+The standard way to run the script using Open MPI is directly via mpirun like below 
+or on a cluster through a job scheduler like Slurm:
+
+::
+   
+   mpirun -np 4 python3 pmcabc_gaussian.py
+
+
+The adapted python code can be found in
+`examples/backend/mpi/pmcabc_gaussian.py`.
+   
+Note that in order to run jobs in parallel you need to have Open MPI
+installed on the system(s) in question with the requisite python bindings for MPI (mpi4py).
+Details on the installation can be found on the official `Open MPI homepage <https://www.open-mpi.org/>`_
+and the `mpi4py homepage <https://mpi4py.scipy.org/>`_. Further, keep in mind that the ABCpy library
+has to be properly installed on the cluster, such that it is available to the Python 
+interpreters on the master and the worker nodes.
 
 Using Cluster Infrastructure
 ============================
