@@ -3,10 +3,8 @@ import numpy as np
 def setup_backend():
     global backend
     
-    import pyspark
-    sc = pyspark.SparkContext()
-    from abcpy.backends import BackendSpark as Backend
-    backend = Backend(sc, parallelism=4)
+    from abcpy.backends import BackendMPI as Backend
+    backend = Backend()
 
 
 def infer_parameters():
@@ -69,13 +67,25 @@ def analyse_journal(journal):
 
 
 import unittest
-import findspark
-class ExampleGaussianSparkTest(unittest.TestCase):
-    def setUp(self):
-        findspark.init()
-        
+from mpi4py import MPI
+
+def setUpModule():
+    '''
+    If an exception is raised in a setUpModule then none of 
+    the tests in the module will be run. 
+    
+    This is useful because the slaves run in a while loop on initialization
+    only responding to the master's commands and will never execute anything else.
+
+    On termination of master, the slaves call quit() that raises a SystemExit(). 
+    Because of the behaviour of setUpModule, it will not run any unit tests
+    for the slave and we now only need to write unit-tests from the master's 
+    point of view. 
+    '''
+    setup_backend()
+
+class ExampleGaussianMPITest(unittest.TestCase):
     def test_example(self):
-        setup_backend()
         journal = infer_parameters()
         test_result = journal.posterior_mean()[0]
         expected_result = 176.0

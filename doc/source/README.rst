@@ -142,10 +142,18 @@ And certainly, a journal can easily be saved to and loaded from disk:
     :language: python
     :lines: 60, 63
     :dedent: 4
-	     
-	    
+
+       
+Using Parallelization Backends
+==============================
+
+Running ABC algorithms is often computationally expensive, thus ABCpy is build
+with parallelization in mind. In order to run your inference schemes in parallel
+on multiple nodes (computers) you can choose from the following backends.
+
+
 Using the Spark Backend
-=======================
+~~~~~~~~~~~~~~~~~~~~~~~
 
 To run ABCpy in parallel using Apache Spark, one only needs to use the provided
 Spark backend. Considering the example from above, the statements for the
@@ -153,7 +161,7 @@ backend have to be changed to
 
 .. literalinclude:: ../../examples/backends/apache_spark/pmcabc_gaussian.py
     :language: python
-    :lines: 29-32
+    :lines: 6-9
     :dedent: 4
 
 In words, a Spark context has to be created and passed to the Spark
@@ -166,21 +174,63 @@ The standard way to run the script on Spark is via the spark-submit command:
 
 ::
    
-   PYSPARK_PYTHON=python3 spark-submit gaussian.py
+   PYSPARK_PYTHON=python3 spark-submit pmcabc_gaussian.py
 
 Often Spark installations use Python 2 by default. To make Spark use the
 required Python 3 interpreter, the `PYSPARK_PYTHON` environment variable can be
 set.
 
 The adapted python code can be found in
-`examples/backend/apache_spark/gaussian.py`.
-   
-Note that in order to run jobs in parallel you need to have Apache Spark
-installed on the system in question. Details on the installation can be found on
-the official `homepage <http://spark.apache.org>`_. Further, keep in mind that
-the ABCpy library has to be properly installed on the cluster, such that it is
-available to the Python interpreters on the master and the worker nodes.
+`examples/backend/apache_spark/pmcabc_gaussian.py`.
 
+Note that in order to run jobs in parallel you need to have Apache Spark
+installed on the system in question. The dependencies of the MPI backend can be
+install with `pip install -r requirements/backend-spark.txt`.
+
+Details on the installation can be found on the official `homepage
+<http://spark.apache.org>`_. Further, keep in mind that the ABCpy library has to
+be properly installed on the cluster, such that it is available to the Python
+interpreters on the master and the worker nodes.
+
+Using the MPI Backend
+~~~~~~~~~~~~~~~~~~~~~
+
+To run ABCpy in parallel using MPI, one only needs to use the provided MPI
+backend. Using the same example as above, the statements for the backend have to
+be changed to
+
+.. literalinclude:: ../../examples/backends/mpi/pmcabc_gaussian.py
+    :language: python
+    :lines: 6-7
+    :dedent: 4
+
+In words, one only needs to initialize an instance of the MPI backend. The
+number of ranks to spawn are specified at runtime through the way the script is
+run. A minimum of two ranks is required, since rank 0 (master) is used to
+orchestrade the calculation and all other ranks (workers) actually perform the
+calculation.
+
+The standard way to run the script using Open MPI is directly via mpirun like below 
+or on a cluster through a job scheduler like Slurm:
+
+::
+   
+   mpirun -np 4 python3 pmcabc_gaussian.py
+
+
+The adapted Python code can be found in
+`examples/backend/mpi/pmcabc_gaussian.py`.
+   
+Note that in order to run jobs in parallel you need to have MPI installed on the
+system(s) in question with the requisite Python bindings for MPI (mpi4py). The
+dependencies of the MPI backend can be install with
+`pip install -r requirements/backend-mpi.txt`.
+
+Details on the installation can be found on the official `Open MPI homepage
+<https://www.open-mpi.org/>`_ and the `mpi4py homepage
+<https://mpi4py.scipy.org/>`_. Further, keep in mind that the ABCpy library has
+to be properly installed on the cluster, such that it is available to the Python
+interpreters on the master and the worker nodes.
 
 Using Cluster Infrastructure
 ============================
@@ -190,7 +240,7 @@ compute infrastructure that goes beyond a single notebook or workstation you can
 easily run ABCpy on infrastructure for cluster or high-performance computing.
 
 Running on Amazon Web Services
-------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 We show with high level steps how to get ABCpy running on Amazon Web Services
 (AWS). Please note, that this is not a complete guide to AWS, so we would like
@@ -317,7 +367,7 @@ complete example code can be found `here
 
 
 Wrap a Model Written in C++
----------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are several frameworks that help you integrating your C++/C code into
 Python. We showcase examples for
@@ -409,8 +459,7 @@ example. The following R code is the contents of the R file `gaussian_model.R`:
     :lines: 1 - 4
 
 More complex R models are incorporated in the same way. To include this function
-within ABCpy we include the following code at the beginning of our Python
-file:
+within ABCpy we include the following code at the beginning of our Python file:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
     :language: python
