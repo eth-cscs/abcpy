@@ -10,8 +10,12 @@ addons:
     - libpython3.4-dev
     - python3-numpy
     - swig
+    - libmpich-dev
+    - mpich
 install:
 - pip install -r requirements.txt
+- pip install -r requirements/backend-mpi.txt
+- pip install -r requirements/backend-spark.txt
 script:
 - make test
 deploy:
