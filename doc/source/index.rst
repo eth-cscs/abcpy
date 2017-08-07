@@ -19,6 +19,12 @@ Welcome to ABCpy's documentation!
 
 .. toctree::
    :maxdepth: 2
+   :caption: Developer Documentation
+
+   DEVELOP
+
+.. toctree::
+   :maxdepth: 2
    :caption: Reference
 	      
    abcpy

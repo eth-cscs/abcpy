@@ -1,36 +1,11 @@
 import numpy as np
 
-from abcpy.models import Model
-from gaussian_model_simple import gaussian_model
+def setup_backend():
+    global backend
+    
+    from abcpy.backends import BackendMPI as Backend
+    backend = Backend()
 
-class Gaussian(Model):
-    def __init__(self, prior, seed=None):
-        self.prior = prior
-        self.sample_from_prior()
-        self.rng = np.random.RandomState(seed)
-        
-
-    def set_parameters(self, theta):
-        theta = np.array(theta)
-        if theta.shape[0] > 2: return False
-        if theta[1] <= 0: return False
-
-        self.mu = theta[0]
-        self.sigma = theta[1]
-        return True
-
-    def get_parameters(self):
-        return np.array([self.mu, self.sigma])
-
-    def sample_from_prior(self):
-        sample = self.prior.sample(1).reshape(-1)
-        self.set_parameters(sample)
-
-    def simulate(self, k):
-        seed = self.rng.randint(np.iinfo(np.int32).max)
-        result = gaussian_model(k, self.mu, self.sigma, seed)
-        return list(result)
-	    
 
 def infer_parameters():
     # define observation for true parameters mean=170, std=15
@@ -38,41 +13,38 @@ def infer_parameters():
 
     # define prior
     from abcpy.distributions import Uniform
-    prior = Uniform([150, 5],[200, 25])
-    
+    prior = Uniform([150, 5],[200, 25], seed=1)
+
     # define the model
-    model = Gaussian(prior)
-    
+    from abcpy.models import Gaussian
+    model = Gaussian(prior, seed=1)
+
     # define statistics
     from abcpy.statistics import Identity
     statistics_calculator = Identity(degree = 2, cross = False)
-    
+
     # define distance
     from abcpy.distances import LogReg
     distance_calculator = LogReg(statistics_calculator)
-    
+
     # define kernel
     from abcpy.distributions import MultiStudentT
     mean, cov, df = np.array([.0, .0]), np.eye(2), 3.
-    kernel = MultiStudentT(mean, cov, df)
-    
-    # define backend
-    from abcpy.backends import BackendSpark as Backend
-    from abcpy.backends import BackendDummy as Backend
-    backend = Backend()
-    
+    kernel = MultiStudentT(mean, cov, df, seed=1)
+
+
     # define sampling scheme
     from abcpy.inferences import PMCABC
-    sampler = PMCABC(model, distance_calculator, kernel, backend)
+    sampler = PMCABC(model, distance_calculator, kernel, backend, seed=1)
     
     # sample from scheme
-    T, n_sample, n_samples_per_param = 3, 100, 10
+    T, n_sample, n_samples_per_param = 3, 250, 10
     eps_arr = np.array([.75])
     epsilon_percentile = 10
     journal = sampler.sample(y_obs,  T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
-    
+
     return journal
-    
+
 
 def analyse_journal(journal):
     # output parameters and weights
@@ -89,22 +61,40 @@ def analyse_journal(journal):
     
     # save and load journal
     journal.save("experiments.jnl")
-    
+
     from abcpy.output import Journal
     new_journal = Journal.fromFile('experiments.jnl')
-    
 
-# this code is for testing purposes only and not relevant to run the example
+
 import unittest
-class ExampleExtendModelGaussianCpp(unittest.TestCase):
+from mpi4py import MPI
+
+def setUpModule():
+    '''
+    If an exception is raised in a setUpModule then none of 
+    the tests in the module will be run. 
+    
+    This is useful because the slaves run in a while loop on initialization
+    only responding to the master's commands and will never execute anything else.
+
+    On termination of master, the slaves call quit() that raises a SystemExit(). 
+    Because of the behaviour of setUpModule, it will not run any unit tests
+    for the slave and we now only need to write unit-tests from the master's 
+    point of view. 
+    '''
+    setup_backend()
+
+class ExampleGaussianMPITest(unittest.TestCase):
     def test_example(self):
         journal = infer_parameters()
         test_result = journal.posterior_mean()[0]
-        expected_result = 177.02
-        self.assertLess(abs(test_result - expected_result), 1.)
-    
+        expected_result = 176.0
+        self.assertLess(abs(test_result - expected_result), 2.)
+
 
 if __name__  == "__main__":
+    setup_backend()
     journal = infer_parameters()
     analyse_journal(journal)
+
     
