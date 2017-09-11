@@ -66,12 +66,12 @@ class Semiautomatic(Summaryselections):
         regr = linear_model.LinearRegression(fit_intercept=True)
         for ind in range(sample_parameters.shape[1]):
             regr.fit(sample_statistics, sample_parameters[:,ind]) 
-            self.coefficients_learnt[:,ind] = regr.coef_ 
+            self.coefficients_learnt[ind,:] = regr.coef_ 
         
     def transformation(self, statistics):
-        if not statistics.shape[1] == self.coefficients_learnt.shape[0]:    
+        if not statistics.shape[1] == self.coefficients_learnt.shape[1]:    
             raise ValueError('Mismatch in dimension of summary statistics')
-        return np.dot(statistics,self.coefficients_learnt)
+        return np.dot(statistics,np.transpose(self.coefficients_learnt))
         
         
 class _RemoteContextSemiautomatic:
