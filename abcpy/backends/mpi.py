@@ -54,7 +54,7 @@ class BackendMPIMaster(Backend):
         elif command == self.OP_MAP:
             #In map we receive data as (pds_id,pds_id_new,func)
             #Use cloudpickle to dump the function into a string.
-            function_packed = self.__sanitize_and_pack_func(data[2])
+            function_packed = cloudpickle.dumps(data[2])
             data_packet = (command, data[0], data[1], function_packed)
 
         elif command == self.OP_BROADCAST:
@@ -96,7 +96,6 @@ class BackendMPIMaster(Backend):
         globals()['backend'] = {}
 
         function_packed = cloudpickle.dumps(func)
-
         #Reset the backend to self after it's been packed
         globals()['backend'] = self
 
