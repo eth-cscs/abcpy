@@ -3,14 +3,27 @@ from abcpy.output import Journal
 from scipy import optimize
 
 class RejectionABC:
-    def __init__(self, observations, model, distance, backend, epsilon, n_samples, n_samples_per_param, seed=None):
+    """This base class implements the rejection algorithm based inference scheme [1] for
+        Approximate Bayesian Computation.
+
+        [1] Tavaré, S., Balding, D., Griffith, R., Donnelly, P.: Inferring coalescence
+        times from DNA sequence data. Genetics 145(2), 505–518 (1997).
+
+        Parameters
+        ----------
+        model: abcpy.models.Model
+            Model object that conforms to the Model class.
+        distance: abcpy.distances.Distance
+            Distance object that conforms to the Distance class.
+        backend: abcpy.backends.Backend
+            Backend object that conforms to the Backend class.
+        seed: integer, optional
+             Optional initial seed for the random number generator. The default value is generated randomly.
+        """
+    def __init__(self, model, distance, backend, seed=None):
         self.model = model
         self.dist_calc = distance
         self.backend = backend
-        self.epsilon = epsilon
-        self.observations_bds = self.backend.broadcast(observations)
-        self.n_samples = n_samples
-        self.n_samples_per_param = n_samples_per_param
         self.rng = np.random.RandomState(seed)
 
     def __getstate__(self):
@@ -19,7 +32,12 @@ class RejectionABC:
         del state['backend']
         return state
 
-    def sample(self, full_output=0):
+    def sample(self, observations, n_samples, n_samples_per_param, epsilon, full_output=0):
+
+        self.observations_bds = self.backend.broadcast(observations)
+        self.n_samples = n_samples
+        self.n_samples_per_param = n_samples_per_param
+        self.epsilon = epsilon
         journal = Journal(full_output)
         journal.configuration["n_samples"] = self.n_samples
         journal.configuration["n_samples_per_param"] = self.n_samples_per_param
@@ -30,7 +48,7 @@ class RejectionABC:
         # Initialize variables that need to be available remotely
 
         # main Rejection ABC algorithm
-        seed_arr = self.rng.randint(1, self.n_samples * self.n_samples, size=self.n_samples, dtype=np.int32)
+        seed_arr = self.rng.randint(1, n_samples * n_samples, size=n_samples, dtype=np.int32)
         seed_pds = self.backend.parallelize(seed_arr)
 
         accepted_parameters_pds = self.backend.map(self._sample_parameter, seed_pds)
@@ -38,7 +56,7 @@ class RejectionABC:
         accepted_parameters = np.array(accepted_parameters)
 
         journal.add_parameters(accepted_parameters)
-        journal.add_weights(np.ones((self.n_samples, 1)))
+        journal.add_weights(np.ones((n_samples, 1)))
 
         return journal
 
@@ -80,42 +98,19 @@ class PMCABC:
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
 
-    def __init__(self, observations, model, distance, kernel, backend, n_samples=10000, n_samples_per_param=1, seed=None):
-        """Constructor of PMCABC inference schemes.
+    def __init__(self, model, distance, kernel, backend, seed=None):
 
-               Parameters
-               ----------
-               observations : numpy.ndarray
-                   Observed data.
-               model : abcpy.models.Model
-                   Model object that conforms to the Model class
-               distance : abcpy.distances.Distance
-                   Distance object that conforms to the Distance class.
-               kernel : abcpy.distributions.Distribution
-                   Distribution object defining the perturbation kernel needed for the sampling
-               backend : abcpy.backends.Backend
-                   Backend object that conforms to the Backend class
-               n_samples : integer, optional
-                   Number of samples to generate. The default value is 10000.
-               n_samples_per_param : integer, optional
-                   Number of data points in each simulated data set. The default value is 1.
-               seed : integer, optional
-                   Optional initial seed for the random number generator. The default value is generated randomly.
-
-               """
         self.model = model
         self.distance = distance
         self.kernel = kernel
         self.backend = backend
-        self.n_samples = n_samples
-        self.n_samples_per_param = n_samples_per_param
         self.rng = np.random.RandomState(seed)
 
-        self.epsilon = None
+        #added this here, so that the calculate_weight function can be called without calling sample first
+        self.n_samples = 2
 
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
-        self.observations_bds = self.backend.broadcast(observations)
         self.accepted_parameters_bds = None
         self.accepted_weights_bds = None
         self.accepted_cov_mat_bds = None
@@ -126,8 +121,7 @@ class PMCABC:
         del state['backend']
         return state
 
-    def sample(self, steps, epsilon_init, epsilon_percentile=0,
-               covFactor=2, full_output=0):
+    def sample(self, observations, steps, epsilon_init, n_samples = 10000, n_samples_per_param = 1, epsilon_percentile = 0, covFactor = 2, full_output=0):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -141,7 +135,10 @@ class PMCABC:
             An array of proposed values of epsilon to be used at each steps. Can be supplied
             A single value to be used as the threshold in Step 1 or a `steps`-dimensional array of values to be
             used as the threshold in evry steps.
-
+        n_samples : integer, optional
+            Number of samples to generate. The default value is 10000.
+        n_samples_per_param : integer, optional
+            Number of data points in each simulated data set. The default value is 1.
         epsilon_percentile : float, optional
             A value between [0, 100]. The default value is 0, meaning the threshold value provided by the user being used.
         covFactor : float, optional
@@ -155,6 +152,10 @@ class PMCABC:
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
+
+        self.observations_bds = self.backend.broadcast(observations)
+        self.n_samples = n_samples
+        self.n_samples_per_param=n_samples_per_param
 
         journal = Journal(full_output)
         journal.configuration["type_model"] = type(self.model)
@@ -181,7 +182,7 @@ class PMCABC:
         # print("INFO: Starting PMCABC iterations.")
         for aStep in range(0, steps):
             # print("DEBUG: Iteration " + str(aStep) + " of PMCABC algorithm.")
-            seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=self.n_samples, dtype=np.uint32)
+            seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
             seed_pds = self.backend.parallelize(seed_arr)
 
             # 0: update remotely required variables
@@ -333,13 +334,11 @@ class PMC:
 
     """
 
-    def __init__(self, observations, model, likfun, kernel, backend, n_samples=10000, n_samples_per_param=100, seed=None):
+    def __init__(self, model, likfun, kernel, backend, seed=None):
         """Constructor of PMC inference schemes.
 
         Parameters
         ----------
-        observations : numpy.ndarray
-            Observed data.
         model : abcpy.models.Model
             Model object that conforms to the Model class
         likfun : abcpy.approx_lhd.Approx_likelihood
@@ -348,10 +347,6 @@ class PMC:
             Distribution object defining the perturbation kernel needed for the sampling
         backend : abcpy.backends.Backend
             Backend object that conforms to the Backend class
-        n_samples : integer, optional
-            Number of samples to generate. The default value is 10000.
-        n_samples_per_param : integer, optional
-            Number of data points in each simulated data set. The default value is 1.
         seed : integer, optional
             Optional initial seed for the random number generator. The default value is generated randomly.
 
@@ -360,13 +355,10 @@ class PMC:
         self.likfun = likfun
         self.kernel = kernel
         self.backend = backend
-        self.n_samples = n_samples
-        self.n_samples_per_param = n_samples_per_param
         self.rng = np.random.RandomState(seed)
 
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
-        self.observations_bds = self.backend.broadcast(observations)
         self.accepted_parameters_bds = None
         self.accepted_weights_bds = None
         self.accepted_cov_mat_bds = None
@@ -377,15 +369,20 @@ class PMC:
         del state['backend']
         return state
 
-    def sample(self, steps, covFactor=None, iniPoints=None,
-               full_output=0):
+    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 100, covFactor = None, iniPoints = None, full_output=0):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
         Parameters
         ----------
+        observations : python list
+            Observed data
         steps : integer
             number of iterations in the sequential algoritm ("generations")
+        n_samples : integer, optional
+            number of samples to generate. The default value is 10000.
+        n_samples_per_param : integer, optional
+            number of data points in each simulated data set. The default value is 100.
         covFactor : float, optional
             scaling parameter of the covariance matrix. The default is a p dimensional array of 1 when p is the dimension of the parameter.
         inipoints : numpy.ndarray, optional
@@ -404,6 +401,9 @@ class PMC:
 
         """
 
+        self.observations_bds = self.backend.broadcast(observations)
+        self.n_samples = n_samples
+        self.n_samples_per_param = n_samples_per_param
         journal = Journal(full_output)
         journal.configuration["type_model"] = type(self.model)
         journal.configuration["type_lhd_func"] = type(self.likfun)
@@ -422,11 +422,11 @@ class PMC:
         # Initialize particles: When not supplied, randomly draw them from prior distribution
         # Weights of particles: Assign equal weights for each of the particles
         if iniPoints == None:
-            accepted_parameters = np.zeros(shape=(self.n_samples, dim))
-            for ind in range(0, self.n_samples):
+            accepted_parameters = np.zeros(shape=(n_samples, dim))
+            for ind in range(0, n_samples):
                 self.model.sample_from_prior()
                 accepted_parameters[ind, :] = self.model.get_parameters()
-            accepted_weights = np.ones((self.n_samples, 1), dtype=np.float) / self.n_samples
+            accepted_weights = np.ones((n_samples, 1), dtype=np.float) / n_samples
         else:
             accepted_parameters = iniPoints
             accepted_weights = np.ones((iniPoints.shape[0], 1), dtype=np.float) / iniPoints.shape[0]
@@ -448,10 +448,10 @@ class PMC:
 
             # 1: calculate resample parameters
             # print("INFO: Resample parameters.")
-            index = self.rng.choice(accepted_parameters.shape[0], size=self.n_samples, p=accepted_weights.reshape(-1))
+            index = self.rng.choice(accepted_parameters.shape[0], size=n_samples, p=accepted_weights.reshape(-1))
             # Choose a new particle using the resampled particle (make the boundary proper)
             # Initialize new_parameters
-            new_parameters = np.zeros((self.n_samples, dim), dtype=np.float)
+            new_parameters = np.zeros((n_samples, dim), dtype=np.float)
             for ind in range(0, self.n_samples):
                 self.kernel.set_parameters([accepted_parameters[index[ind], :], accepted_cov_mat])
                 while True:
@@ -582,19 +582,15 @@ class SABC:
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
 
-    def __init__(self, observations, model, distance, kernel, backend, n_samples=10000, n_samples_per_param=1, seed=None):
+    def __init__(self, model, distance, kernel, backend, seed=None):
         self.model = model
         self.distance = distance
         self.kernel = kernel
         self.backend = backend
-        self.n_samples = n_samples
-        self.n_samples_per_param = n_samples_per_param
-        self.epsilon = None
         self.rng = np.random.RandomState(seed)
 
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
-        self.observations_bds = self.backend.broadcast(observations)
         self.accepted_parameters_bds = None
         self.accepted_cov_mat_bds = None
         self.smooth_distances_bds = None
@@ -606,8 +602,7 @@ class SABC:
         del state['backend']
         return state
 
-    def sample(self, steps, epsilon, beta=2, delta=0.2, v=0.3,
-               ar_cutoff=0.5, resample=None, n_update=None, adaptcov=1, full_output=0):
+    def sample(self, observations, steps, epsilon, n_samples = 10000, n_samples_per_param = 1, beta = 2, delta = 0.2, v = 0.3, ar_cutoff = 0.5, resample = None, n_update = None, adaptcov = 1, full_output=0):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -646,6 +641,10 @@ class SABC:
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
+        self.observations_bds = self.backend.broadcast(observations)
+        self.epsilon = epsilon
+        self.n_samples = n_samples
+        self.n_samples_per_param = n_samples_per_param
         journal = Journal(full_output)
         journal.configuration["type_model"] = type(self.model)
         journal.configuration["type_dist_func"] = type(self.distance)
@@ -661,19 +660,19 @@ class SABC:
         journal.configuration["adaptcov"] = adaptcov
         journal.configuration["full_output"] = full_output
 
-        accepted_parameters = np.zeros(shape=(self.n_samples, len(self.model.get_parameters())))
-        distances = np.zeros(shape=(self.n_samples,))
-        smooth_distances = np.zeros(shape=(self.n_samples,))
-        accepted_weights = np.ones(shape=(self.n_samples, 1))
+        accepted_parameters = np.zeros(shape=(n_samples, len(self.model.get_parameters())))
+        distances = np.zeros(shape=(n_samples,))
+        smooth_distances = np.zeros(shape=(n_samples,))
+        accepted_weights = np.ones(shape=(n_samples, 1))
         all_distances = None
         accepted_cov_mat = None
 
         if resample == None:
-            resample = self.n_samples
+            resample = n_samples
         if n_update == None:
-            n_update = self.n_samples
+            n_update = n_samples
         sample_array = np.ones(shape=(steps,))
-        sample_array[0] = self.n_samples
+        sample_array[0] = n_samples
         sample_array[1:] = n_update
         ## Acceptance counter to determine the resampling step
         accept = 0
@@ -705,7 +704,7 @@ class SABC:
 
             # Reading all_distances at Initial step
             if aStep == 0:
-                index = np.linspace(0, self.n_samples - 1, self.n_samples).astype(int).reshape(self.n_samples, )
+                index = np.linspace(0, n_samples - 1, n_samples).astype(int).reshape(n_samples, )
                 accept = 0
                 all_distances = new_all_distances
 
@@ -755,7 +754,7 @@ class SABC:
                 ## Weighted resampling:
                 weight = np.exp(-smooth_distances * delta / U)
                 weight = weight / sum(weight)
-                index_resampled = self.rng.choice(np.arange(self.n_samples), self.n_samples, replace=1, p=weight)
+                index_resampled = self.rng.choice(np.arange(n_samples), n_samples, replace=1, p=weight)
                 accepted_parameters = accepted_parameters[index_resampled, :]
                 smooth_distances = smooth_distances[index_resampled]
 
@@ -927,21 +926,17 @@ class ABCsubsim:
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
 
-    def __init__(self, observations, model, distance, kernel, backend, chain_length=10, n_samples=10000, n_samples_per_param=1, seed=None):
+    def __init__(self, model, distance, kernel, backend, seed=None):
         self.model = model
         self.distance = distance
         self.kernel = kernel
         self.backend = backend
-        self.n_samples = n_samples
-        self.chain_length = chain_length
-        self.n_samples_per_param = n_samples_per_param
         self.rng = np.random.RandomState(seed)
         self.anneal_parameter = None
 
 
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
-        self.observations_bds = self.backend.broadcast(observations)
         self.accepted_parameters_bds = None
         self.accepted_cov_mat_bds = None
 
@@ -951,8 +946,7 @@ class ABCsubsim:
         del state['backend']
         return state
 
-    def sample(self, steps, ap_change_cutoff=10,
-               full_output=0):
+    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, chain_length = 10, ap_change_cutoff = 10, full_output=0):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -974,6 +968,10 @@ class ABCsubsim:
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
+        self.observations_bds = self.backend.broadcast(observations)
+        self.chain_length = chain_length
+        self.n_samples = n_samples
+        self.n_samples_per_param = n_samples_per_param
 
         journal = Journal(full_output)
         journal.configuration["type_model"] = type(self.model)
@@ -986,7 +984,7 @@ class ABCsubsim:
         journal.configuration["full_output"] = full_output
 
         accepted_parameters = None
-        accepted_weights = np.ones(shape=(self.n_samples, 1))
+        accepted_weights = np.ones(shape=(n_samples, 1))
         accepted_cov_mat = None
         anneal_parameter = 0
         anneal_parameter_old = 0
@@ -996,10 +994,10 @@ class ABCsubsim:
         for aStep in range(0, steps):
             # main ABCsubsim algorithm
             # print("INFO: Initialization of ABCsubsim")
-            seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=int(self.n_samples / temp_chain_length),
+            seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=int(n_samples / temp_chain_length),
                                         dtype=np.uint32)
-            index_arr = np.linspace(0, self.n_samples / temp_chain_length - 1, self.n_samples / temp_chain_length).astype(
-                int).reshape(int(self.n_samples / temp_chain_length), )
+            index_arr = np.linspace(0, n_samples / temp_chain_length - 1, n_samples / temp_chain_length).astype(
+                int).reshape(int(n_samples / temp_chain_length), )
             seed_index_arr = np.column_stack((seed_arr, index_arr))
             seed_index_pds = self.backend.parallelize(seed_index_arr)
 
@@ -1021,11 +1019,11 @@ class ABCsubsim:
             accepted_parameters = accepted_parameters[SortIndex, :]
 
             # 3: Calculate and broadcast annealling parameters
-            temp_chain_length = self.chain_length
+            temp_chain_length = chain_length
             if aStep > 0:
                 anneal_parameter_old = anneal_parameter
             anneal_parameter = 0.5 * (
-            distances[int(self.n_samples / temp_chain_length)] + distances[int(self.n_samples / temp_chain_length) + 1])
+            distances[int(n_samples / temp_chain_length)] + distances[int(n_samples / temp_chain_length) + 1])
             self.anneal_parameter = anneal_parameter
 
             # 4: Update proposal covariance matrix (Parallelized)
@@ -1208,21 +1206,17 @@ class RSMCABC:
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
 
-    def __init__(self, observations, model, distance, kernel, backend, n_samples=10000, n_samples_per_param=1, alpha=0.1, seed=None):
+    def __init__(self, model, distance, kernel, backend, seed=None):
         self.model = model
         self.distance = distance
         self.kernel = kernel
         self.backend = backend
-        self.n_samples=n_samples
-        self.n_samples_per_param = n_samples_per_param
-        self.alpha = alpha
-        self.epsilon = None
+
         self.R=None
         self.rng = np.random.RandomState(seed)
 
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
-        self.observations_bds = self.backend.broadcast(observations)
         self.accepted_parameters_bds = None
         self.accepted_dist_bds = None
         self.accepted_cov_mat_bds = None
@@ -1233,8 +1227,7 @@ class RSMCABC:
         del state['backend']
         return state
 
-    def sample(self, steps, epsilon_init=100,
-               epsilon_final=0.1, const=1, covFactor=2.0, full_output=0):
+    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, alpha = 0.1, epsilon_init = 100, epsilon_final = 0.1, const = 1, covFactor = 2.0, full_output=0):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -1267,6 +1260,10 @@ class RSMCABC:
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
+        self.observations_bds = self.backend.broadcast(observations)
+        self.alpha = alpha
+        self.n_samples = n_samples
+        self.n_samples_per_param = n_samples_per_param
 
         journal = Journal(full_output)
         journal.configuration["type_model"] = type(self.model)
@@ -1287,17 +1284,17 @@ class RSMCABC:
             # and finally Drawing new new/perturbed samples using prior or MCMC Kernel
             # print("DEBUG: Iteration " + str(aStep) + " of RSMCABC algorithm.")
             if aStep == 0:
-                n_replenish = self.n_samples
+                n_replenish = n_samples
                 # Compute epsilon
                 epsilon = [epsilon_init]
                 R = int(1)
             else:
-                n_replenish = round(self.n_samples * self.alpha)
+                n_replenish = round(n_samples * alpha)
                 # Throw away N_alpha particles with largest dist
-                accepted_parameters = np.delete(accepted_parameters, np.arange(round(self.n_samples * self.alpha)) + (
-                self.n_samples - round(self.n_samples * self.alpha)), 0)
+                accepted_parameters = np.delete(accepted_parameters, np.arange(round(n_samples * alpha)) + (
+                self.n_samples - round(n_samples * alpha)), 0)
                 accepted_dist = np.delete(accepted_dist,
-                                          np.arange(round(self.n_samples * self.alpha)) + (self.n_samples - round(self.n_samples * self.alpha)),
+                                          np.arange(round(n_samples * alpha)) + (n_samples - round(n_samples * alpha)),
                                           0)
                 # Compute epsilon
                 epsilon.append(accepted_dist[-1])
@@ -1348,7 +1345,7 @@ class RSMCABC:
             # print("INFO: Saving configuration to output journal.")
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
                 journal.add_parameters(accepted_parameters)
-                journal.add_weights(np.ones(shape=(self.n_samples, 1)) * (1 / self.n_samples))
+                journal.add_weights(np.ones(shape=(n_samples, 1)) * (1 / n_samples))
 
         # Add epsilon_arr to the journal
         journal.configuration["epsilon_arr"] = epsilon
@@ -1441,22 +1438,17 @@ class APMCABC:
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
 
-    def __init__(self, observations, model, distance, kernel, backend, n_samples=10000, n_samples_per_param=1, alpha=0.9, seed=None):
+    def __init__(self,  model, distance, kernel, backend, seed=None):
         self.model = model
         self.distance = distance
         self.kernel = kernel
         self.backend = backend
-        self.n_samples = n_samples
-        self.n_samples_per_param = n_samples_per_param
-
-        self.alpha = alpha
 
         self.epsilon= None
         self.rng = np.random.RandomState(seed)
 
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
-        self.observations_bds = self.backend.broadcast(observations)
         self.alpha_accepted_parameters_bds = None
         self.alpha_accepted_weights_bds = None
         self.alpha_accepted_dist = None
@@ -1468,8 +1460,7 @@ class APMCABC:
         del state['backend']
         return state
 
-    def sample(self, steps, acceptance_cutoff=0.2,
-               covFactor=2.0, full_output=0):
+    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, alpha = 0.9, acceptance_cutoff = 0.2, covFactor = 2.0, full_output=0):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -1498,6 +1489,11 @@ class APMCABC:
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
+        self.observations_bds = self.backend.broadcast(observations)
+        self.alpha = alpha
+        self.n_samples = n_samples
+        self.n_samples_per_param = n_samples_per_param
+
 
         journal = Journal(full_output)
         journal.configuration["type_model"] = type(self.model)
@@ -1521,9 +1517,9 @@ class APMCABC:
             # 0: Drawing new new/perturbed samples using prior or MCMC Kernel
             # print("DEBUG: Iteration " + str(aStep) + " of APMCABC algorithm.")
             if aStep > 0:
-                n_additional_samples = self.n_samples - round(self.n_samples * self.alpha)
+                n_additional_samples = n_samples - round(n_samples * alpha)
             else:
-                n_additional_samples = self.n_samples
+                n_additional_samples = n_samples
 
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_additional_samples, dtype=np.uint32)
             seed_pds = self.backend.parallelize(seed_arr)
@@ -1543,14 +1539,14 @@ class APMCABC:
             new_weights = np.array(new_weights).reshape(n_additional_samples, 1)
 
             # 1: Update all parameters, compute acceptance probability, compute epsilon
-            if len(new_weights) == self.n_samples:
+            if len(new_weights) == n_samples:
                 accepted_parameters = new_parameters
                 accepted_dist = new_dist
                 accepted_weights = new_weights
                 # Compute acceptance probability
                 prob_acceptance = 1
                 # Compute epsilon
-                epsilon = [np.percentile(accepted_dist, self.alpha * 100)]
+                epsilon = [np.percentile(accepted_dist, alpha * 100)]
             else:
                 accepted_parameters = np.concatenate((alpha_accepted_parameters, new_parameters))
                 accepted_dist = np.concatenate((alpha_accepted_dist, new_dist))
@@ -1558,7 +1554,7 @@ class APMCABC:
                 # Compute acceptance probability
                 prob_acceptance = sum(new_dist < epsilon[-1]) / len(new_dist)
                 # Compute epsilon
-                epsilon.append(np.percentile(accepted_dist, self.alpha * 100))
+                epsilon.append(np.percentile(accepted_dist, alpha * 100))
 
             # 2: Update alpha_parameters, alpha_dist and alpha_weights
             index_alpha = accepted_dist < epsilon[-1]
@@ -1672,20 +1668,18 @@ class SMCABC:
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
 
-    def __init__(self, observations, model, distance, kernel, backend, n_samples=10000, n_samples_per_param=1, seed=None):
+    def __init__(self, model, distance, kernel, backend, seed=None):
         self.model = model
         self.distance = distance
         self.kernel = kernel
         self.backend = backend
-        self.n_samples = n_samples
-        self.n_samples_per_param = n_samples_per_param
 
         self.epsilon = None
         self.rng = np.random.RandomState(seed)
 
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
-        self.observations_bds = self.backend.broadcast(observations)
+        self.observations_bds = None
         self.accepted_parameters_bds = None
         self.accepted_weights_bds = None
         self.accepted_cov_mat_bds = None
@@ -1697,8 +1691,7 @@ class SMCABC:
         del state['backend']
         return state
 
-    def sample(self, observations, steps, epsilon_final=0.1, alpha=0.95,
-               covFactor=2, resample=None, full_output=0):
+    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, epsilon_final = 0.1, alpha = 0.95, covFactor = 2, resample = None, full_output=0):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -1728,7 +1721,9 @@ class SMCABC:
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
-
+        self.observations_bds= self.backend.broadcast(observations)
+        self.n_samples = n_samples
+        self.n_samples_per_param = n_samples_per_param
         journal = Journal(full_output)
         journal.configuration["type_model"] = type(self.model)
         journal.configuration["type_dist_func"] = type(self.distance)
@@ -1743,7 +1738,7 @@ class SMCABC:
 
         # Define the resmaple parameter
         if resample == None:
-            resample = self.n_samples * 0.5
+            resample = n_samples * 0.5
 
             # Define epsilon_init
         epsilon = [10000]
@@ -1761,7 +1756,7 @@ class SMCABC:
                 # Compute epsilon for next step
                 fun = lambda epsilon_var: self._compute_epsilon(epsilon_var, \
                                                                 epsilon, observations, accepted_y_sim, accepted_weights,
-                                                                self.n_samples, self.n_samples_per_param, alpha)
+                                                                n_samples, n_samples_per_param, alpha)
                 epsilon_new = self._bisection(fun, epsilon_final, epsilon[-1], 0.001)
                 if epsilon_new < epsilon_final:
                     epsilon_new = epsilon_final
@@ -1770,11 +1765,11 @@ class SMCABC:
             # 1: calculate weights for new parameters
             # print("INFO: Calculating weights.")
             if accepted_y_sim != None:
-                new_weights = np.zeros(shape=(self.n_samples), )
-                for ind1 in range(self.n_samples):
+                new_weights = np.zeros(shape=(n_samples), )
+                for ind1 in range(n_samples):
                     numerator = 0.0
                     denominator = 0.0
-                    for ind2 in range(self.n_samples_per_param):
+                    for ind2 in range(n_samples_per_param):
                         numerator += (self.distance.distance(observations, [accepted_y_sim[ind1][ind2]]) < epsilon[-1])
                         denominator += (
                         self.distance.distance(observations, [accepted_y_sim[ind1][ind2]]) < epsilon[-2])
@@ -1784,23 +1779,23 @@ class SMCABC:
                         new_weights[ind1] = 0
                 new_weights = new_weights / sum(new_weights)
             else:
-                new_weights = np.ones(shape=(self.n_samples), ) * (1.0 / self.n_samples)
+                new_weights = np.ones(shape=(n_samples), ) * (1.0 / n_samples)
 
             # 2: Resample
             if accepted_y_sim != None and pow(sum(pow(new_weights, 2)), -1) < resample:
                 print('Resampling')
                 # Weighted resampling:
-                index_resampled = self.rng.choice(np.arange(self.n_samples), self.n_samples, replace=1, p=new_weights)
+                index_resampled = self.rng.choice(np.arange(n_samples), n_samples, replace=1, p=new_weights)
                 accepted_parameters = accepted_parameters[index_resampled, :]
-                new_weights = np.ones(shape=(self.n_samples), ) * (1.0 / self.n_samples)
+                new_weights = np.ones(shape=(n_samples), ) * (1.0 / n_samples)
 
             # Update the weights
             accepted_weights = new_weights.reshape(len(new_weights), 1)
 
             # 3: Drawing new perturbed samples using MCMC Kernel
             # print("DEBUG: Iteration " + str(aStep) + " of SMCABC algorithm.")
-            seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=self.n_samples, dtype=np.uint32)
-            index_arr = np.arange(self.n_samples)
+            seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
+            index_arr = np.arange(n_samples)
             seed_index_arr = np.column_stack((seed_arr, index_arr))
             seed_index_pds = self.backend.parallelize(seed_index_arr)
 
