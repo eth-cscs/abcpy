@@ -155,7 +155,7 @@ class PMCABCTests(unittest.TestCase):
         accepted_parameters = np.array([[1.0], [1.0 + np.sqrt(2)]])
         accepted_weights = np.array([[.5], [.5]])
         accepted_cov_mat = np.array([[1.0]])
-        rc._update_broadcasts(self.backend, accepted_parameters, accepted_weights, accepted_cov_mat)
+        rc._update_broadcasts(accepted_parameters, accepted_weights, accepted_cov_mat)
         weight = rc._calculate_weight(theta)
         expected_weight = (2.0 * np.sqrt(2.0 * np.pi)) /(( 1 + np.exp(-1))*100)
         self.assertEqual(weight, expected_weight)
