@@ -87,3 +87,17 @@ ENV/
 
 # Rope project settings
 .ropeproject
+abcpy/.idea/
+abcpy/inf_no_abs.py
+abcpy/inferences_old.py
+abcpy/modelselection_old.py
+abcpy/pymc_dist.py
+abcpy/summaryselection_old.py
+abcpy/test.py
+abcpy/uniform.py
+tests/backend.py
+tests/save.p
+tests/save2.p
+tests/save3.p
+.idea/
+

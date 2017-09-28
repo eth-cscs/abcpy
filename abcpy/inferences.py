@@ -1,8 +1,231 @@
+from abc import ABCMeta, abstractmethod, abstractproperty
+
 import numpy as np
 from abcpy.output import Journal
 from scipy import optimize
 
-class RejectionABC:
+
+class InferenceMethod(metaclass = ABCMeta):
+    """
+        This abstract base class represents an inference method.
+
+    """
+
+    def __getstate__(self):
+        """Cloudpickle is used with the MPIBackend. This function ensures that the backend itself
+        is not pickled
+        """
+        state = self.__dict__.copy()
+        del state['backend']
+        return state
+
+    @abstractmethod
+    def sample(self):
+        """To be overwritten by any sub-class:
+        Samples from the posterior distribution of the model parameter given the observed
+        data observations.
+        """
+        raise NotImplementedError
+
+    @abstractproperty
+    def model(self):
+        """To be overwritten by any sub-class: an attribute specifying the model to be used
+        """
+        raise NotImplementedError
+
+    @abstractproperty
+    def rng(self):
+        """To be overwritten by any sub-class: an attribute specifying the random number generator to be used
+        """
+        raise NotImplementedError
+
+    @abstractproperty
+    def n_samples(self):
+        """To be overwritten by any sub-class: an attribute specifying the number of samples to be generated
+        """
+        raise NotImplementedError
+
+    @abstractproperty
+    def n_samples_per_param(self):
+        """To be overwritten by any sub-class: an attribute specifying the number of data points in each simulated         data set."""
+        raise NotImplementedError
+
+    @abstractproperty
+    def observations_bds(self):
+        """To be overwritten by any sub-class: an attribute saving the observations as bds
+        """
+        raise NotImplementedError
+
+
+class BasePMC(InferenceMethod, metaclass = ABCMeta):
+    """
+            This abstract base class represents inference methods that use Population Monte Carlo.
+
+    """
+    @abstractmethod
+    def _update_broadcasts(self, accepted_parameters, accepted_weights, accepted_cov_mat):
+        """
+        To be overwritten by any sub-class: broadcasts updated values
+
+        Parameters
+        ----------
+        accepted_parameters: numpy.array
+            Contains all new accepted parameters.
+        accepted_weights: numpy.array
+            Contains all the new accepted weights.
+        accepted_cov_mat: numpy.ndarray
+            Contains the new accepted covariance matrix
+
+        Returns
+        -------
+        None
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def _calculate_weight(self, theta):
+        """
+        To be overwritten by any sub-class:
+        Calculates the weight for the given parameter using
+        accepted_parameters, accepted_cov_mat
+
+        Parameters
+        ----------
+        theta: np.array
+            1xp matrix containing the model parameters, where p is the dimension of parameters
+
+        Returns
+        -------
+        float
+            the new weight for theta
+        """
+        raise NotImplementedError
+
+    @abstractproperty
+    def kernel(self):
+        """To be overwritten by any sub-class: an attribute specifying the kernel to be used
+        """
+        raise NotImplementedError
+
+    @abstractproperty
+    def accepted_parameters_bds(self):
+        """To be overwritten by any sub-class: an attribute saving the accepted parameters as bds
+        """
+        raise NotImplementedError
+
+    @abstractproperty
+    def accepted_weights_bds(self):
+        """To be overwritten by any sub-class: an attribute saving the accepted weights as bds
+        """
+        raise NotImplementedError
+
+    @abstractproperty
+    def accepted_cov_mat_bds(self):
+        """To be overwritten by any sub-class: an attribute saving the accepted covariance matrix as bds
+        """
+        raise NotImplementedError
+
+
+
+class BaseAnnealing(InferenceMethod, metaclass = ABCMeta):
+    """
+            This abstract base class represents inference methods that use annealing.
+
+    """
+
+    @abstractmethod
+    def _update_broadcasts(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def _accept_parameter(self):
+        raise NotImplementedError
+
+    @abstractproperty
+    def distance(self):
+        """To be overwritten by any sub-class: an attribute specifying the distance measure to be used
+        """
+        raise NotImplementedError
+
+    @abstractproperty
+    def kernel(self):
+        """To be overwritten by any sub-class: an attribute specifying the kernel to be used
+        """
+        raise NotImplementedError
+
+    @abstractproperty
+    def accepted_parameters_bds(self):
+        """To be overwritten by any sub-class: an attribute saving the accepted parameters as bds
+        """
+        raise NotImplementedError
+
+    @abstractproperty
+    def accepted_cov_mat_bds(self):
+        """To be overwritten by any sub-class: an attribute saving the accepted covariance matrix as bds
+        """
+        raise NotImplementedError
+
+class BaseAdaptivePopulationMC(InferenceMethod, metaclass = ABCMeta):
+    """
+            This abstract base class represents inference methods that use Adaptive Population Monte Carlo.
+
+    """
+
+    @abstractmethod
+    def _update_broadcasts(self):
+        """
+        To be overwritten by any sub-class: broadcasts updated values
+
+        Parameters
+        ----------
+        accepted_parameters: numpy.array
+            Contains all new accepted parameters.
+        accepted_weights: numpy.array
+            Contains all the new accepted weights.
+        accepted_cov_mat: numpy.ndarray
+            Contains the new accepted covariance matrix
+
+        Returns
+        -------
+        None
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def _accept_parameter(self):
+        """
+        To be overwritten by any sub-class:
+        Samples a single model parameter and simulate from it until
+        accepted with some probability.
+
+        """
+        raise NotImplementedError
+
+    @abstractproperty
+    def distance(self):
+        """To be overwritten by any sub-class: an attribute specifying the distance measure to be used
+        """
+        raise NotImplementedError
+
+    @abstractproperty
+    def kernel(self):
+        """To be overwritten by any sub-class: an attribute specifying the kernel to be used
+        """
+        raise NotImplementedError
+
+    @abstractproperty
+    def accepted_parameters_bds(self):
+        """To be overwritten by any sub-class: an attribute saving the accepted parameters as bds
+        """
+        raise NotImplementedError
+
+    @abstractproperty
+    def accepted_cov_mat_bds(self):
+        """To be overwritten by any sub-class: an attribute saving the accepted covariance matrix as bds
+        """
+        raise NotImplementedError
+
+class RejectionABC(InferenceMethod):
     """This base class implements the rejection algorithm based inference scheme [1] for
         Approximate Bayesian Computation.
 
@@ -12,40 +235,65 @@ class RejectionABC:
         Parameters
         ----------
         model: abcpy.models.Model
-            Model object that conforms to the Model class.
+            Model object defining the model to be used.
         distance: abcpy.distances.Distance
-            Distance object that conforms to the Distance class.
+            Distance object defining the distance measure to compare simulated and observed data sets.
         backend: abcpy.backends.Backend
-            Backend object that conforms to the Backend class.
+            Backend object defining the backend to be used.
         seed: integer, optional
              Optional initial seed for the random number generator. The default value is generated randomly.
         """
+
+    model = None
+    distance = None
+    rng = None
+
+    n_samples = None
+    n_samples_per_param = None
+    epsilon = None
+
+    observations_bds = None
+
     def __init__(self, model, distance, backend, seed=None):
         self.model = model
-        self.dist_calc = distance
+        self.distance = distance
         self.backend = backend
         self.rng = np.random.RandomState(seed)
 
-    def __getstate__(self):
-        #tells cloudpickle to not include the backend when pickling
-        state = self.__dict__.copy()
-        del state['backend']
-        return state
-
     def sample(self, observations, n_samples, n_samples_per_param, epsilon, full_output=0):
+        """
+        Samples from the posterior distribution of the model parameter given the observed
+        data observations.
+        Parameters
+        ----------
+        observations: numpy.ndarray
+            Observed data.
+        n_samples: integer
+            Number of samples to generate
+        n_samples_per_param: integer
+            Number of data points in each simulated data set.
+        epsilon: float
+            Value of threshold
+        full_output: integer, optional
+            If full_output==1, intermediate results are included in output journal.
+            The default value is 0, meaning the intermediate results are not saved.
+        Returns
+        -------
+        abcpy.output.Journal
+            a journal containing simulation results, metadata and optionally intermediate results.
+        """
 
         self.observations_bds = self.backend.broadcast(observations)
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
         self.epsilon = epsilon
+
         journal = Journal(full_output)
         journal.configuration["n_samples"] = self.n_samples
         journal.configuration["n_samples_per_param"] = self.n_samples_per_param
         journal.configuration["epsilon"] = self.epsilon
 
         accepted_parameters = None
-
-        # Initialize variables that need to be available remotely
 
         # main Rejection ABC algorithm
         seed_arr = self.rng.randint(1, n_samples * n_samples, size=n_samples, dtype=np.int32)
@@ -61,20 +309,35 @@ class RejectionABC:
         return journal
 
     def _sample_parameter(self, seed):
-        distance = self.dist_calc.dist_max()
+        """
+        Samples a single model parameter and simulates from it until
+        distance between simulated outcome and the observation is
+        smaller than epsilon.
+
+        Parameters
+        ----------
+        seed: int
+            value of a seed to be used for reseeding
+        Returns
+        -------
+        np.array
+            accepted parameter
+        """
+
+        distance = self.distance.dist_max()
         self.model.prior.reseed(seed)
 
         while distance > self.epsilon:
             # Accept new parameter value if the distance is less than epsilon
             self.model.sample_from_prior()
             y_sim = self.model.simulate(self.n_samples_per_param)
-            distance = self.dist_calc.distance(self.observations_bds.value(), y_sim)
+            distance = self.distance.distance(self.observations_bds.value(), y_sim)
 
         return self.model.get_parameters()
 
-
-class PMCABC:
-    """This base class implements a modified version of Population Monte Carlo based inference scheme
+class PMCABC(BasePMC, InferenceMethod):
+    """
+    This base class implements a modified version of Population Monte Carlo based inference scheme
     for Approximate Bayesian computation of Beaumont et. al. [1]. Here the threshold value at `t`-th generation are adaptively chosen
     by taking the maximum between the epsilon_percentile-th value of discrepancies of the accepted
     parameters at `t-1`-th generation and the threshold value provided for this generation by the user. If we take the
@@ -87,16 +350,31 @@ class PMCABC:
     Parameters
     ----------
     model : abcpy.models.Model
-        Model object that conforms to the Model class.
+        Model object defining the model to be used.
     distance : abcpy.distances.Distance
-        Distance object that conforms to the Distance class.
+        Distance object defining the distance measure to compare simulated and observed data sets.
     kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling
+        Distribution object defining the perturbation kernel needed for the sampling.
     backend : abcpy.backends.Backend
-        Backend object that conforms to the Backend class.
+        Backend object defining the backend to be used.
     seed : integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
+
+    model = None
+    distance = None
+    kernel = None
+    rng = None
+
+    #default value, set so that testing works
+    n_samples = 2
+    n_samples_per_param = None
+
+    observations_bds = None
+    accepted_parameters_bds = None
+    accepted_weights_bds = None
+    accepted_cov_mat_bds = None
+
 
     def __init__(self, model, distance, kernel, backend, seed=None):
 
@@ -106,20 +384,13 @@ class PMCABC:
         self.backend = backend
         self.rng = np.random.RandomState(seed)
 
-        #added this here, so that the calculate_weight function can be called without calling sample first
-        self.n_samples = 2
-
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
+        self.observations_bds = None
         self.accepted_parameters_bds = None
         self.accepted_weights_bds = None
         self.accepted_cov_mat_bds = None
 
-    def __getstate__(self):
-        #tells cloudpickle to not include the backend when pickling
-        state = self.__dict__.copy()
-        del state['backend']
-        return state
 
     def sample(self, observations, steps, epsilon_init, n_samples = 10000, n_samples_per_param = 1, epsilon_percentile = 0, covFactor = 2, full_output=0):
         """Samples from the posterior distribution of the model parameter given the observed
@@ -168,6 +439,7 @@ class PMCABC:
         accepted_parameters = None
         accepted_weights = None
         accepted_cov_mat = None
+
         # Define epsilon_arr
         if len(epsilon_init) == steps:
             epsilon_arr = epsilon_init
@@ -207,7 +479,7 @@ class PMCABC:
                     epsilon_arr[aStep + 1] = np.max(
                         [np.percentile(distances, epsilon_percentile), epsilon_arr[aStep + 1]])
 
-                    # 2: calculate weights for new parameters
+            # 2: calculate weights for new parameters
             # print("INFO: Calculating weights.")
             new_parameters_pds = self.backend.parallelize(new_parameters)
             new_weights_pds = self.backend.map(self._calculate_weight, new_parameters_pds)
@@ -254,12 +526,19 @@ class PMCABC:
         """
         Samples a single model parameter and simulate from it until
         distance between simulated outcome and the observation is
-        smaller than eplison.
+        smaller than epsilon.
 
-        :type seed: int
-        :rtype: np.array
-        :return: accepted parameter
+        Parameters
+        ----------
+        seed: integer
+            initial seed for the random number generator.
+
+        Returns
+        -------
+        np.array
+            accepted parameter
         """
+
         rng = np.random.RandomState(seed)
         self.model.prior.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
         self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
@@ -284,6 +563,7 @@ class PMCABC:
             y_sim = self.model.simulate(self.n_samples_per_param)
 
             distance = self.distance.distance(self.observations_bds.value(), y_sim)
+
         return (self.model.get_parameters(), distance)
 
     def _calculate_weight(self, theta):
@@ -294,7 +574,7 @@ class PMCABC:
         Parameters
         ----------
         theta: np.array
-            1xp matrix containing model parameter, where p is the dimension of parameter
+            1xp matrix containing model parameter, where p is the number of parameters
 
         Returns
         -------
@@ -313,11 +593,12 @@ class PMCABC:
                     [self.accepted_parameters_bds.value()[i, :], self.accepted_cov_mat_bds.value()])
                 pdf_value = self.kernel.pdf(theta)
                 denominator += self.accepted_weights_bds.value()[i, 0] * pdf_value
+
             return 1.0 * prior_prob / denominator
 
-
-class PMC:
-    """Population Monte Carlo based inference scheme of Cappé et. al. [1].
+class PMC(BasePMC, InferenceMethod):
+    """
+    Population Monte Carlo based inference scheme of Cappé et. al. [1].
 
     This algorithm assumes a likelihood function is available and can be evaluated
     at any parameter value given the oberved dataset.  In absence of the
@@ -332,25 +613,35 @@ class PMC:
     [2] C. Andrieu and G. O. Roberts. The pseudo-marginal approach for efficient Monte Carlo computations.
     Annals of Statistics, 37(2):697–725, 04 2009.
 
+    Parameters
+    ----------
+    model : abcpy.models.Model
+        Model object defining the model to be used.
+    likfun : abcpy.approx_lhd.Approx_likelihood
+        Approx_likelihood object defining the approximated likelihood to be used.
+    kernel : abcpy.distributions.Distribution
+        Distribution object defining the perturbation kernel needed for the sampling.
+    backend : abcpy.backends.Backend
+        Backend object defining the backend to be used.
+    seed : integer, optional
+        Optional initial seed for the random number generator. The default value is generated randomly.
+
     """
 
+    model = None
+    likfun = None
+    kernel = None
+    rng = None
+
+    n_samples = None
+    n_samples_per_param = None
+
+    observations_bds = None
+    accepted_parameters_bds = None
+    accepted_weights_bds = None
+    accepted_cov_mat_bds = None
+
     def __init__(self, model, likfun, kernel, backend, seed=None):
-        """Constructor of PMC inference schemes.
-
-        Parameters
-        ----------
-        model : abcpy.models.Model
-            Model object that conforms to the Model class
-        likfun : abcpy.approx_lhd.Approx_likelihood
-            Approx_likelihood object that conforms to the Approx_likelihood class
-        kernel : abcpy.distributions.Distribution
-            Distribution object defining the perturbation kernel needed for the sampling
-        backend : abcpy.backends.Backend
-            Backend object that conforms to the Backend class
-        seed : integer, optional
-            Optional initial seed for the random number generator. The default value is generated randomly.
-
-        """
         self.model = model
         self.likfun = likfun
         self.kernel = kernel
@@ -359,15 +650,11 @@ class PMC:
 
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
+        self.observations_bds = None
         self.accepted_parameters_bds = None
         self.accepted_weights_bds = None
         self.accepted_cov_mat_bds = None
 
-    def __getstate__(self):
-        #tells cloudpickle to not include the backend when pickling
-        state = self.__dict__.copy()
-        del state['backend']
-        return state
 
     def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 100, covFactor = None, iniPoints = None, full_output=0):
         """Samples from the posterior distribution of the model parameter given the observed
@@ -395,15 +682,12 @@ class PMC:
         -------
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
-
-        Parameters
-        ----------
-
         """
 
         self.observations_bds = self.backend.broadcast(observations)
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
+
         journal = Journal(full_output)
         journal.configuration["type_model"] = type(self.model)
         journal.configuration["type_lhd_func"] = type(self.likfun)
@@ -417,6 +701,7 @@ class PMC:
         accepted_weights = None
         accepted_cov_mat = None
         new_theta = None
+
         dim = len(self.model.get_parameters())
 
         # Initialize particles: When not supplied, randomly draw them from prior distribution
@@ -460,6 +745,7 @@ class PMC:
                     if theta_is_accepted and self.model.prior.pdf(self.model.get_parameters()) != 0:
                         new_parameters[ind, :] = new_theta
                         break
+
             # 2: calculate approximate lieklihood for new parameters
             # print("INFO: Calculate approximate likelihood.")
             new_parameters_pds = self.backend.parallelize(new_parameters)
@@ -515,25 +801,33 @@ class PMC:
         """
         Compute likelihood for new parameters using approximate likelihood function
 
-        :seed = aTuple[0]
-        :theta = aTuple[1]
-        :type seed: int
-        :rtype: np.arraybg
+        Parameters
+        ----------
+        theta: numpy.ndarray
+            1xp matrix containing the model parameters, where p is the number of parameters
 
-        :return: likelihood values of new parameter
+        Returns
+        -------
+        float
+            The approximated likelihood function
         """
 
         # Assign theta to model
         self.model.set_parameters(theta)
+
         # Simulate the fake data from the model given the parameter value theta
         # print("DEBUG: Simulate model for parameter " + str(theta))
         y_sim = self.model.simulate(self.n_samples_per_param)
+
         # print("DEBUG: Extracting observation.")
         obs = self.observations_bds.value()
+
         # print("DEBUG: Computing likelihood...")
         lhd = self.likfun.likelihood(obs, y_sim)
+
         # print("DEBUG: Likelihood is :" + str(lhd))
         pdf_at_theta = self.model.prior.pdf(theta)
+
         # print("DEBUG: prior pdf evaluated at theta is :" + str(pdf_at_theta))
         return pdf_at_theta * lhd
 
@@ -542,10 +836,15 @@ class PMC:
         Calculates the weight for the given parameter using
         accepted_parameters, accepted_cov_mat
 
-        :type theta: np.array
-        :param theta: 1xp matrix containing model parameters, where p is the number of parameters
-        :rtype: float
-        :return: the new weight for theta
+        Parameters
+        ----------
+        theta: np.ndarray
+            1xp matrix containing the model parameters, where p is the number of parameters
+
+        Returns
+        -------
+        float
+            The new weight for theta
         """
 
         if self.accepted_weights_bds is None:
@@ -559,11 +858,12 @@ class PMC:
                     [self.accepted_parameters_bds.value()[i, :], self.accepted_cov_mat_bds.value()])
                 pdf_value = self.kernel.pdf(theta)
                 denominator += self.accepted_weights_bds.value()[i, 0] * pdf_value
+
             return 1.0 * prior_prob / denominator
 
-
-class SABC:
-    """This base class implements a modified version of Simulated Annealing Approximate Bayesian Computation (SABC) of [1] when the prior is non-informative.
+class SABC(BaseAnnealing, InferenceMethod):
+    """
+    This base class implements a modified version of Simulated Annealing Approximate Bayesian Computation (SABC) of [1] when the prior is non-informative.
 
     [1] C. Albert, H. R. Kuensch and A. Scheidegger. A Simulated Annealing Approach to
     Approximate Bayes Computations. Statistics and Computing, (2014).
@@ -571,16 +871,31 @@ class SABC:
     Parameters
     ----------
     model : abcpy.models.Model
-        Model object that conforms to the Model class.
+        Model object defining the model to be used.
     distance : abcpy.distances.Distance
-        Distance object that conforms to the Distance class.
+        Distance object defining the distance measure used to compare simulated and observed data sets.
     kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling
+        Distribution object defining the perturbation kernel needed for the sampling.
     backend : abcpy.backends.Backend
-        Backend object that conforms to the Backend class.
+        Backend object defining the backend to be used.
     seed : integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
+
+    model = None
+    distance = None
+    kernel = None
+    rng = None
+
+    n_samples = None
+    n_samples_per_param = None
+    epsilon = None
+
+    observations_bds = None
+    accepted_parameters_bds = None
+    accepted_cov_mat_bds = None
+    smooth_distances_bds = None
+    all_distances_bds = None
 
     def __init__(self, model, distance, kernel, backend, seed=None):
         self.model = model
@@ -591,16 +906,12 @@ class SABC:
 
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
+        self.observations_bds = None
         self.accepted_parameters_bds = None
         self.accepted_cov_mat_bds = None
         self.smooth_distances_bds = None
         self.all_distances_bds = None
 
-    def __getstate__(self):
-        #tells cloudpickle to not include the backend when pickling
-        state = self.__dict__.copy()
-        del state['backend']
-        return state
 
     def sample(self, observations, steps, epsilon, n_samples = 10000, n_samples_per_param = 1, beta = 2, delta = 0.2, v = 0.3, ar_cutoff = 0.5, resample = None, n_update = None, adaptcov = 1, full_output=0):
         """Samples from the posterior distribution of the model parameter given the observed
@@ -641,10 +952,12 @@ class SABC:
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
+
         self.observations_bds = self.backend.broadcast(observations)
         self.epsilon = epsilon
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
+
         journal = Journal(full_output)
         journal.configuration["type_model"] = type(self.model)
         journal.configuration["type_dist_func"] = type(self.distance)
@@ -674,6 +987,7 @@ class SABC:
         sample_array = np.ones(shape=(steps,))
         sample_array[0] = n_samples
         sample_array[1:] = n_update
+
         ## Acceptance counter to determine the resampling step
         accept = 0
         samples_until = 0
@@ -732,7 +1046,7 @@ class SABC:
                                    0.0001 * (np.var(np.transpose(accepted_parameters))) * np.eye(
                                        accepted_parameters.shape[1])
 
-                ## 4: Show progress and if acceptance rate smaller than a value break the iteration
+            # 4: Show progress and if acceptance rate smaller than a value break the iteration
 
             # print("INFO: Saving intermediate configuration to output journal.")
             if full_output == 1:
@@ -783,6 +1097,19 @@ class SABC:
 
         [1] C. Albert, H. R. Kuensch and A. Scheidegger. A Simulated Annealing Approach to
         Approximate Bayes Computations. Statistics and Computing 0960-3174 (2014).
+
+        Parameters
+        ----------
+        distance: numpy.ndarray
+            Current distance between the simulated and observed data
+        old_distance: numpy.ndarray
+            Last distance between the simulated and observed data
+
+        Returns
+        -------
+        numpy.ndarray
+            Smoothed distance
+
         """
 
         smoothed_distance = np.zeros(shape=(len(distance),))
@@ -796,6 +1123,20 @@ class SABC:
         return smoothed_distance
 
     def _average_redefined_distance(self, distance, epsilon):
+        """
+        Function to calculate the weighted average of the distance
+        Parameters
+        ----------
+        distance: numpy.ndarray
+            Distance between simulated and observed data set
+        epsilon: float
+            threshold
+
+        Returns
+        -------
+        numpy.ndarray
+            Weighted average of the distance
+        """
         if epsilon == 0:
             U = 0
         else:
@@ -827,33 +1168,23 @@ class SABC:
         if not all_distances is None:
             self.all_distances_bds = self.backend.broadcast(all_distances)
 
-    def _smoother_distance_remote(self, distance, old_distance):
-        """Smooths the distance using the Equation 14 of [1].
-
-        [1] C. Albert, H. R. Kuensch and A. Scheidegger. A Simulated Annealing Approach to
-        Approximate Bayes Computations. Statistics and Computing 0960-3174 (2014).
-        """
-
-        smoothed_distance = np.zeros(shape=(len(distance),))
-
-        for ind in range(0, len(distance)):
-            if distance[ind] < np.min(old_distance):
-                smoothed_distance[ind] = (distance[ind] / np.min(old_distance)) / len(old_distance)
-            else:
-                smoothed_distance[ind] = np.mean(np.array(old_distance) < distance[ind])
-
-        return smoothed_distance
-
     # define helper functions for map step
     def _accept_parameter(self, seed):
         """
         Samples a single model parameter and simulate from it until
         accepted with probabilty exp[-rho(x,y)/epsilon].
 
-        :type seed: int
-        :rtype: np.array
-        :return: accepted parameter
+        Parameters
+        ----------
+        seed: integer
+            Initial seed for the random number generator.
+
+        Returns
+        -------
+        numpy.ndarray
+            accepted parameter
         """
+
         rng = np.random.RandomState(seed)
         self.model.prior.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
         self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
@@ -889,7 +1220,7 @@ class SABC:
                     break
             y_sim = self.model.simulate(self.n_samples_per_param)
             distance = self.distance.distance(self.observations_bds.value(), y_sim)
-            smooth_distance = self._smoother_distance_remote([distance], self.all_distances_bds.value())
+            smooth_distance = self._smoother_distance([distance], self.all_distances_bds.value())
 
             ## Calculate acceptance probability:
             ratio_prior_prob = self.model.prior.pdf(new_theta) / self.model.prior.pdf(
@@ -905,8 +1236,7 @@ class SABC:
 
         return (new_theta, distance, all_parameters, all_distances, index, acceptance)
 
-
-class ABCsubsim:
+class ABCsubsim(BaseAnnealing, InferenceMethod):
     """This base class implements Approximate Bayesian Computation by subset simulation (ABCsubsim) algorithm of [1].
 
     [1] M. Chiachio, J. L. Beck, J. Chiachio, and G. Rus., Approximate Bayesian computation by subset
@@ -915,16 +1245,30 @@ class ABCsubsim:
     Parameters
     ----------
     model : abcpy.models.Model
-        Model object that conforms to the Model class.
+        Model object defining the model to be used.
     distance : abcpy.distances.Distance
-        Distance object that conforms to the Distance class.
+        Distance object defining the distance used to compare the simulated and observed data sets.
     kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling
+        Distribution object defining the perturbation kernel needed for the sampling.
     backend : abcpy.backends.Backend
-        Backend object that conforms to the Backend class.
+        Backend object defining the backend to be used.
     seed : integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
+
+    model = None
+    distance = None
+    kernel = None
+    rng = None
+    anneal_parameter = None
+
+    n_samples = None
+    n_samples_per_param = None
+    chain_length = None
+
+    observations_bds = None
+    accepted_parameters_bds = None
+    accepted_cov_mat_bds = None
 
     def __init__(self, model, distance, kernel, backend, seed=None):
         self.model = model
@@ -937,14 +1281,10 @@ class ABCsubsim:
 
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
+        self.observations_bds = None
         self.accepted_parameters_bds = None
         self.accepted_cov_mat_bds = None
 
-    def __getstate__(self):
-        #tells cloudpickle to not include the backend when pickling
-        state = self.__dict__.copy()
-        del state['backend']
-        return state
 
     def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, chain_length = 10, ap_change_cutoff = 10, full_output=0):
         """Samples from the posterior distribution of the model parameter given the observed
@@ -968,6 +1308,7 @@ class ABCsubsim:
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
+
         self.observations_bds = self.backend.broadcast(observations)
         self.chain_length = chain_length
         self.n_samples = n_samples
@@ -998,8 +1339,8 @@ class ABCsubsim:
                                         dtype=np.uint32)
             index_arr = np.linspace(0, n_samples / temp_chain_length - 1, n_samples / temp_chain_length).astype(
                 int).reshape(int(n_samples / temp_chain_length), )
-            seed_index_arr = np.column_stack((seed_arr, index_arr))
-            seed_index_pds = self.backend.parallelize(seed_index_arr)
+            seed_and_index_arr = np.column_stack((seed_arr, index_arr))
+            seed_and_index_pds = self.backend.parallelize(seed_and_index_arr)
 
             # 0: update remotely required variables
             # print("INFO: Broadcasting parameters.")
@@ -1007,7 +1348,7 @@ class ABCsubsim:
 
             # 1: Calculate  parameters
             # print("INFO: Initial accepted parameter parameters")
-            params_and_dists_pds = self.backend.map(self._accept_parameter, seed_index_pds)
+            params_and_dists_pds = self.backend.map(self._accept_parameter, seed_and_index_pds)
             params_and_dists = self.backend.collect(params_and_dists_pds)
             new_parameters, new_distances = [list(t) for t in zip(*params_and_dists)]
             accepted_parameters = np.concatenate(new_parameters)
@@ -1035,10 +1376,10 @@ class ABCsubsim:
 
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=10, dtype=np.uint32)
             index_arr = np.linspace(0, 10 - 1, 10).astype(int).reshape(10, )
-            seed_index_arr = np.column_stack((seed_arr, index_arr))
-            seed_index_pds = self.backend.parallelize(seed_index_arr)
+            seed_and_index_arr = np.column_stack((seed_arr, index_arr))
+            seed_and_index_pds = self.backend.parallelize(seed_and_index_arr)
 
-            cov_mat_index_pds = self.backend.map(self._update_cov_mat, seed_index_pds)
+            cov_mat_index_pds = self.backend.map(self._update_cov_mat, seed_and_index_pds)
             cov_mat_index = self.backend.collect(cov_mat_index_pds)
             cov_mat, T, accept_index = [list(t) for t in zip(*cov_mat_index)]
 
@@ -1081,18 +1422,26 @@ class ABCsubsim:
             self.accepted_cov_mat_bds = self.backend.broadcast(accepted_cov_mat)
 
     # define helper functions for map step
-    def _accept_parameter(self, seed_index):
+    def _accept_parameter(self, seed_and_index):
         """
         Samples a single model parameter and simulate from it until
         distance between simulated outcome and the observation is
-        smaller than eplison.
+        smaller than epsilon.
 
-        :type seed: int
-        :rtype: np.array
-        :return: accepted parameter
+        Parameters
+        ----------
+        seed: numpy.ndarray
+            2 dimensional array. The first entry defines the initial seed of therandom number generator.
+            The second entry defines the index in the data set.
+
+        Returns
+        -------
+        numpy.ndarray
+            accepted parameter
         """
-        seed = seed_index[0]
-        index = seed_index[1]
+
+        seed = seed_and_index[0]
+        index = seed_and_index[1]
         rng = np.random.RandomState(seed)
         self.model.prior.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
         self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
@@ -1146,16 +1495,36 @@ class ABCsubsim:
         return (result_theta, result_distance)
 
     def _update_cov_mat(self, seed_t):
+        """
+        Updates the covariance matrix.
+
+        Parameters
+        ----------
+        seed_t: numpy.ndarray
+            2 dimensional array. The first entry defines the initial seed of the random number generator.
+            The second entry defines the way in which the accepted covariance matrix is transformed.
+
+        Returns
+        -------
+        numpy.ndarray
+            accepted covariance matrix
+        """
 
         seed = seed_t[0]
         t = seed_t[1]
         rng = np.random.RandomState(seed)
+
         self.model.prior.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
         self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+
         acceptance = 0
+
         accepted_cov_mat_transformed = self.accepted_cov_mat_bds.value() * pow(2.0, -2.0 * t)
+
         theta = self.accepted_parameters_bds.value()[0]
+
         self.model.set_parameters(theta)
+
         for ind in range(0, self.chain_length):
             while True:
                 self.kernel.set_parameters([theta, accepted_cov_mat_transformed])
@@ -1184,8 +1553,7 @@ class ABCsubsim:
         else:
             return (accepted_cov_mat_transformed, t, 0)
 
-
-class RSMCABC:
+class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
     """This base class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
     Drovandi and Pettitt [1].
 
@@ -1195,16 +1563,33 @@ class RSMCABC:
     Parameters
     ----------
     model : abcpy.models.Model
-        Model object that conforms to the Model class.
+        Model object defining the model to be used.
     distance : abcpy.distances.Distance
-        Distance object that conforms to the Distance class.
+        Distance object defining the distance measure used to compare simulated and observed data sets.
     kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling
+        Distribution object defining the perturbation kernel needed for the sampling.
     backend : abcpy.backends.Backend
-        Backend object that conforms to the Backend class.
+        Backend object defining the backend to be used.
     seed : integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
+
+    model = None
+    distance = None
+    kernel = None
+
+    R = None
+    rng = None
+
+    n_samples = None
+    n_samples_per_param = None
+    alpha = None
+
+    observations_bds = None
+    accepted_parameters_bds = None
+    accepted_dist_bds = None
+    accepted_cov_mat_bds = None
+
 
     def __init__(self, model, distance, kernel, backend, seed=None):
         self.model = model
@@ -1217,15 +1602,11 @@ class RSMCABC:
 
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
+        self.observations_bds = None
         self.accepted_parameters_bds = None
         self.accepted_dist_bds = None
         self.accepted_cov_mat_bds = None
 
-    def __getstate__(self):
-        #tells cloudpickle to not include the backend when pickling
-        state = self.__dict__.copy()
-        del state['backend']
-        return state
 
     def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, alpha = 0.1, epsilon_init = 100, epsilon_final = 0.1, const = 1, covFactor = 2.0, full_output=0):
         """Samples from the posterior distribution of the model parameter given the observed
@@ -1260,6 +1641,7 @@ class RSMCABC:
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
+
         self.observations_bds = self.backend.broadcast(observations)
         self.alpha = alpha
         self.n_samples = n_samples
@@ -1370,11 +1752,17 @@ class RSMCABC:
         """
         Samples a single model parameter and simulate from it until
         distance between simulated outcome and the observation is
-        smaller than eplison.
+        smaller than epsilon.
 
-        :type seed: int
-        :rtype: np.array
-        :return: accepted parameter
+        Parameters
+        ----------
+        seed: integer
+            Initial seed for the random number generator.
+
+        Returns
+        -------
+        numpy.ndarray
+            accepted parameter
         """
 
         rng = np.random.RandomState(seed)
@@ -1416,8 +1804,7 @@ class RSMCABC:
 
         return (self.model.get_parameters(), distance, index_accept)
 
-
-class APMCABC:
+class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
     """This base class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
     M. Lenormand et al. [1].
 
@@ -1427,16 +1814,33 @@ class APMCABC:
     Parameters
     ----------
     model : abcpy.models.Model
-        Model object that conforms to the Model class.
+        Model object defining the model to be used.
     distance : abcpy.distances.Distance
-        Distance object that conforms to the Distance class.
+        Distance object defining the distance measure used to compare simulated and observed data sets.
     kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling
+        Distribution object defining the perturbation kernel needed for the sampling.
     backend : abcpy.backends.Backend
-        Backend object that conforms to the Backend class.
+        Backend object defining the backend to be used.
     seed : integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
+
+    model = None
+    distance = None
+    kernel = None
+
+    epsilon = None
+    rng = None
+
+    n_samples = None
+    n_samples_per_param = None
+    alpha = None
+
+    observations_bds = None
+    accepted_parameters_bds = None
+    accepted_weights_bds = None
+    accepted_dist = None
+    accepted_cov_mat_bds = None
 
     def __init__(self,  model, distance, kernel, backend, seed=None):
         self.model = model
@@ -1449,16 +1853,12 @@ class APMCABC:
 
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
-        self.alpha_accepted_parameters_bds = None
-        self.alpha_accepted_weights_bds = None
-        self.alpha_accepted_dist = None
+        self.observations_bds = None
+        self.accepted_parameters_bds = None
+        self.accepted_weights_bds = None
+        self.accepted_dist = None
         self.accepted_cov_mat_bds = None
 
-    def __getstate__(self):
-        #tells cloudpickle to not include the backend when pickling
-        state = self.__dict__.copy()
-        del state['backend']
-        return state
 
     def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, alpha = 0.9, acceptance_cutoff = 0.2, covFactor = 2.0, full_output=0):
         """Samples from the posterior distribution of the model parameter given the observed
@@ -1489,11 +1889,11 @@ class APMCABC:
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
+
         self.observations_bds = self.backend.broadcast(observations)
         self.alpha = alpha
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
-
 
         journal = Journal(full_output)
         journal.configuration["type_model"] = type(self.model)
@@ -1582,19 +1982,19 @@ class APMCABC:
 
         return journal
 
-    def _update_broadcasts(self, alpha_accepted_parameters, alpha_accepted_weights, alpha_accepted_dist,
+    def _update_broadcasts(self, accepted_parameters, accepted_weights, accepted_dist,
                            accepted_cov_mat):
         def destroy(bc):
             if bc != None:
                 bc.unpersist
                 # bc.destroy
 
-        if not alpha_accepted_parameters is None:
-            self.alpha_accepted_parameters_bds = self.backend.broadcast(alpha_accepted_parameters)
-        if not alpha_accepted_weights is None:
-            self.alpha_accepted_weights_bds = self.backend.broadcast(alpha_accepted_weights)
-        if not alpha_accepted_dist is None:
-            self.alpha_accepted_dist_bds = self.backend.broadcast(alpha_accepted_dist)
+        if not accepted_parameters is None:
+            self.accepted_parameters_bds = self.backend.broadcast(accepted_parameters)
+        if not accepted_weights is None:
+            self.accepted_weights_bds = self.backend.broadcast(accepted_weights)
+        if not accepted_dist is None:
+            self.accepted_dist_bds = self.backend.broadcast(accepted_dist)
         if not accepted_cov_mat is None:
             self.accepted_cov_mat_bds = self.backend.broadcast(accepted_cov_mat)
 
@@ -1603,26 +2003,32 @@ class APMCABC:
         """
         Samples a single model parameter and simulate from it until
         distance between simulated outcome and the observation is
-        smaller than eplison.
+        smaller than epsilon.
 
-        :type seed: int
-        :rtype: np.array
-        :return: accepted parameter
+        Parameters
+        ----------
+        seed: integer
+            Initial seed for the random number generator.
+
+        Returns
+        -------
+        numpy.ndarray
+            accepted parameter
         """
 
         rng = np.random.RandomState(seed)
         self.model.prior.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
         self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
-        if self.alpha_accepted_parameters_bds == None:
+        if self.accepted_parameters_bds == None:
             self.model.sample_from_prior()
             y_sim = self.model.simulate(self.n_samples_per_param)
             dist = self.distance.distance(self.observations_bds.value(), y_sim)
             weight = 1.0
         else:
-            index = rng.choice(len(self.alpha_accepted_weights_bds.value()), size=1,
-                               p=self.alpha_accepted_weights_bds.value().reshape(-1))
-            theta = self.alpha_accepted_parameters_bds.value()[index[0]]
+            index = rng.choice(len(self.accepted_weights_bds.value()), size=1,
+                               p=self.accepted_weights_bds.value().reshape(-1))
+            theta = self.accepted_parameters_bds.value()[index[0]]
             # trucate the normal to the bounds of parameter space of the model
             # truncating the normal like this is fine: https://arxiv.org/pdf/0907.4010v1.pdf
             while True:
@@ -1637,17 +2043,16 @@ class APMCABC:
 
             prior_prob = self.model.prior.pdf(new_theta)
             denominator = 0.0
-            for i in range(0, len(self.alpha_accepted_weights_bds.value())):
+            for i in range(0, len(self.accepted_weights_bds.value())):
                 self.kernel.set_parameters(
-                    [self.alpha_accepted_parameters_bds.value()[i, :], self.accepted_cov_mat_bds.value()])
+                    [self.accepted_parameters_bds.value()[i, :], self.accepted_cov_mat_bds.value()])
                 pdf_value = self.kernel.pdf(new_theta)
-                denominator += self.alpha_accepted_weights_bds.value()[i, 0] * pdf_value
+                denominator += self.accepted_weights_bds.value()[i, 0] * pdf_value
             weight = 1.0 * prior_prob / denominator
 
         return (self.model.get_parameters(), dist, weight)
 
-
-class SMCABC:
+class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
     """This base class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
     Del Moral et al. [1].
 
@@ -1657,16 +2062,32 @@ class SMCABC:
     Parameters
     ----------
     model : abcpy.models.Model
-        Model object that conforms to the Model class.
+        Model object defining the model to be used.
     distance : abcpy.distances.Distance
-        Distance object that conforms to the Distance class.
+        Distance object defining the distance measure used to compare simulated and observed data sets.
     kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling
+        Distribution object defining the perturbation kernel needed for the sampling.
     backend : abcpy.backends.Backend
-        Backend object that conforms to the Backend class.
+        Backend object defining the backend to be used.
     seed : integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
+
+    model = None
+    distance = None
+    kernel = None
+
+    epsilon = None
+    rng = None
+
+    n_samples = None
+    n_samples_per_param = None
+
+    observations_bds = None
+    accepted_parameters_bds = None
+    accepted_weights_bds = None
+    accepted_cov_mat_bds = None
+    accepted_y_sim_bds = None
 
     def __init__(self, model, distance, kernel, backend, seed=None):
         self.model = model
@@ -1685,11 +2106,6 @@ class SMCABC:
         self.accepted_cov_mat_bds = None
         self.accepted_y_sim_bds = None
 
-    def __getstate__(self):
-        #tells cloudpickle to not include the backend when pickling
-        state = self.__dict__.copy()
-        del state['backend']
-        return state
 
     def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, epsilon_final = 0.1, alpha = 0.95, covFactor = 2, resample = None, full_output=0):
         """Samples from the posterior distribution of the model parameter given the observed
@@ -1721,9 +2137,11 @@ class SMCABC:
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
+
         self.observations_bds= self.backend.broadcast(observations)
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
+
         journal = Journal(full_output)
         journal.configuration["type_model"] = type(self.model)
         journal.configuration["type_dist_func"] = type(self.distance)
@@ -1740,7 +2158,7 @@ class SMCABC:
         if resample == None:
             resample = n_samples * 0.5
 
-            # Define epsilon_init
+        # Define epsilon_init
         epsilon = [10000]
 
         # main SMC ABC algorithm
@@ -1796,17 +2214,16 @@ class SMCABC:
             # print("DEBUG: Iteration " + str(aStep) + " of SMCABC algorithm.")
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
             index_arr = np.arange(n_samples)
-            seed_index_arr = np.column_stack((seed_arr, index_arr))
-            seed_index_pds = self.backend.parallelize(seed_index_arr)
+            seed_and_index_arr = np.column_stack((seed_arr, index_arr))
+            seed_and_index_pds = self.backend.parallelize(seed_and_index_arr)
 
-            # update remotely required variables
             # print("INFO: Broadcasting parameters.")
             self.epsilon = epsilon
             self._update_broadcasts(accepted_parameters, accepted_weights, accepted_cov_mat, accepted_y_sim)
 
             # calculate resample parameters
             # print("INFO: Resampling parameters")
-            params_and_ysim_pds = self.backend.map(self._accept_parameter, seed_index_pds)
+            params_and_ysim_pds = self.backend.map(self._accept_parameter, seed_and_index_pds)
             params_and_ysim = self.backend.collect(params_and_ysim_pds)
             new_parameters, new_y_sim = [list(t) for t in zip(*params_and_ysim)]
             new_parameters = np.array(new_parameters)
@@ -1831,6 +2248,30 @@ class SMCABC:
 
     def _compute_epsilon(self, epsilon_new, epsilon, observations, accepted_y_sim, accepted_weights, n_samples,
                          n_samples_per_param, alpha):
+        """
+        Parameters
+        ----------
+        epsilon_new: float
+            New value for epsilon.
+        epsilon: float
+            Current threshold.
+        observations: numpy.ndarray
+            Observed data.
+        accepted_y_sim: numpy.ndarray
+            Accepted simulated data.
+        accepted_weights: numpy.ndarray
+            Accepted weights.
+        n_samples: integer
+            Number of samples to generate.
+        n_samples_per_param: integer
+            Number of data points in each simulated data set.
+        alpha: float
+
+        Returns
+        -------
+        float
+            Newly computed value for threshold.
+        """
 
         RHS = alpha * pow(sum(pow(accepted_weights, 2)), -1)
         LHS = np.zeros(shape=(n_samples), )
@@ -1879,18 +2320,26 @@ class SMCABC:
 
             # define helper functions for map step
 
-    def _accept_parameter(self, seed_index):
+    def _accept_parameter(self, seed_and_index):
         """
         Samples a single model parameter and simulate from it until
         distance between simulated outcome and the observation is
-        smaller than eplison.
+        smaller than epsilon.
 
-        :type seed: int
-        :rtype: np.array
-        :return: accepted parameter
+        Parameters
+        ----------
+        seed_and_index: numpy.ndarray
+            2 dimensional array. The first entry specifies the initial seed for the random number generator.
+            The second entry defines the index in the data set.
+
+        Returns
+        -------
+        Tuple
+            The first entry of the tuple is the accepted parameters. The second entry is the simulated data set.
         """
-        seed = seed_index[0]
-        index = seed_index[1]
+
+        seed = seed_and_index[0]
+        index = seed_and_index[1]
         rng = np.random.RandomState(seed)
         self.model.prior.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
         self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
@@ -1936,5 +2385,3 @@ class SMCABC:
                 y_sim = self.accepted_y_sim_bds.value()[index]
 
         return (self.model.get_parameters(), y_sim)
-
-

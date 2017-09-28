@@ -27,7 +27,7 @@ class Statistics(metaclass = ABCMeta):
            Defines whether to include the cross-product terms. The default value is TRUE, meaning the cross product term is included.
         """       
 
-        raise NotImplemented
+        raise NotImplementedError
         
         
     @abstractmethod
@@ -47,7 +47,7 @@ class Statistics(metaclass = ABCMeta):
             
         """
         
-        raise NotImplemented
+        raise NotImplementedError
 
     def _polynomial_expansion(self, summary_statistics):
         """Helper function that does the polynomial expansion and includes cross-product

@@ -1,6 +1,7 @@
 import unittest
 import cloudpickle
 import numpy as np
+import pickle
 
 '''We use pickle in our MPI backend to send a method from the master to the workers. The object with which this method is associated cotains the backend as an attribute, while the backend itself contains the data on which the workers should work. Pickling the method results in pickling the backend, which results in the whole data being pickled and sent, which is undersirable.
 
@@ -28,7 +29,7 @@ class ToBePickled:
 class PickleTests(unittest.TestCase):
     def test_exclusion(self,A,string):
         """Tests whether after pickling and unpickling the object, the attribute which should not be included exists"""
-        pickled_object = cloudpickle.dumps(A())
+        pickled_object = cloudpickle.dumps(A(), pickle.HIGHEST_PROTOCOL)
         unpickled_object = cloudpickle.loads(pickled_object)
         assert(not(hasattr(pickled_object,string)))
 

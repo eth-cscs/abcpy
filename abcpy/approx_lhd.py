@@ -6,19 +6,20 @@ from glmnet import LogitNet
 
 class Approx_likelihood(metaclass = ABCMeta):
     """This abstract base class defines the approximate likelihood 
-    function. To approximate the likelihood function at a parameter value given observed dataset, 
-    we need to pass a dataset simulated from model set at the parameter value and the observed dataset. 
+    function. To approximate the likelihood function at a parameter value given observed data set,
+    we need to pass a data set simulated from model set at the parameter value and the observed data set.
     """
 
     @abstractmethod
     def __init__(self, statistics_calc):       
-        """    The constructor of a sub-class must accept a non-optional statistics
-    calculator, which is stored to self.statistics_calc.
+        """
+        The constructor of a sub-class must accept a non-optional statistics
+        calculator, which is stored to self.statistics_calc.
 
-    Parameters
-    ----------
-    statistics_calc : abcpy.stasistics.Statistics 
-        Statistics extractor object that conforms to the Statistics class.
+        Parameters
+        ----------
+        statistics_calc : abcpy.stasistics.Statistics
+            Statistics extractor object that conforms to the Statistics class.
         """
         
         raise NotImplemented
@@ -106,10 +107,8 @@ class PenLogReg(Approx_likelihood):
     
     [2] Friedman, J., Hastie, T., and Tibshirani, R. (2010). Regularization 
     paths for generalized linear models via coordinate descent. Journal of Statistical 
-    Software, 33(1), 1–22.      
-    """
-    def __init__(self, statistics_calc, model, n_simulate, n_folds=10, max_iter = 100000, seed = None):
-        """
+    Software, 33(1), 1–22.
+
     Parameters
     ----------
     statistics_calc : abcpy.stasistics.Statistics
@@ -124,10 +123,11 @@ class PenLogReg(Approx_likelihood):
         Maximum passes over the data. The default is 100000.
     seed: int, optional
         Seed for the random number generator. The used glmnet solver is not
-        deterministic, this seed is used for determining the cv folds. The default value is 
+        deterministic, this seed is used for determining the cv folds. The default value is
         None.
-        """
-        
+    """
+    def __init__(self, statistics_calc, model, n_simulate, n_folds=10, max_iter = 100000, seed = None):
+
         self.model = model
         self.statistics_calc = statistics_calc
         self.n_folds = n_folds
