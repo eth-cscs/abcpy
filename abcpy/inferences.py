@@ -448,7 +448,7 @@ class PMCABC(BasePMC, InferenceMethod):
                 epsilon_arr = [None] * steps
                 epsilon_arr[0] = epsilon_init
             else:
-                raise ValueError("The length of epsilon_init can only be of 1 or steps.")
+                raise ValueError("The length of epsilon_init can only be equal to 1 or steps.")
 
         # main PMCABC algorithm
         # print("INFO: Starting PMCABC iterations.")
