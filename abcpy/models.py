@@ -28,7 +28,7 @@ class Model(metaclass = ABCMeta):
             Optional initial seed for the random number generator that can be used in the model. The
             default value is generated randomly.
         """
-        raise NotImplemented
+        raise NotImplementedError
 
 
     @abstractmethod
@@ -54,15 +54,15 @@ class Model(metaclass = ABCMeta):
             TRUE if model accepts the provided parameters, FALSE otherwise
         """
 
-        raise NotImplemented
+        raise NotImplementedError
 
 
     @abstractmethod
-    def sample_from_prior():
+    def sample_from_prior(self):
         """To be overwritten by any sub-class: should resample the model parameters
         from the prior distribution.
         """        
-        raise NotImplemented
+        raise NotImplementedError
 
     
     @abstractmethod
@@ -81,7 +81,7 @@ class Model(metaclass = ABCMeta):
             An array containing k realizations of the model
         """
 
-        raise NotImplemented
+        raise NotImplementedError
     
 
     @abstractmethod
@@ -94,7 +94,7 @@ class Model(metaclass = ABCMeta):
             An array containing the p parameters of the model
         """
 
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class Gaussian(Model):
@@ -167,13 +167,10 @@ class Gaussian(Model):
 
 class Student_t(Model):
     """This class implements the Student_t distribution with unknown mean :math:`\mu` and unknown degrees of freedom.
-    """
-    def __init__(self, prior, mu=None, df=None, seed=None):
-        """
         Parameters
         ----------
         prior: abcpy.distributions.Distribution
-            Prior distribution        
+            Prior distribution
         mu: float, optional
             Mean of the Stundent_t distribution. If the parameters is omitted, sampled
             from the prior.
@@ -181,8 +178,10 @@ class Student_t(Model):
             The degrees of freedom of the Student_t distribution. If the parameters is omitted, sampled
             from the prior.
         seed: int, optional
-            Initial seed. The default value is generated randomly. 
-        """
+            Initial seed. The default value is generated randomly.
+    """
+
+    def __init__(self, prior, mu=None, df=None, seed=None):
         assert(not (mu == None) != (df == None))
         self.prior = prior
         if mu == None and df == None:
@@ -224,19 +223,20 @@ class MixtureNormal(Model):
     """This class implements the Mixture of multivariate normal ditribution with unknown mean \
     :math:`\mu` described as following,
     :math:`x|\mu \sim 0.5\mathcal{N}(\mu,I_p)+0.5\mathcal{N}(\mu,0.01I_p)`, where :math:`x=(x_1,x_2,\ldots,x_p)` is the 
-    dataset simulated from the model and mean is :math:`\mu=(\mu_1,\mu_2,\ldots,\mu_p)`.            """
+    dataset simulated from the model and mean is :math:`\mu=(\mu_1,\mu_2,\ldots,\mu_p)`.
+
+    Parameters
+    ----------
+    prior: abcpy.distributions.Distribution
+        Prior distribution
+    mu: numpy.ndarray or list, optional
+        Mean of the mixture normal. If the parameter is omitted, sampled
+        from the prior.
+    seed: int, optional
+        Initial seed. The default value is generated randomly.
+    """
     def __init__(self, prior, mu, seed = None):
-        """
-        Parameters
-        ----------
-        prior: abcpy.distributions.Distribution
-            Prior distribution        
-        mu: numpy.ndarray or list, optional   
-            Mean of the mixture normal. If the parameter is omitted, sampled
-            from the prior. 
-        seed: int, optional
-            Initial seed. The default value is generated randomly. 
-        """    
+
         # Assign prior
         if not isinstance(prior, Distribution):
             raise TypeError('Prior is not of our defined Prior class type') 
@@ -291,26 +291,25 @@ class StochLorenz95(Model):
 
     [2] Lorenz, E. (1995). Predictability: a problem partly solved. In Proceedings of the 
     Seminar on Predictability, volume 1, pages 1–18. European Center on Medium Range
-    Weather Forecasting, Europe             
+    Weather Forecasting, Europe
+
+    Parameters
+    ----------
+    prior: abcpy.distributions.Distribution
+        Prior distribution
+    theta: list or numpy.ndarray, optional
+        Closure parameters. If the parameter is omitted, sampled
+        from the prior.
+    initial_state: numpy.ndarray, optional
+        Initial state value of the time-series, The default value is None, which assumes a previously computed
+        value from a full Lorenz model as the Initial value.
+    n_timestep: int, optional
+        Number of timesteps between [0,4], where 4 corresponds to 20 days. The default value is 160.
+    seed: int, optional
+        Initial seed. The default value is generated randomly.
     """    
     
     def __init__(self, prior, theta, initial_state = None, n_timestep = 160, seed = None):
-        """
-        Parameters
-        ----------
-        prior: abcpy.distributions.Distribution
-            Prior distribution          
-        theta: list or numpy.ndarray, optional       
-            Closure parameters. If the parameter is omitted, sampled
-            from the prior. 
-        initial_state: numpy.ndarray, optional
-            Initial state value of the time-series, The default value is None, which assumes a previously computed 
-            value from a full Lorenz model as the Initial value. 
-        n_timestep: int, optional
-            Number of timesteps between [0,4], where 4 corresponds to 20 days. The default value is 160.
-        seed: int, optional
-            Initial seed. The default value is generated randomly.     
-        """        
         
         # Assign prior
         if not isinstance(prior, Distribution):
@@ -464,29 +463,29 @@ class StochLorenz95(Model):
             timeseries[:,ind+1] = timeseries_initial
         # Return the solved timeseries at the values in timespan    
         return timeseries    
+
 class Ricker(Model):
     """Ecological model that describes the observed size of animal population over time 
     described in [1].
         
     [1] S. N. Wood. Statistical inference for noisy nonlinear ecological 
     dynamic systems. Nature, 466(7310):1102–1104, Aug. 2010.
+
+    Parameters
+    ----------
+    prior: abcpy.distributions.Distribution
+        Prior distribution
+    theta: list or numpy.ndarray, optional
+        The parameter is a vector consisting of three numbers \
+        :math:`\log r` (real number), :math:`\sigma` (positive real number, > 0), :math:`\phi` (positive real number > 0)
+        If the parameter is ommitted, sampled from the prior.
+    n_timestep: int, optional
+        Number of timesteps. The default value is 100.
+    seed: int, optional
+        Initial seed. The default value is generated randomly.
     """
 
     def __init__(self, prior, theta=None, n_timestep = 100, seed = None):
-        """
-        Parameters
-        ----------
-        prior: abcpy.distributions.Distribution
-            Prior distribution          
-        theta: list or numpy.ndarray, optional       
-            The parameter is a vector consisting of three numbers \
-            :math:`\log r` (real number), :math:`\sigma` (positive real number, > 0), :math:`\phi` (positive real number > 0)
-            If the parameter is ommitted, sampled from the prior.
-        n_timestep: int, optional
-            Number of timesteps. The default value is 100.
-        seed: int, optional
-            Initial seed. The default value is generated randomly.             
-        """    
         # Assign prior
         if not isinstance(prior, Distribution):
             raise TypeError('Prior is not of our defined Prior class type') 

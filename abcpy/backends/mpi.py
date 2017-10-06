@@ -1,5 +1,6 @@
 import numpy as np
 import cloudpickle
+import pickle
 
 from mpi4py import MPI
 from abcpy.backends import Backend, PDS, BDS
@@ -54,7 +55,7 @@ class BackendMPIMaster(Backend):
         elif command == self.OP_MAP:
             #In map we receive data as (pds_id,pds_id_new,func)
             #Use cloudpickle to dump the function into a string.
-            function_packed = self.__sanitize_and_pack_func(data[2])
+            function_packed = cloudpickle.dumps(data[2], pickle.HIGHEST_PROTOCOL)
             data_packet = (command, data[0], data[1], function_packed)
 
         elif command == self.OP_BROADCAST:
@@ -72,35 +73,6 @@ class BackendMPIMaster(Backend):
             data_packet = (command,)
 
         _ = self.comm.bcast(data_packet, root=0)
-
-
-    def __sanitize_and_pack_func(self, func):
-        """
-        Prevents the function from packing the backend by temporarily
-        setting it to another variable and then uses cloudpickle
-        to pack it into a string to be sent.
-
-        Parameters
-        ----------
-        func: Python Function
-            The function we are supposed to pack while sending it along to the slaves
-            during the map function
-
-        Returns
-        -------
-        Returns a string of the function packed by cloudpickle
-
-        """
-
-        #Set the backend to None to prevent it from being packed
-        globals()['backend'] = {}
-
-        function_packed = cloudpickle.dumps(func)
-
-        #Reset the backend to self after it's been packed
-        globals()['backend'] = self
-
-        return function_packed
 
 
     def __generate_new_pds_id(self):
