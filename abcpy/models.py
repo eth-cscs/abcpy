@@ -58,7 +58,7 @@ class Model(metaclass = ABCMeta):
 
 
     @abstractmethod
-    def sample_from_prior():
+    def sample_from_prior(self):
         """To be overwritten by any sub-class: should resample the model parameters
         from the prior distribution.
         """        

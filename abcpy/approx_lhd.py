@@ -27,7 +27,7 @@ class Approx_likelihood(metaclass = ABCMeta):
     @abstractmethod
     def likelihood(y_obs, y_sim):
         """To be overwritten by any sub-class: should compute the approximate likelihood 
-        value given the observed dataset y_obs and dataset y_sim simulated from
+        value given the observed data set y_obs and the data set y_sim simulated from
         model set at the parameter value.
 
         Parameters
@@ -47,7 +47,7 @@ class Approx_likelihood(metaclass = ABCMeta):
 
 
 class SynLiklihood(Approx_likelihood):
-    """This class implements the aproximate likelihood function which computes the pproximate
+    """This class implements the approximate likelihood function which computes the approximate
     likelihood using the synthetic likelihood approach described in Wood [1].
     For synthetic likelihood approximation, we compute the robust precision matrix using Ledoit and Wolf's [2]
     method.
@@ -93,8 +93,8 @@ class SynLiklihood(Approx_likelihood):
 
 
 class PenLogReg(Approx_likelihood):
-    """This class implements the aproximate likelihood function which computes the pproximate
-    likelihood upto a constant using penalized logistic regression described in 
+    """This class implements the approximate likelihood function which computes the approximate
+    likelihood up to a constant using penalized logistic regression described in
     Dutta et. al. [1]. It takes one additional function handler defining the 
     true model and two additional parameters n_folds and n_simulate correspondingly defining number
     of folds used to estimate prediction error using cross-validation and the number 
@@ -134,7 +134,7 @@ class PenLogReg(Approx_likelihood):
         self.n_simulate = n_simulate
         self.seed = seed
         self.max_iter = max_iter
-        # Simulate reference data and extract summary statistics from the reffernce data      
+        # Simulate reference data and extract summary statistics from the reference data
         self.ref_data_stat = self._simulate_ref_data()
         
 
@@ -164,7 +164,7 @@ class PenLogReg(Approx_likelihood):
 
     def _simulate_ref_data(self):
         """
-        Simulate the reference dataset. This code is run at the initializtion of 
+        Simulate the reference data set. This code is run at the initialization of
         Penlogreg
         """
 
