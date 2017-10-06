@@ -27,11 +27,8 @@ class ToBePickled:
         return state
 
 class PickleTests(unittest.TestCase):
-    def test_exclusion(self,A,string):
+    def test_exclusion(self):
         """Tests whether after pickling and unpickling the object, the attribute which should not be included exists"""
-        pickled_object = cloudpickle.dumps(A(), pickle.HIGHEST_PROTOCOL)
+        pickled_object = cloudpickle.dumps(ToBePickled(), pickle.HIGHEST_PROTOCOL)
         unpickled_object = cloudpickle.loads(pickled_object)
-        assert(not(hasattr(pickled_object,string)))
-
-A=PickleTests()
-A.test_exclusion(ToBePickled,'notIncluded')
+        assert(not(hasattr(pickled_object,'notIncluded')))
