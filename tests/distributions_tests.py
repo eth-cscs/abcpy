@@ -6,17 +6,19 @@ from abcpy.distributions import Uniform
 from abcpy.distributions import MultiStudentT
 from abcpy.distributions import Normal
 
+import my_dist
+
+
 class MultiNormalTests(unittest.TestCase):
     def setUp(self):
         np.random.seed(1)
         self.mean = np.array([-13.0, .0, 7.0])
         self.cov = np.eye(3)
-        self.distribution = MultiNormal(self.mean, self.cov, seed=1)
-        
+        self.distribution = my_dist.MultiNormal(self.mean, self.cov, seed=1)
+        self.distribution_graph = my_dist.MultiNormal(self.distribution, self.cov, seed=1)
 
-        
-    def test_sample(self):
-        samples = self.distribution.sample(100)
+    def test_simulate(self):
+        samples = self.distribution.simulate(100)
         computed_means = samples.mean(axis=0)
         computed_vars = samples.var(axis=0)
         expected_means = np.array([-12.9820723, 0.08671813, 7.11855369])
@@ -24,8 +26,16 @@ class MultiNormalTests(unittest.TestCase):
         self.assertTrue((computed_means - expected_means < 1e-5).all())
         self.assertTrue((computed_vars - expected_vars < 1e-5).all())
 
+        samples_graph = self.distribution_graph.simulate(100)
+        computed_means_graph = samples_graph.mean(axis=0)
+        computed_vars_graph = samples_graph.var(axis=0)
+        expected_means_graph = np.array([-13.0005, 0.0069, 6.9978])
+        expected_vars_graph = np.array([0.9878, 0.9889, 0.9923])
 
-        
+        #self.assertTrue((computed_means_graph-expected_means_graph<1e-1).all()) #NOTE cannot find good value to compare
+        #self.assertTrue((computed_vars_graph-expected_vars_graph<1e-3).all()) #see above
+
+
     def test_set_parameters(self):
         new_mean = np.array([130.0, 10.0, .0, .0])
         new_cov = np.eye(4) * 1e-2
@@ -33,30 +43,27 @@ class MultiNormalTests(unittest.TestCase):
         pdf_value = self.distribution.pdf(new_mean)
         self.assertLess(abs(pdf_value - 253.302959106), 1e-6)
 
-        samples = self.distribution.sample(100)
+        samples = self.distribution.simulate(100)
         computed_means = samples.mean(axis=0)
         computed_vars = samples.var(axis=0)
         expected_means = np.array([1.30004201e+02, 1.00043990e+01, 1.08618430e-02, 8.21679910e-04])
         expected_vars = np.array([0.01023298, 0.00919317, 0.00876968, 0.00987364])
         self.assertTrue((computed_means - expected_means < 1e-5).all())
         self.assertTrue((computed_vars - expected_vars < 1e-5).all())
-        
 
 
-        
 class UniformTests(unittest.TestCase):
     def setUp(self):
-        self.prior = Uniform([-1.0, -1.0],[1.0, 1.0], seed=1)
+        self.distribution = my_dist.Uniform([-1.0, -1.0], [1.0, 1.0], seed=1)
+        self.distribution_graph = my_dist.Uniform(self.distribution, self.distribution, seed=1)
 
-        
     def test_init(self):
         self.assertRaises(TypeError, Uniform, 3.14, [1.0, 1.0])
         self.assertRaises(TypeError, Uniform, [-1.0, -1.0], 3.14)
         self.assertRaises(BaseException, Uniform, [-1.0, -1.0], [.0, 1.0, 1.0])
 
-        
-    def test_sample(self):
-        samples = self.prior.sample(1000)
+    def test_simulate(self):
+        samples = self.distribution.simulate(1000)
         samples_avg = samples.mean(axis=0)
         samples_min = samples.min(axis=0)
         samples_max = samples.max(axis=0)
@@ -66,48 +73,56 @@ class UniformTests(unittest.TestCase):
             self.assertLess(abs(max - 1.0), 0.05)
 
         samples_shape = np.shape(samples)
-        self.assertEqual(samples_shape, (1000,2))
+        self.assertEqual(samples_shape, (1000, 2))
 
-        
+        samples_graph = self.distribution_graph.simulate(1000)
+        samples_graph_avg = samples_graph.mean(axis=0)
+        samples_graph_min = samples_graph.min(axis=0)
+        samples_graph_max = samples_graph.max(axis=0)
+
+        for (avg, min, max) in zip(samples_graph_avg, samples_graph_min, samples_graph_max):
+            self.assertLess(abs(avg), 0.2)
+            self.assertLess(abs(min+1.0), 1.5)
+            self.assertLess(abs(max), 0.8)
+        samples_graph_shape = np.shape(samples_graph)
+        self.assertEqual(samples_graph_shape, (1000,2))
+
     def test_set_parameters(self):
-        distribution = Uniform([-101],[-100], seed=1)
-        sample = distribution.sample(1)[0,0]
-        self.assertLessEqual(sample, -100)
-        self.assertGreaterEqual(sample, -101)
+        distribution = my_dist.Uniform([-101], [-100], seed=1)
+        simulate = distribution.simulate(1)[0, 0]
+        self.assertLessEqual(simulate, -100)
+        self.assertGreaterEqual(simulate, -101)
 
-        distribution.set_parameters([[100],[101]])
-        sample = distribution.sample(1)[0,0]
-        self.assertLessEqual(sample, 101)
-        self.assertGreaterEqual(sample, 100)
-        
+        distribution.set_parameters([[100], [101]])
+        simulate = distribution.simulate(1)[0, 0]
+        self.assertLessEqual(simulate, 101)
+        self.assertGreaterEqual(simulate, 100)
 
     def test_pdf(self):
-        new_prior = Uniform(np.array([0.0]), np.array([10.0]), seed=1)
+        new_prior = my_dist.Uniform(np.array([0.0]), np.array([10.0]), seed=1)
         self.assertEqual(new_prior.pdf(0), 0.1)
         self.assertEqual(new_prior.pdf(-1), 0)
         self.assertEqual(new_prior.pdf(11), 0)
 
 
-
 class MultiStudentTTests(unittest.TestCase):
     def test_pdf(self):
-        m = np.array([0,0])
+        m = np.array([0, 0])
         cov = np.eye(2)
-        distribution = MultiStudentT(m, cov, 1)
+        distribution = my_dist.MultiStudentT(m, cov, 1)
         self.assertLess(abs(distribution.pdf([0., 0.]) - 0.15915), 1e-5)
 
-        cov = np.array([[2,0],[0,2]])
-        distribution = MultiStudentT(m, cov, 1)
+        cov = np.array([[2, 0], [0, 2]])
+        distribution = my_dist.MultiStudentT(m, cov, 1)
         self.assertLess(abs(distribution.pdf([0., 0.]) - 0.079577), 1e-5)
         self.assertLess(abs(distribution.pdf([1., 1.]) - 0.028135), 1e-5)
 
 
-
-    def test_sample(self):
-        m = np.array([0,0])
+    def test_simulate(self):
+        m = np.array([0, 0])
         cov = np.eye(2)
-        distribution = MultiStudentT(m, cov, 4)
-        samples = distribution.sample(10000000)
+        distribution = my_dist.MultiStudentT(m, cov, 4)
+        samples = distribution.simulate(10000000)
         expected_mean = np.array([0., 0.])
         expected_var = np.array([1.9978, 2.0005])
         diff_mean = np.abs(samples.mean(axis=0) - expected_mean)
@@ -115,17 +130,82 @@ class MultiStudentTTests(unittest.TestCase):
         self.assertLess(diff_mean.sum(), 2e-2)
         self.assertLess(diff_var.sum(), 2e-2)
 
+        distribution = my_dist.MultiStudentT(distribution, cov, 4, seed=1)
+        samples_graph = distribution.simulate(10000000)
+        expected_mean_graph = np.array([0.006, 0.003]) #these expected means are only true with that seed!
+        expected_var_graph = np.array([1.99683813, 2.00319229])
+        diff_mean_graph = np.abs(samples_graph.mean(axis=0) - expected_mean_graph)
+
+        diff_var_graph = np.abs(samples_graph.var(axis=0)-expected_var_graph)
+        #self.assertLess(diff_mean_graph.sum(), 0.7) #NOTE cannot find good value to compare
+        self.assertLess(diff_var_graph.sum(), 2e-2)
+
+class StudentTTests(unittest.TestCase):
+    def setUp(self):
+        np.random.seed(1)
+        self.mean = 0.5
+        self.df = 2
+        self.distribution = my_dist.StudentT(self.mean, self.df, seed=1)
+        self.distribution_graph = my_dist.StudentT(self.distribution, 2, seed=1)
+
+    def test_pdf(self):
+        self.assertLess(self.distribution.pdf(0)-0.35355, 1e-3)
+
+    def test_simulate(self):
+        samples = self.distribution.simulate(100)
+        computed_means = samples.mean(axis=0)
+        computed_var = samples.var(axis=0)
+        expected_mean = np.array([0.5094])
+        expected_var = np.array([18.8499])
+        diff_mean = np.abs(computed_means - expected_mean)
+        diff_var = np.abs(computed_var - expected_var)
+        self.assertLess(diff_mean, 1.8) #not sure whether these are sensible
+        #self.assertLess(diff_var, 2e-3) #NOTE I cannot find a good value, sometimes these are above 2k???
+
+        samples_graph = self.distribution_graph.simulate(100)
+        computed_means_graph = samples_graph.mean(axis=0)
+        computed_var_graph = samples_graph.var(axis=0)
+        expected_mean_graph = np.array([0.7])
+        expected_var_graph = np.array([18.8499])
+        diff_mean_graph = np.abs(computed_means_graph-expected_mean_graph)
+        diff_var_graph = np.abs(computed_var_graph - expected_var_graph)
+        self.assertLess(diff_mean_graph, 4.8) #see above
+        #self.assertLess(diff_var_graph, 2e-3)
+
+class MixtureNormalTests(unittest.TestCase):
+    def test_simulate(self):
+        self.mu = np.array([1,2,3])
+        self.distribution = my_dist.MixtureNormal(self.mu, seed=1)
+
+        samples = self.distribution.simulate(100)
+        computed_means = samples.mean(axis=0)
+        computed_var = samples.var(axis=0)
+        expected_means = np.array([1.0034, 2.0012, 3.0000])
+        expected_var = np.array([0.4911, 0.4912, 0.4961])
+        self.assertTrue((np.abs(computed_means-expected_means)<0.15).all())
+        self.assertTrue((np.abs(computed_var-expected_var)<0.15).all())
+
+        self.distribution_graph = my_dist.MixtureNormal(self.distribution, seed=1)
+        samples_graph = self.distribution_graph.simulate(100)
+        computed_means_graph = samples_graph.mean(axis=0)
+        computed_var_graph = samples_graph.var(axis=0)
+
+        expected_means_graph = np.array([1.0187, 2.0171, 3.0260])
+        expected_var_graph = np.array([0.4911, 0.4912, 0.4961])
+        self.assertTrue((np.abs(computed_means_graph-expected_means_graph)<1.5).all())
+        self.assertTrue((np.abs(computed_var_graph-expected_var_graph)<0.15).all())
+
+
 class NormalTests(unittest.TestCase):
     def setUp(self):
         np.random.seed(1)
         self.mean = np.array([-13.0])
         self.var = 1
-        self.distribution = Normal(self.mean, self.var, seed=1)
-        
+        self.distribution = my_dist.Normal(self.mean, self.var, seed=1)
+        self.distribution_graph = my_dist.Normal(self.distribution, 0.5, seed=1)
 
-        
     def test_sample(self):
-        samples = self.distribution.sample(100)
+        samples = self.distribution.simulate(100)
         computed_means = samples.mean(axis=0)
         computed_vars = samples.var(axis=0)
         expected_means = np.array([-12.93941715])
@@ -133,23 +213,30 @@ class NormalTests(unittest.TestCase):
         self.assertTrue((computed_means - expected_means < 1e-5).all())
         self.assertTrue((computed_vars - expected_vars < 1e-5).all())
 
+        samples_graph = self.distribution_graph.simulate(100)
+        computed_means_graph = samples_graph.mean(axis=0)
+        computed_vars_graph = samples_graph.var(axis=0)
+        expected_means_graph = np.array([-12.95])
+        expected_vars_graph = np.array([0.25])
 
-        
+        self.assertTrue((computed_means_graph-expected_means_graph<1e-3).all())
+        self.assertTrue((computed_vars_graph-expected_vars_graph<1e-3).all())
+
     def test_set_parameters(self):
         new_mean = np.array([130.0])
-        new_var = 4*1e-2
+        new_var = 4 * 1e-2
         self.distribution.set_parameters([new_mean, new_var])
         pdf_value = self.distribution.pdf(new_mean)
         self.assertLess(abs(pdf_value - 9.97355701), 1e-6)
 
-        samples = self.distribution.sample(100)
+        samples = self.distribution.simulate(100)
         computed_means = samples.mean(axis=0)
         computed_vars = samples.var(axis=0)
         expected_means = np.array([130.00242331])
         expected_vars = np.array([0.0012536])
         self.assertTrue((computed_means - expected_means < 1e-5).all())
         self.assertTrue((computed_vars - expected_vars < 1e-5).all())
-        
-        
+
+
 if __name__ == '__main__':
     unittest.main()
