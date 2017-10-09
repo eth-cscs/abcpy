@@ -5,7 +5,6 @@ from scipy.stats import multivariate_normal, norm
 from scipy.special import gamma
 
 
-#NOTE what is if we want to give both things at once, as a distribtuion? see example in abcpy
 
 class Distribution(metaclass=ABCMeta):
     """
@@ -82,6 +81,16 @@ class Distribution(metaclass=ABCMeta):
 
 
 class Normal(Distribution):
+    '''
+    Parameters
+    ----------
+    mean: float or 1D distribution
+        The mean of the distribution.
+    var: float or 1D distribution
+        Sigma of the distribution
+    seed: int
+        The seed to be used by the random number generator.
+    '''
 
     def __init__(self, mean, var, seed=None):
         if(not(self.check_parameters(mean, var))):
@@ -91,6 +100,13 @@ class Normal(Distribution):
         self.rng = np.random.RandomState(seed)
 
     def set_parameters(self, params):
+        '''
+        Sets the parameters for the distribution.
+        Parameters
+        ----------
+        params: list
+            The first element of the list specifies the mean of the distribution in float or as a 1D distribution. The second element specifies the sigma of the distribution in float or as a 1D distribution.
+        '''
         if(not(self.check_parameters(params[0],params[1]))):
             raise IndexError('Mean and var do not have matching dimensions.')
         self.mean = params[0]
@@ -100,6 +116,19 @@ class Normal(Distribution):
         self.rng.seed(seed)
 
     def simulate(self, k, reset=0):
+        '''
+        Samples k values from the distribution.
+        Parameters
+        ----------
+        k: int
+            The number of samples which should be returned.
+        reset: 0 or 1
+            Specify whether the the random number generator should be reset after sampling
+        Returns
+        -------
+        np.ndarray:
+            The results of the sampling.
+        '''
         if(isinstance(self.mean, Distribution)):
             mean = self.mean.simulate(1)[0]
         else:
@@ -122,7 +151,16 @@ class Normal(Distribution):
             return norm(self.mean, self.var).pdf(x)
 
     def get_parameters(self):
-        return np.array([self.mean, self.var])
+        if(isinstance(self.mean,Distribution)):
+            simulated_mean = self.mean.simulate(10)
+            simulated_mean = np.mean(simulated_mean)
+        else:
+            simulated_mean = self.mean
+        if(isinstance(self.var, Distribution)):
+            simulated_var = self.var.simulate(10)
+        else:
+            simulated_var = self.var
+        return np.array([simulated_mean, simulated_var])
 
     def check_parameters(self, mean, var):
         if(hasattr(mean, '__len__')):
@@ -132,6 +170,16 @@ class Normal(Distribution):
         return True
 
 class MultiNormal(Distribution):
+    '''
+    Parameters
+    ----------
+    mean: p-dimensional list or distribution
+        Defines the mean of the distribution.
+    cov: pxp dimensional list
+        Defines the covariance matrix of the distribution
+    seed: int
+        The initial seed to be used by the random number generator
+    '''
     def __init__(self, mean, cov, seed=None):
         if(not(self.check_parameters(mean, cov))):
             return IndexError('Mean and cov do not have matching dimensions')
@@ -140,6 +188,13 @@ class MultiNormal(Distribution):
         self.rng = np.random.RandomState(seed)
 
     def set_parameters(self, params):
+        '''
+        Sets the parameters for the distribution.
+        Parameters
+        ----------
+        params: list
+            The first element of the list specifies the mean of the distribution as a p-dimensional list or distribution. The second element specifies the sigma of the distribution as a pxp dimensional list.
+        '''
         if(not(self.check_parameters(params[0], params[1]))):
             return IndexError('Mean and cov do not have matching dimensions')
         self.mean = params[0]
@@ -149,6 +204,19 @@ class MultiNormal(Distribution):
         self.rng.seed(seed)
 
     def simulate(self, k, reset=0):
+        '''
+        Samples k values from the distribution.
+        Parameters
+        ----------
+        k: int
+            The number of samples which should be returned.
+        reset: 0 or 1
+            Specify whether the the random number generator should be reset after sampling
+        Returns
+        -------
+        np.ndarray:
+            The results of the sampling.
+        '''
         mean = []
         cov = [[0] * len(self.cov[0]) for i in range(len(self.cov[0]))]
         if(isinstance(self.mean, Distribution)):
@@ -183,7 +251,19 @@ class MultiNormal(Distribution):
         return result
 
     def get_parameters(self):
-        return np.array([self.mean, self.cov])
+        if(isinstance(self.mean,Distribution)):
+            simulated_mean = self.mean.simulate(10)
+            simulated_mean = np.mean(simulated_mean, axis=0)
+        else:
+            simulated_mean = []
+            for i in range(len(self.mean)):
+                if(isinstance(self.mean[i], Distribution)):
+                    simulated_value = self.mean.simulate(10)
+                    simulated_value = np.mean(simulated_value, axis=0)
+                    simulated_mean.append(simulated_value)
+                else:
+                    simulated_mean.append(self.mean[i])
+        return np.array(simulated_mean)#np.array([simulated_mean, self.cov])
 
     def pdf(self, x):
         if(not(isinstance(self.mean, Distribution))):
@@ -217,6 +297,16 @@ class MultiNormal(Distribution):
 
 #NOTE can we really give a distribution for the degrees of freedom, and if so, can we do the same thing for the multistudenT?
 class StudentT(Distribution):
+    '''
+    Parameters
+    ----------
+    mu: float or 1D distribution
+        Defines the mean of the distribution
+    df: int
+        Defines the degrees of freedom of the distribution
+    seed: int
+        The initial seed to be used by the random number generator.
+    '''
     def __init__(self, mu, df, seed=None):
         self.mean = mu
         self.df = df
@@ -248,7 +338,12 @@ class StudentT(Distribution):
         return np.array(result)
 
     def get_parameters(self):
-        return np.array([self.mean, self.df])
+        if(isinstance(self.mean, Distribution)):
+            simulated_mean = self.mean.simulate(10)
+            simulated_mean = np.mean(simulated_mean)
+        else:
+            simulated_mean = self.mean
+        return np.array([simulated_mean, self.df])
 
     def pdf(self, x):
         if(isinstance(self.df, Distribution)):
@@ -313,7 +408,19 @@ class MultiStudentT(Distribution):
         return result
 
     def get_parameters(self):
-        return np.array([self.mean, self.cov, self.df])
+        if(isinstance(self.mean, Distribution)):
+            simulated_mean = self.mean.simulate(10)
+            simulated_mean = np.mean(simulated_mean, axis=0)
+        else:
+            simulated_mean = []
+            for i in range(len(self.mean)):
+                if(isinstance(self.mean[i], Distribution)):
+                    simulated_value = self.mean[i].simulate(10)
+                    simulated_value = np.mean(simulated_value, axis=0)
+                    simulated_mean.append(simulated_value)
+                else:
+                    simulated_mean.append(self.mean[i])
+        return np.array(simulated_mean)
 
     def pdf(self, x):
         if(not(isinstance(self.mean, Distribution))):
@@ -420,7 +527,29 @@ class Uniform(Distribution):
         return np.array(samples)
 
     def get_parameters(self):
-        return np.array([self.lb, self.ub])
+        if(isinstance(self.lb,Distribution)):
+            simulated_lower_tmp = self.lb.simulate(10)
+            simulated_lower = np.mean(simulated_lower_tmp, axis=0)
+        else:
+            simulated_lower = []
+            for i in range(len(self.lb)):
+                if(isinstance(self.lb[i], Distribution)):
+                    simulated_value = self.lb.simulate(10)
+                    simulated_lower.append(np.mean(simulated_value, axis=0))
+                else:
+                    simulated_lower.append(self.lb[i])
+        if(isinstance(self.ub, Distribution)):
+            simulated_upper = self.ub.simulate(10)
+            simulated_upper = np.mean(simulated_upper, axis=0)
+        else:
+            simulated_upper = []
+            for i in range(len(self.ub)):
+                if(isinstance(self.ub[i],Distribution)):
+                    simulated_value = self.ub.simulate(10)
+                    simulated_upper.append(np.mean(simulated_value, axis=0))
+                else:
+                    simulated_upper.append(self.ub[i])
+        return np.array([simulated_lower, simulated_upper])
 
     def pdf(self, x):
         lb = []
@@ -446,20 +575,36 @@ class Uniform(Distribution):
     def check_parameters(self, lb, ub):
         length_lb=0
         if(isinstance(lb,Distribution)):
-            length_lb = len(lb.simulate(1,reset=1)[0])
+            simulated_lb = lb.simulate(1,reset=1)[0]
+            if(isinstance(simulated_lb, np.ndarray)):
+                length_lb += len(simulated_lb)
+            else:
+                length_lb+=1
         else:
             for i in range(len(lb)):
                 if(isinstance(lb[i], Distribution)):
-                    length_lb += len(lb[i].simulate(1,reset=1)[0])
+                    simulated_lb = lb[i].simulate(1,reset=1)[0]
+                    if(isinstance(simulated_lb, np.ndarray)):
+                        length_lb += len(simulated_lb)
+                    else:
+                        length_lb += 1
                 else:
-                    length_lb += 1
+                    length_lb+=1
         length_ub = 0
         if(isinstance(ub,Distribution)):
-            length_ub = len(ub.simulate(1,reset=1)[0])
+            simulated_ub = ub.simulate(1,reset=1)[0]
+            if(isinstance(simulated_ub, np.ndarray)):
+                length_ub += len(simulated_ub)
+            else:
+                length_ub+=1
         else:
             for i in range(len(ub)):
                 if(isinstance(ub[i], Distribution)):
-                    length_ub += len(ub[i].simulate(1,reset=1)[0])
+                    simulated_ub = ub[i].simulate(1,reset=1)[0]
+                    if(isinstance(simulated_ub, np.ndarray)):
+                        length_ub+=len(simulated_ub)
+                    else:
+                        length_ub+=1
                 else:
                     length_ub += 1
         return length_lb == length_ub
@@ -508,7 +653,19 @@ class MixtureNormal(Distribution):
         return np.array(Data_array)
 
     def get_parameters(self):
-        return np.array([self.mean])
+        if(isinstance(self.mean, Distribution)):
+            simulated_mean = self.mean.simulate(10)
+            simulated_mean = np.mean(simulated_mean, axis=0)
+        else:
+            simulated_mean = []
+            for i in range(len(self.mean)):
+                if(isinstance(self.mean[i], Distribution)):
+                    simulated_mean_tmp = self.mean[i].simulate(10)
+                    simulated_mean_tmp = np.mean(simulated_mean_tmp, axis=0)
+                    simulated_mean.append(simulated_mean_tmp)
+                else:
+                    simulated_mean.append(self.mean[i])
+        return np.array(simulated_mean)
 
     def pdf(self, x):
         pass
