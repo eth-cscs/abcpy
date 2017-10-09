@@ -505,7 +505,7 @@ class MixtureNormal(Distribution):
             Data_array[i] = Data
         if(reset==1):
             self.rng.set_state(rng_state)
-        return Data_array
+        return np.array(Data_array)
 
     def get_parameters(self):
         return np.array([self.mean])
