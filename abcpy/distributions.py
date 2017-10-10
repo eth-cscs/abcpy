@@ -19,12 +19,12 @@ class Distribution(metaclass = ABCMeta):
 
         Parameters
         ----------
-        theta: list
+        params: list
             Contains all the distributions parameters.
             
         """
 
-        raise NotImplemented
+        raise NotImplementedError
 
 
     
@@ -39,7 +39,7 @@ class Distribution(metaclass = ABCMeta):
             
         """
 
-        raise NotImplemented
+        raise NotImplementedError
 
     
     
@@ -58,7 +58,7 @@ class Distribution(metaclass = ABCMeta):
             
         """
         
-        raise NotImplemented
+        raise NotImplementedError
     
 
     @abstractmethod
@@ -77,7 +77,7 @@ class Distribution(metaclass = ABCMeta):
             
         """
         
-        raise NotImplemented
+        raise NotImplementedError
         
 
 class MultiNormal(Distribution):
@@ -130,7 +130,7 @@ class Uniform(Distribution):
     """
     This class implements a p-dimensional uniform Prior distribution in a closed interval.
     """    
-    def __init__(self, lb : np.ndarray, ub : np.ndarray, seed=None):
+    def __init__(self, lb, ub, seed=None):
         """
         Defines the upper and lower bounds of a p-dimensional uniform Prior distribution in a closed interval.
 
