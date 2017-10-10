@@ -330,7 +330,7 @@ class RejectionABC(InferenceMethod):
         while distance > self.epsilon:
             # Accept new parameter value if the distance is less than epsilon
             self.model.sample_from_prior()
-            y_sim = self.model.simulate(self.n_samples_per_param)
+            y_sim = self.model.sample(self.n_samples_per_param)
             distance = self.distance.distance(self.observations_bds.value(), y_sim)
 
         return self.model.get_parameters()
@@ -560,7 +560,7 @@ class PMCABC(BasePMC, InferenceMethod):
                     if theta_is_accepted and self.model.prior.pdf(self.model.get_parameters()) != 0:
                         break
 
-            y_sim = self.model.simulate(self.n_samples_per_param)
+            y_sim = self.model.sample(self.n_samples_per_param)
 
             distance = self.distance.distance(self.observations_bds.value(), y_sim)
 
@@ -817,7 +817,7 @@ class PMC(BasePMC, InferenceMethod):
 
         # Simulate the fake data from the model given the parameter value theta
         # print("DEBUG: Simulate model for parameter " + str(theta))
-        y_sim = self.model.simulate(self.n_samples_per_param)
+        y_sim = self.model.sample(self.n_samples_per_param)
 
         # print("DEBUG: Extracting observation.")
         obs = self.observations_bds.value()
@@ -1199,7 +1199,7 @@ class SABC(BaseAnnealing, InferenceMethod):
                 self.model.sample_from_prior()
                 new_theta = self.model.get_parameters()
                 all_parameters.append(self.model.get_parameters())
-                y_sim = self.model.simulate(self.n_samples_per_param)
+                y_sim = self.model.sample(self.n_samples_per_param)
                 distance = self.distance.distance(self.observations_bds.value(), y_sim)
                 all_distances.append(distance)
                 acceptance = rng.binomial(1, np.exp(-distance / self.epsilon), 1)
@@ -1218,7 +1218,7 @@ class SABC(BaseAnnealing, InferenceMethod):
                 theta_is_accepted = self.model.set_parameters(new_theta)
                 if theta_is_accepted and self.model.prior.pdf(self.model.get_parameters()) != 0:
                     break
-            y_sim = self.model.simulate(self.n_samples_per_param)
+            y_sim = self.model.sample(self.n_samples_per_param)
             distance = self.distance.distance(self.observations_bds.value(), y_sim)
             smooth_distance = self._smoother_distance([distance], self.all_distances_bds.value())
 
@@ -1451,14 +1451,14 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
 
         if self.accepted_parameters_bds == None:
             self.model.sample_from_prior()
-            y_sim = self.model.simulate(self.n_samples_per_param)
+            y_sim = self.model.sample(self.n_samples_per_param)
             distance = self.distance.distance(self.observations_bds.value(), y_sim)
             result_theta.append(self.model.get_parameters())
             result_distance.append(distance)
         else:
             theta = self.accepted_parameters_bds.value()[index]
             self.model.set_parameters(theta)
-            y_sim = self.model.simulate(self.n_samples_per_param)
+            y_sim = self.model.sample(self.n_samples_per_param)
             distance = self.distance.distance(self.observations_bds.value(), y_sim)
             result_theta.append(theta)
             result_distance.append(distance)
@@ -1469,7 +1469,7 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
                     theta_is_accepted = self.model.set_parameters(new_theta)
                     if theta_is_accepted and self.model.prior.pdf(self.model.get_parameters()) != 0:
                         break
-                y_sim = self.model.simulate(self.n_samples_per_param)
+                y_sim = self.model.sample(self.n_samples_per_param)
                 new_distance = self.distance.distance(self.observations_bds.value(), y_sim)
 
                 ## Calculate acceptance probability:
@@ -1532,7 +1532,7 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
                 theta_is_accepted = self.model.set_parameters(new_theta)
                 if theta_is_accepted and self.model.prior.pdf(self.model.get_parameters()) != 0:
                     break
-                y_sim = self.model.simulate(self.n_samples_per_param)
+                y_sim = self.model.sample(self.n_samples_per_param)
                 new_distance = self.distance.distance(self.observations_bds.value(), y_sim)
 
                 ## Calculate acceptance probability:
@@ -1773,7 +1773,7 @@ class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
         if self.accepted_parameters_bds == None:
             while distance > self.epsilon[-1]:
                 self.model.sample_from_prior()
-                y_sim = self.model.simulate(self.n_samples_per_param)
+                y_sim = self.model.sample(self.n_samples_per_param)
                 distance = self.distance.distance(self.observations_bds.value(), y_sim)
             index_accept = 1
         else:
@@ -1787,7 +1787,7 @@ class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
                     theta_is_accepted = self.model.set_parameters(new_theta)
                     if theta_is_accepted and self.model.prior.pdf(self.model.get_parameters()) != 0:
                         break
-                y_sim = self.model.simulate(self.n_samples_per_param)
+                y_sim = self.model.sample(self.n_samples_per_param)
                 distance = self.distance.distance(self.observations_bds.value(), y_sim)
                 ratio_prior_prob = self.model.prior.pdf(new_theta) / self.model.prior.pdf(theta)
                 self.kernel.set_parameters([new_theta, self.accepted_cov_mat_bds.value()])
@@ -2022,7 +2022,7 @@ class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
 
         if self.accepted_parameters_bds == None:
             self.model.sample_from_prior()
-            y_sim = self.model.simulate(self.n_samples_per_param)
+            y_sim = self.model.sample(self.n_samples_per_param)
             dist = self.distance.distance(self.observations_bds.value(), y_sim)
             weight = 1.0
         else:
@@ -2038,7 +2038,7 @@ class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
                 if theta_is_accepted and self.model.prior.pdf(self.model.get_parameters()) != 0:
                     break
 
-            y_sim = self.model.simulate(self.n_samples_per_param)
+            y_sim = self.model.sample(self.n_samples_per_param)
             dist = self.distance.distance(self.observations_bds.value(), y_sim)
 
             prior_prob = self.model.prior.pdf(new_theta)
@@ -2347,7 +2347,7 @@ class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
         # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
         if self.accepted_parameters_bds == None:
             self.model.sample_from_prior()
-            y_sim = self.model.simulate(self.n_samples_per_param)
+            y_sim = self.model.sample(self.n_samples_per_param)
         else:
             if self.accepted_weights_bds.value()[index] > 0:
                 theta = self.accepted_parameters_bds.value()[index]
@@ -2357,7 +2357,7 @@ class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
                     theta_is_accepted = self.model.set_parameters(new_theta)
                     if theta_is_accepted and self.model.prior.pdf(self.model.get_parameters()) != 0:
                         break
-                y_sim = self.model.simulate(self.n_samples_per_param)
+                y_sim = self.model.sample(self.n_samples_per_param)
                 y_sim_old = self.accepted_y_sim_bds.value()[index]
                 ## Calculate acceptance probability:
                 numerator = 0.0
