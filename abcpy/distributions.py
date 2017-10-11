@@ -4,7 +4,7 @@ import numpy as np
 from scipy.stats import multivariate_normal, norm
 from scipy.special import gamma
 
-
+#NOTE ALL THE GET AND SET PARAMETERS HAVE BEEN TESTED, THEY SHOULD IN THEORY WORK
 
 class Distribution(metaclass=ABCMeta):
     """
@@ -125,25 +125,43 @@ class Normal(Distribution):
         params: list
             The first element of the list specifies the mean of the distribution in float or as a 1D distribution. The second element specifies the sigma of the distribution in float or as a 1D distribution.
         '''
-        if(not(self.check_parameters(params[0],params[1]))):
-            raise IndexError('Mean and var do not have matching dimensions.')
-        params = np.array(params)
-        if(params.shape[0]>2):
+
+        if(not(isinstance(params,list))):
+            raise TypeError('params must be of type list.')
+        if(len(params)!=2):
             return False
-        if(params[1]<=0):
+        if(isinstance(params[1],list)and params[1][1]<=0):
             return False
-        self.mean_value = params[0]
-        self.var_value = params[1]
+        if(not(isinstance(params[1],list)) and params[1]<=0):
+            return False
+        if(isinstance(params[0],list)):
+            if(len(params[0])==2):
+                self.mean_value = params[0][0]
+                self.mean.set_parameters(params[0][1])
+            else:
+                self.mean_value = params[0][0]
+        else:
+            self.mean_value = params[0]
+        if(isinstance(params[1],list)):
+            if(len(params[1])==2):
+                self.var_value = params[1][0]
+                self.var.set_parameters(params[1][1])
+            else:
+                self.var_value = params[1][0]
+        else:
+            self.var_value = params[1]
         return True
 
     def sample_from_prior(self):
         if(isinstance(self.mean, Distribution)):
+            self.mean.sample_from_prior()
             sample_mean = self.mean.sample(1)[0]
             if(isinstance(sample_mean,np.ndarray)):
                 sample_mean = sample_mean[0]
         else:
             sample_mean = self.mean
         if(isinstance(self.var, Distribution)):
+            self.mean.sample_from_prior()
             sample_var = self.var.sample(1)[0]
             if(isinstance(sample_var, np.ndarray)):
                 sample_var = sample_var[0]
@@ -184,7 +202,15 @@ class Normal(Distribution):
             return norm(self.mean_value, self.var_value).pdf(x)
 
     def get_parameters(self):
-        return np.array([self.mean_value, self.var_value])
+        if(isinstance(self.mean, Distribution)):
+            l1 = [self.mean_value, self.mean.get_parameters()]
+        else:
+            l1 = self.mean_value
+        if(isinstance(self.var,Distribution)):
+            l2 = [self.var_value, self.var.get_parameters()]
+        else:
+            l2 = self.var_value
+        return [l1,l2]
 
     def check_parameters(self, mean, var):
         if(hasattr(mean, '__len__') and hasattr(var, '__len__')):
@@ -211,7 +237,7 @@ class MultiNormal(Distribution):
         self.cov = cov
         self.rng = np.random.RandomState(seed)
         if(isinstance(self.mean, Distribution)):
-            self.mean_value = self.mean.sample(1)[0]
+            self.mean_value = self.mean.sample(1)[0].tolist()
         else:
             mean_value = []
             for i in range(len(self.mean)):
@@ -234,19 +260,38 @@ class MultiNormal(Distribution):
         params: list
             The first element of the list specifies the mean of the distribution as a p-dimensional list or distribution. The second element specifies the sigma of the distribution as a pxp dimensional list.
         '''
-        if(not(self.check_parameters(params[0], params[1]))):
-            return IndexError('Mean and cov do not have matching dimensions')
-        self.mean_value = params[0]
+        #if(not(self.check_parameters(params[0],params[1]))):
+        #    return False
+        for i in range(len(params[0])):
+            if(isinstance(params[0][i],list)):
+                if(isinstance(params[0][i][0],list)):
+                    for j in range(len(params[0][i][0])):
+                        self.mean_value[i+j] = params[0][i][0][j]
+                    if(len(params[0][i][0])==len(self.mean_value)):
+                        flag = True
+                    else:
+                        flag = False
+                else:
+                    flag=False
+                    self.mean_value[i]=params[0][i][0]
+                if(flag):
+                    self.mean.set_parameters(params[0][i][1])
+                else:
+                    self.mean[i].set_parameters(params[0][i][1])
+            else:
+                self.mean_value[i] = params[0][i]
         self.cov = params[1]
         return True
 
     def sample_from_prior(self):
         if (isinstance(self.mean, Distribution)):
-            self.mean_value = self.mean.sample(1)[0]
+            self.mean.sample_from_prior()
+            self.mean_value = self.mean.sample(1)[0].tolist()
         else:
             mean_value = []
             for i in range(len(self.mean)):
                 if (isinstance(self.mean[i], Distribution)):
+                    self.mean[i].sample_from_prior()
                     next_element = self.mean[i].sample(1)[0]
                     if (isinstance(next_element, np.ndarray)):
                         for j in range(len(next_element)):
@@ -284,7 +329,24 @@ class MultiNormal(Distribution):
         return result
 
     def get_parameters(self):
-        return np.array([self.mean_value, self.cov])
+        if(isinstance(self.mean, Distribution)):
+            l1 = [[self.mean_value, self.mean.get_parameters()]]
+        else:
+            l1 = []
+            for i in range(len(self.mean)):
+                if(isinstance(self.mean[i],Distribution)):
+                    helper_samples = self.mean[i].sample(1,reset=1)[0]
+                    if(isinstance(helper_samples, list)):
+                        l_helper = []
+                        for j in range(len(helper_samples)):
+                            l_helper.append(self.mean_value[i+j])
+                    else:
+                        l_helper = self.mean_value[i]
+                    l_helper_2 = self.mean[i].get_parameters()
+                    l1.append([l_helper, l_helper_2])
+                else:
+                    l1.append(self.mean_value[i])
+        return [(l1), self.cov]
 
     def pdf(self, x):
         if(not(isinstance(self.mean, Distribution))):
@@ -326,6 +388,7 @@ class StudentT(Distribution):
     seed: int
         The initial seed to be used by the random number generator.
     '''
+    #NOTE THIS GIVES BACK WEIRD VALUES... IF WE SAMPLE WE GET LIKE 400000 FOR A DISTRIBUTION WITH 1 AND 4....
     def __init__(self, mu, df, seed=None):
         self.mean = mu
         self.df = df
@@ -344,13 +407,34 @@ class StudentT(Distribution):
             self.df_value = self.df
 
     def set_parameters(self, params):
-        self.mean_value = params[0]
-        self.df_value = params[1]
+        if(not(isinstance(params,list))):
+            raise TypeError('params has to be of type list.')
+        if(len(params)!=2):
+            return False
+        if(isinstance(params[1],list) and params[1][1]<=1):
+            return False
+        if(not(isinstance(params[1],list)) and params[1]<=0):
+            return False
+        if(isinstance(params[0],list)):
+            if(len(params[0])==2):
+                self.mean_value = params[0][0]
+                self.mean.set_parameters(params[0][1])
+            else:
+                self.mean_value = params[0][0]
+        else:
+            self.mean_value = params[0]
+        if(isinstance(params[1],list)):
+            if(len(params[1])==2):
+                self.df_value = params[1][0]
+                self.df.set_parameters(params[1][1])
+        else:
+            self.df_value = params[1]
         return True
 
     def sample_from_prior(self):
         mean_value = 0
         if(isinstance(self.mean, Distribution)):
+            self.mean.sample_from_prior()
             mean_value = self.mean.sample(1)[0]
             if(isinstance(mean_value, np.ndarray)):
                 mean_value = mean_value[0]
@@ -358,6 +442,7 @@ class StudentT(Distribution):
             mean_value = self.mean
         df_value = 0
         if(isinstance(self.df, Distribution)):
+            self.df.sample_from_prior()
             df_value = self.df.sample(1)[0]
             if(isinstance(df_value, np.ndarray)):
                 df_value = df_value[0]
@@ -378,7 +463,15 @@ class StudentT(Distribution):
         return np.array(result)
 
     def get_parameters(self):
-        return np.array([self.mean_value, self.df_value])
+        if(isinstance(self.mean, Distribution)):
+            l1 = [self.mean_value, self.mean.get_parameters()]
+        else:
+            l1 = self.mean_value
+        if(isinstance(self.df, Distribution)):
+            l2 = [self.df_value, self.df.get_parameters()]
+        else:
+            l2 = self.df_value
+        return [l1, l2]
 
     def pdf(self, x):
         if(isinstance(self.df, Distribution)):
@@ -406,7 +499,7 @@ class MultiStudentT(Distribution):
         self.df = df
         self.rng = np.random.RandomState(seed)
         if (isinstance(self.mean, Distribution)):
-            self.mean_value = self.mean.sample(1)[0]
+            self.mean_value = self.mean.sample(1)[0].tolist()
         else:
             mean_value = []
             for i in range(len(self.mean)):
@@ -428,22 +521,46 @@ class MultiStudentT(Distribution):
             self.df_value = self.df
 
     def set_parameters(self, params):
-        if(not(self.check_parameters(params[0], params[1]))):
-            raise IndexError('Mean and cov do not have matching dimensions.')
-        self.mean_value = params[0]
+        if(not(self.check_parameters(params[0],params[1]))):
+            return False
+        if(len(params)>3 or len(params)<2):
+            return False
+        for i in range(len(params[0])):
+            if(isinstance(params[0][i],list)):
+                if(isinstance(params[0][i][0],list)):
+                    for j in range(len(params[0][i][0])):
+                        self.mean_value[i+j] = params[0][i][0][j]
+                    if(len(params[0][i][0])==len(self.mean_value)):
+                        flag = True
+                    else:
+                        flag = False
+                else:
+                    flag=False
+                    self.mean_value[i]=params[0][i][0]
+                if(flag):
+                    self.mean.set_parameters(params[0][i][1])
+                else:
+                    self.mean[i].set_parameters(params[0][i][1])
+            else:
+                self.mean_value[i] = params[0][i]
         self.cov = params[1]
-
         if(len(params)==3):
-            self.df_value = params[2]
+            if(isinstance(params[2],list)):
+                self.df_value=params[2][0]
+                self.df.set_parameters(params[2][1])
+            else:
+                self.df_value = params[2]
         return True
 
     def sample_from_prior(self):
         if (isinstance(self.mean, Distribution)):
-            mean_value = self.mean.sample(1)[0]
+            self.mean.sample_from_prior()
+            mean_value = self.mean.sample(1)[0].tolist()
         else:
             mean_value = []
             for i in range(len(self.mean)):
                 if (isinstance(self.mean[i], Distribution)):
+                    self.mean[i].sample_from_prior()
                     next_element = self.mean[i].sample(1)[0]
                     if (isinstance(next_element, np.ndarray)):
                         for j in range(len(next_element)):
@@ -453,6 +570,7 @@ class MultiStudentT(Distribution):
                 else:
                     mean_value.append(self.mean[i])
         if(isinstance(self.df, Distribution)):
+            self.df.sample_from_prior()
             df_value = self.df.sample(1)[0]
             if(isinstance(df_value, np.ndarray)):
                 df_value = df_value[0]
@@ -484,7 +602,29 @@ class MultiStudentT(Distribution):
         return result
 
     def get_parameters(self):
-        return np.array([self.mean_value, self.cov, self.df_value])
+        if (isinstance(self.mean, Distribution)):
+            l1 = [[self.mean_value, self.mean.get_parameters()]]
+        else:
+            l1 = []
+            for i in range(len(self.mean)):
+                if (isinstance(self.mean[i], Distribution)):
+                    helper_samples = self.mean[i].sample(1, reset=1)[0]
+                    if (isinstance(helper_samples, np.ndarray)):
+                        l_helper = []
+                        for j in range(len(helper_samples)):
+                            l_helper.append(self.mean_value[i + j])
+                    else:
+                        l_helper = self.mean_value[i]
+                    l_helper_2 = self.mean[i].get_parameters()
+                    l1.append([l_helper, l_helper_2])
+                else:
+                    l1.append(self.mean_value[i])
+        l2 = self.cov
+        if(isinstance(self.df, Distribution)):
+            l3 = [self.df_value, self.df.get_parameters()]
+        else:
+            l3 = self.df_value
+        return [l1, l2, l3]
 
     def pdf(self, x):
         if(not(isinstance(self.mean, Distribution))):
@@ -549,7 +689,7 @@ class Uniform(Distribution):
         self.ub = ub
         self.rng = np.random.RandomState(seed)
         if (isinstance(self.lb, Distribution)):
-            self.lb_value = self.lb.sample(1)[0]
+            self.lb_value = self.lb.sample(1)[0].tolist()
         else:
             lb = []
             for i in range(len(self.lb)):
@@ -564,7 +704,7 @@ class Uniform(Distribution):
                     lb.append(self.lb[i])
             self.lb_value = lb
         if (isinstance(self.ub, Distribution)):
-            self.ub_value = self.ub.sample(1)[0]
+            self.ub_value = self.ub.sample(1)[0].tolist()
         else:
             ub = []
             for i in range(len(self.ub)):
@@ -579,21 +719,59 @@ class Uniform(Distribution):
                     ub.append(self.ub[i])
             self.ub_value = ub
 
-
+    #NOTE this doesnt include if one value is from a multid distribution!!!
+    #as written above, multid is not yet supported, code that in
     def set_parameters(self, params):
         if(not(self.check_parameters(params[0],params[1]))):
-            raise IndexError('Lower and upper bound do not have matching dimensions.')
-        self.lb_value = params[0]
-        self.ub_value = params[1]
+            return False
+        for i in range(len(params[0])):
+            if(isinstance(params[0][i],list)):
+                if(isinstance(params[0][i][0],list)):
+                    for j in range(len(params[0][i][0])):
+                        self.lb_value[i+j]=params[0][i][0][j]
+                    if(len(params[0][i][0])==len(self.lb_value)):
+                        flag = True
+                    else:
+                        flag = False
+                else:
+                    self.lb_value[i]=params[0][i][0]
+                    flag = False
+                if(flag):
+                    self.lb[0].set_parameters(params[0][i][1])
+                else:
+                    self.lb[i].set_parameters(params[0][i][1])
+            else:
+                self.lb_value[i]=params[0][i]
+        print(self.lb_value)
+        for i in range(len(params[1])):
+            if(isinstance(params[1][i],list)):
+                if(isinstance(params[1][i][0],list)):
+                    for j in range(len(params[1][i][0])):
+                        self.ub_value[i+j]=params[1][i][0][j]
+                    if(len(params[1][i][0])==len(self.ub_value)):
+                        flag = True
+                    else:
+                        flag = False
+                else:
+                    self.ub_value[i]=params[1][i][0]
+                    flag = False
+                if(flag):
+                    self.ub[0].set_parameters(params[1][i][1])
+                else:
+                    self.ub[i].set_parameters(params[1][i][1])
+            else:
+                self.ub_value[i]=params[1][i]
         return True
 
     def sample_from_prior(self):
         if (isinstance(self.lb, Distribution)):
-            lb_value = self.lb.sample(1)[0]
+            self.lb.sample_from_prior()
+            lb_value = self.lb.sample(1)[0].tolist()
         else:
             lb = []
             for i in range(len(self.lb)):
                 if (isinstance(self.lb[i], Distribution)):
+                    self.lb[i].sample_from_prior()
                     next_element = self.lb[i].sample(1)[0]
                     if (isinstance(next_element, np.ndarray)):
                         for j in range(len(next_element)):
@@ -604,11 +782,13 @@ class Uniform(Distribution):
                     lb.append(self.lb[i])
             lb_value = lb
         if (isinstance(self.ub, Distribution)):
-            ub_value = self.ub.sample(1)[0]
+            self.ub.sample_from_prior()
+            ub_value = self.ub.sample(1)[0].tolist()
         else:
             ub = []
             for i in range(len(self.ub)):
                 if (isinstance(self.ub[i], Distribution)):
+                    self.ub[i].sample_from_prior()
                     next_element = self.ub[i].sample(1)[0]
                     if (isinstance(next_element, np.ndarray)):
                         for j in range(len(next_element)):
@@ -631,7 +811,39 @@ class Uniform(Distribution):
         return samples
 
     def get_parameters(self):
-        return np.array([self.lb_value, self.ub_value])
+        if(isinstance(self.lb, Distribution)):
+            l1 = [[self.lb_value, self.lb.get_parameters()]]
+        else:
+            l1=[]
+            for i in range(len(self.lb)):
+                if(isinstance(self.lb[i], Distribution)):
+                    samples_helper = self.lb[i].sample(1,reset=1)[0]
+                    l_helper = []
+                    if(isinstance(samples_helper, np.ndarray)):
+                        for j in range(len(samples_helper)):
+                            l_helper.append(self.lb_value[i+j])
+                    else:
+                        l_helper = self.lb_value[i]
+                    l1.append([l_helper, self.lb[i].get_parameters()])
+                else:
+                    l1.append(self.lb_value[i])
+        if(isinstance(self.ub, Distribution)):
+            l2 = [self.ub_value, self.ub.get_parameters()]
+        else:
+            l2 = []
+            for i in range(len(self.ub)):
+                if(isinstance(self.ub[i], Distribution)):
+                    samples_helper = self.ub[i].sample(1,reset=1)[0]
+                    l_helper =[]
+                    if(isinstance(samples_helper, np.ndarray)):
+                        for j in range(len(samples_helper)):
+                            l_helper.append(self.ub_value[i+j])
+                    else:
+                        l_helper = self.ub_value[i]
+                    l2.append([l_helper, self.ub[i].get_parameters()])
+                else:
+                    l2.append(self.ub_value[i])
+        return [l1,l2]
 
     def pdf(self, x):
         for i in range(len(self.lb)):
@@ -697,7 +909,7 @@ class MixtureNormal(Distribution):
         self.mean = mu
         self.rng = np.random.RandomState(seed)
         if(isinstance(self.mean, Distribution)):
-            self.mean_value = self.mean.sample(1)[0]
+            self.mean_value = self.mean.sample(1)[0].tolist()
         else:
             mean_value = []
             for i in range(len(self.mean)):
@@ -713,16 +925,37 @@ class MixtureNormal(Distribution):
             self.mean_value = mean_value
 
     def set_parameters(self, params):
-        self.mean_value = params[0]
+        if(not(isinstance(params,list)) or len(params)!=2):
+            return False
+        for i in range(len(params[0])):
+            if(isinstance(params[0][i],list)):
+                if(isinstance(params[0][i][0],list)):
+                    for j in range(len(params[0][i][0])):
+                        self.mean_value[i+j] = params[0][i][0][j]
+                    if(len(params[0][i][0])==len(self.mean_value)):
+                        flag = True
+                    else:
+                        flag = False
+                else:
+                    flag=False
+                    self.mean_value[i]=params[0][i][0]
+                if(flag):
+                    self.mean.set_parameters(params[0][i][1])
+                else:
+                    self.mean[i].set_parameters(params[0][i][1])
+            else:
+                self.mean_value[i] = params[0][i]
         return True
 
     def sample_from_prior(self):
         if (isinstance(self.mean, Distribution)):
-            mean_value = self.mean.sample(1)[0]
+            self.mean.sample_from_prior()
+            mean_value = self.mean.sample(1)[0].tolist()
         else:
             mean_value = []
             for i in range(len(self.mean)):
                 if (isinstance(self.mean[i], Distribution)):
+                    self.mean[i].sample_from_prior()
                     next_element = self.mean[i].sample(1)[0]
                     if (isinstance(next_element, np.ndarray)):
                         for j in range(len(next_element)):
@@ -757,12 +990,29 @@ class MixtureNormal(Distribution):
         return np.array(Data_array)
 
     def get_parameters(self):
-        return np.array([self.mean_value])
+        if (isinstance(self.mean, Distribution)):
+            l1 = [[self.mean_value, self.mean.get_parameters()]]
+        else:
+            l1 = []
+            for i in range(len(self.mean)):
+                if (isinstance(self.mean[i], Distribution)):
+                    helper_samples = self.mean[i].sample(1, reset=1)[0]
+                    if (isinstance(helper_samples, np.ndarray)):
+                        l_helper = []
+                        for j in range(len(helper_samples)):
+                            l_helper.append(self.mean_value[i + j])
+                    else:
+                        l_helper = self.mean_value[i]
+                    l_helper_2 = self.mean[i].get_parameters()
+                    l1.append([l_helper, l_helper_2])
+                else:
+                    l1.append(self.mean_value[i])
+        return [l1]
 
     def pdf(self, x):
         raise TypeError('Mixture Normal does not have a likelihood.')
 
-
+#TODO THE REMAPPING TO LISTS CREATES SOME ISSUES HERE
 class StochLorenz95(Distribution):
     """Generates time dependent 'slow' weather variables following forecast model of Wilks [1],
     a stochastic reparametrization of original Lorenz model Lorenz [2].
@@ -803,7 +1053,7 @@ class StochLorenz95(Distribution):
         # Assign closure parameters
         self.theta = theta
         if(isinstance(self.theta, Distribution)):
-            self.theta_value = self.theta.sample(1)[0]
+            self.theta_value = self.theta.sample(1)[0].tolist()
         else:
             theta_value = []
             for i in range(len(self.theta)):
@@ -829,11 +1079,13 @@ class StochLorenz95(Distribution):
 
     def sample_from_prior(self):
         if (isinstance(self.theta, Distribution)):
-            theta_value = self.theta.sample(1)[0]
+            self.theta.sample_from_prior()
+            theta_value = self.theta.sample(1)[0].tolist()
         else:
             theta_value = []
             for i in range(len(self.theta)):
                 if (isinstance(self.theta[i], Distribution)):
+                    self.theta[i].sample_from_prior()
                     next_element = self.theta[i].sample(1)[0]
                     if (isinstance(next_element, np.ndarray)):
                         for j in range(len(next_element)):
@@ -876,14 +1128,43 @@ class StochLorenz95(Distribution):
         return timeseries_array
 
     def get_parameters(self):
-        return self.theta_value
+        if(isinstance(self.theta, Distribution)):
+            l1 = [[self.theta_value, self.theta.get_parameters()]]
+        else:
+            l1 = []
+            for i in range(len(self.theta)):
+                if(isinstance(self.theta[i],Distribution)):
+                    samples_helper = self.theta[i].sample(1,reset=1)[0]
+                    l_helper=[]
+                    if(isinstance(samples_helper,np.ndarray)):
+                        for j in range(len(samples_helper)):
+                            l_helper.append(self.theta_value[i+j])
+                    else:
+                        l_helper = self.theta_value[i]
+                    l1.append([l_helper, self.theta[i].get_parameters()])
+                else:
+                    l1.append(self.theta_value[i])
+        return [l1]
 
     def set_parameters(self, theta):
-        if isinstance(theta, (list, np.ndarray)):
-            self.theta_value = np.array(theta)
-        else:
-            raise TypeError('The parameter value is not of allowed types')
-
+        for i in range(len(theta)):
+            if(isinstance(theta[i], list)):
+                if(isinstance(theta[i][0],list)):
+                    for j in range(len(theta[i][0])):
+                        self.theta_value[i+j]=theta[i][0][j]
+                    if(len(theta[i][0])==len(self.theta_value)):
+                        flag = True
+                    else:
+                        flag = False
+                else:
+                    self.theta_value[i]=theta[i][0]
+                    flag=False
+                if(flag):
+                    self.theta.set_parameters(theta[i][1])
+                else:
+                    self.theta[i].set_parameters(theta[i][1])
+            else:
+                self.theta_value[i]=theta[i]
         return True
 
     def _l95ode_par(self, t, x, parameter):
@@ -994,7 +1275,7 @@ class Ricker(Distribution):
         self.rng = np.random.RandomState(seed)
 
         if(isinstance(self.theta, Distribution)):
-            self.theta_value = self.theta.sample(1)[0]
+            self.theta_value = self.theta.sample(1)[0].tolist()
         else:
             theta_value = []
             for i in range(len(self.theta)):
@@ -1011,11 +1292,13 @@ class Ricker(Distribution):
 
     def sample_from_prior(self):
         if (isinstance(self.theta, Distribution)):
-            theta_value = self.theta.sample(1)[0]
+            self.theta.sample_from_prior()
+            theta_value = self.theta.sample(1)[0].tolist()
         else:
             theta_value = []
             for i in range(len(self.theta)):
                 if (isinstance(self.theta[i], Distribution)):
+                    self.theta[i].sample_from_prior()
                     next_element = self.theta[i].sample(1)[0]
                     if (isinstance(next_element, np.ndarray)):
                         for j in range(len(next_element)):
@@ -1046,18 +1329,44 @@ class Ricker(Distribution):
         return timeseries_array
 
     def get_parameters(self):
-        return self.theta_value
+        if (isinstance(self.theta, Distribution)):
+            l1 = [[self.theta_value, self.theta.get_parameters()]]
+        else:
+            l1 = []
+            for i in range(len(self.theta)):
+                if (isinstance(self.theta[i], Distribution)):
+                    samples_helper = self.theta[i].sample(1, reset=1)[0]
+                    l_helper = []
+                    if (isinstance(samples_helper, np.ndarray)):
+                        for j in range(len(samples_helper)):
+                            l_helper.append(self.theta_value[i + j])
+                    else:
+                        l_helper = self.theta_value[i]
+                    l1.append([l_helper, self.theta[i].get_parameters()])
+                else:
+                    l1.append(self.theta_value[i])
+        return [l1]
 
     def set_parameters(self, theta):
-        if isinstance(theta, (list, np.ndarray)):
-            theta = np.array(theta)
-        else:
-            raise TypeError('The parameter value is not of allowed types')
-
-        if theta.shape[0] > 3: return False
-        if theta[1] <= 0: return False
-        if theta[2] <= 0: return False
-        self.theta_value = theta
+        #TODO CHECK LENGHT, USW
+        for i in range(len(theta)):
+            if(isinstance(theta[i], list)):
+                if(isinstance(theta[i][0],list)):
+                    for j in range(len(theta[i][0])):
+                        self.mean_value[i+j]=theta[i][0][j]
+                    if(len(theta[i][0])==len(self.theta_value)):
+                        flag = True
+                    else:
+                        flag = False
+                else:
+                    self.mean_value[i]=theta[i][0]
+                    flag=False
+                if(flag):
+                    self.mean.set_parameters(theta[i][1])
+                else:
+                    self.mean[i].set_parameters(theta[i][1])
+            else:
+                self.mean_value[i]=theta[i]
         return True
 
     def pdf(self):
