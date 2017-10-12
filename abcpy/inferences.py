@@ -731,7 +731,11 @@ class SABC:
             # main SABC algorithm 
             # print("INFO: Initialization of SABC")
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=int(sample_array[aStep]), dtype=np.uint32)
-            seed_pds = self.backend.parallelize(seed_arr)
+            index_arr = self.rng.randint(0, n_samples, size=int(sample_array[aStep]), dtype=np.uint32)
+            data_arr = []
+            for i in range(len(seed_arr)):
+                data_arr.append([seed_arr[i], index_arr[i]])
+            data_pds = self.backend.parallelize(data_arr)
 
             # 0: update remotely required variables
             # print("INFO: Broadcasting parameters.")
@@ -741,13 +745,13 @@ class SABC:
 
             # 1: Calculate  parameters
             # print("INFO: Initial accepted parameter parameters")
-            params_and_dists_pds = self.backend.map(rc._accept_parameter, seed_pds)
+            params_and_dists_pds = self.backend.map(rc._accept_parameter, data_pds)
             params_and_dists = self.backend.collect(params_and_dists_pds)
             new_parameters, new_distances, new_all_parameters, new_all_distances, index, acceptance = [list(t) for t in zip(*params_and_dists)]
             new_parameters = np.array(new_parameters)            
             new_distances = np.array(new_distances)
             new_all_distances = np.concatenate(new_all_distances)
-            index = np.array(index)
+            index = index_arr
             acceptance = np.array(acceptance)
             
             # Reading all_distances at Initial step 
@@ -757,7 +761,8 @@ class SABC:
                 all_distances = new_all_distances
 
             #print(index[acceptance == 1])              
-            # Initialize/Update the accepted parameters and their corresponding distances            
+            # Initialize/Update the accepted parameters and their corresponding distances
+            test = accepted_parameters
             accepted_parameters[index[acceptance==1],:] = new_parameters[acceptance==1,:]
             distances[index[acceptance==1]] = new_distances[acceptance==1]
             
@@ -914,7 +919,7 @@ class _RemoteContextSABC:
         return smoothed_distance
         
     # define helper functions for map step
-    def _accept_parameter(self, seed):
+    def _accept_parameter(self, data):
         """
         Samples a single model parameter and simulate from it until
         accepted with probabilty exp[-rho(x,y)/epsilon].
@@ -923,6 +928,10 @@ class _RemoteContextSABC:
         :rtype: np.array
         :return: accepted parameter
         """
+        if(isinstance(data,np.ndarray)):
+            data = data.tolist()
+        seed = data[0]
+        index = data[1]
         rng = np.random.RandomState(seed)
         self.model.prior.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
         self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))        
@@ -930,8 +939,7 @@ class _RemoteContextSABC:
         
         
         all_parameters = []
-        all_distances = []  
-        index = []          
+        all_distances = []
         acceptance = 0 
         
         
@@ -946,9 +954,7 @@ class _RemoteContextSABC:
                 all_distances.append(distance)
                 acceptance = rng.binomial(1,np.exp(-distance/self.epsilon),1)
             acceptance = 1
-        else:                    
-            ## Select one arbitrary particle:
-            index = rng.choice(self.n_samples, size=1)[0]
+        else:
             ## Sample proposal parameter and calculate new distance:
             theta = self.accepted_parameters_bds.value()[index,:]
             while True:
