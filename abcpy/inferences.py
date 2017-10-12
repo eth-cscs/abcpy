@@ -996,7 +996,11 @@ class SABC(BaseAnnealing, InferenceMethod):
             # main SABC algorithm
             # print("INFO: Initialization of SABC")
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=int(sample_array[aStep]), dtype=np.uint32)
-            seed_pds = self.backend.parallelize(seed_arr)
+            index_arr = self.rng.randint(0, self.n_samples, size=int(sample_array[aStep]), dtype=np.uint32)
+            data_arr = []
+            for i in range(len(seed_arr)):
+                data_arr.append([seed_arr[i], index_arr[i]])
+            data_pds = self.backend.parallelize(data_arr)
 
             # 0: update remotely required variables
             # print("INFO: Broadcasting parameters.")
@@ -1005,7 +1009,7 @@ class SABC(BaseAnnealing, InferenceMethod):
 
             # 1: Calculate  parameters
             # print("INFO: Initial accepted parameter parameters")
-            params_and_dists_pds = self.backend.map(self._accept_parameter, seed_pds)
+            params_and_dists_pds = self.backend.map(self._accept_parameter, data_pds)
             params_and_dists = self.backend.collect(params_and_dists_pds)
             new_parameters, new_distances, new_all_parameters, new_all_distances, index, acceptance = [list(t) for t in
                                                                                                        zip(
@@ -1013,7 +1017,7 @@ class SABC(BaseAnnealing, InferenceMethod):
             new_parameters = np.array(new_parameters)
             new_distances = np.array(new_distances)
             new_all_distances = np.concatenate(new_all_distances)
-            index = np.array(index)
+            index = index_arr
             acceptance = np.array(acceptance)
 
             # Reading all_distances at Initial step
@@ -1169,7 +1173,7 @@ class SABC(BaseAnnealing, InferenceMethod):
             self.all_distances_bds = self.backend.broadcast(all_distances)
 
     # define helper functions for map step
-    def _accept_parameter(self, seed):
+    def _accept_parameter(self, data):
         """
         Samples a single model parameter and simulate from it until
         accepted with probabilty exp[-rho(x,y)/epsilon].
@@ -1184,14 +1188,16 @@ class SABC(BaseAnnealing, InferenceMethod):
         numpy.ndarray
             accepted parameter
         """
-
+        if(isinstance(data,np.ndarray)):
+            data = data.tolist()
+        seed=data[0]
+        index=data[1]
         rng = np.random.RandomState(seed)
         self.model.prior.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
         self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
         all_parameters = []
         all_distances = []
-        index = []
         acceptance = 0
 
         if self.accepted_cov_mat_bds == None:

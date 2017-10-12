@@ -74,7 +74,7 @@ class UniformTests(unittest.TestCase):
         self.distribution_graph = Uniform(self.distribution, self.distribution, seed=1)
         helper_distribution = Normal(1,0.5,seed=1)
         helper_distribution_2 = MultiNormal([1,1],[[1,0],[0,1]],seed=1)
-        self.distribution_multid = Uniform([0,helper_distribution],helper_distribution_2, seed=1)
+        self.distribution_multid = Uniform([0,helper_distribution],[helper_distribution_2], seed=1)
 
     def test_init(self):
         self.assertRaises(TypeError, Uniform, 3.14, [1.0, 1.0])
@@ -117,7 +117,9 @@ class UniformTests(unittest.TestCase):
         self.assertLessEqual(sample, 101)
         self.assertGreaterEqual(sample, 100)
 
-        self.distribution_multid.set_parameters([[1,[1.3,[1.2,0.2]]],[2,[[3,3],[[2.4,2.5],[[1.1,0],[0,1.1]]]]]])
+        self.distribution_multid.set_parameters([[1,[1.3,[1.2,0.2]]],[[[2,2],[[2.5,2.5],[[1,0],[0,1]]]]]])
+        self.assertTrue(self.distribution_multid.get_parameters()==[[1, [1.3, [1.2, 0.2]]], [[[2, 2], [[2.5, 2.5], [[1, 0], [0, 1]]]]]]
+)
 
     def test_pdf(self):
         new_prior = Uniform(np.array([0.0]), np.array([10.0]), seed=1)
@@ -128,9 +130,8 @@ class UniformTests(unittest.TestCase):
 
 class MultiStudentTTests(unittest.TestCase):
     def test_pdf(self):
-        #works
-        m = np.array([0, 0])
-        cov = np.eye(2)
+        m = [0, 0]
+        cov = [[1,0],[0,1]]
         distribution = MultiStudentT(m, cov, 1)
         self.assertLess(abs(distribution.pdf([0., 0.]) - 0.15915), 1e-5)
 
@@ -165,6 +166,32 @@ class MultiStudentTTests(unittest.TestCase):
         distribution = MultiStudentT(Uniform([1,2],[3,4],seed=1),cov,2,seed=1)
         distribution = MultiStudentT([Normal(1,0.5,1),StudentT(1,2,seed=1)],cov,2,seed=1)
 
+    def test_set_parameters(self):
+        #Test initialization and setting of parameters with fixed values
+        distribution = MultiStudentT([1.2,1.3],[[1,0],[0,1]],2,seed=1)
+        distribution.set_parameters([[1.5,1.6],[[1.1,0],[0,1.1]],3])
+        self.assertTrue(distribution.get_parameters()==[[1.5, 1.6], [[1.1, 0], [0, 1.1]], 3])
+
+        #Test initialization and setting of parameters with 1 multidimensional distribution
+        helper_distribution = MultiStudentT([1,1],[[0.1,0],[0,0.1]],2)
+        distribution = MultiStudentT(helper_distribution, [[1,0],[0,1]],3,seed=1)
+        distribution.set_parameters([[[[1.2,1.3],[[1.2,1.4],[[1,0],[0,1]],2]]],[[1.1,0],[0,1.2]],2])
+        self.assertTrue(distribution.get_parameters()==[[[[1.2,1.3],[[1.2,1.4],[[1,0],[0,1]],2]]],[[1.1,0],[0,1.2]],2])
+
+        #Test initialization and setting of parameters with 2 distributions
+        helper_distribution = Normal(1,0.5,seed=1)
+        helper_distribution_2 = Normal(2,0.1,seed=1)
+        distribution = MultiStudentT([helper_distribution,helper_distribution_2],[[1,0],[0,1]],2)
+        distribution.set_parameters([[[1.1,[1.2,0.3]],[2.2,[2.1,0.2]]],[[1.1,0],[0,1.1]],3])
+        self.assertTrue(distribution.get_parameters()==[[[1.1,[1.2,0.3]],[2.2,[2.1,0.2]]],[[1.1,0],[0,1.1]],3])
+
+        #Test initialization and setting of parameters with distribution for degrees of freedom
+        distribution = MultiStudentT([1,1],[[1,0],[0,1]],helper_distribution)
+        distribution.set_parameters([[1.1,1.2],[[0.1,0],[0,0.1]],[1,[1.4,0.7]]])
+        self.assertTrue(distribution.get_parameters()==[[1.1,1.2],[[0.1,0],[0,0.1]],[1,[1.4,0.7]]])
+
+
+
 class StudentTTests(unittest.TestCase):
     #NOTE these distributions seem to be very sensitive to small changes in especially df. If df differs only slightly, the output can differ by multiple 1000s. Therefore, writing tests is a bit hard
     def setUp(self):
@@ -188,6 +215,10 @@ class StudentTTests(unittest.TestCase):
         diff_var = np.abs(computed_var - expected_var)
         self.assertLess(diff_mean, 1.8)
         #self.assertLess(diff_var, 2e-3)
+
+    def test_set_parameters(self):
+        self.distribution_graph.set_parameters([[0.2,[[-0.3],[0.3]]],[0.7,[[0.5],[1.]]]])
+        self.assertTrue(self.distribution_graph.get_parameters()==[[0.2,[[-0.3],[0.3]]],[0.7,[[0.5],[1.]]]])
 
 
 class MixtureNormalTests(unittest.TestCase):
@@ -218,6 +249,16 @@ class MixtureNormalTests(unittest.TestCase):
 
         samples_uniform = self.distribution_uniform.sample(100)
         samples_1d = self.distribution_1d.sample(100)
+
+    def test_set_parameters(self):
+        self.distribution = MixtureNormal([1,2,3],seed=1)
+        self.distribution.set_parameters([[2,3,4]])
+        self.assertTrue(self.distribution.get_parameters()==[[2,3,4]])
+        self.distribution_graph = MixtureNormal(self.distribution,seed=1)
+
+        self.distribution_graph.set_parameters([[[[3, 4, 5], [[7,8,9]]]]])
+        self.assertTrue(self.distribution_graph.get_parameters()==[[[[3, 4, 5], [[7,8,9]]]]])
+
 
 
 class NormalTests(unittest.TestCase):
