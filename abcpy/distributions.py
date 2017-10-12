@@ -411,10 +411,10 @@ class StudentT(Distribution):
             raise TypeError('params has to be of type list.')
         if(len(params)!=2):
             return False
-        if(isinstance(params[1],list) and params[1][1]<=1):
-            return False
-        if(not(isinstance(params[1],list)) and params[1]<=0):
-            return False
+        #if(isinstance(params[1],list) and params[1][1]<=1): #this works for I think normal distributions, but not if it is uniform?
+        #    return False
+        #if(not(isinstance(params[1],list)) and params[1]<=0):
+        #    return False
         if(isinstance(params[0],list)):
             if(len(params[0])==2):
                 self.mean_value = params[0][0]
@@ -521,8 +521,8 @@ class MultiStudentT(Distribution):
             self.df_value = self.df
 
     def set_parameters(self, params):
-        if(not(self.check_parameters(params[0],params[1]))):
-            return False
+        #if(not(self.check_parameters(params[0],params[1]))):
+        #    return False
         if(len(params)>3 or len(params)<2):
             return False
         for i in range(len(params[0])):
@@ -722,8 +722,8 @@ class Uniform(Distribution):
     #NOTE this doesnt include if one value is from a multid distribution!!!
     #as written above, multid is not yet supported, code that in
     def set_parameters(self, params):
-        if(not(self.check_parameters(params[0],params[1]))):
-            return False
+        #if(not(self.check_parameters(params[0],params[1]))):
+         #   return False
         for i in range(len(params[0])):
             if(isinstance(params[0][i],list)):
                 if(isinstance(params[0][i][0],list)):
@@ -742,7 +742,6 @@ class Uniform(Distribution):
                     self.lb[i].set_parameters(params[0][i][1])
             else:
                 self.lb_value[i]=params[0][i]
-        print(self.lb_value)
         for i in range(len(params[1])):
             if(isinstance(params[1][i],list)):
                 if(isinstance(params[1][i][0],list)):
@@ -925,7 +924,7 @@ class MixtureNormal(Distribution):
             self.mean_value = mean_value
 
     def set_parameters(self, params):
-        if(not(isinstance(params,list)) or len(params)!=2):
+        if(not(isinstance(params,list)) or len(params)!=1):
             return False
         for i in range(len(params[0])):
             if(isinstance(params[0][i],list)):
