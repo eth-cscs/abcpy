@@ -379,7 +379,7 @@ class BackendMPISlave(Backend):
         #Initialize a BDS store for both master & slave.
         self.bds_store = {}
 
-        # self.log_fd = open("logs/slave_"+str(self.rank),"w")
+        self.log_fd = open("logs/slave_"+str(self.rank),"w")
 
         #Go into an infinite loop waiting for commands from the user.
         self.slave_run()
@@ -516,7 +516,7 @@ class BackendMPISlave(Backend):
 
         pds_res = PDSMPI(rdd, pds_id_new, self)
 
-        # self.log_fd.write("MAP_START "+str(map_start)+"\nMAP_END "+str(time.time())+"\n")
+        self.log_fd.write("MAP_START "+str(map_start)+"\nMAP_END "+str(time.time())+"\n")
 
         return pds_res
 
