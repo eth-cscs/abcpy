@@ -1,5 +1,7 @@
 import numpy as np
 import cloudpickle
+import time
+import pickle
 
 from mpi4py import MPI
 from abcpy.backends import Backend, PDS, BDS
@@ -16,8 +18,9 @@ class BackendMPIMaster(Backend):
     OP_PARALLELIZE, OP_MAP, OP_COLLECT, OP_BROADCAST, OP_DELETEPDS, OP_DELETEBDS, OP_FINISH = [1, 2, 3, 4, 5, 6, 7]
     finalized = False
 
-    def __init__(self, master_node_ranks=[0]):
+    def __init__(self, master_node_ranks=[0],chunk_size=1):
 
+        print("Using dirty version from ummavi's repo for MPI based dynamic scheduling")
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
@@ -30,6 +33,15 @@ class BackendMPIMaster(Backend):
 
         #Initialize a BDS store for both master & slave.
         self.bds_store = {}
+        self.pds_store = {}
+        self.pds_pending_store = {}
+
+        self.chunk_size = chunk_size
+
+        # try:
+        #     os.mkdir("logs")
+        # except Exception as e:
+        #     print("folder logs/ already exists")
 
 
     def __command_slaves(self, command, data):
@@ -95,7 +107,7 @@ class BackendMPIMaster(Backend):
         #Set the backend to None to prevent it from being packed
         globals()['backend'] = {}
 
-        function_packed = cloudpickle.dumps(func)
+        function_packed = cloudpickle.dumps(func,pickle.HIGHEST_PROTOCOL)
 
         #Reset the backend to self after it's been packed
         globals()['backend'] = self
@@ -158,21 +170,53 @@ class BackendMPIMaster(Backend):
         pds_id = self.__generate_new_pds_id()
         self.__command_slaves(self.OP_PARALLELIZE, (pds_id,))
 
-        #Initialize empty data lists for the processes on the master node
-        rdd_masters = [[] for i in range(len(self.master_node_ranks))]
+        #Don't send any data. Just keep it as a queue we're going to pop.
+        self.pds_store[pds_id] = list(python_list)
 
-        #Split the data only amongst the number of workers
-        rdd_slaves = np.array_split(python_list, self.size - len(self.master_node_ranks), axis=0)
 
-        #Combine the lists into the final rdd before we split it across all ranks.
-        rdd = rdd_masters + rdd_slaves
-
-        data_chunk = self.comm.scatter(rdd, root=0)
-
-        pds = PDSMPI(data_chunk, pds_id, self)
+        pds = PDSMPI([], pds_id, self)
 
         return pds
 
+    def orchestrate_map(self,pds_id):
+        """Orchestrates the slaves to perform a map function
+        """
+        is_map_done = [True if i in self.master_node_ranks else False for i in range(self.size)]
+        status = MPI.Status()
+
+        #Copy it to the pending.
+        self.pds_pending_store[pds_id] = list(self.pds_store[pds_id])
+
+        #While we have some ranks that haven't finished
+        while sum(is_map_done)<self.size:
+            data_request = self.comm.recv(
+                source=MPI.ANY_SOURCE,
+                tag=MPI.ANY_TAG,
+                status=status,
+            )
+            request_from_rank = status.source
+
+            if data_request!=pds_id:
+                print("Ignoring stale PDS data request from",
+                    request_from_rank,":",data_request,"/",pds_id)
+                continue
+
+            #Pointer so we don't have to keep doing dict lookups
+            current_pds_items = self.pds_pending_store[pds_id]
+            num_current_pds_items = len(current_pds_items)
+            #Everyone's already exhausted all the data.
+            # Send a sentinel and mark the node as finished
+            if num_current_pds_items == 0:
+                self.comm.send(None, dest=request_from_rank, tag=pds_id)
+                is_map_done[request_from_rank] = True
+            else:
+                #Create the chunk of data to send. Pop off items and tag them with an id.
+                # so we can sort them later
+                chunk_to_send = []
+                for i in range(self.chunk_size):
+                    chunk_to_send+=[(num_current_pds_items-i,current_pds_items.pop())]
+
+                    self.comm.send(chunk_to_send, dest=request_from_rank, tag=pds_id)
 
     def map(self, func, pds):
         """
@@ -203,9 +247,10 @@ class BackendMPIMaster(Backend):
         data = (pds_id, pds_id_new, func)
         self.__command_slaves(self.OP_MAP, data)
 
-        rdd = list(map(func, pds.python_list))
+        self.orchestrate_map(pds_id)
+        # rdd = list(map(func, pds.python_list))
 
-        pds_res = PDSMPI(rdd, pds_id_new, self)
+        pds_res = PDSMPI([], pds_id_new, self)
 
         return pds_res
 
@@ -229,15 +274,25 @@ class BackendMPIMaster(Backend):
         # Tell the slaves to enter collect with the pds's pds_id
         self.__command_slaves(self.OP_COLLECT, (pds.pds_id,))
 
-        python_list = self.comm.gather(pds.python_list, root=0)
+        all_data = self.comm.gather(pds.python_list, root=0)
 
 
         # When we gather, the results are a list of lists one
         # .. per rank. Undo that by one level and still maintain multi
         # .. dimensional output (which is why we cannot use np.flatten)
-        combined_result = []
-        list(map(combined_result.extend, python_list))
-        return combined_result
+        all_data_indices,all_data_items = [],[]
+
+        # print("All_data",all_data)
+        for node_data in all_data:
+            # print("Node_data",node_data)
+            for item in node_data:
+                all_data_indices+=[item[0]]
+                all_data_items+=[item[1]]
+    
+        rdd_sorted = [all_data_items[i] for i in np.argsort(all_data_indices)]
+
+
+        return rdd_sorted
 
 
     def broadcast(self, value):
@@ -324,6 +379,8 @@ class BackendMPISlave(Backend):
         #Initialize a BDS store for both master & slave.
         self.bds_store = {}
 
+        # self.log_fd = open("logs/slave_"+str(self.rank),"w")
+
         #Go into an infinite loop waiting for commands from the user.
         self.slave_run()
 
@@ -359,8 +416,9 @@ class BackendMPISlave(Backend):
             if op == self.OP_PARALLELIZE:
                 pds_id = data[1]
                 self.__rec_pds_id = pds_id
-                pds = self.parallelize([])
-                self.pds_store[pds.pds_id] = pds
+                # pds = self.parallelize([]) #Don't need to really parallelize anymore.
+                pds_id, pds_id_new = self.__get_received_pds_id()
+                self.pds_store[pds_id] = None
 
 
             elif op == self.OP_MAP:
@@ -375,8 +433,8 @@ class BackendMPISlave(Backend):
 
 
                 # Access an existing PDS
-                pds = self.pds_store[pds_id]
-                pds_res = self.map(func, pds)
+                # pds = self.pds_store[pds_id]
+                pds_res = self.map(func)
 
                 # Store the result in a newly gnerated PDS pds_id
                 self.pds_store[pds_res.pds_id] = pds_res
@@ -416,38 +474,11 @@ class BackendMPISlave(Backend):
         return self.__rec_pds_id, self.__rec_pds_id_result
 
 
-    def parallelize(self, python_list):
-        """
-        This method distributes the list on the available workers and returns a
-        reference object.
 
-        The list is split into number of workers many parts as a numpy array.
-        Each part is sent to a separate worker node using the MPI scatter.
+    def parallelize(self):
+        pass
 
-        SLAVE: python_list should be [] and is ignored by the scatter()
-
-        Parameters
-        ----------
-        list: Python list
-            the list that should get distributed on the worker nodes
-
-        Returns
-        -------
-        PDSMPI class (parallel data set)
-            A reference object that represents the parallelized list
-        """
-
-        #Get the PDS id we should store this data in
-        pds_id, pds_id_new = self.__get_received_pds_id()
-
-        data_chunk = self.comm.scatter(None, root=0)
-
-        pds = PDSMPI(data_chunk, pds_id, self)
-
-        return pds
-
-
-    def map(self, func, pds):
+    def map(self, func):
         """
         A distributed implementation of map that works on parallel data sets (PDS).
 
@@ -457,8 +488,6 @@ class BackendMPISlave(Backend):
         ----------
         func: Python func
             A function that can be applied to every element of the pds
-        pds: PDS class
-            A parallel data set to which func should be applied
 
         Returns
         -------
@@ -466,12 +495,28 @@ class BackendMPISlave(Backend):
             a new parallel data set that contains the result of the map
         """
 
+        map_start = time.time()
+
         #Get the PDS id we operate on and the new one to store the result in
         pds_id, pds_id_new = self.__get_received_pds_id()
 
-        rdd = list(map(func, pds.python_list))
+        rdd = []
+        while True:
+            #Ask for a chunk of data 
+
+            data_chunks = self.comm.sendrecv(pds_id, 0, pds_id)
+            # print(self.rank,">Data_chunks",data_chunks)
+
+            if data_chunks is None:
+                break
+
+            for chunk in data_chunks:
+                data_index,data_item = chunk
+                rdd+=[(data_index,func(data_item))]
 
         pds_res = PDSMPI(rdd, pds_id_new, self)
+
+        # self.log_fd.write("MAP_START "+str(map_start)+"\nMAP_END "+str(time.time())+"\n")
 
         return pds_res
 
