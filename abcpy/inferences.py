@@ -5,6 +5,11 @@ from abcpy.output import Journal
 from scipy import optimize
 
 
+#TODO if we first sample from the kernel, and then set the values of our graph: we will need a set_parameters for the whole inferencemethod
+#TODO if we send the kernel, and sample at each node individually, we will need a "send kernel" function of the InferenceMethod ----> discuss which of the two would be appropriate and implement accordingly
+
+#TODO prior.pdf
+
 class InferenceMethod(metaclass = ABCMeta):
     """
         This abstract base class represents an inference method.
@@ -18,6 +23,16 @@ class InferenceMethod(metaclass = ABCMeta):
         state = self.__dict__.copy()
         del state['backend']
         return state
+
+    #NOTE this also fixes the value of our actual model, but I think it should not matter, since we will afterwards sample from it anyways?
+    #TODO currently, it is assumed that model is 1d and just one model! implement for list of models
+    def sample_from_prior(self, model):
+        for parent in model.parents:
+            if(isinstance(parent, ProbabilisticModel)):
+                self.sample_from_prior(parent)
+        model.fix_parameters()
+
+
 
     @abstractmethod
     def sample(self):
@@ -307,7 +322,7 @@ class RejectionABC(InferenceMethod):
         journal.add_weights(np.ones((n_samples, 1)))
 
         return journal
-
+#NOTE returns model.get_parameters -> do we want to receive ALL parameters, or just the ones just above it, because all would make sense
     def _sample_parameter(self, seed):
         """
         Samples a single model parameter and simulates from it until
@@ -330,7 +345,7 @@ class RejectionABC(InferenceMethod):
         while distance > self.epsilon:
             # Accept new parameter value if the distance is less than epsilon
             self.model.sample_from_prior()
-            y_sim = self.model.sample(self.n_samples_per_param)
+            y_sim = self.model.sample_from_distribution(self.n_samples_per_param)
             distance = self.distance.distance(self.observations_bds.value(), y_sim)
 
         return self.model.get_parameters()
@@ -603,7 +618,7 @@ class PMC(BasePMC, InferenceMethod):
     This algorithm assumes a likelihood function is available and can be evaluated
     at any parameter value given the oberved dataset.  In absence of the
     likelihood function or when it can't be evaluated with a rational
-    computational expenses, we use the approximated likleihood functions in
+    computational expenses, we use the approximated likelihood functions in
     abcpy.approx_lhd module, for which the argument of the consistency of the
     inference schemes are based on Andrieu and Roberts [2].
 
