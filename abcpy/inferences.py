@@ -8,7 +8,6 @@ from scipy import optimize
 #TODO if we first sample from the kernel, and then set the values of our graph: we will need a set_parameters for the whole inferencemethod
 #TODO if we send the kernel, and sample at each node individually, we will need a "send kernel" function of the InferenceMethod ----> discuss which of the two would be appropriate and implement accordingly
 
-#TODO prior.pdf
 
 class InferenceMethod(metaclass = ABCMeta):
     """
@@ -24,13 +23,36 @@ class InferenceMethod(metaclass = ABCMeta):
         del state['backend']
         return state
 
-    #NOTE this also fixes the value of our actual model, but I think it should not matter, since we will afterwards sample from it anyways?
     #TODO currently, it is assumed that model is 1d and just one model! implement for list of models
+
+    #TODO fix_parameters will set the node to updated, we need to unupdate in the end!
     def sample_from_prior(self, model):
         for parent in model.parents:
             if(isinstance(parent, ProbabilisticModel)):
                 self.sample_from_prior(parent)
-        model.fix_parameters()
+        if(model!=self.model):
+            model.fix_parameters()
+
+    #TODO also implement for list of models
+    def pdf_of_prior(self, model, parameters, index):
+        result = 1.
+        if(not(model==self.model)):
+            helper = []
+            for i in range(len(model.value)):
+                helper.append(parameters[index])
+                index+=1
+            if(len(helper)==1):
+                helper = helper[0]
+            else:
+                helper = np.array(helper)
+            result*=model.pdf(helper)
+        for parent in model.parents:
+            if(isinstance(parent, ProbabilisticModel)):
+                pdf = self.pdf_of_prior(parent, parameters, index)
+                result*=pdf[0]
+                index=pdf[1]
+        return [result, index]
+
 
 
 
