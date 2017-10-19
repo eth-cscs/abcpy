@@ -1,20 +1,28 @@
 from abc import ABCMeta, abstractmethod
 import numpy as np
 
+from scipy.stats import multivariate_normal, norm
+from scipy.special import gamma
+
+#TODO both ricker and lorenz could support that you give some in a combined model, and some not, we should implement that, but not a priority
+
+#TODO docstrings
+
+#NOTE do we maybe want to average over a couple of samples during initialization, rather than taking a single value? this is an issue for example for StudentT!
 
 class ProbabilisticModel(metaclass = ABCMeta):
     def __init__(self, parameters):
         self.parents = parameters #all parents of the node
         self.updated = False #whether the node has been touched
 
-    #self.value can be multidimensional, ie 3 or more values
+    #NOTE the check_fixed assumes that the parameters are exactly of the lenght needed for that distribution only ->needs to be considered in case we want to be able to "fix on whole graph"
     def fix_parameters(self, parameters=None, rng=np.random.RandomState()):
-        #if we have no input parameters, we want to set our own value to a newly sampled one
         if(not(parameters)):
             self.value = self.sample_from_distribution(1, rng)
             if(isinstance(self.value[0],np.ndarray)):
                 self.value = self.value[0]
         else:
+            self.check_parameters_fixed(parameters)
             index=0
             i=0
             while(i<len(parameters)):
@@ -31,6 +39,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
                         i+=1
                     self.parents[index].updated = True
                     index+=1
+            return True
 
     def get_parameters(self):
         parameters = []
@@ -41,14 +50,28 @@ class ProbabilisticModel(metaclass = ABCMeta):
         return parameters
 
 
+    @abstractmethod
+    def check_parameters(self, parameters):
+        raise NotImplementedError
+
+    @abstractmethod
+    def check_parameters_fixed(self, parameters):
+        raise NotImplementedError
 
     @abstractmethod
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         raise NotImplementedError
 
+    @abstractmethod
+    def pdf(self, x):
+        raise NotImplementedError
+
+
 
 class Normal(ProbabilisticModel):
     def __init__(self, parameters):
+        if(not(self.check_parameters(parameters))):
+            raise ValueError('Not a valid input for Normal.')
         super(Normal, self).__init__(parameters)
         self.value = self.sample_from_distribution(1)
 
@@ -67,9 +90,51 @@ class Normal(ProbabilisticModel):
                 sigma = self.parents[1]
         return np.array(rng.normal(mu, sigma, k).reshape(-1))
 
+    def check_parameters(self, parameters):
+        if(not(isinstance(parameters, list))):
+            raise TypeError('Input for Normal has to be of type list.')
+        if(len(parameters)!=2 and len(parameters)!=1):
+            raise IndexError('Input has to be of lenght 1 or 2.')
+        if(len(parameters)==1 and parameters[0].value[1]<=0):
+            return False
+        if(len(parameters)==2):
+            if(isinstance(parameters[1], ProbabilisticModel) and parameters[1].value[0]<=0):
+                return False
+            if(not(isinstance(parameters[1], ProbabilisticModel)) and parameters[1]<=0):
+                return False
+        return True
+
+    def check_parameters_fixed(self, parameters):
+        length=0
+        for parent in self.parents:
+            if(isinstance(parent, ProbabilisticModel)):
+                length+=1
+        if(length==len(parameters)):
+            if(len(parameters)==2 and parameters[1]<=0):
+                return False
+            return True
+        return False
+
+    def pdf(self, x):
+        if(len(self.parents)==2):
+            if(isinstance(self.parents[0], ProbabilisticModel)):
+                mu = self.parents[0].value[0]
+            else:
+                mu = self.parents[0]
+            if(isinstance(self.parents[1], ProbabilisticModel)):
+                sigma = self.parents[1].value[0]
+            else:
+                sigma = self.parents[1]
+        else:
+            mu = self.parents[0].value[0]
+            sigma = self.parents[0].value[1]
+        return norm(mu,sigma).pdf(x)
+
 
 class MultivariateNormal(ProbabilisticModel):
     def __init__(self,parameters):
+        if(not(self.check_parameters(parameters))):
+            raise ValueError('This is not a valid input for a MultivariateNormal.')
         super(MultivariateNormal, self).__init__(parameters)
         self.value = self.sample_from_distribution(1)[0] #else [[]], is this correct?
 
@@ -88,9 +153,57 @@ class MultivariateNormal(ProbabilisticModel):
             cov = self.parents[len(self.parents)-1]
         return rng.multivariate_normal(mean, cov, k)
 
+    def check_parameters(self, parameters):
+        if(not(isinstance(parameters, list))):
+            raise TypeError('Input for MultivariateNormal has to be of type list.')
+        if(len(parameters)<2):
+            raise IndexError('Input for MultivariateNormal has to be of at least length 2.')
+        length = 0
+        for i in range(len(parameters)-1):
+            if(isinstance(parameters[i], ProbabilisticModel)):
+                length+=len(parameters[i].value)
+            else:
+                length+=1
+        cov = np.array(parameters[len(parameters)-1])
+        if(length!=len(cov[0])):
+            raise IndexError('Length of mean and covariance matrix have to match.')
+        if(not(np.allclose(cov, cov.T, atol=1e-3))):
+            return False
+        try:
+            is_pos = np.linalg.cholesky(cov)
+        except np.linalg.LinAlgError:
+            return False
+        return True
+
+    def check_parameters_fixed(self, parameters):
+        length=0
+        for parent in self.parents:
+            if(isinstance(parent, ProbabilisticModel)):
+                length+=len(parent.value)
+        if(len(parameters)!=length):
+            return False
+        return True
+
+
+    def pdf(self, x):
+        mean=[]
+        for i in range(len(self.parents)-1):
+            if(isinstance(self.parents[i], ProbabilisticModel)):
+                helper = self.parents[i].value
+                for element in helper:
+                    mean.append(element)
+            else:
+                mean.append(self.parents[i])
+        if (isinstance(self.parents[len(self.parents) - 1], ProbabilisticModel)):
+            cov = self.parents[len(self.parents) - 1].value
+        else:
+            cov = self.parents[len(self.parents) - 1]
+        return multivariate_normal(mean, cov).pdf(x)
+
 
 class MixtureNormal(ProbabilisticModel):
     def __init__(self, parameters):
+        self.check_parameters(parameters)
         super(MixtureNormal, self).__init__(parameters)
         self.value = self.sample_from_distribution(1)[0]
 
@@ -115,9 +228,22 @@ class MixtureNormal(ProbabilisticModel):
             Data_array[i] = Data
         return np.array(Data_array)
 
+    def check_parameters(self, parameters):
+        if(not(isinstance(parameters, list))):
+            raise TypeError('Input for MixtureNormal has to be of type list.')
+        return True
+
+    def check_parameters_fixed(self, parameters):
+        return True
+
+    def pdf(self, x):
+        raise NotImplementedError
+
 
 class StudentT(ProbabilisticModel):
     def __init__(self, parameters):
+        if(not(self.check_parameters(parameters))):
+            raise ValueError('This is not a valid input for StudentT.')
         super(StudentT, self).__init__(parameters)
         self.value = self.sample_from_distribution(1)
 
@@ -136,9 +262,46 @@ class StudentT(ProbabilisticModel):
                 df = self.parents[1]
         return np.array((rng.standard_t(df,k)+mean).reshape(-1))
 
+    def check_parameters(self, parameters):
+        if(not(isinstance(parameters, list))):
+            raise TypeError('Input to StudentT has to be of type list.')
+        if(len(parameters)>2):
+            raise IndexError('Input to StudentT has to be of length 2 or smaller.')
+        if(len(parameters)==1 and parameters[0].value[1]<=0):
+            return False
+        if(len(parameters)==2 and isinstance(parameters[1], ProbabilisticModel)):
+            if(parameters[1].value[0]<=0):
+                return False
+        if(len(parameters)==2 and not(isinstance(parameters[1], ProbabilisticModel))):
+            if(parameters[1]<=0):
+                return False
+        return True
+
+    def check_parameters_fixed(self, parameters):
+        length=0
+        for parent in self.parents:
+            if(isinstance(parent, ProbabilisticModel)):
+                length+=len(parent.value)
+        if(length==len(parameters)):
+            if(len(parameters)==2 and parameters[1]<=0):
+                return False
+            return True
+        return False
+
+
+    def pdf(self, x):
+        if (isinstance(self.parents[1], ProbabilisticModel)):
+            df = self.parents[1].value[0]
+        else:
+            df = self.parents[1]
+        return gamma((df+1)/2.)/(np.sqrt(df*np.pi)*gamma(df/2.))*(1+float(x**2)/df)**(df+1)/2.
+
+
 
 class MultiStudentT(ProbabilisticModel):
     def __init__(self, parameters):
+        if(not(self.check_parameters(parameters))):
+            raise ValueError('Not a valid input for MultiStudentT.')
         super(MultiStudentT, self).__init__(parameters)
         self.value = self.sample_from_distribution(1)[0]
 
@@ -169,10 +332,80 @@ class MultiStudentT(ProbabilisticModel):
         result = (mean + np.divide(mvn, np.sqrt(chisq)))
         return result
 
+    def check_parameters(self, parameters):
+        if(not(isinstance(parameters, list))):
+            raise TypeError('Input to MultiStudentT has to be of type list.')
+        length = 0
+        for i in range(len(parameters)-2):
+            if(isinstance(parameters[i], ProbabilisticModel)):
+                length+=len(parameters[i].value)
+            else:
+                length+=1
+        cov = np.array(parameters[len(parameters)-2])
+        if(not(length==len(cov[0]))):
+            raise IndexError('Mean and covariance matrix have to be of same length.')
+        if(isinstance(parameters[len(parameters)-1], ProbabilisticModel) and parameters[len(parameters)-1].value[0]<=0):
+            return False
+        if(not(isinstance(parameters[len(parameters)-1], ProbabilisticModel)) and parameters[len(parameters)-1]<=0):
+            return False
+        cov = np.array(cov)
+        if(not(np.allclose(cov, cov.T, atol = 1e-3))):
+            return False
+        try:
+            is_pos = np.linalg.cholesky(cov)
+        except np.linalg.LinAlgError:
+            return False
+        return True
+
+    def check_parameters_fixed(self, parameters):
+        length = 0
+        for parent in self.parents:
+            if(isinstance(parent, ProbabilisticModel)):
+                length+=len(parent.value)
+        if(length==len(parameters)):
+            return True
+        return False
+
+
+    def pdf(self, x):
+        mean = []
+        for i in range(len(self.parents)-2):
+            if(isinstance(self.parents[i],ProbabilisticModel)):
+                helper = self.parents[i].value
+                for element in helper:
+                    mean.append(element)
+            else:
+                mean.append(self.parents[i])
+        if(isinstance(self.parents[len(self.parents)-2],ProbabilisticModel)):
+            cov = self.parents[len(self.parents)-2].value
+        else:
+            cov = self.parents[len(self.parents)-2]
+        if(isinstance(self.parents[len(self.parents)-1],ProbabilisticModel)):
+            v = self.parents[len(self.parents)-1].value
+        else:
+            v = self.parents[len(self.parents)-1]
+        mean = np.array(mean)
+        cov = np.array(cov)
+        p=len(mean)
+        numerator = gamma((v + p) / 2)
+        denominator = gamma(v / 2) * pow(v * np.pi, p / 2.) * np.sqrt(abs(np.linalg.det(cov)))
+        normalizing_const = numerator / denominator
+        tmp = 1 + 1 / v * np.dot(np.dot(np.transpose(x - mean), np.linalg.inv(cov)), (x - mean))
+        density = normalizing_const * pow(tmp, -((v + p) / 2.))
+        return density
+
 
 class Uniform(ProbabilisticModel):
     def __init__(self, parameters):
+        self.check_parameters(parameters)
         super(Uniform, self).__init__(parameters)
+        counter=0
+        while(not(self._check_parents_values()) and counter<1000):
+            for parent in self.parents:
+                parent.fix_parameters()
+            counter+=1
+        if(counter==1000 and not(self._check_parents_values())):
+            print('Cannot find appropriate values for upper and lower bounds.')
         self.value = self.sample_from_distribution(1)[0]
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
@@ -192,16 +425,108 @@ class Uniform(ProbabilisticModel):
                     upper_bound.append(element)
             else:
                 upper_bound.append(self.parents[1][i])
-        samples = np.zeros(shape=(k, len(lower_bound)))
+        #print(lower_bound)
+        samples = np.zeros(shape=(k, len(lower_bound))) #this means: len columns, and each has k entries
         for j in range(0, len(lower_bound)):
             samples[:, j] = rng.uniform(lower_bound[j], upper_bound[j], k)
         return samples
 
-#TODO cannot find where self.value or values of parents would be used???
+    def check_parameters(self, parameters):
+        if(not(isinstance(parameters, list))):
+            raise TypeError('Input for Uniform has to be of type list.')
+        if(len(parameters)<2):
+            raise IndexError('Input to Uniform has to be at least of length 2.')
+        length_lb =0
+        for i in range(len(parameters[0])):
+            if(isinstance(parameters[0][i], ProbabilisticModel)):
+                length_lb+=len(parameters[0][i].value)
+            else:
+                length_lb+=1
+        length_ub = 0
+        for i in range(len(parameters[1])):
+            if(isinstance(parameters[1][i], ProbabilisticModel)):
+                length_ub+=len(parameters[1][i].value)
+            else:
+                length_ub+=1
+        if(length_ub!=length_lb):
+            raise IndexError('Lower and upper bound have to be of same length.')
+        return True
+
+    def check_parameters_fixed(self, parameters):
+        lb = []
+        ub=[]
+        length=0
+        index=0
+        for parent in self.parents[0]:
+            if(isinstance(parent, ProbabilisticModel)):
+                length+=len(parent.value)
+                for j in range(len(parent.value)):
+                    lb.append(parameters[index])
+                    index+=1
+            else:
+                lb.append(parent)
+        for parent in self.parents[1]:
+            if(isinstance(parent, ProbabilisticModel)):
+                length+=len(parent.value)
+                for j in range(len(parent.value)):
+                    ub.append(parameters[index])
+                    index+=1
+            else:
+                ub.append(parent)
+        if(length==len(parameters)):
+            for i in range(len(lb)):
+                if(lb>ub):
+                    return False
+        return False
+
+    def _check_parents_values(self):
+        lb=[]
+        for j in range(len(self.parents[0])):
+            if(isinstance(self.parents[0][j], ProbabilisticModel)):
+                for i in range(len(self.parents[0][j].value)):
+                    lb.append(self.parents[0][j].value[i])
+            else:
+                lb.append(self.parents[0][j])
+        ub = []
+        for j in range(len(self.parents[1])):
+            if(isinstance(self.parents[1][j], ProbabilisticModel)):
+                for i in range(len(self.parents[1][j].value)):
+                    ub.append(self.parents[1][j].value[i])
+            else:
+                ub.append(self.parents[1][j])
+        for i in range(len(lb)):
+            if(lb[i]>ub[i]):
+                return False
+        return True
+
+
+    def pdf(self, x):
+        lower_bound = []
+        for i in range(len(self.parents[0])):
+            if (isinstance(self.parents[0][i], ProbabilisticModel)):
+                helper = self.parents[0][i].value
+                for element in helper:
+                    lower_bound.append(element)
+            else:
+                lower_bound.append(self.parents[0][i])
+        upper_bound = []
+        for i in range(len(self.parents[1])):
+            if (isinstance(self.parents[1][i], ProbabilisticModel)):
+                helper = self.parents[1][i].value
+                for element in helper:
+                    upper_bound.append(element)
+            else:
+                upper_bound.append(self.parents[1][i])
+        if (np.product(np.greater_equal(x, np.array(lower_bound)) * np.less_equal(x, np.array(upper_bound)))):
+            pdf_value = 1. / np.product(np.array(upper_bound) - np.array(lower_bound))
+        else:
+            pdf_value = 0.
+        return pdf_value
+
 class StochLorenz95(ProbabilisticModel):
     def __init__(self, parameters, initial_state= None, n_timestep=160):
+        self.check_parameters(parameters)
         super(StochLorenz95, self).__init__(parameters)
-        self.value = self.sample_from_distribution(1)
         self.n_timestep = n_timestep
         # Assign initial state
         if not initial_state == None:
@@ -217,6 +542,7 @@ class StochLorenz95(ProbabilisticModel):
         self.F = 10
         self.sigma_e = 1
         self.phi = 0.4
+        self.value = self.sample_from_distribution(1)
 
     #TODO this uses get and set parameters -> we need to fix/change those because this will give something different I think?
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
@@ -238,7 +564,7 @@ class StochLorenz95(ProbabilisticModel):
             # Compute the timeseries for each time steps
             for ind in range(0, self.n_timestep - 1):
                 # parameters to be supplied to the ODE solver
-                parameter = [eta, self.get_parameters()]
+                parameter = [eta, np.array(self.get_parameters())]
                 # Each timestep is computed by using a 4th order Runge-Kutta solver
                 x = self._rk4ode(self._l95ode_par, np.array([time_steps[ind], time_steps[ind + 1]]), timeseries[:, ind],
                                  parameter)
@@ -329,6 +655,17 @@ class StochLorenz95(ProbabilisticModel):
         # Return the solved timeseries at the values in timespan
         return timeseries
 
+    def check_parameters(self, parameters):
+        if(not(isinstance(parameters, list))):
+            raise TypeError('Input to StochLorenz95 has to be of type list.')
+        return True
+
+    def check_parameters_fixed(self, parameters):
+        return True
+
+    def pdf(self, x):
+        raise NotImplementedError
+
 
 class Ricker(ProbabilisticModel):
     def __init__(self, parameters, n_timestep=100):
@@ -339,18 +676,23 @@ class Ricker(ProbabilisticModel):
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         timeseries_array = [None] * k
         # Initialize local parameters
-        if(isinstance(self.parents[0], ProbabilisticModel)):
+        if(len(self.parents)==3):
+            if(isinstance(self.parents[0], ProbabilisticModel)):
+                log_r = self.parents[0].value[0]
+            else:
+                log_r = self.parents[0]
+            if(isinstance(self.parents[1], ProbabilisticModel)):
+                sigma = self.parents[1].value[0]
+            else:
+                sigma = self.parents[1]
+            if(isinstance(self.parents[2],ProbabilisticModel)):
+                phi = self.parents[2].value[0]
+            else:
+                phi = self.parents[2]
+        else:
             log_r = self.parents[0].value[0]
-        else:
-            log_r = self.parents[0]
-        if(isinstance(self.parents[1], ProbabilisticModel)):
-            sigma = self.parents[1].value[0]
-        else:
-            sigma = self.parents[1]
-        if(isinstance(self.parents[2],ProbabilisticModel)):
-            phi = self.parents[2].value[0]
-        else:
-            phi = self.parents[2]
+            sigma = self.parents[0].value[1]
+            phi = self.parents[0].value[2]
         for k in range(0, k):
             # Initialize the time-series
             timeseries_obs_size = np.zeros(shape=(self.n_timestep), dtype=np.float)
@@ -362,3 +704,16 @@ class Ricker(ProbabilisticModel):
             timeseries_array[k] = timeseries_obs_size
         # return an array of objects of type Timeseries
         return timeseries_array
+
+    def check_parameters(self, parameters):
+        if(not(isinstance(parameters,list))):
+            raise TypeError('Input to Ricker has to be of type list.')
+        if(len(parameters)>3):
+            raise IndexError('Input to Ricker can be at most of length 3.')
+        return True
+
+    def check_parameters_fixed(self, parameters):
+        return True
+
+    def pdf(self, x):
+        raise NotImplementedError
