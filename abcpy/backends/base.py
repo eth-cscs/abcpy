@@ -30,7 +30,7 @@ class Backend(metaclass = ABCMeta):
             A reference object that represents the parallelized list
         """
         
-        raise NotImplemented
+        raise NotImplementedError
 
 
     @abstractmethod
@@ -49,7 +49,7 @@ class Backend(metaclass = ABCMeta):
             A reference to the broadcasted object
         """
         
-        raise NotImplemented
+        raise NotImplementedError
 
 
     @abstractmethod
@@ -72,7 +72,7 @@ class Backend(metaclass = ABCMeta):
             a new parallel data set that contains the result of the map
         """
         
-        raise NotImplemented
+        raise NotImplementedError
 
 
     @abstractmethod
@@ -91,7 +91,7 @@ class Backend(metaclass = ABCMeta):
             all elements of pds as a list
         """
         
-        raise NotImplemented
+        raise NotImplementedError
 
     
 class PDS:
@@ -101,7 +101,7 @@ class PDS:
 
     @abstractmethod
     def __init__(self):
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class BDS:
@@ -111,7 +111,7 @@ class BDS:
     
     @abstractmethod
     def __init__(self):
-        raise NotImplemented
+        raise NotImplementedError
 
 
     @abstractmethod
@@ -119,7 +119,7 @@ class BDS:
         """
         This method should return the actual object that the broadcast data set represents. 
         """
-        raise NotImplemented
+        raise NotImplementedError
 
 
 class BackendDummy(Backend):
