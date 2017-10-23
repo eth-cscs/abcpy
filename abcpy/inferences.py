@@ -5,7 +5,7 @@ from abcpy.output import Journal
 from scipy import optimize
 
 
-#TODO if we first sample from the kernel, and then set the values of our graph: we will need a set_parameters for the whole inferencemethod
+#TODO if we first sample from the kernel, and then set the values of our graph: we will need a set_parameters for the whole inferencemethod, else a set_parameters is not needed glbally!
 #TODO if we send the kernel, and sample at each node individually, we will need a "send kernel" function of the InferenceMethod ----> discuss which of the two would be appropriate and implement accordingly
 
 
@@ -23,34 +23,41 @@ class InferenceMethod(metaclass = ABCMeta):
         del state['backend']
         return state
 
-    #TODO currently, it is assumed that model is 1d and just one model! implement for list of models
-
-    #TODO fix_parameters will set the node to updated, we need to unupdate in the end!
     def sample_from_prior(self, model):
-        for parent in model.parents:
-            if(isinstance(parent, ProbabilisticModel)):
-                self.sample_from_prior(parent)
-        if(model!=self.model):
-            model.fix_parameters()
+        for i in range(len(model)):
+            for parent in model[i].parents:
+                if(isinstance(parent, ProbabilisticModel) and not(parent.updated)):
+                    self.sample_from_prior([parent])
+            model[i].fix_parameters()
+        self._reset_flags(model)
 
-    #TODO also implement for list of models
+    def _reset_flags(self, model):
+        for i in range(len(model)):
+            for parent in model[i].parents:
+                if(isinstance(parent, ProbabilisticModel) and parent.updated):
+                    self.reset_flags([parent])
+            model[i].updated = False
+
+
+    #NOTE not tested yet, not sure whether this works.
     def pdf_of_prior(self, model, parameters, index):
-        result = 1.
-        if(not(model==self.model)):
-            helper = []
-            for i in range(len(model.value)):
-                helper.append(parameters[index])
-                index+=1
-            if(len(helper)==1):
-                helper = helper[0]
-            else:
-                helper = np.array(helper)
-            result*=model.pdf(helper)
-        for parent in model.parents:
-            if(isinstance(parent, ProbabilisticModel)):
-                pdf = self.pdf_of_prior(parent, parameters, index)
-                result*=pdf[0]
-                index=pdf[1]
+        result = [1.]*len(model)
+        for i in range(len(model)):
+            if(not(model[i]==self.model[i])):
+                helper = []
+                for i in range(model.dimension):
+                    helper.append(parameters[index])
+                    index+=1
+                if(len(helper)==1):
+                    helper = helper[0]
+                else:
+                    helper = np.array(helper)
+                result[i]*=model.pdf(helper)
+            for parent in model[i].parents:
+                if(isinstance(parent, ProbabilisticModel)):
+                    pdf = self.pdf_of_prior([parent], parameters, index)
+                    result[i]*=pdf[0][0]
+                    index=pdf[1]
         return [result, index]
 
 
@@ -590,6 +597,9 @@ class PMCABC(BasePMC, InferenceMethod):
                 theta = self.accepted_parameters_bds.value()[index[0]]
                 # trucate the normal to the bounds of parameter space of the model
                 # truncating the normal like this is fine: https://arxiv.org/pdf/0907.4010v1.pdf
+                #NOTE here, the covariance matrix seems to be changed, can this also happen with normal hyperparameters? Should the kernel be able to perturb hyperarameters, and if not, why is the covaraince matrix not a hyperparameter?
+
+                #TODO we define the kernel either as 1 distribution, or multiple (check whether it makes difference when indep! If 1, we first gather all parameters, set it, sample, send all. If multiple/indep -> send individual kernels and sample at the node
                 while True:
                     self.kernel.set_parameters([theta, self.accepted_cov_mat_bds.value()])
                     new_theta = self.kernel.sample(1)[0, :]

@@ -1,9 +1,8 @@
 from ProbabilisticModel import *
 import unittest
+from copy import deepcopy
+import sys
 
-#TODO 1) test MultistudentT (write case in numpy -> check with our results). 2) write tests for check_parameters and pdfs
-#TODO ask Marcel about the averaging (see studentT)
-#TODO test studentT for a distribution on df
 #TODO if possible, test the distribution of cov somehow?
 
 class NormalTests(unittest.TestCase):
@@ -11,11 +10,11 @@ class NormalTests(unittest.TestCase):
         seed=1
         self.rng = np.random.RandomState(seed)
         self.Normal_fixed = Normal([-13.0,1])
-        self.Normal_fixed.fix_parameters(rng=self.rng)
         self.Normal_mu = Normal([self.Normal_fixed, 0.5])
+        self.Normal_mu.fix_parameters(rng=self.rng)
         helper = Normal([0.3,0.01])
-        helper.fix_parameters(rng=self.rng)
         self.Normal_sigma = Normal([1, helper])
+        self.Normal_sigma.fix_parameters(rng=self.rng)
 
     def test_sample_from_distribution(self):
         samples = self.Normal_fixed.sample_from_distribution(100, self.rng)
@@ -44,13 +43,35 @@ class NormalTests(unittest.TestCase):
         self.assertTrue((computed_vars-expected_vars<1e-1).all())
 
     def test_fix_parameters(self):
-        self.Normal_mu.fix_parameters([-13.7])
-        self.assertTrue(self.Normal_mu.get_parameters()==[-13.7])
-        self.assertTrue(self.Normal_fixed.value==[-13.7])
-        old_parameter = self.Normal_fixed.value
-        self.Normal_fixed.fix_parameters()
-        self.assertTrue(isinstance(self.Normal_fixed.value,np.ndarray))
-        self.assertNotEqual(self.Normal_fixed.value, old_parameter)
+        self.Normal_mu.fix_parameters([-12.])
+        self.assertTrue(self.Normal_mu.get_parameters()==[-12.])
+        old_parameter = [-12, 0.5]
+        self.Normal_mu.fix_parameters(rng=self.rng)
+        self.assertTrue(isinstance(self.Normal_mu.parameter_values,list))
+        self.assertNotEqual(self.Normal_mu.parameter_values, old_parameter)
+
+        old_parameter = self.Normal_fixed.parameter_values
+        self.Normal_fixed.fix_parameters(rng=self.rng)
+        self.assertEqual(self.Normal_fixed.parameter_values, old_parameter)
+
+    def test_check_parameters(self):
+        with self.assertRaises(TypeError):
+            N = Normal(1,0.5)
+        with self.assertRaises(ValueError):
+            N = Normal([1,-0.5])
+
+    def test_check_parameters_fixed(self):
+        N1 = Normal([1,0.5])
+        N2 = Normal([2,0.5])
+        N3 = Normal([N1,N2])
+        self.assertFalse(N3.fix_parameters([1]))
+        self.assertFalse(N3.fix_parameters([1,-0.3]))
+
+    def test_pdf(self):
+        N = Normal([1,0.5])
+        expected_pdf = 0.797884560803
+        self.assertLess(expected_pdf-N.pdf(1),1e-5)
+
 
 class MultivariateNormalTests(unittest.TestCase):
     def setUp(self):
@@ -58,10 +79,10 @@ class MultivariateNormalTests(unittest.TestCase):
         self.rng = np.random.RandomState(seed)
         self.MultivariateNormal = MultivariateNormal([-13.0, 0, 7.0, [[1.,0.,0.],[0.,1.,0.],[0.,0.,1.]]])
         self.helper = Normal([-13.0,0.1])
-        self.MultivariateNormal.fix_parameters(rng=self.rng)
-        self.helper.fix_parameters(rng=self.rng)
         self.MultivariateNormal_mean_1 = MultivariateNormal([self.helper,0,7.0,[[1.,0.,0.],[0.,1.,0.],[0.,0.,1.]]])
+        self.MultivariateNormal_mean_1.fix_parameters(rng=self.rng)
         self.MultivariateNormal_mean_2 = MultivariateNormal([self.MultivariateNormal,[[1.,0.,0.],[0.,1.,0.],[0.,0.,1.]]])
+        self.MultivariateNormal_mean_2.fix_parameters(rng=self.rng)
 
     def test_sample_from_distribution(self):
         samples = self.MultivariateNormal.sample_from_distribution(100, rng=self.rng)
@@ -79,7 +100,7 @@ class MultivariateNormalTests(unittest.TestCase):
         self.assertTrue((computed_means-expected_means<1.1).all())
         computed_vars = samples.var(axis=0)
         expected_vars = np.array([ 1.03959334, 0.96300538, 1.02001915])
-        self.assertTrue((computed_vars-expected_vars<3*1e-1).all())
+        self.assertTrue((computed_vars-expected_vars<4*1e-1).all())
 
         samples = self.MultivariateNormal_mean_2.sample_from_distribution(100, rng=self.rng)
         computed_means = samples.mean(axis=0)
@@ -89,12 +110,12 @@ class MultivariateNormalTests(unittest.TestCase):
         expected_vars = np.array([ 1.01881388,1.05377349,0.9703697 ])
         self.assertTrue((computed_vars-expected_vars<3*1e-1).all())
 
-    def test_set_parameters(self):
+    def test_fix_parameters(self):
         self.MultivariateNormal_mean_1.fix_parameters([-12.])
         self.assertTrue(self.MultivariateNormal_mean_1.get_parameters()==[-12.])
-        old_parameter = self.MultivariateNormal.value
-        self.MultivariateNormal.fix_parameters()
-        self.assertTrue((self.MultivariateNormal.value!=old_parameter).all())
+        old_parameter = self.MultivariateNormal_mean_1.parameter_values
+        self.MultivariateNormal_mean_1.fix_parameters(rng=self.rng)
+        self.assertTrue((self.MultivariateNormal.parameter_values!=old_parameter))
 
         self.helper.updated=False #needs to be reset if we dont go through the whole graph!
         self.MultivariateNormal_mean_1.fix_parameters([-12.6])
@@ -103,13 +124,33 @@ class MultivariateNormalTests(unittest.TestCase):
         self.MultivariateNormal_mean_2.fix_parameters([3,4,5])
         self.assertTrue(self.MultivariateNormal_mean_2.get_parameters()==[3,4,5])
 
+    def test_check_parameters(self):
+        with self.assertRaises(TypeError):
+            M = MultivariateNormal(1,1,[[1,0],[0,1]])
+        with self.assertRaises(IndexError):
+            M = MultivariateNormal([1])
+        with self.assertRaises(IndexError):
+            M = MultivariateNormal([1,2,3,[[1,0],[0,1]]])
+        with self.assertRaises(ValueError):
+            M = MultivariateNormal([1,1,[[-1,0],[0,-1]]])
+
+    def test_check_parameters_fixed(self):
+        N = Normal([1,0.5])
+        M = MultivariateNormal([N,1,[[1,0],[0,1]]])
+        self.assertFalse(M.fix_parameters([1,2]))
+
+    def test_pdf(self):
+        M = MultivariateNormal([1,1,[[1,0],[0,1]]])
+        expected_pdf = 0.12394999431
+        self.assertLess(expected_pdf-M.pdf(1.5),1e-5)
+
 class MixtureNormalTests(unittest.TestCase):
     def setUp(self):
         seed=1
         self.rng = np.random.RandomState(seed)
         self.MixtureNormal = MixtureNormal([1,2,3])
-        self.MixtureNormal.fix_parameters(rng=self.rng)
         self.MixtureNormal_1 = MixtureNormal([self.MixtureNormal])
+        self.MixtureNormal_1.fix_parameters(rng=self.rng)
 
     def test_sample_from_distribution(self):
         samples = self.MixtureNormal.sample_from_distribution(100, rng=self.rng)
@@ -129,16 +170,21 @@ class MixtureNormalTests(unittest.TestCase):
         self.assertTrue((np.abs(computed_means - expected_means) < 1.5).all())
         self.assertTrue((np.abs(computed_var - expected_var) < 0.15).all())
 
+    def test_check_parameters(self):
+        with self.assertRaises(TypeError):
+            M = MixtureNormal(1,1)
+
 
 class StudentTTests(unittest.TestCase):
     def setUp(self):
         seed=1
         self.rng = np.random.RandomState(seed)
         self.StudentT = StudentT([0.5,7])
-        self.StudentT.fix_parameters(rng=self.rng)
         self.StudentT_mean = StudentT([self.StudentT,7])
-        #the value of studentT is 2.5 -> it agrees well with that, however, this means taht the mean gets fixed to 2.5, even though the mean value seems to be around 0.04...
-        #self.StudentT_df = StudentT([0.5,self.StudentT])
+        self.StudentT_mean.fix_parameters(rng=self.rng)
+        self.helper = Uniform([[50],[60]])
+        self.StudentT_df = StudentT([1.,self.helper])
+        self.StudentT_df.fix_parameters(rng=self.rng)
 
     def test_sample_from_distribution(self):
         samples = self.StudentT.sample_from_distribution(100, rng=self.rng)
@@ -164,31 +210,88 @@ class StudentTTests(unittest.TestCase):
         self.assertLess(diff_mean, 1.4)
         self.assertLess(diff_var, 0.4)
 
+        samples = self.StudentT_df.sample_from_distribution(100, rng=self.rng)
+        computed_means = samples.mean(axis=0)
+        computed_var = samples.var(axis=0)
+        expected_mean = np.array([1.00112140746])
+        expected_var = np.array([2.04012170739])
+        self.assertLess(np.abs(computed_means-expected_mean),3)
+        self.assertLess(np.abs(computed_var-expected_var),2)
+
+    def test_check_parameters(self):
+        with self.assertRaises(TypeError):
+            S = StudentT(0.5,7)
+        with self.assertRaises(IndexError):
+            S = StudentT([1,2,3])
+        with self.assertRaises(ValueError):
+            S = StudentT([1,-1])
+
+    def test_check_parameters_fixed(self):
+        S1 = StudentT([1,1])
+        S2 = StudentT([2,2])
+        S3 = StudentT([S1,S2])
+        self.assertFalse(S3.fix_parameters([1]))
+        self.assertFalse(S3.fix_parameters([1,-1]))
+
+    def test_pdf(self):
+        S = StudentT([1,3])
+        expected_pdf = 0.346453574275
+        self.assertLess(expected_pdf-S.pdf(0.7),1e-5)
+
 
 class MultiStudentTTests(unittest.TestCase):
     def setUp(self):
         seed=1
         self.rng = np.random.RandomState(seed)
         self.MultiStudentT = MultiStudentT([0,0,[[1,0],[0,1]],4])
-        self.MultiStudentT.fix_parameters(rng=self.rng)
-        self.MultiStudentT_1 = MultiStudentT([self.MultiStudentT, [[1,0],[0,1]],4])
+        self.MultiStudentT_1 = MultiStudentT([self.MultiStudentT, [[1,0],[0,1]],8])
+        self.MultiStudentT_1.fix_parameters(rng=self.rng)
 
     def test_sample_from_distribution(self):
         samples = self.MultiStudentT.sample_from_distribution(10000000, rng=self.rng)
-        expected_mean = np.array([0., 0.])
-        expected_var = np.array([1.9978, 2.0005])
+        expected_mean = np.array([0.00246609, -0.0074305])
+        expected_var = np.array([1.9817695, 1.97633865])
         diff_mean = np.abs(samples.mean(axis=0) - expected_mean)
         diff_var = np.abs(samples.var(axis=0) - expected_var)
         self.assertLess(diff_mean.sum(), 2e-2)
-        self.assertLess(diff_var.sum(), 2e-2)
+        self.assertLess(diff_var.sum(), 5e-2)
+
+        samples = self.MultiStudentT_1.sample_from_distribution(100000, rng=self.rng)
+        expected_mean = np.array([-0.0588958, -0.02922973])
+        expected_var = np.array([ 3.22611737, 3.19224511])
+        diff_mean = np.abs(samples.mean(axis=0)-expected_mean)
+        diff_var = np.abs(samples.var(axis=0)-expected_var)
+        self.assertLess(diff_mean.sum(), 3.5)
+        self.assertLess(diff_var.sum(), 4.)
+
+    def test_check_parameters(self):
+        with self.assertRaises(IndexError):
+            M = MultiStudentT([1,1,1,[[1,0],[0,1]],1])
+        with self.assertRaises(ValueError):
+            M = MultiStudentT([1,1,[[1,0],[0,1]],-1])
+        with self.assertRaises(ValueError):
+            M = MultiStudentT([1,1,[[-1,0],[0,-1]],1])
+
+    def test_check_parameters_fixed(self):
+        N = Normal([1,0.5])
+        M = MultiStudentT([N,1,[[1,0],[0,1]],1])
+        self.assertFalse(M.fix_parameters([1,2]))
+
+    def test_pdf(self):
+        M = MultiStudentT([0,0,[[1,0],[0,1]],1])
+        self.assertLess(abs(M.pdf([0,0])-0.15915),1e-5)
+        M2 = MultiStudentT([0,0,[[2,0],[0,2]],1])
+        self.assertLess(abs(M2.pdf([0,0])-0.079577),1e-5)
+        self.assertLess(abs(M2.pdf([1.,1.])-0.028135), 1e-5)
+
 
 class UniformTests(unittest.TestCase):
     def setUp(self):
         seed = 1
         self.rng = np.random.RandomState(seed)
         self.Uniform = Uniform([[-1.,-1.],[1.,1.]])
-        self.Uniform.fix_parameters(rng=self.rng)
         self.Uniform_1 = Uniform([[self.Uniform],[1.2,1.2]])
+        self.Uniform_1.fix_parameters(rng=self.rng)
 
     def test_sample_from_distribution(self):
         samples = self.Uniform.sample_from_distribution(1000, rng=self.rng)
@@ -216,19 +319,47 @@ class UniformTests(unittest.TestCase):
         samples_graph_shape = np.shape(samples_graph)
         self.assertEqual(samples_graph_shape, (1000, 2))
 
+    def test_fix_parameters(self):
+        self.Uniform_1.fix_parameters([[-1.5,-1.5],[]], rng=self.rng)
+        self.assertTrue(self.Uniform_1.get_parameters()==[[-1.5,-1.5],[]])
+        old_parameter = deepcopy(self.Uniform_1.parameter_values)
+        self.Uniform_1.fix_parameters(rng=self.rng)
+        self.assertTrue(old_parameter!=self.Uniform_1.parameter_values)
+
+    def test_check_parameters(self):
+        with self.assertRaises(TypeError):
+            U = Uniform(1,1)
+        with self.assertRaises(TypeError):
+            U = Uniform([1,1])
+        with self.assertRaises(IndexError):
+            U = Uniform([[1],[2,3]])
+        with self.assertRaises(ValueError):
+            U = Uniform([[2,1],[1,1]])
+
+    def test_check_parameters_fixed(self):
+        N = Normal([1,0.5])
+        U = Uniform([[N,1],[2,2]])
+        self.assertFalse(U.fix_parameters([[1,2],[]]))
+        self.assertFalse(U.fix_parameters([[1],[3,3]]))
+        self.assertFalse(U.fix_parameters([[5],[]]))
+
+    def test_pdf(self):
+        U = Uniform([[0.],[10.]])
+        self.assertEqual(U.pdf(0),0.1)
+        self.assertEqual(U.pdf(-1),0)
+        self.assertEqual(U.pdf(11),0)
+
+
 class StochLorenz95Tests(unittest.TestCase):
     def setUp(self):
         seed=1
         self.rng = np.random.RandomState(seed)
         prior = Uniform([[1,0.1],[3,0.3]])
-        prior.fix_parameters(rng=self.rng)
         self.model = StochLorenz95([prior], initial_state=None, n_timestep=160)
-        seed=1
-        self.rng = np.random.RandomState(seed)
+        self.model.fix_parameters(rng=self.rng)
 
     def test_sample_from_distribution(self):
         sample = self.model.sample_from_distribution(1, rng=self.rng)[0]
-        np.savetxt('lorenz_test_output.txt', sample)
         self.assertTrue((sample - np.loadtxt('lorenz_test_output.txt') < 1e-5).all())
 
 class RickerTest(unittest.TestCase):
@@ -236,12 +367,12 @@ class RickerTest(unittest.TestCase):
         prior = Uniform([[3.,0.,1.],[5.,1.,20.]])
         seed=1
         self.rng = np.random.RandomState(seed)
-        prior.fix_parameters(rng=self.rng)
         self.distribution = Ricker([prior], n_timestep=100)
+        self.distribution.fix_parameters(rng=self.rng)
 
     def test_sample_from_distribution(self):
         samples = self.distribution.sample_from_distribution(1,rng=self.rng)
-        expected_output = np.array([  0.,   8.,   0.,   0.,  44.,   0.,   0.,   0.,   0.,   0.,   0.,
+        expected_output = np.array([0.,   8.,   0.,   0.,  44.,   0.,   0.,   0.,   0.,   0.,   0.,
          0.,   0.,   0.,   0.,   0.,   0.,   0.,  13.,   0.,   0.,  67.,
          0.,   0.,   0.,   0.,   0.,   0.,   0.,   0.,   0.,   0.,   0.,
          0.,   0.,   0.,   1.,  32.,   0.,   0.,   0.,   0.,   0.,   0.,
