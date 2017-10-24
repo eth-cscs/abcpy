@@ -1,7 +1,30 @@
 import numpy as np
 from ProbabilisticModel import ProbabilisticModel
+from continuous import Continuous
 
-class Uniform(ProbabilisticModel):
+"""Toughts on Kernel:
+
+Imo, the only way is to collect all parameters are the root (what happens for multiple roots?). Kernel dependencies can go both ways. If there is an edge a->b, this means that for the kernel a<->b. Therefore, all parameters depend on all, or the kernel at root has the dimension of total free parameters.
+
+This means that we need to be able to collect all values at the root, sample it there, and then distribute the appropriate values through the model.
+
+However, it could be that some parameters go with the kernel, but others dont, there are for example two kernels (i.e. "all variances change the same and all means do, but means and variances dont". So, we need to specify for the kernel: all parameters which belong to it.
+
+As far as I can see, a kernel is currently implemented as "kernel = MultiNormal" but we do not care about the values the user gives, always before the kernel is called for the first time, we call kernel.set_parameters.
+
+So the user should ideally define:
+
+what distribution he wants to use. And then which parameters should obey this kernel. All, only some, and so on. How we go through the graph is our problem.
+
+So he should define
+kernel = kernel.Multinormal(a,c,d)
+-> this tells us when we do perturb: hey, these three need to be together, so group them
+-> it should also be such that if we now say "and kernel.Multinormal(e,f,d) 
+this either should not work at all, or in this case maybe prodcue a joint?
+"""
+
+
+class Uniform(ProbabilisticModel, Continuous):
     """
     This class implements a probabilistic model following a uniform distribution.
 
