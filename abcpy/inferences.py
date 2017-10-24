@@ -43,6 +43,7 @@ class InferenceMethod(metaclass = ABCMeta):
     def pdf_of_prior(self, model, parameters, index):
         result = [1.]*len(model)
         for i in range(len(model)):
+            #NOTE this might give out of range -> need another way to check whether it is bottom or not (for example flag passed to function)
             if(not(model[i]==self.model[i])):
                 helper = []
                 for i in range(model.dimension):
@@ -341,9 +342,10 @@ class RejectionABC(InferenceMethod):
 
         # main Rejection ABC algorithm
         seed_arr = self.rng.randint(1, n_samples * n_samples, size=n_samples, dtype=np.int32)
-        seed_pds = self.backend.parallelize(seed_arr)
+        rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
+        rng_pds = self.backend.parallelize(rng_arr)
 
-        accepted_parameters_pds = self.backend.map(self._sample_parameter, seed_pds)
+        accepted_parameters_pds = self.backend.map(self._sample_parameter, rng_arr)
         accepted_parameters = self.backend.collect(accepted_parameters_pds)
         accepted_parameters = np.array(accepted_parameters)
 
@@ -352,7 +354,7 @@ class RejectionABC(InferenceMethod):
 
         return journal
 #NOTE returns model.get_parameters -> do we want to receive ALL parameters, or just the ones just above it, because all would make sense
-    def _sample_parameter(self, seed):
+    def _sample_parameter(self, rng):
         """
         Samples a single model parameter and simulates from it until
         distance between simulated outcome and the observation is
@@ -369,12 +371,11 @@ class RejectionABC(InferenceMethod):
         """
 
         distance = self.distance.dist_max()
-        self.model.prior.reseed(seed)
 
         while distance > self.epsilon:
             # Accept new parameter value if the distance is less than epsilon
             self.model.sample_from_prior()
-            y_sim = self.model.sample_from_distribution(self.n_samples_per_param)
+            y_sim = self.model.sample_from_distribution(self.n_samples_per_param, rng=rng)
             distance = self.distance.distance(self.observations_bds.value(), y_sim)
 
         return self.model.get_parameters()
@@ -499,7 +500,8 @@ class PMCABC(BasePMC, InferenceMethod):
         for aStep in range(0, steps):
             # print("DEBUG: Iteration " + str(aStep) + " of PMCABC algorithm.")
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
-            seed_pds = self.backend.parallelize(seed_arr)
+            rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
+            rng_pds = self.backend.parallelize(rng_arr)
 
             # 0: update remotely required variables
             # print("INFO: Broadcasting parameters.")
@@ -508,7 +510,7 @@ class PMCABC(BasePMC, InferenceMethod):
 
             # 1: calculate resample parameters
             # print("INFO: Resampling parameters")
-            params_and_dists_and_ysim_pds = self.backend.map(self._resample_parameter, seed_pds)
+            params_and_dists_and_ysim_pds = self.backend.map(self._resample_parameter, rng_pds)
             params_and_dists_and_ysim = self.backend.collect(params_and_dists_and_ysim_pds)
             new_parameters, distances = [list(t) for t in zip(*params_and_dists_and_ysim)]
             new_parameters = np.array(new_parameters)
@@ -566,7 +568,7 @@ class PMCABC(BasePMC, InferenceMethod):
             self.accepted_cov_mat_bds = self.backend.broadcast(accepted_cov_mat)
 
     # define helper functions for map step
-    def _resample_parameter(self, seed):
+    def _resample_parameter(self, rng):
         """
         Samples a single model parameter and simulate from it until
         distance between simulated outcome and the observation is
@@ -582,9 +584,9 @@ class PMCABC(BasePMC, InferenceMethod):
         np.array
             accepted parameter
         """
-
-        rng = np.random.RandomState(seed)
-        self.model.prior.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        rng.seed(rng.randint(np.iinfo(np.uint32).ax, dtype=np.uint32))
+        #NOTE WE RESEEDED THE PRIOR HERE -> GIVE RNG TO SAMPLE_FROM_PRIOR?
+        #TODO WHAT DO WE DO WITH KERNEL RESEEDS
         self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
         distance = self.distance.dist_max()
@@ -595,9 +597,9 @@ class PMCABC(BasePMC, InferenceMethod):
             else:
                 index = rng.choice(self.n_samples, size=1, p=self.accepted_weights_bds.value().reshape(-1))
                 theta = self.accepted_parameters_bds.value()[index[0]]
-                # trucate the normal to the bounds of parameter space of the model
+                # truncate the normal to the bounds of parameter space of the model
                 # truncating the normal like this is fine: https://arxiv.org/pdf/0907.4010v1.pdf
-                #NOTE here, the covariance matrix seems to be changed, can this also happen with normal hyperparameters? Should the kernel be able to perturb hyperarameters, and if not, why is the covaraince matrix not a hyperparameter?
+
 
                 #TODO we define the kernel either as 1 distribution, or multiple (check whether it makes difference when indep! If 1, we first gather all parameters, set it, sample, send all. If multiple/indep -> send individual kernels and sample at the node
                 while True:
@@ -1043,10 +1045,11 @@ class SABC(BaseAnnealing, InferenceMethod):
             # main SABC algorithm
             # print("INFO: Initialization of SABC")
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=int(sample_array[aStep]), dtype=np.uint32)
+            rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
             index_arr = self.rng.randint(0, self.n_samples, size=int(sample_array[aStep]), dtype=np.uint32)
             data_arr = []
-            for i in range(len(seed_arr)):
-                data_arr.append([seed_arr[i], index_arr[i]])
+            for i in range(len(rng_arr)):
+                data_arr.append([rng_arr[i], index_arr[i]])
             data_pds = self.backend.parallelize(data_arr)
 
             # 0: update remotely required variables
@@ -1237,10 +1240,11 @@ class SABC(BaseAnnealing, InferenceMethod):
         """
         if(isinstance(data,np.ndarray)):
             data = data.tolist()
-        seed=data[0]
+        rng=data[0]
         index=data[1]
-        rng = np.random.RandomState(seed)
-        self.model.prior.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        #NOTE WE RESEEDED THE PRIOR HERE -> PASS RNG TO SAMPLE_FROM_PRIOR?
+        #TODO DO WHATEVER YOU NEED WITH KERNEL.RESEED
         self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
         all_parameters = []
@@ -1390,10 +1394,11 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
             # print("INFO: Initialization of ABCsubsim")
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=int(n_samples / temp_chain_length),
                                         dtype=np.uint32)
+            rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
             index_arr = np.linspace(0, n_samples / temp_chain_length - 1, n_samples / temp_chain_length).astype(
                 int).reshape(int(n_samples / temp_chain_length), )
-            seed_and_index_arr = np.column_stack((seed_arr, index_arr))
-            seed_and_index_pds = self.backend.parallelize(seed_and_index_arr)
+            rng_and_index_arr = np.column_stack((rng_arr, index_arr))
+            rng_and_index_pds = self.backend.parallelize(rng_and_index_arr)
 
             # 0: update remotely required variables
             # print("INFO: Broadcasting parameters.")
@@ -1401,7 +1406,7 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
 
             # 1: Calculate  parameters
             # print("INFO: Initial accepted parameter parameters")
-            params_and_dists_pds = self.backend.map(self._accept_parameter, seed_and_index_pds)
+            params_and_dists_pds = self.backend.map(self._accept_parameter, rng_and_index_pds)
             params_and_dists = self.backend.collect(params_and_dists_pds)
             new_parameters, new_distances = [list(t) for t in zip(*params_and_dists)]
             accepted_parameters = np.concatenate(new_parameters)
@@ -1428,11 +1433,12 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
             self._update_broadcasts(accepted_parameters, accepted_cov_mat)
 
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=10, dtype=np.uint32)
+            rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
             index_arr = np.linspace(0, 10 - 1, 10).astype(int).reshape(10, )
-            seed_and_index_arr = np.column_stack((seed_arr, index_arr))
-            seed_and_index_pds = self.backend.parallelize(seed_and_index_arr)
+            rng_and_index_arr = np.column_stack((rng_arr, index_arr))
+            rng_and_index_pds = self.backend.parallelize(rng_and_index_arr)
 
-            cov_mat_index_pds = self.backend.map(self._update_cov_mat, seed_and_index_pds)
+            cov_mat_index_pds = self.backend.map(self._update_cov_mat, rng_and_index_pds)
             cov_mat_index = self.backend.collect(cov_mat_index_pds)
             cov_mat, T, accept_index = [list(t) for t in zip(*cov_mat_index)]
 
@@ -1475,7 +1481,7 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
             self.accepted_cov_mat_bds = self.backend.broadcast(accepted_cov_mat)
 
     # define helper functions for map step
-    def _accept_parameter(self, seed_and_index):
+    def _accept_parameter(self, rng_and_index):
         """
         Samples a single model parameter and simulate from it until
         distance between simulated outcome and the observation is
@@ -1493,10 +1499,11 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
             accepted parameter
         """
 
-        seed = seed_and_index[0]
+        rng = rng_and_index[0]
         index = seed_and_index[1]
-        rng = np.random.RandomState(seed)
-        self.model.prior.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        #NOTE AGAIN DELETED PRIOR.RESEED
+        #TODO KERNEL RESEEDING -> DO WE WANT A DIFFERENT RNG?
         self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
         result_theta = []
@@ -1547,7 +1554,7 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
 
         return (result_theta, result_distance)
 
-    def _update_cov_mat(self, seed_t):
+    def _update_cov_mat(self, rng_t):
         """
         Updates the covariance matrix.
 
@@ -1563,11 +1570,11 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
             accepted covariance matrix
         """
 
-        seed = seed_t[0]
-        t = seed_t[1]
-        rng = np.random.RandomState(seed)
+        rng = rng_t[0]
+        t = rng_t[1]
+        rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
-        self.model.prior.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        #TODO AGAIN PRIOR RESEED AND KERNEL
         self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
         acceptance = 0
@@ -1742,7 +1749,8 @@ class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
                 break
 
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_replenish, dtype=np.uint32)
-            seed_pds = self.backend.parallelize(seed_arr)
+            rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
+            rng_pds = self.backend.parallelize(rng_arr)
 
             # update remotely required variables
             # print("INFO: Broadcasting parameters.")
@@ -1753,7 +1761,7 @@ class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
 
             # calculate resample parameters
             # print("INFO: Resampling parameters")
-            params_and_dist_index_pds = self.backend.map(self._accept_parameter, seed_pds)
+            params_and_dist_index_pds = self.backend.map(self._accept_parameter, rng_pds)
             params_and_dist_index = self.backend.collect(params_and_dist_index_pds)
             new_parameters, new_dist, new_index = [list(t) for t in zip(*params_and_dist_index)]
             new_parameters = np.array(new_parameters)
@@ -1801,7 +1809,7 @@ class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
             self.accepted_cov_mat_bds = self.backend.broadcast(accepted_cov_mat)
 
     # define helper functions for map step
-    def _accept_parameter(self, seed):
+    def _accept_parameter(self, rng):
         """
         Samples a single model parameter and simulate from it until
         distance between simulated outcome and the observation is
@@ -1817,9 +1825,8 @@ class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
         numpy.ndarray
             accepted parameter
         """
-
-        rng = np.random.RandomState(seed)
-        self.model.prior.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        rng.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        #TODO AGAIN PRIOR AND KERNEL
         self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
         distance = self.distance.dist_max()
@@ -1975,7 +1982,8 @@ class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
                 n_additional_samples = n_samples
 
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_additional_samples, dtype=np.uint32)
-            seed_pds = self.backend.parallelize(seed_arr)
+            rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
+            rng_pds = self.backend.parallelize(rng_arr)
 
             # update remotely required variables
             # print("INFO: Broadcasting parameters.")
@@ -1984,7 +1992,7 @@ class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
 
             # calculate resample parameters
             # print("INFO: Resampling parameters")
-            params_and_dist_weights_pds = self.backend.map(self._accept_parameter, seed_pds)
+            params_and_dist_weights_pds = self.backend.map(self._accept_parameter, rng_pds)
             params_and_dist_weights = self.backend.collect(params_and_dist_weights_pds)
             new_parameters, new_dist, new_weights = [list(t) for t in zip(*params_and_dist_weights)]
             new_parameters = np.array(new_parameters)
@@ -2052,7 +2060,7 @@ class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
             self.accepted_cov_mat_bds = self.backend.broadcast(accepted_cov_mat)
 
     # define helper functions for map step
-    def _accept_parameter(self, seed):
+    def _accept_parameter(self, rng):
         """
         Samples a single model parameter and simulate from it until
         distance between simulated outcome and the observation is
@@ -2069,8 +2077,8 @@ class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
             accepted parameter
         """
 
-        rng = np.random.RandomState(seed)
-        self.model.prior.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        #TODO AGAIN PRIOR AND KERNEL
         self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
         if self.accepted_parameters_bds == None:
@@ -2266,9 +2274,10 @@ class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
             # 3: Drawing new perturbed samples using MCMC Kernel
             # print("DEBUG: Iteration " + str(aStep) + " of SMCABC algorithm.")
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
+            rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
             index_arr = np.arange(n_samples)
-            seed_and_index_arr = np.column_stack((seed_arr, index_arr))
-            seed_and_index_pds = self.backend.parallelize(seed_and_index_arr)
+            rng_and_index_arr = np.column_stack((rng_arr, index_arr))
+            rng_and_index_pds = self.backend.parallelize(rng_and_index_arr)
 
             # print("INFO: Broadcasting parameters.")
             self.epsilon = epsilon
@@ -2276,7 +2285,7 @@ class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
 
             # calculate resample parameters
             # print("INFO: Resampling parameters")
-            params_and_ysim_pds = self.backend.map(self._accept_parameter, seed_and_index_pds)
+            params_and_ysim_pds = self.backend.map(self._accept_parameter, rng_and_index_pds)
             params_and_ysim = self.backend.collect(params_and_ysim_pds)
             new_parameters, new_y_sim = [list(t) for t in zip(*params_and_ysim)]
             new_parameters = np.array(new_parameters)
@@ -2373,7 +2382,7 @@ class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
 
             # define helper functions for map step
 
-    def _accept_parameter(self, seed_and_index):
+    def _accept_parameter(self, rng_and_index):
         """
         Samples a single model parameter and simulate from it until
         distance between simulated outcome and the observation is
@@ -2391,10 +2400,10 @@ class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
             The first entry of the tuple is the accepted parameters. The second entry is the simulated data set.
         """
 
-        seed = seed_and_index[0]
-        index = seed_and_index[1]
-        rng = np.random.RandomState(seed)
-        self.model.prior.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        rng = rng_and_index[0]
+        index = rng_and_index[1]
+        rng.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        #TODO AGAIN PRIOR AND KERNEL
         self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
         # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
