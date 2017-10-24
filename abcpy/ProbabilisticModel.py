@@ -22,7 +22,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
             Set to true if the probabilistic model describes a uniform distribution.
 
     """
-    def __init__(self, parameters, is_uniform = False):
+    def __init__(self, parameters):
         #Save all probabilistic models and hyperparameters from which the model derives.
         self.parents = parameters
         #Initialize list which will contain the values for all parameters associated with the model. If the parameters          derive from a probabilistic model, they will be sampled.
@@ -472,7 +472,7 @@ class Uniform(ProbabilisticModel):
                     self.length[i]+=parameters[i][j].dimension
                 else:
                     self.length[i]+=1
-        super(Uniform, self).__init__(joint_parameters, True)
+        super(Uniform, self).__init__(joint_parameters)
         self.lower_bound = self.parameter_values[:self.length[0]]
         self.upper_bound = self.parameter_values[self.length[0]:]
         #Parameter specifying the dimension of the return values of the distribution.
