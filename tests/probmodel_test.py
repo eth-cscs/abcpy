@@ -1,7 +1,6 @@
-from ProbabilisticModel import *
+from continuous import *
 import unittest
 from copy import deepcopy
-import sys
 
 #TODO if possible, test the distribution of cov somehow?
 

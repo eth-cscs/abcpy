@@ -9,6 +9,10 @@ from scipy import optimize
 #TODO if we send the kernel, and sample at each node individually, we will need a "send kernel" function of the InferenceMethod ----> discuss which of the two would be appropriate and implement accordingly
 
 
+
+#TODO I am not sure, but if we do sample_from_prior: if we sample some value from a distribution for some child, then for all other children of that node, the same value should be used!!!! we need to somehow implement that!
+
+#NOTE WE DEFINITELY NEED TO SOMEHOW PASS THE INFORMATION ABOUT THE VALUE THAT WAS SAMPLED FOR ONE CHILD TO THE OTHER CHILDREN! HOW DO WE DO THAT?
 class InferenceMethod(metaclass = ABCMeta):
     """
         This abstract base class represents an inference method.
@@ -22,6 +26,7 @@ class InferenceMethod(metaclass = ABCMeta):
         state = self.__dict__.copy()
         del state['backend']
         return state
+
 
     def sample_from_prior(self, model):
         for i in range(len(model)):
@@ -40,6 +45,7 @@ class InferenceMethod(metaclass = ABCMeta):
 
 
     #NOTE not tested yet, not sure whether this works.
+    #TODO CHECK WHETHER THIS COVERS ALL 3 DIFFERENT CASES
     def pdf_of_prior(self, model, parameters, index):
         result = [1.]*len(model)
         for i in range(len(model)):
@@ -1500,7 +1506,7 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
         """
 
         rng = rng_and_index[0]
-        index = seed_and_index[1]
+        index = rng_and_index[1]
         rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
         #NOTE AGAIN DELETED PRIOR.RESEED
         #TODO KERNEL RESEEDING -> DO WE WANT A DIFFERENT RNG?
