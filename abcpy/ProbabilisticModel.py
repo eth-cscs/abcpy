@@ -10,6 +10,7 @@ from scipy.special import gamma
 
 #NOTE do we maybe want to average over a couple of samples during initialization, rather than taking a single value? this is an issue for example for StudentT!
 
+
 class ProbabilisticModel(metaclass = ABCMeta):
     """This abstract class represents all probabilistic models.
 
@@ -27,63 +28,13 @@ class ProbabilisticModel(metaclass = ABCMeta):
         #Initialize list which will contain the values for all parameters associated with the model. If the parameters          derive from a probabilistic model, they will be sampled.
         self.parameter_values = []
         parameter_values_temp = []
-        if(not is_uniform):
-            counter = 0
-            while(counter<10):
-                counter += 1
-                parameter_values_temp = []
-                for i in range(len(self.parents)):
-                    if (isinstance(self.parents[i], ProbabilisticModel)):
-                        parameter_value = self.parents[i].sample_from_distribution(1)
-                        if(isinstance(parameter_value[0], (list, np.ndarray))):
-                            parameter_value = parameter_value[0]
-                        if (isinstance(parameter_value, (list, np.ndarray))):
-                            for j in range(len(parameter_value)):
-                                parameter_values_temp.append(parameter_value[j])
-                        else:
-                            parameter_values_temp.append(parameter_value)
-                    else:
-                        parameter_values_temp.append(self.parents[i])
-                if(self._check_parameters(parameter_values_temp)):
-                    self.parameter_values = parameter_values_temp
-                    break
-            if(counter==10 and not(self._check_parameters(parameter_values_temp))):
-                raise ValueError('Cannot find appropriate parameter values for probabilistic model.')
-        else:
-            counter =0
-            while(counter<10):
-                counter+=1
-                lb = []
-                ub = []
-                for i in range(len(self.parents[0])):
-                    if(isinstance(self.parents[0][i], ProbabilisticModel)):
-                        lb_values = self.parents[0][i].sample_from_distribution(1)
-                        if(isinstance(lb_values[0], (list, np.ndarray))):
-                            lb_values = lb_values[0]
-                        if(isinstance(lb_values, (list, np.ndarray))):
-                            for j in range(len(lb_values)):
-                                lb.append(lb_values[j])
-                        else:
-                            lb.append(lb_values)
-                    else:
-                        lb.append(self.parents[0][i])
-                for i in range(len(self.parents[1])):
-                    if(isinstance(self.parents[1][i], ProbabilisticModel)):
-                        ub_values = self.parents[1][i].sample_from_distribution(1)
-                        if(isinstance(ub_values[0], (list, np.ndarray))):
-                            ub_values = ub_values[0]
-                        if(isinstance(ub_values, (list, np.ndarray))):
-                            for j in range(len(ub_values)):
-                                ub.append(ub_values[j])
-                        else:
-                            ub.append(ub_values)
-                    else:
-                        ub.append(self.parents[1][i])
-                if(self._check_parameters([lb, ub])):
-                    self.parameter_values = [lb, ub]
-                    break
-            if(counter==10 and not(self._check_parameters([lb, ub]))):
-                raise ValueError('Cannot find appropriate parameter values for probabilistic model.')
+        counter = 0
+        while(counter<10):
+            if(self.fix_parameters()):
+                break
+            counter += 1
+        if(counter==10):
+            raise ValueError('Cannot find appropriate parameters for probabilistic model.')
         self.updated = False #whether the node has been touched
 
     #NOTE the check_fixed assumes that the parameters are exactly of the lenght needed for that distribution only ->needs to be considered in case we want to be able to "fix on whole graph"
@@ -103,8 +54,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         boolean:
             Tells the user whether the parameters were fixed. They will not be fixed if they do not conform to the                  required format of the underlying distribution.
         """
-        index = 0
-        #NOTE DO WE NEED SELF.UPDATED HERE?
+        parameter_values_temp = []
         if(not(parameters)):
             for i in range(len(self.parents)):
                 if(isinstance(self.parents[i], ProbabilisticModel)):
@@ -112,11 +62,15 @@ class ProbabilisticModel(metaclass = ABCMeta):
                     if(isinstance(parameter_value[0], (list, np.ndarray))):
                         parameter_value = parameter_value[0]
                     for j in range(len(parameter_value)):
-                        self.parameter_values[index]=parameter_value[j]
-                        index+=1
+                        parameter_values_temp.append(parameter_value[j])
                 else:
-                    index+=1
-            self.updated = True
+                    parameter_values_temp.append(self.parents[i])
+            if(self._check_parameters(parameter_values_temp)):
+                self.parameter_values = parameter_values_temp
+                self.updated = True
+                return True
+            else:
+                return False
         else:
             if(not(self._check_parameters_fixed(parameters))):
                 return False
@@ -125,7 +79,8 @@ class ProbabilisticModel(metaclass = ABCMeta):
             while(i<len(parameters)):
                 while(not(isinstance(self.parents[index],ProbabilisticModel)) or self.parents[index].updated):
                     index+=1
-                if(not(parameters[i])):
+                #NOTE this does currently not work for Uniform, because an empty list will be converted to 0 entries
+                if(not(parameters[i]) and not(isinstance(self, Uniform))):
                     parameter_value = self.parents[index].sample_from_distribution(1, rng=rng)
                     if(isinstance(parameter_value[0], (list, np.ndarray))):
                         parameter_value = parameter_value[0]
@@ -204,7 +159,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
     @abstractmethod
     def pdf(self, x):
         """
-        Calculates the probability density function of the model, if applicable
+        Calculates the probability density function of the model, if applicable.
 
         Parameters
         ----------
@@ -497,7 +452,7 @@ class MultiStudentT(ProbabilisticModel):
 
 class Uniform(ProbabilisticModel):
     """
-    This class implements a probabilistic model following a uniform distribution
+    This class implements a probabilistic model following a uniform distribution.
 
     Parameters
     ----------
@@ -505,20 +460,32 @@ class Uniform(ProbabilisticModel):
         Contains two lists. The first list specifies the probabilistic models and hyperparameters from which the lower         bound of the uniform distribution derive. The second list specifies the probabilistic models and hyperparameters        from which the upper bound derives.
     """
     def __init__(self, parameters):
-        super(Uniform, self).__init__(parameters, True)
+        self._check_user_input(parameters)
+        self.parent_length_lower = len(parameters[0])
+        self.parent_length_upper = len(parameters[1])
+        self.length = [0,0]
+        joint_parameters = []
+        for i in range(2):
+            for j in range(len(parameters[i])):
+                joint_parameters.append(parameters[i][j])
+                if(isinstance(parameters[i][j], ProbabilisticModel)):
+                    self.length[i]+=parameters[i][j].dimension
+                else:
+                    self.length[i]+=1
+        super(Uniform, self).__init__(joint_parameters, True)
+        self.lower_bound = self.parameter_values[:self.length[0]]
+        self.upper_bound = self.parameter_values[self.length[0]:]
         #Parameter specifying the dimension of the return values of the distribution.
-        self.dimension = len(parameters[0])
+        self.dimension = self.length[0]
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
-        lower_bound = self.parameter_values[0]
-        upper_bound = self.parameter_values[1]
         #print(lower_bound)
-        samples = np.zeros(shape=(k, len(lower_bound))) #this means: len columns, and each has k entries
-        for j in range(0, len(lower_bound)):
-            samples[:, j] = rng.uniform(lower_bound[j], upper_bound[j], k)
+        samples = np.zeros(shape=(k, len(self.lower_bound))) #this means: len columns, and each has k entries
+        for j in range(0, len(self.lower_bound)):
+            samples[:, j] = rng.uniform(self.lower_bound[j], self.upper_bound[j], k)
         return samples
 
-    def _check_parameters(self, parameters):
+    def _check_user_input(self, parameters):
         if(not(isinstance(parameters, list))):
             raise TypeError('Input for Uniform has to be of type list.')
         if(len(parameters)<2):
@@ -527,113 +494,84 @@ class Uniform(ProbabilisticModel):
             raise TypeError('Each boundary for Uniform ahs to be of type list.')
         if(not(isinstance(parameters[1], list))):
             raise TypeError('Each boundary for Uniform ahs to be of type list.')
-        if(len(parameters[0])!=len(parameters[1])):
-            raise IndexError('Lower and upper bound have to be of same length.')
-        for i in range(len(parameters[0])):
-            if(parameters[0][i]>parameters[1][i]):
+
+    def _check_parameters(self, parameters):
+        if(self.length[0]!=self.length[1]):
+            raise IndexError('Length of upper and lower bound have to be equal.')
+        for i in range(self.length[0]):
+            if(parameters[i]>parameters[i+self.length[0]]):
                 return False
         return True
 
+
     def _check_parameters_fixed(self, parameters):
-        lb = []
-        ub= []
-        length_lb = 0
-        length_ub = 0
+        length = [0,0]
+        bounds = [[],[]]
         index=0
-        for parent in self.parents[0]:
-            if(isinstance(parent, ProbabilisticModel)):
-                length_lb+=parent.dimension
-                for j in range(parent.dimension):
-                    lb.append(parameters[0][index])
+        for i in range(self.parent_length_lower):
+            if(isinstance(self.parents[i], ProbabilisticModel)):
+                length[0]+=self.parents[i].dimension
+                for j in range(self.parents[i].dimension):
+                    bounds[0].append(parameters[index])
                     index+=1
             else:
-                lb.append(parent)
-        index=0
-        for parent in self.parents[1]:
-            if(isinstance(parent, ProbabilisticModel)):
-                length_ub+=parent.dimension
-                for j in range(parent.dimension):
-                    ub.append(parameters[1][index])
+                bounds[0].append(self.parameter_values[i])
+        for i in range(self.parent_length_lower, self.parent_length_lower+self.parent_length_upper):
+            if(isinstance(self.parents[i], ProbabilisticModel)):
+                length[1]+=self.parents[i].dimension
+                for j in range(self.parents[i].dimension):
+                    bounds[1].append(parameters[index])
                     index+=1
             else:
-                ub.append(parent)
-        if(length_lb==len(parameters[0]) and length_ub==len(parameters[1])):
-            for i in range(len(lb)):
-                if(lb[i]>ub[i]):
+                bounds[1].append(self.parameter_values[i])
+        if(length[0]+length[1]==len(parameters)):
+            for i in range(len(bounds[0])):
+                if(bounds[0][i]>bounds[1][i]):
                     return False
             return True
         return False
 
     def get_parameters(self):
-        index=0
         lb_parameters = []
-        for parent in self.parents[0]:
-            if(isinstance(parent, ProbabilisticModel)):
-                for j in range(parent.dimension):
-                    lb_parameters.append(self.parameter_values[0][index])
+        index=0
+        for i in range(self.parent_length_lower):
+            if(isinstance(self.parents[i], ProbabilisticModel)):
+                for j in range(self.parents[i].dimension):
+                    lb_parameters.append(self.parameter_values[index])
                     index+=1
             else:
                 index+=1
-        index=0
         ub_parameters = []
-        for parent in self.parents[1]:
-            if(isinstance(parent, ProbabilisticModel)):
-                for j in range(parent.dimension):
-                    ub_parameters.append(self.parameter_values[1][index])
-                    index+=1
+        for i in range(self.parent_length_lower, self.parent_length_lower+self.parent_length_upper):
+            if(isinstance(self.parents[i], ProbabilisticModel)):
+                for j in range(self.parents[i].dimension):
+                    ub_parameters.append(self.parameter_values[index])
             else:
                 index+=1
         return [lb_parameters, ub_parameters]
 
     def fix_parameters(self, parameters=None, rng=np.random.RandomState()):
-        if (not (parameters)):
-            for s in range(2):
-                index=0
-                for i in range(len(self.parents[s])):
-                    if (isinstance(self.parents[s][i], ProbabilisticModel)):
-                        parameter_value = self.parents[s][i].sample_from_distribution(1, rng=rng)
-                        if(isinstance(parameter_value[0], (list, np.ndarray))):
-                            parameter_value=parameter_value[0]
-                        for j in range(len(parameter_value)):
-                            self.parameter_values[s][index] = parameter_value[j]
-                            index += 1
-                    else:
-                        index += 1
-            self.updated = True
-        else:
-            if(not(self._check_parameters_fixed(parameters))):
+        if (not(parameters)):
+            if(super(Uniform, self).fix_parameters(rng=rng)):
+                self.updated = True
+                return True
+            else:
                 return False
-            index = 0
-            i = 0
-            for s in range(2):
-                index=0
-                i=0
-                while (i < len(parameters[s])):
-                    while (not (isinstance(self.parents[s][index], ProbabilisticModel)) or self.parents[s][index].updated):
-                        index += 1
-                    #NOTE THIS IS NOT POSSIBLE, BECAUSE AN EMPTY LIST IS GIVEN FOR FIXED WHOLE LISTS!
-                    '''
-                    if (not(parameters[i])):
-                        parameter_value = self.parents[s][index].sample_from_distribution(1, rng=rng)
-                        if(isinstance(parameter_value[0], (list, np.ndarray))):
-                            parameter_value=parameter_value[0]
-                        for j in range(len(parameter_value)):
-                            self.parameter_values[s][index + j] = parameter_value[j]
-                        index += len(parameter_value)
-                        i += len(parameter_value)'''
-                    for j in range(self.parents[s][index].dimension):
-                        self.parameter_values[s][index + j] = parameters[s][i]
-                        i += 1
-                    index += self.parents[s][index].dimension
-            self.updated = True
-            return True
+        else:
+            joint_parameters =[]
+            for i in range(2):
+                for j in range(len(parameters[i])):
+                    joint_parameters.append(parameters[i][j])
+            if(super(Uniform, self).fix_parameters(joint_parameters)):
+                self.lower_bound = self.parameter_values[:self.length[0]]
+                self.upper_bound = self.parameter_values[self.length[0]:]
+                return True
+            return False
 
 
     def pdf(self, x):
-        lower_bound = self.parents[0]
-        upper_bound = self.parents[1]
-        if (np.product(np.greater_equal(x, np.array(lower_bound)) * np.less_equal(x, np.array(upper_bound)))):
-            pdf_value = 1. / np.product(np.array(upper_bound) - np.array(lower_bound))
+        if (np.product(np.greater_equal(x, np.array(self.lower_bound)) * np.less_equal(x, np.array(self.upper_bound)))):
+            pdf_value = 1. / np.product(np.array(self.upper_bound) - np.array(self.lower_bound))
         else:
             pdf_value = 0.
         return pdf_value
