@@ -8,7 +8,6 @@ import numpy as np
 #NOTE do we maybe want to average over a couple of samples during initialization, rather than taking a single value? this is an issue for example for StudentT!
 
 
-
 class ProbabilisticModel(metaclass = ABCMeta):
     """This abstract class represents all probabilistic models.
 
@@ -25,75 +24,61 @@ class ProbabilisticModel(metaclass = ABCMeta):
         self.parents = parameters
         #Initialize list which will contain the values for all parameters associated with the model. If the parameters          derive from a probabilistic model, they will be sampled.
         self.parameter_values = []
-        parameter_values_temp = []
+        #this loop samples multiple times in case a sampled parameter lies outside the accepted range for that parameter.
         counter = 0
         while(counter<10):
-            if(self.fix_parameters()):
+            if(self.sample_parameters()):
                 break
             counter += 1
         if(counter==10):
             raise ValueError('Cannot find appropriate parameters for probabilistic model.')
-        self.updated = False #whether the node has been touched
+        self.visited = False #whether the node has been touched
 
-    #NOTE the check_fixed assumes that the parameters are exactly of the lenght needed for that distribution only ->needs to be considered in case we want to be able to "fix on whole graph"
-    #TODO MAYBE WE SHOULD CHECK WHETHER IT IS POSSIBLE TO OBTAIN THE PARAMETERS FROM THD PARENT DISTRIBUTIONS BEFORE ASSINGING?
-    @abstractmethod
-    def fix_parameters(self, parameters=None, rng=np.random.RandomState()):
-        """
-        Fixes the parameters associated with the probabilistic model.
 
-        Parameters
-        ----------
-        parameters: None or list of length equal to the free parameters of the probabilistic model.
-            If set to none, all free parameters are sampled from their distribution.
-        rng: Random number generator
-            Defines the random number generator to be used for sampling. The default value is initialized with a random             seed.
-        Returns
-        -------
-        boolean:
-            Tells the user whether the parameters were fixed. They will not be fixed if they do not conform to the                  required format of the underlying distribution.
-        """
+    def sample_parameters(self, rng=np.random.RandomState()):
         parameter_values_temp = []
-        if(not(parameters)):
-            for i in range(len(self.parents)):
-                if(isinstance(self.parents[i], ProbabilisticModel)):
-                    parameter_value = self.parents[i].sample_from_distribution(1, rng=rng)
-                    if(isinstance(parameter_value[0], (list, np.ndarray))):
-                        parameter_value = parameter_value[0]
-                    for j in range(len(parameter_value)):
-                        parameter_values_temp.append(parameter_value[j])
-                else:
-                    parameter_values_temp.append(self.parents[i])
-            if(self._check_parameters(parameter_values_temp)):
-                self.parameter_values = parameter_values_temp
-                self.updated = True
-                return True
+        for i in range(len(self.parents)):
+            if (isinstance(self.parents[i], ProbabilisticModel)):
+                parameter_value = self.parents[i].sample_from_distribution(1, rng=rng)
+                if (isinstance(parameter_value[0], (list, np.ndarray))):
+                    parameter_value = parameter_value[0]
+                for j in range(len(parameter_value)):
+                    parameter_values_temp.append(parameter_value[j])
             else:
-                return False
-        else:
-            if(not(self._check_parameters_fixed(parameters))):
-                return False
-            index=0
-            i=0
-            while(i<len(parameters)):
-                while(not(isinstance(self.parents[index],ProbabilisticModel)) or self.parents[index].updated):
-                    index+=1
-                #NOTE this does currently not work for Uniform, because an empty list will be converted to 0 entries
-                if(not(parameters[i]) and not(isinstance(self, Uniform))):
-                    parameter_value = self.parents[index].sample_from_distribution(1, rng=rng)
-                    if(isinstance(parameter_value[0], (list, np.ndarray))):
-                        parameter_value = parameter_value[0]
-                    for j in range(len(parameter_value)):
-                        self.parameter_values[index+j] = parameter_value[j]
-                    index+=len(parameter_value)
-                    i+=len(parameter_value)
-                else:
-                    for j in range(self.parents[index].dimension):
-                        self.parameter_values[index+j]=parameters[i]
-                        i+=1
-                    index+=self.parents[index].dimension
-            self.updated = True
+                parameter_values_temp.append(self.parents[i])
+        if (self._check_parameters(parameter_values_temp)):
+            # print('Fixed parameters of %s to %s' % (self.__str__(), parameter_values_temp.__str__()))
+            self.parameter_values = parameter_values_temp
+            self.visited = True
             return True
+        else:
+            return False
+
+    def set_parameters(self, parameters, rng=np.random.RandomState()):
+        if (not (self._check_parameters_fixed(parameters))):
+            return False
+        index = 0
+        i = 0
+        while (i < len(parameters)):
+            while (not (isinstance(self.parents[index], ProbabilisticModel)) or self.parents[index].visited):
+                index += 1
+            # NOTE this does currently not work for Uniform, because an empty list will be converted to 0 entries
+            if (not (parameters[i]) and not (isinstance(self, Uniform))):
+                parameter_value = self.parents[index].sample_from_distribution(1, rng=rng)
+                if (isinstance(parameter_value[0], (list, np.ndarray))):
+                    parameter_value = parameter_value[0]
+                for j in range(len(parameter_value)):
+                    self.parameter_values[index + j] = parameter_value[j]
+                index += len(parameter_value)
+                i += len(parameter_value)
+            else:
+                for j in range(self.parents[index].dimension):
+                    self.parameter_values[index + j] = parameters[i]
+                    i += 1
+                index += self.parents[index].dimension
+        self.visited = True
+        return True
+
 
     @abstractmethod
     def get_parameters(self):

@@ -8,7 +8,7 @@ class UniformTests(unittest.TestCase):
         self.rng = np.random.RandomState(seed)
         self.Uniform = Uniform([[-1.,-1.],[1.,1.]])
         self.Uniform_1 = Uniform([[self.Uniform],[1.2,1.2]])
-        self.Uniform_1.fix_parameters(rng=self.rng)
+        self.Uniform_1.sample_parameters(rng=self.rng)
 
     def test_sample_from_distribution(self):
         samples = self.Uniform.sample_from_distribution(1000, rng=self.rng)
@@ -37,10 +37,10 @@ class UniformTests(unittest.TestCase):
         self.assertEqual(samples_graph_shape, (1000, 2))
 
     def test_fix_parameters(self):
-        self.Uniform_1.fix_parameters([[-1.5,-1.5],[]], rng=self.rng)
+        self.Uniform_1.set_parameters([[-1.5,-1.5],[]], rng=self.rng)
         self.assertTrue(self.Uniform_1.get_parameters()==[[-1.5,-1.5],[]])
         old_parameter = deepcopy(self.Uniform_1.parameter_values)
-        self.Uniform_1.fix_parameters(rng=self.rng)
+        self.Uniform_1.sample_parameters(rng=self.rng)
         self.assertTrue(old_parameter!=self.Uniform_1.parameter_values)
 
     def test_check_parameters(self):
@@ -56,9 +56,9 @@ class UniformTests(unittest.TestCase):
     def test_check_parameters_fixed(self):
         N = Uniform([[0],[1]])
         U = Uniform([[N,1],[2,2]])
-        self.assertFalse(U.fix_parameters([[1,2],[]]))
-        self.assertFalse(U.fix_parameters([[1],[3,3]]))
-        self.assertFalse(U.fix_parameters([[5],[]]))
+        self.assertFalse(U.set_parameters([[1,2],[]]))
+        self.assertFalse(U.set_parameters([[1],[3,3]]))
+        self.assertFalse(U.set_parameters([[5],[]]))
 
     def test_pdf(self):
         U = Uniform([[0.],[10.]])

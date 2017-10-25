@@ -46,9 +46,6 @@ class Normal(ProbabilisticModel, Continuous):
     def get_parameters(self):
         return super(Normal, self).get_parameters()
 
-    def fix_parameters(self, parameters=None, rng=np.random.RandomState()):
-        return super(Normal, self).fix_parameters(parameters, rng)
-
     def pdf(self, x):
         mu = self.parameter_values[0]
         sigma = self.parameter_values[1]
@@ -103,9 +100,6 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
     def get_parameters(self):
         return super(MultivariateNormal, self).get_parameters()
 
-    def fix_parameters(self, parameters=None, rng=np.random.RandomState()):
-        return super(MultivariateNormal, self).fix_parameters(parameters, rng)
-
     def pdf(self, x):
         mean= self.parameter_values[:len(self.parameter_values)-1]
         cov = self.parameter_values[len(self.parameter_values)-1]
@@ -150,9 +144,6 @@ class MixtureNormal(ProbabilisticModel, Continuous):
 
     def get_parameters(self):
         return super(MixtureNormal, self).get_parameters()
-
-    def fix_parameters(self, parameters=None, rng=np.random.RandomState()):
-        return super(MixtureNormal, self).fix_parameters(parameters, rng)
 
     def pdf(self, x):
         mean= self.parameter_values[:len(self.parameter_values)-1]
@@ -202,9 +193,6 @@ class StudentT(ProbabilisticModel, Continuous):
 
     def get_parameters(self):
         return super(StudentT, self).get_parameters()
-
-    def fix_parameters(self, parameters=None, rng=np.random.RandomState()):
-        return super(StudentT, self).fix_parameters(parameters, rng)
 
     def pdf(self, x):
         df = self.parameter_values[1]
@@ -268,9 +256,6 @@ class MultiStudentT(ProbabilisticModel, Continuous):
     def get_parameters(self):
         return super(MultiStudentT, self).get_parameters()
 
-    def fix_parameters(self, parameters=None, rng=np.random.RandomState()):
-        return super(MultiStudentT, self).fix_parameters(parameters, rng)
-
     def pdf(self, x):
         mean = self.parameter_values[:len(self.parameter_values)-2]
         cov = self.parameter_values[len(self.parameter_values)-2]
@@ -285,7 +270,6 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         density = normalizing_const * pow(tmp, -((v + p) / 2.))
         return density
 
-
 class Uniform(ProbabilisticModel, Continuous):
     """
     This class implements a probabilistic model following a uniform distribution.
@@ -297,9 +281,8 @@ class Uniform(ProbabilisticModel, Continuous):
     """
     def __init__(self, parameters):
         self._check_user_input(parameters)
-        self.parent_length_lower = len(parameters[0])
-        self.parent_length_upper = len(parameters[1])
-        self.length = [0,0]
+        self._num_parameters = 0
+        self.length = [0,0] #this is needed to check that lower and upper are of same length, just because the total length is even does not guarantee that
         joint_parameters = []
         for i in range(2):
             for j in range(len(parameters[i])):
@@ -308,18 +291,20 @@ class Uniform(ProbabilisticModel, Continuous):
                     self.length[i]+=parameters[i][j].dimension
                 else:
                     self.length[i]+=1
+        self._num_parameters=self.length[0]+self.length[1]
+        self.dimension = int(self._num_parameters/2)
         super(Uniform, self).__init__(joint_parameters)
-        self.updated = False
-        self.lower_bound = self.parameter_values[:self.length[0]]
-        self.upper_bound = self.parameter_values[self.length[0]:]
+        self.visited = False
+        
         #Parameter specifying the dimension of the return values of the distribution.
-        self.dimension = self.length[0]
+
+    def num_parameters(self):
+        return self._num_parameters
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
-        #print(lower_bound)
-        samples = np.zeros(shape=(k, len(self.lower_bound))) #this means: len columns, and each has k entries
-        for j in range(0, len(self.lower_bound)):
-            samples[:, j] = rng.uniform(self.lower_bound[j], self.upper_bound[j], k)
+        samples = np.zeros(shape=(k, self.dimension)) #this means: len columns, and each has k entries
+        for j in range(0, self.dimension):
+            samples[:, j] = rng.uniform(self.parameter_values[j], self.parameter_values[j+self.dimension], k)
         return samples
 
     def _check_user_input(self, parameters):
@@ -332,83 +317,77 @@ class Uniform(ProbabilisticModel, Continuous):
         if(not(isinstance(parameters[1], list))):
             raise TypeError('Each boundary for Uniform ahs to be of type list.')
 
+
     def _check_parameters(self, parameters):
+        if(self.num_parameters()%2==1):
+            raise IndexError('Length of upper and lower bound have to be equal.')
         if(self.length[0]!=self.length[1]):
             raise IndexError('Length of upper and lower bound have to be equal.')
-        for i in range(self.length[0]):
-            if(parameters[i]>parameters[i+self.length[0]]):
+        for i in range(self.dimension):
+            if(parameters[i]>parameters[i+self.dimension]):
                 return False
         return True
 
 
     def _check_parameters_fixed(self, parameters):
-        length = [0,0]
-        bounds = [[],[]]
+        i=0
         index=0
-        for i in range(self.parent_length_lower):
-            if(isinstance(self.parents[i], ProbabilisticModel)):
-                length[0]+=self.parents[i].dimension
-                for j in range(self.parents[i].dimension):
-                    bounds[0].append(parameters[index])
-                    index+=1
-            else:
-                bounds[0].append(self.parameter_values[i])
-        for i in range(self.parent_length_lower, self.parent_length_lower+self.parent_length_upper):
-            if(isinstance(self.parents[i], ProbabilisticModel)):
-                length[1]+=self.parents[i].dimension
-                for j in range(self.parents[i].dimension):
-                    bounds[1].append(parameters[index])
-                    index+=1
-            else:
-                bounds[1].append(self.parameter_values[i])
-        if(length[0]+length[1]==len(parameters)):
-            for i in range(len(bounds[0])):
-                if(bounds[0][i]>bounds[1][i]):
+        index_paramter_values=0
+        bounds =[[],[]]
+        length_free = 0
+        for j in range(2):
+            length=0
+            while(length<self.length[j]):
+                if(isinstance(self.parents[i], ProbabilisticModel)):
+                    length+=self.parents[i].dimension
+                    for t in range(self.parents[i].dimension):
+                        bounds[j].append(parameters[index])
+                        index+=1
+                        index_paramter_values+=1
+                        length_free+=1
+                else:
+                    length+=1
+                    bounds[j].append(self.parameter_values[index_paramter_values])
+                    index_paramter_values+=1
+                i+=1
+        if(length_free==len(parameters)):
+            for j in range(len(bounds[0])):
+                if(bounds[0][j]>bounds[1][j]):
                     return False
             return True
         return False
 
-    def get_parameters(self):
-        lb_parameters = []
-        index=0
-        for i in range(self.parent_length_lower):
-            if(isinstance(self.parents[i], ProbabilisticModel)):
-                for j in range(self.parents[i].dimension):
-                    lb_parameters.append(self.parameter_values[index])
-                    index+=1
-            else:
-                index+=1
-        ub_parameters = []
-        for i in range(self.parent_length_lower, self.parent_length_lower+self.parent_length_upper):
-            if(isinstance(self.parents[i], ProbabilisticModel)):
-                for j in range(self.parents[i].dimension):
-                    ub_parameters.append(self.parameter_values[index])
-            else:
-                index+=1
-        return [lb_parameters, ub_parameters]
+    def set_parameters(self, parameters, rng=np.random.RandomState()):
+        joint_parameters = []
+        for i in range(len(parameters)):
+            for j in range(len(parameters[i])):
+                joint_parameters.append(parameters[i][j])
+        return(super(Uniform, self).set_parameters(joint_parameters, rng=rng))
 
-    def fix_parameters(self, parameters=None, rng=np.random.RandomState()):
-        if (not(parameters)):
-            if(super(Uniform, self).fix_parameters(rng=rng)):
-                self.updated = True
-                return True
-            else:
-                return False
-        else:
-            joint_parameters =[]
-            for i in range(2):
-                for j in range(len(parameters[i])):
-                    joint_parameters.append(parameters[i][j])
-            if(super(Uniform, self).fix_parameters(joint_parameters)):
-                self.lower_bound = self.parameter_values[:self.length[0]]
-                self.upper_bound = self.parameter_values[self.length[0]:]
-                return True
-            return False
+
+    def get_parameters(self):
+        parameters = [[],[]]
+        index=0
+        i=0
+        while(i<len(self.parents)):
+            j=0
+            while(j<self.num_parameters()/2):
+                if(isinstance(self.parents[i], ProbabilisticModel)):
+                    for t in range(self.parents[i].dimension):
+                        parameters[index].append(self.parameter_values[j])
+                        j+=1
+                else:
+                    j+=1
+                i+=1
+            index+=1
+        return parameters
 
 
     def pdf(self, x):
-        if (np.product(np.greater_equal(x, np.array(self.lower_bound)) * np.less_equal(x, np.array(self.upper_bound)))):
-            pdf_value = 1. / np.product(np.array(self.upper_bound) - np.array(self.lower_bound))
+        lower_bound = self.parameter_values[:self.dimension]
+        upper_bound = self.parameter_values[self.dimension:]
+        if (np.product(np.greater_equal(x, np.array(lower_bound)) * np.less_equal(x, np.array(upper_bound)))):
+            pdf_value = 1. / np.product(np.array(upper_bound) - np.array(lower_bound))
         else:
             pdf_value = 0.
         return pdf_value
@@ -575,9 +554,6 @@ class StochLorenz95(ProbabilisticModel, Continuous):
     def get_parameters(self):
         return super(StochLorenz95, self).get_parameters()
 
-    def fix_parameters(self, parameters=None, rng=np.random.RandomState()):
-        return super(StochLorenz95, self).fix_parameters(parameters, rng=rng)
-
     def pdf(self, x):
         raise NotImplementedError
 
@@ -632,9 +608,6 @@ class Ricker(ProbabilisticModel, Continuous):
 
     def get_parameters(self):
         return super(Ricker, self).get_parameters()
-
-    def fix_parameters(self, parameters=None, rng=np.random.RandomState()):
-        return super(Ricker, self).fix_parameters(parameters, rng=rng)
 
     def pdf(self, x):
         raise NotImplementedError
