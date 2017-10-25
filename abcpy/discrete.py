@@ -21,7 +21,7 @@ class Binomial(Discrete, ProbabilisticModel):
         self.parameter_values[0] = int(self.parameter_values[0])
 
     def fix_parameters(self, parameters=None, rng=np.random.RandomState()):
-        if(super(Binomial, self).fix_parameters(parameters, rng=rng)):
+        if(super(Binomial, self).set_parameters(parameters, rng=rng)):
             self.parameter_values[0] = int(self.parameter_values[0])
             return True
         return False

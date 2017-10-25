@@ -33,7 +33,7 @@ class InferenceMethod(metaclass = ABCMeta):
             for parent in model[i].parents:
                 if(isinstance(parent, ProbabilisticModel) and not(parent.updated)):
                     self.sample_from_prior([parent])
-            model[i].fix_parameters()
+            model[i].sample_parameters()
         self._reset_flags(model)
 
     def _reset_flags(self, model):
