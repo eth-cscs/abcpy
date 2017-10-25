@@ -6,14 +6,10 @@ from abcpy.output import Journal
 from scipy import optimize
 
 
-#TODO if we first sample from the kernel, and then set the values of our graph: we will need a set_parameters for the whole inferencemethod, else a set_parameters is not needed glbally!
-#TODO if we send the kernel, and sample at each node individually, we will need a "send kernel" function of the InferenceMethod ----> discuss which of the two would be appropriate and implement accordingly
 
 
+#TODO check whether if we set a seed as well as an rng for the distributions, what happens.
 
-#TODO I am not sure, but if we do sample_from_prior: if we sample some value from a distribution for some child, then for all other children of that node, the same value should be used!!!! we need to somehow implement that!
-
-#NOTE WE DEFINITELY NEED TO SOMEHOW PASS THE INFORMATION ABOUT THE VALUE THAT WAS SAMPLED FOR ONE CHILD TO THE OTHER CHILDREN! HOW DO WE DO THAT?
 class InferenceMethod(metaclass = ABCMeta):
     """
         This abstract base class represents an inference method.
