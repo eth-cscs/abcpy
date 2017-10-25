@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod, abstractproperty
 
+from ProbabilisticModel import *
 import numpy as np
 from abcpy.output import Journal
 from scipy import optimize
@@ -28,20 +29,19 @@ class InferenceMethod(metaclass = ABCMeta):
         return state
 
 
-    def sample_from_prior(self, model):
+    def sample_from_prior(self, model, rng=np.random.RandomState()):
         for i in range(len(model)):
             for parent in model[i].parents:
-                if(isinstance(parent, ProbabilisticModel) and not(parent.updated)):
-                    self.sample_from_prior([parent])
-            model[i].sample_parameters()
-        self._reset_flags(model)
+                if(isinstance(parent, ProbabilisticModel) and not(parent.visited)):
+                    self.sample_from_prior([parent], rng=rng)
+            model[i].sample_parameters(rng=rng)
 
     def _reset_flags(self, model):
         for i in range(len(model)):
             for parent in model[i].parents:
-                if(isinstance(parent, ProbabilisticModel) and parent.updated):
-                    self.reset_flags([parent])
-            model[i].updated = False
+                if(isinstance(parent, ProbabilisticModel) and parent.visited):
+                    self._reset_flags([parent])
+            model[i].visited = False
 
 
     #NOTE not tested yet, not sure whether this works.
@@ -52,14 +52,14 @@ class InferenceMethod(metaclass = ABCMeta):
             #NOTE this might give out of range -> need another way to check whether it is bottom or not (for example flag passed to function)
             if(not(model[i]==self.model[i])):
                 helper = []
-                for i in range(model.dimension):
+                for j in range(model[i].dimension):
                     helper.append(parameters[index])
                     index+=1
                 if(len(helper)==1):
                     helper = helper[0]
                 else:
                     helper = np.array(helper)
-                result[i]*=model.pdf(helper)
+                result[i]*=model[i].pdf(helper)
             for parent in model[i].parents:
                 if(isinstance(parent, ProbabilisticModel)):
                     pdf = self.pdf_of_prior([parent], parameters, index)
@@ -67,6 +67,40 @@ class InferenceMethod(metaclass = ABCMeta):
                     index=pdf[1]
         return [result, index]
 
+    def get_parameters(self, model):
+        parameters = []
+        for i in range(len(model)):
+            for parameter in model[i].get_parameters():
+                if(isinstance(parameter, list)):
+                    for param in parameter:
+                        parameters.append(param)
+                else:
+                    parameters.append(parameter)
+            for parent in model[i].parents:
+                if(isinstance(parent, ProbabilisticModel) and not(parent.visited)):
+                    parent_parameters = self.get_parameters([parent])
+                    for parameter in parent_parameters:
+                        if(isinstance(parameter, list)):
+                            for param in parameter:
+                                parameters.append(param)
+                        else:
+                            parameters.append(parameter)
+                    parent.visited=True
+            model[i].visited = True
+        return parameters
+
+    #NOTE returns false iff we couldnt set some node, in that case, use the old parameters again to resample
+    def set_parameters(self, model, parameters, index):
+        for i in range(len(model)):
+            model[i].set_parameters(parameters[index:model[i].dimension])
+            index+=model[i].dimension
+            for parent in model[i].parents:
+                if(isinstance(parent, ProbabilisticModel) and not(parent.visited)):
+                    if(not(self.set_parameters([parent], parameters, index))):
+                        return False
+                    parent.visited = True
+            model[i].visited = True
+        return True
 
 
 
@@ -116,7 +150,7 @@ class BasePMC(InferenceMethod, metaclass = ABCMeta):
     @abstractmethod
     def _update_broadcasts(self, accepted_parameters, accepted_weights, accepted_cov_mat):
         """
-        To be overwritten by any sub-class: broadcasts updated values
+        To be overwritten by any sub-class: broadcasts visited values
 
         Parameters
         ----------
@@ -225,7 +259,7 @@ class BaseAdaptivePopulationMC(InferenceMethod, metaclass = ABCMeta):
     @abstractmethod
     def _update_broadcasts(self):
         """
-        To be overwritten by any sub-class: broadcasts updated values
+        To be overwritten by any sub-class: broadcasts visited values
 
         Parameters
         ----------
@@ -351,7 +385,7 @@ class RejectionABC(InferenceMethod):
         rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
         rng_pds = self.backend.parallelize(rng_arr)
 
-        accepted_parameters_pds = self.backend.map(self._sample_parameter, rng_arr)
+        accepted_parameters_pds = self.backend.map(self._sample_parameter, rng_pds)
         accepted_parameters = self.backend.collect(accepted_parameters_pds)
         accepted_parameters = np.array(accepted_parameters)
 
@@ -359,7 +393,7 @@ class RejectionABC(InferenceMethod):
         journal.add_weights(np.ones((n_samples, 1)))
 
         return journal
-#NOTE returns model.get_parameters -> do we want to receive ALL parameters, or just the ones just above it, because all would make sense
+
     def _sample_parameter(self, rng):
         """
         Samples a single model parameter and simulates from it until
@@ -375,16 +409,18 @@ class RejectionABC(InferenceMethod):
         np.array
             accepted parameter
         """
-
         distance = self.distance.dist_max()
 
         while distance > self.epsilon:
             # Accept new parameter value if the distance is less than epsilon
-            self.model.sample_from_prior()
-            y_sim = self.model.sample_from_distribution(self.n_samples_per_param, rng=rng)
+            super(RejectionABC, self).sample_from_prior(self.model)
+            super(RejectionABC, self)._reset_flags(self.model)
+            #TODO WHAT SHOULD HAPPEN IF WE HAVE MORE THAN ONE MODEL
+            #NOTE this gives reasonable values for the y_sim. However, the distances are very large, possibly because of the algorithm used, not sure
+            y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param, rng=rng).tolist()
             distance = self.distance.distance(self.observations_bds.value(), y_sim)
-
-        return self.model.get_parameters()
+            #print(distance)
+        return super(RejectionABC, self).get_parameters(self.model)
 
 class PMCABC(BasePMC, InferenceMethod):
     """
@@ -590,36 +626,33 @@ class PMCABC(BasePMC, InferenceMethod):
         np.array
             accepted parameter
         """
-        rng.seed(rng.randint(np.iinfo(np.uint32).ax, dtype=np.uint32))
-        #NOTE WE RESEEDED THE PRIOR HERE -> GIVE RNG TO SAMPLE_FROM_PRIOR?
-        #TODO WHAT DO WE DO WITH KERNEL RESEEDS
-        self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        self.kernel.rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
         distance = self.distance.dist_max()
         while distance > self.epsilon:
             # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
             if self.accepted_parameters_bds == None:
-                self.model.sample_from_prior()
+                super(PMCABC, self).sample_from_prior(self.model, rng=rng)
+                super(PMCABC, self)._reset_flags(self.model)
+                theta = super(PMCABC, self).get_parameters(self.model)
+                super(PMCABC, self)._reset_flags(self.model)
             else:
                 index = rng.choice(self.n_samples, size=1, p=self.accepted_weights_bds.value().reshape(-1))
                 theta = self.accepted_parameters_bds.value()[index[0]]
                 # truncate the normal to the bounds of parameter space of the model
                 # truncating the normal like this is fine: https://arxiv.org/pdf/0907.4010v1.pdf
-
-
-                #TODO we define the kernel either as 1 distribution, or multiple (check whether it makes difference when indep! If 1, we first gather all parameters, set it, sample, send all. If multiple/indep -> send individual kernels and sample at the node
                 while True:
-                    self.kernel.set_parameters([theta, self.accepted_cov_mat_bds.value()])
-                    new_theta = self.kernel.sample(1)[0, :]
-                    theta_is_accepted = self.model.set_parameters(new_theta)
-                    if theta_is_accepted and self.model.prior.pdf(self.model.get_parameters()) != 0:
+                    new_theta = self.kernel.perturb(theta, self.accepted_cov_mat_bds.value())
+                    theta_is_accepted = super(PMCABC, self).set_parameters(self.model, new_theta, 0)
+                    self._reset_flags(self.model)
+                    if theta_is_accepted and super(PMCABC, self).pdf_of_prior(self.model, new_theta, 0)[0][0] != 0:
                         break
-
-            y_sim = self.model.sample(self.n_samples_per_param)
+            #TODO WHAT IF MORE THAN 1 MODEL
+            y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param).tolist()
 
             distance = self.distance.distance(self.observations_bds.value(), y_sim)
-
-        return (self.model.get_parameters(), distance)
+        return (theta, distance)
 
     def _calculate_weight(self, theta):
         """
@@ -640,16 +673,15 @@ class PMCABC(BasePMC, InferenceMethod):
         if self.accepted_weights_bds is None:
             return 1.0 / self.n_samples
         else:
-            prior_prob = self.model.prior.pdf(theta)
+            prior_prob = self.pdf_of_prior(self.model, theta, 0)[0][0] #first [0] because it returns a list, second [0] because if we have multiple models
 
             denominator = 0.0
             for i in range(0, self.n_samples):
-                self.kernel.set_parameters(
-                    [self.accepted_parameters_bds.value()[i, :], self.accepted_cov_mat_bds.value()])
-                pdf_value = self.kernel.pdf(theta)
+                pdf_value = self.kernel.pdf(self.accepted_parameters_bds.value()[i,:], self.accepted_cov_mat_bds.value(), theta)
                 denominator += self.accepted_weights_bds.value()[i, 0] * pdf_value
-
             return 1.0 * prior_prob / denominator
+
+
 
 class PMC(BasePMC, InferenceMethod):
     """
@@ -757,15 +789,18 @@ class PMC(BasePMC, InferenceMethod):
         accepted_cov_mat = None
         new_theta = None
 
-        dim = len(self.model.get_parameters())
+        dim = len(super(PMC, self).get_parameters())
+        super(PMC, self)._reset_flags()
 
         # Initialize particles: When not supplied, randomly draw them from prior distribution
         # Weights of particles: Assign equal weights for each of the particles
         if iniPoints == None:
             accepted_parameters = np.zeros(shape=(n_samples, dim))
             for ind in range(0, n_samples):
-                self.model.sample_from_prior()
-                accepted_parameters[ind, :] = self.model.get_parameters()
+                super(PMC, self).sample_from_prior(self.model, self.rng)
+                super(PMC, self)._reset_flags()
+                accepted_parameters[ind, :] = super(PMC, self).get_parameters()
+                super(PMC, self)._reset_flags()
             accepted_weights = np.ones((n_samples, 1), dtype=np.float) / n_samples
         else:
             accepted_parameters = iniPoints
@@ -795,9 +830,10 @@ class PMC(BasePMC, InferenceMethod):
             for ind in range(0, self.n_samples):
                 self.kernel.set_parameters([accepted_parameters[index[ind], :], accepted_cov_mat])
                 while True:
-                    new_theta = self.kernel.sample(1)[0, :]
-                    theta_is_accepted = self.model.set_parameters(new_theta)
-                    if theta_is_accepted and self.model.prior.pdf(self.model.get_parameters()) != 0:
+                    new_theta = self.kernel.perturb([accepted_parameters[index[ind],:],accepted_cov_mat])
+                    theta_is_accepted = super(PMC, self).set_parameters(self.model, new_theta, 0)
+                    super(PMC, self)._reset_flags()
+                    if theta_is_accepted and super(PMC, self).pdf_of_prior(self.model, new_theta, 0)[0][0] != 0:
                         new_parameters[ind, :] = new_theta
                         break
 
@@ -868,11 +904,14 @@ class PMC(BasePMC, InferenceMethod):
         """
 
         # Assign theta to model
-        self.model.set_parameters(theta)
+        super(PMC, self).set_parameters(self.model, theta, 0)
+        super(PMC, self)._reset_flags()
 
         # Simulate the fake data from the model given the parameter value theta
         # print("DEBUG: Simulate model for parameter " + str(theta))
-        y_sim = self.model.sample(self.n_samples_per_param)
+
+        #TODO MULTIPLE MODELS
+        y_sim = self.model[0].sample(self.n_samples_per_param)
 
         # print("DEBUG: Extracting observation.")
         obs = self.observations_bds.value()
@@ -881,7 +920,7 @@ class PMC(BasePMC, InferenceMethod):
         lhd = self.likfun.likelihood(obs, y_sim)
 
         # print("DEBUG: Likelihood is :" + str(lhd))
-        pdf_at_theta = self.model.prior.pdf(theta)
+        pdf_at_theta = super(PMC, self).pdf_of_prior(self.model, theta, 0)[0][0]
 
         # print("DEBUG: prior pdf evaluated at theta is :" + str(pdf_at_theta))
         return pdf_at_theta * lhd
@@ -905,17 +944,17 @@ class PMC(BasePMC, InferenceMethod):
         if self.accepted_weights_bds is None:
             return 1.0 / self.n_samples
         else:
-            prior_prob = self.model.prior.pdf(theta)
+            #TODO MULTIPLE MODELS
+            prior_prob = super(PMC, self).pdf_of_prior(self.model, theta, 0)[0][0]
 
             denominator = 0.0
             for i in range(0, self.n_samples):
-                self.kernel.set_parameters(
-                    [self.accepted_parameters_bds.value()[i, :], self.accepted_cov_mat_bds.value()])
-                pdf_value = self.kernel.pdf(theta)
+                pdf_value = self.kernel.pdf(self.accepted_parameters_bds.value()[i,:], self.accepted_cov_mat_bds.value(), theta)
                 denominator += self.accepted_weights_bds.value()[i, 0] * pdf_value
 
             return 1.0 * prior_prob / denominator
 
+#TODO PMC NOT YET TESTED, SABC NOT IMPLEMENTED
 class SABC(BaseAnnealing, InferenceMethod):
     """
     This base class implements a modified version of Simulated Annealing Approximate Bayesian Computation (SABC) of [1] when the prior is non-informative.

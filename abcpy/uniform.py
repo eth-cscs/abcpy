@@ -80,7 +80,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
         return True
 
 
-    @abstractmethod
     def get_parameters(self):
         """
         Returns the current values of the free parameters of the probabilistic model.
@@ -265,30 +264,6 @@ class Uniform(ProbabilisticModel, Continuous):
                     return False
             return True
         return False
-
-    def set_parameters(self, parameters, rng=np.random.RandomState()):
-        joint_parameters = []
-        for i in range(len(parameters)):
-            for j in range(len(parameters[i])):
-                joint_parameters.append(parameters[i][j])
-        return (super(Uniform, self).set_parameters(joint_parameters, rng=rng))
-
-    def get_parameters(self):
-        parameters = [[], []]
-        index = 0
-        i = 0
-        while (i < len(self.parents)):
-            j = 0
-            while (j < self.num_parameters() / 2):
-                if (isinstance(self.parents[i], ProbabilisticModel)):
-                    for t in range(self.parents[i].dimension):
-                        parameters[index].append(self.parameter_values[j])
-                        j += 1
-                else:
-                    j += 1
-                i += 1
-            index += 1
-        return parameters
 
     def pdf(self, x):
         lower_bound = self.parameter_values[:self.dimension]

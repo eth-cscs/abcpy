@@ -182,7 +182,7 @@ class PenLogReg(Distance):
     
 
 class LogReg(Distance):
-    """This class implements a distance mesure based on the classification
+    """This class implements a distance measure based on the classification
     accuracy [1]. The classification accuracy is calculated between two dataset d1 and d2 using 
     logistics regression and return it as a distance. The maximum value of the distance is 1.0.
 
@@ -198,7 +198,7 @@ class LogReg(Distance):
         s1 = self.statistics_calc.statistics(d1)
         s2 = self.statistics_calc.statistics(d2)
         
-        # compute distnace between the statistics
+        # compute distance between the statistics
         training_set_features = np.concatenate((s1, s2), axis=0)
         label_s1 = np.zeros(shape=(len(s1), 1))
         label_s2 = np.ones(shape=(len(s2), 1))
@@ -209,7 +209,6 @@ class LogReg(Distance):
         log_reg_model.fit(training_set_features, training_set_labels)
         score = log_reg_model.score(training_set_features, training_set_labels)
         distance = 2.0 * (score - 0.5)
-        
         return distance
 
     def dist_max(self):

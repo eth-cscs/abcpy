@@ -1,7 +1,7 @@
 from ProbabilisticModel import ProbabilisticModel, Discrete
 
 import numpy as np
-from scipy.misc import comb
+from scipy.special import comb
 
 #NOTE tested using scipy.stats.binom, all functions give correct values
 class Binomial(Discrete, ProbabilisticModel):
@@ -25,9 +25,6 @@ class Binomial(Discrete, ProbabilisticModel):
             self.parameter_values[0] = int(self.parameter_values[0])
             return True
         return False
-
-    def get_parameters(self):
-        return super(Binomial, self).get_parameters()
 
     def _check_parameters(self, parameters):
         if(not(isinstance(parameters, list))):

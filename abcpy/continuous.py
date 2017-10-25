@@ -43,9 +43,6 @@ class Normal(ProbabilisticModel, Continuous):
             return True
         return False
 
-    def get_parameters(self):
-        return super(Normal, self).get_parameters()
-
     def pdf(self, x):
         mu = self.parameter_values[0]
         sigma = self.parameter_values[1]
@@ -97,9 +94,6 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
             return False
         return True
 
-    def get_parameters(self):
-        return super(MultivariateNormal, self).get_parameters()
-
     def pdf(self, x):
         mean= self.parameter_values[:len(self.parameter_values)-1]
         cov = self.parameter_values[len(self.parameter_values)-1]
@@ -141,9 +135,6 @@ class MixtureNormal(ProbabilisticModel, Continuous):
 
     def _check_parameters_fixed(self, parameters):
         return True
-
-    def get_parameters(self):
-        return super(MixtureNormal, self).get_parameters()
 
     def pdf(self, x):
         mean= self.parameter_values[:len(self.parameter_values)-1]
@@ -190,9 +181,6 @@ class StudentT(ProbabilisticModel, Continuous):
                 return False
             return True
         return False
-
-    def get_parameters(self):
-        return super(StudentT, self).get_parameters()
 
     def pdf(self, x):
         df = self.parameter_values[1]
@@ -252,9 +240,6 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         if(length==len(parameters)):
             return True
         return False
-
-    def get_parameters(self):
-        return super(MultiStudentT, self).get_parameters()
 
     def pdf(self, x):
         mean = self.parameter_values[:len(self.parameter_values)-2]
@@ -357,30 +342,6 @@ class Uniform(ProbabilisticModel, Continuous):
             return True
         return False
 
-    def set_parameters(self, parameters, rng=np.random.RandomState()):
-        joint_parameters = []
-        for i in range(len(parameters)):
-            for j in range(len(parameters[i])):
-                joint_parameters.append(parameters[i][j])
-        return(super(Uniform, self).set_parameters(joint_parameters, rng=rng))
-
-
-    def get_parameters(self):
-        parameters = [[],[]]
-        index=0
-        i=0
-        while(i<len(self.parents)):
-            j=0
-            while(j<self.num_parameters()/2):
-                if(isinstance(self.parents[i], ProbabilisticModel)):
-                    for t in range(self.parents[i].dimension):
-                        parameters[index].append(self.parameter_values[j])
-                        j+=1
-                else:
-                    j+=1
-                i+=1
-            index+=1
-        return parameters
 
 
     def pdf(self, x):
@@ -551,9 +512,6 @@ class StochLorenz95(ProbabilisticModel, Continuous):
     def _check_parameters_fixed(self, parameters):
         return True
 
-    def get_parameters(self):
-        return super(StochLorenz95, self).get_parameters()
-
     def pdf(self, x):
         raise NotImplementedError
 
@@ -605,9 +563,6 @@ class Ricker(ProbabilisticModel, Continuous):
 
     def _check_parameters_fixed(self, parameters):
         return True
-
-    def get_parameters(self):
-        return super(Ricker, self).get_parameters()
 
     def pdf(self, x):
         raise NotImplementedError
