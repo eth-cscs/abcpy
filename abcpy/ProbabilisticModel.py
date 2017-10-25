@@ -80,7 +80,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
         return True
 
 
-    @abstractmethod
     def get_parameters(self):
         """
         Returns the current values of the free parameters of the probabilistic model.
@@ -177,3 +176,100 @@ class Discrete(metaclass = ABCMeta):
             The location at which the probability mass function should be evaluated.
         """
         raise NotImplementedError
+
+
+class Uniform(ProbabilisticModel, Continuous):
+    """
+    This class implements a probabilistic model following a uniform distribution.
+
+    Parameters
+    ----------
+    parameters: list
+        Contains two lists. The first list specifies the probabilistic models and hyperparameters from which the lower         bound of the uniform distribution derive. The second list specifies the probabilistic models and hyperparameters        from which the upper bound derives.
+    """
+
+    def __init__(self, parameters):
+        self._check_user_input(parameters)
+        self._num_parameters = 0
+        self.length = [0,
+                       0]  # this is needed to check that lower and upper are of same length, just because the total length is even does not guarantee that
+        joint_parameters = []
+        for i in range(2):
+            for j in range(len(parameters[i])):
+                joint_parameters.append(parameters[i][j])
+                if (isinstance(parameters[i][j], ProbabilisticModel)):
+                    self.length[i] += parameters[i][j].dimension
+                else:
+                    self.length[i] += 1
+        self._num_parameters = self.length[0] + self.length[1]
+        self.dimension = int(self._num_parameters / 2)
+        super(Uniform, self).__init__(joint_parameters)
+        self.visited = False
+
+        # Parameter specifying the dimension of the return values of the distribution.
+
+    def num_parameters(self):
+        return self._num_parameters
+
+    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+        samples = np.zeros(shape=(k, self.dimension))  # this means: len columns, and each has k entries
+        for j in range(0, self.dimension):
+            samples[:, j] = rng.uniform(self.parameter_values[j], self.parameter_values[j + self.dimension], k)
+        return samples
+
+    def _check_user_input(self, parameters):
+        if (not (isinstance(parameters, list))):
+            raise TypeError('Input for Uniform has to be of type list.')
+        if (len(parameters) < 2):
+            raise IndexError('Input to Uniform has to be at least of length 2.')
+        if (not (isinstance(parameters[0], list))):
+            raise TypeError('Each boundary for Uniform ahs to be of type list.')
+        if (not (isinstance(parameters[1], list))):
+            raise TypeError('Each boundary for Uniform ahs to be of type list.')
+
+    def _check_parameters(self, parameters):
+        if (self.num_parameters() % 2 == 1):
+            raise IndexError('Length of upper and lower bound have to be equal.')
+        if (self.length[0] != self.length[1]):
+            raise IndexError('Length of upper and lower bound have to be equal.')
+        for i in range(self.dimension):
+            if (parameters[i] > parameters[i + self.dimension]):
+                return False
+        return True
+
+    def _check_parameters_fixed(self, parameters):
+        i = 0
+        index = 0
+        index_paramter_values = 0
+        bounds = [[], []]
+        length_free = 0
+        for j in range(2):
+            length = 0
+            while (length < self.length[j]):
+                if (isinstance(self.parents[i], ProbabilisticModel)):
+                    length += self.parents[i].dimension
+                    for t in range(self.parents[i].dimension):
+                        bounds[j].append(parameters[index])
+                        index += 1
+                        index_paramter_values += 1
+                        length_free += 1
+                else:
+                    length += 1
+                    bounds[j].append(self.parameter_values[index_paramter_values])
+                    index_paramter_values += 1
+                i += 1
+        if (length_free == len(parameters)):
+            for j in range(len(bounds[0])):
+                if (bounds[0][j] > bounds[1][j]):
+                    return False
+            return True
+        return False
+
+    def pdf(self, x):
+        lower_bound = self.parameter_values[:self.dimension]
+        upper_bound = self.parameter_values[self.dimension:]
+        if (np.product(np.greater_equal(x, np.array(lower_bound)) * np.less_equal(x, np.array(upper_bound)))):
+            pdf_value = 1. / np.product(np.array(upper_bound) - np.array(lower_bound))
+        else:
+            pdf_value = 0.
+        return pdf_value

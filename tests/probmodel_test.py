@@ -319,8 +319,8 @@ class UniformTests(unittest.TestCase):
         self.assertEqual(samples_graph_shape, (1000, 2))
 
     def test_fix_parameters(self):
-        self.Uniform_1.set_parameters([[-1.5,-1.5],[]], rng=self.rng)
-        self.assertTrue(self.Uniform_1.get_parameters()==[[-1.5,-1.5],[]])
+        self.Uniform_1.set_parameters([-1.5,-1.5], rng=self.rng)
+        self.assertTrue(self.Uniform_1.get_parameters()==[-1.5,-1.5])
         old_parameter = deepcopy(self.Uniform_1.parameter_values)
         self.Uniform_1.sample_parameters(rng=self.rng)
         self.assertTrue(old_parameter!=self.Uniform_1.parameter_values)
@@ -338,9 +338,9 @@ class UniformTests(unittest.TestCase):
     def test_check_parameters_fixed(self):
         N = Normal([1,0.5])
         U = Uniform([[N,1],[2,2]])
-        self.assertFalse(U.set_parameters([[1,2],[]]))
-        self.assertFalse(U.set_parameters([[1],[3,3]]))
-        self.assertFalse(U.set_parameters([[5],[]]))
+        self.assertFalse(U.set_parameters([1,2]))
+        self.assertFalse(U.set_parameters([1,3,3]))
+        self.assertFalse(U.set_parameters([5]))
 
     def test_pdf(self):
         U = Uniform([[0.],[10.]])
