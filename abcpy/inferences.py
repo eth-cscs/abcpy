@@ -5,11 +5,9 @@ import numpy as np
 from abcpy.output import Journal
 from scipy import optimize
 
-
-
-
 #TODO check whether if we set a seed as well as an rng for the distributions, what happens.
 
+#TODO check whether something like for j in range(self.parent.dimension) is done, since this will be wrong for hyperparameters
 class InferenceMethod(metaclass = ABCMeta):
     """
         This abstract base class represents an inference method.
@@ -25,55 +23,114 @@ class InferenceMethod(metaclass = ABCMeta):
         return state
 
 
-    def sample_from_prior(self, model, rng=np.random.RandomState()):
-        for i in range(len(model)):
-            for parent in model[i].parents:
-                if(isinstance(parent, ProbabilisticModel) and not(parent.visited)):
-                    self.sample_from_prior([parent], rng=rng)
-            model[i].sample_parameters(rng=rng)
+    def sample_from_prior(self, models, rng=np.random.RandomState()):
+        """
+        Samples values for the parameters of the specified model as well as all its parents.
+        Commonly used to sample new parameter values on the whole graph.
 
-    def _reset_flags(self, model):
-        for i in range(len(model)):
-            for parent in model[i].parents:
-                if(isinstance(parent, ProbabilisticModel) and parent.visited):
+        Parameters
+        ----------
+        models: list of probabilistic models
+            Defines the models for which, together with their parents, new parameters will be sampled
+        rng: Random number generator to be used
+            Defines the random number generator to be used
+        """
+
+        #all the parents of each model recursively sample new parameter values.
+        for model in models:
+            for parent in model.parents:
+                if(not(parent.visited)):
+                    self.sample_from_prior([parent], rng=rng)
+            #each model itself samples new parameters
+            model.sample_parameters(rng=rng)
+
+    def _reset_flags(self, models):
+        """
+        Resets all flags that say that a probabilistic model has been updated.
+        Commonly used after actions on the whole graph, to ensure that new actions can take place.
+
+        Parameters
+        ----------
+        models: list of probabilistic models
+            The models for which, together with their parents, the flags should be reset.
+        """
+
+        #for each model, the flags of the parents get reset recursively.
+        for model in models:
+            for parent in model.parents:
+                if(parent.visited):
                     self._reset_flags([parent])
-            model[i].visited = False
+            model.visited = False
 
 
     #NOTE not tested yet, not sure whether this works.
     #TODO CHECK WHETHER THIS COVERS ALL 3 DIFFERENT CASES
-    def pdf_of_prior(self, model, parameters, index):
-        result = [1.]*len(model)
-        for i in range(len(model)):
-            #NOTE this might give out of range -> need another way to check whether it is bottom or not (for example flag passed to function)
-            if(not(model[i]==self.model[i])):
+    def pdf_of_prior(self, models, parameters, index, is_root=True):
+        """
+        Calculates the joint probability density function of the prior of the specified models at the given parameter values.
+        Commonly used to check whether new parameters are valid given the prior, as well as to calculate acceptance probabilities.
+
+        Parameters
+        ----------
+        models: list of probabilistic models
+            Defines the models for which the pdf of their prior should be evaluated
+        parameters: python list
+            The parameters at which the pdf should be evaluated
+        index: integer
+            The current index to be considered within the parameters list
+        is_root: boolean
+            A flag specifying whether the provided models are the root models. This is to ensure that the pdf is calculated correctly.
+
+        Returns:
+        list
+            The resulting pdf, as well as the next index to be considered in the parameters list.
+        """
+        result = [1.]*len(models)
+        for i, model in enumerate(models):
+            #if the model is not a root model, the pdf of this model, given the prior, should be calculated
+            if(not(is_root)):
                 helper = []
-                for j in range(model[i].dimension):
+                for j in range(model.dimension):
                     helper.append(parameters[index])
                     index+=1
                 if(len(helper)==1):
                     helper = helper[0]
                 else:
                     helper = np.array(helper)
-                result[i]*=model[i].pdf(helper)
-            for parent in model[i].parents:
-                if(isinstance(parent, ProbabilisticModel)):
-                    pdf = self.pdf_of_prior([parent], parameters, index)
-                    result[i]*=pdf[0][0]
-                    index=pdf[1]
+                result[i]*=model.pdf(helper)
+            #for each parent, the pdf of this parent has to be calculated as well.
+            for parent in model.parents:
+                pdf = self.pdf_of_prior([parent], parameters, index, is_root=False)
+                result[i]*=pdf[0][0]
+                index=pdf[1]
         return [result, index]
 
-    def get_parameters(self, model):
+    #NOTE this currently gives back both discrete and continuous, but kernel will only work on continuous
+    def get_parameters(self, models):
+        """
+        Returns the current values of all free parameters in the model.
+        Commonly used before perturbing the parameters of the model.
+
+        Parameters
+        ----------
+        models: list of probabilistic models
+            The models for which, together with their parents, the parameter values should be returned
+
+        Returns
+        -------
+        list
+            A list of the values of all free parameters.
+        """
         parameters = []
-        for i in range(len(model)):
-            for parameter in model[i].get_parameters():
+        for model in models:
+            for parameter in model.get_parameters():
                 if(isinstance(parameter, list)):
                     for param in parameter:
                         parameters.append(param)
                 else:
                     parameters.append(parameter)
-            for parent in model[i].parents:
-                if(isinstance(parent, ProbabilisticModel) and not(parent.visited)):
+            for parent in model.parents:
+                if(not(parent.visited)):
                     parent_parameters = self.get_parameters([parent])
                     for parameter in parent_parameters:
                         if(isinstance(parameter, list)):
@@ -81,21 +138,42 @@ class InferenceMethod(metaclass = ABCMeta):
                                 parameters.append(param)
                         else:
                             parameters.append(parameter)
+                    #the parent nodes are marked as visited to avoid duplicated values
                     parent.visited=True
-            model[i].visited = True
+            model.visited = True
         return parameters
 
     #NOTE returns false iff we couldnt set some node, in that case, use the old parameters again to resample
-    def set_parameters(self, model, parameters, index):
-        for i in range(len(model)):
-            model[i].set_parameters(parameters[index:model[i].dimension])
-            index+=model[i].dimension
-            for parent in model[i].parents:
-                if(isinstance(parent, ProbabilisticModel) and not(parent.visited)):
+    def set_parameters(self, models, parameters, index):
+        """
+        Sets the parameter values of the model, as well as of its parents, to the specified values.
+        Commonly used after perturbing the parameter values using a kernel.
+
+        Parameters
+        ----------
+        model: list of probabilistic models
+             Defines all models for which, together with their parents, new values should be set
+        parameters: list
+            Defines the values to which the respective parameter values of the models should be set
+        index: integer
+            The current index to be considered in the parameters list
+
+        Returns
+        -------
+        boolean
+            Returns True iff it was possible to set the values for all models as well as their parents.
+        """
+        for model in models:
+            if(not(model.set_parameters(parameters[index:model.number_of_free_parameters()]))):
+                return False
+            index+=model.dimension
+            for parent in model.parents:
+                if(not(parent.visited)):
                     if(not(self.set_parameters([parent], parameters, index))):
                         return False
+                    #marks set nodes as visited since values within the parameters list are not duplicated
                     parent.visited = True
-            model[i].visited = True
+            model.visited = True
         return True
 
 
@@ -536,6 +614,7 @@ class PMCABC(BasePMC, InferenceMethod):
         # main PMCABC algorithm
         # print("INFO: Starting PMCABC iterations.")
         for aStep in range(0, steps):
+            print(aStep)
             # print("DEBUG: Iteration " + str(aStep) + " of PMCABC algorithm.")
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
             rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
@@ -785,8 +864,8 @@ class PMC(BasePMC, InferenceMethod):
         accepted_cov_mat = None
         new_theta = None
 
-        dim = len(super(PMC, self).get_parameters())
-        super(PMC, self)._reset_flags()
+        dim = len(super(PMC, self).get_parameters(self.model))
+        super(PMC, self)._reset_flags(self.model)
 
         # Initialize particles: When not supplied, randomly draw them from prior distribution
         # Weights of particles: Assign equal weights for each of the particles
@@ -794,9 +873,9 @@ class PMC(BasePMC, InferenceMethod):
             accepted_parameters = np.zeros(shape=(n_samples, dim))
             for ind in range(0, n_samples):
                 super(PMC, self).sample_from_prior(self.model, self.rng)
-                super(PMC, self)._reset_flags()
+                super(PMC, self)._reset_flags(self.model)
                 accepted_parameters[ind, :] = super(PMC, self).get_parameters()
-                super(PMC, self)._reset_flags()
+                super(PMC, self)._reset_flags(self.model)
             accepted_weights = np.ones((n_samples, 1), dtype=np.float) / n_samples
         else:
             accepted_parameters = iniPoints
@@ -828,7 +907,7 @@ class PMC(BasePMC, InferenceMethod):
                 while True:
                     new_theta = self.kernel.perturb([accepted_parameters[index[ind],:],accepted_cov_mat])
                     theta_is_accepted = super(PMC, self).set_parameters(self.model, new_theta, 0)
-                    super(PMC, self)._reset_flags()
+                    super(PMC, self)._reset_flags(self.model)
                     if theta_is_accepted and super(PMC, self).pdf_of_prior(self.model, new_theta, 0)[0][0] != 0:
                         new_parameters[ind, :] = new_theta
                         break
@@ -901,7 +980,7 @@ class PMC(BasePMC, InferenceMethod):
 
         # Assign theta to model
         super(PMC, self).set_parameters(self.model, theta, 0)
-        super(PMC, self)._reset_flags()
+        super(PMC, self)._reset_flags(self.model)
 
         # Simulate the fake data from the model given the parameter value theta
         # print("DEBUG: Simulate model for parameter " + str(theta))

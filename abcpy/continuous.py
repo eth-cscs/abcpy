@@ -1,4 +1,4 @@
-from ProbabilisticModel import ProbabilisticModel, Continuous
+from ProbabilisticModel import ProbabilisticModel, Continuous, Hyperparameter
 import numpy as np
 
 from scipy.stats import multivariate_normal, norm
@@ -26,6 +26,9 @@ class Normal(ProbabilisticModel, Continuous):
         return np.array(rng.normal(mu, sigma, k).reshape(-1))
 
     def _check_parameters(self, parameters):
+        """
+        Checks parameter values sampled from the parents of the normal distribution. Returns False iff the variance is smaller than 0.
+        """
         if(not(isinstance(parameters, list))):
             raise TypeError('Input for Normal has to be of type list.')
         if(parameters[1]<=0):
@@ -33,11 +36,10 @@ class Normal(ProbabilisticModel, Continuous):
         return True
 
     def _check_parameters_fixed(self, parameters):
-        length=0
-        for parent in self.parents:
-            if(isinstance(parent, ProbabilisticModel)):
-                length+=parent.dimension
-        if(length==len(parameters)):
+        """
+        Checks parameter values that are given as fixed values. returns False iff the variance would be set to 0 or the length of the input and free parameters do not agree.
+        """
+        if(super(Normal, self).number_of_free_parameters()==len(parameters)):
             if(len(parameters)==2 and parameters[1]<=0):
                 return False
             return True
@@ -69,6 +71,9 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         return rng.multivariate_normal(mean, cov, k)
 
     def _check_parameters(self, parameters):
+        """
+        Checks parameter values sampled from the parents. Returns False iff the covariance matrix is not symmetric or not positive definite.
+        """
         if(not(isinstance(parameters, list))):
             raise TypeError('Input for MultivariateNormal has to be of type list.')
         if(len(parameters)<2):
@@ -77,8 +82,10 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         cov = np.array(parameters[len(parameters)-1])
         if(length!=len(cov[0])):
             raise IndexError('Length of mean and covariance matrix have to match.')
+        #check whether the covariance matrix is symmetric
         if(not(np.allclose(cov, cov.T, atol=1e-3))):
             return False
+        #check whether the covariance matrix is positive definite
         try:
             is_pos = np.linalg.cholesky(cov)
         except np.linalg.LinAlgError:
@@ -86,11 +93,10 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         return True
 
     def _check_parameters_fixed(self, parameters):
-        length=0
-        for parent in self.parents:
-            if(isinstance(parent, ProbabilisticModel)):
-                length+=parent.dimension
-        if(len(parameters)!=length):
+        """
+        Checks parameter values that are given as fixed values. Returns False iff the number of parameters given and the number of free parameters are not equal.
+        """
+        if(len(parameters)!=super(MultivariateNormal, self).number_of_free_parameters()):
             return False
         return True
 
@@ -163,6 +169,9 @@ class StudentT(ProbabilisticModel, Continuous):
         return np.array((rng.standard_t(df,k)+mean).reshape(-1))
 
     def _check_parameters(self, parameters):
+        """
+        Checks parameter values sampled from the parents of the probabilistic model. Returns False iff the degrees of freedom are smaller than or equal to 0.
+        """
         if(not(isinstance(parameters, list))):
             raise TypeError('Input to StudentT has to be of type list.')
         if(len(parameters)>2):
@@ -172,11 +181,7 @@ class StudentT(ProbabilisticModel, Continuous):
         return True
 
     def _check_parameters_fixed(self, parameters):
-        length=0
-        for parent in self.parents:
-            if(isinstance(parent, ProbabilisticModel)):
-                length+=parent.dimension
-        if(length==len(parameters)):
+        if(super(MixtureNormal, self).number_of_free_parameters()==len(parameters)):
             if(len(parameters)==2 and parameters[1]<=0):
                 return False
             return True
@@ -217,15 +222,21 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         return result
 
     def _check_parameters(self, parameters):
+        """
+        Checks parameter values sampled from the parents of the probabilistic model. Returns False iff the degrees of freedom are less than or equal to 0, the covariance matrix is not symmetric or the covariance matrix is not positive definite.
+        """
         length = len(parameters)-2
         cov = np.array(parameters[len(parameters)-2])
         if(not(length==len(cov[0]))):
             raise IndexError('Mean and covariance matrix have to be of same length.')
+        #check whether the degrees of freedom are <=0
         if(parameters[len(parameters)-1]<=0):
             return False
         cov = np.array(cov)
+        #check whether the covariance matrix is symmetric
         if(not(np.allclose(cov, cov.T, atol = 1e-3))):
             return False
+        #check whether the covariance matrix is positive definiet
         try:
             is_pos = np.linalg.cholesky(cov)
         except np.linalg.LinAlgError:
@@ -233,11 +244,7 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         return True
 
     def _check_parameters_fixed(self, parameters):
-        length = 0
-        for parent in self.parents:
-            if(isinstance(parent, ProbabilisticModel)):
-                length+=parent.dimension
-        if(length==len(parameters)):
+        if(self.number_of_free_parameters()==len(parameters)):
             return True
         return False
 
@@ -265,29 +272,32 @@ class Uniform(ProbabilisticModel, Continuous):
         Contains two lists. The first list specifies the probabilistic models and hyperparameters from which the lower         bound of the uniform distribution derive. The second list specifies the probabilistic models and hyperparameters        from which the upper bound derives.
     """
     def __init__(self, parameters):
+        #the user input is checked, since the input has to be rewritten internally before sending it to the constructor of the probabilistic model
         self._check_user_input(parameters)
+        #the total number of parameters is initialized
         self._num_parameters = 0
-        self.length = [0,0] #this is needed to check that lower and upper are of same length, just because the total length is even does not guarantee that
+        #stores the length of the parameter values of the lower and upper bound. This is needed to check that lower and upper are of same length, just because the total length is even does not guarantee that
+        self.length = [0,0]
         joint_parameters = []
+        #rewrite the user input to be useable by the constructor of probabilistic model and sets the length of upper and lower bound
         for i in range(2):
-            for j in range(len(parameters[i])):
-                joint_parameters.append(parameters[i][j])
-                if(isinstance(parameters[i][j], ProbabilisticModel)):
-                    self.length[i]+=parameters[i][j].dimension
-                else:
+            for parameter in parameters[i]:
+                joint_parameters.append(parameter)
+                self.length[i]+=1
+                for j in range(1,parameter.dimension):
                     self.length[i]+=1
         self._num_parameters=self.length[0]+self.length[1]
+        #Parameter specifying the dimension of the return values of the distribution.
         self.dimension = int(self._num_parameters/2)
         super(Uniform, self).__init__(joint_parameters)
         self.visited = False
-        
-        #Parameter specifying the dimension of the return values of the distribution.
+
 
     def num_parameters(self):
         return self._num_parameters
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
-        samples = np.zeros(shape=(k, self.dimension)) #this means: len columns, and each has k entries
+        samples = np.zeros(shape=(k, self.dimension))
         for j in range(0, self.dimension):
             samples[:, j] = rng.uniform(self.parameter_values[j], self.parameter_values[j+self.dimension], k)
         return samples
@@ -304,7 +314,10 @@ class Uniform(ProbabilisticModel, Continuous):
 
 
     def _check_parameters(self, parameters):
-        if(self.num_parameters()%2==1):
+        """
+        Checks parameter values sampled from the parents. Returns False iff a lower bound value is larger than a corresponding upper bound value
+        """
+        if(self.length[0]!=self.length[1]):
             raise IndexError('Length of upper and lower bound have to be equal.')
         if(self.length[0]!=self.length[1]):
             raise IndexError('Length of upper and lower bound have to be equal.')
@@ -313,29 +326,46 @@ class Uniform(ProbabilisticModel, Continuous):
                 return False
         return True
 
+    def number_of_free_parameters(self):
+        """
+        Returns the number of free parameters of the model.
+        """
+        length_free = 0
+        i=0
+        for j in range(2):
+            length=0
+            while(length<self.length[j]):
+                length+=1
+                for t in range(self.parents[i].dimension):
+                    if(t!=0):
+                        length+=1
+                    length_free+=1
+                i+=1
+        return length_free
+
 
     def _check_parameters_fixed(self, parameters):
+        """
+        Checks parameter values given as fixed values. Returns False iff a lower bound value is larger than a corresponding upper bound value.
+        """
         i=0
         index=0
         index_paramter_values=0
         bounds =[[],[]]
-        length_free = 0
         for j in range(2):
             length=0
             while(length<self.length[j]):
-                if(isinstance(self.parents[i], ProbabilisticModel)):
-                    length+=self.parents[i].dimension
-                    for t in range(self.parents[i].dimension):
-                        bounds[j].append(parameters[index])
-                        index+=1
-                        index_paramter_values+=1
-                        length_free+=1
-                else:
+                if(isinstance(self.parents[i], Hyperparameter)):
                     length+=1
                     bounds[j].append(self.parameter_values[index_paramter_values])
                     index_paramter_values+=1
+                for t in range(self.parents[i].dimension):
+                    bounds[j].append(parameters[index])
+                    index+=1
+                    index_paramter_values+=1
+                length+=self.parents[i].dimension
                 i+=1
-        if(length_free==len(parameters)):
+        if(self.number_of_free_parameters()==len(parameters)):
             for j in range(len(bounds[0])):
                 if(bounds[0][j]>bounds[1][j]):
                     return False
