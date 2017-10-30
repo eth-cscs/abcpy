@@ -1,12 +1,14 @@
 from abc import ABCMeta, abstractmethod
 import numpy as np
 
+
 #TODO both ricker and lorenz could support that you give some in a combined model, and some not, we should implement that, but not a priority
 
 #NOTE we could call self.parents self.prior?
 
 #NOTE do we maybe want to average over a couple of samples during initialization, rather than taking a single value? this is an issue for example for StudentT!
 
+#TODO in the constructor of probmodel: we go through all the parameters given: if they are not a prob model, we initialize them as a hyperparameter
 
 class ProbabilisticModel(metaclass = ABCMeta):
     """This abstract class represents all probabilistic models.
@@ -15,8 +17,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
         ----------
         parameters: list, each element can either be of type ProbabilisticModel or float
             Contains the probabilistic models and hyperparameters which define the parameters of the probabilistic model.
-        is_uniform: boolean
-            Set to true if the probabilistic model describes a uniform distribution.
 
     """
     def __init__(self, parameters):
@@ -92,14 +92,15 @@ class ProbabilisticModel(metaclass = ABCMeta):
         if (not (self._check_parameters_fixed(parameters))):
             return False
         index = 0
-        i = 0
+        current_parameter_index = 0
         #for each parent, the corresponding parameter_value entry is set to the new value
-        while (i < len(parameters)):
+        while (current_parameter_index < len(parameters)):
+            #NOTE WHY DO WE CARE WHETHER IT HAS BEEN VISITED FOR SETTING VALUES?
             while (self.parents[index].visited):
                 index += 1
             for j in range(self.parents[index].dimension):
-                self.parameter_values[index] = parameters[i]
-                i += 1
+                self.parameter_values[index] = parameters[current_parameter_index]
+                current_parameter_index += 1
                 index += 1
 
         #the probabilistic model gets marked as visited so that it does not get set multiple times while setting parameters on the whole graph
@@ -171,6 +172,16 @@ class ProbabilisticModel(metaclass = ABCMeta):
         raise NotImplementedError
 
     def pdf(self, x):
+        """
+        Calculates the probability density function at point x.
+        Commonly used to determine whether perturbed parameters are still valid according to the pdf.
+
+        Parameters
+        ----------
+        x: list
+            The point at which the pdf should be evaluated.
+        """
+        #if the probabilistic model is discrete, there is no probability density function, but a probability mass function. This check ensures that calling the pdf of such a model still works.
         if(isinstance(self, Discrete)):
             return self.pmf(x)
         else:
@@ -211,7 +222,7 @@ class Discrete(metaclass = ABCMeta):
 #NOTE the parameter_values will be a list, check everywhere whether it is okay to be used like that (for hyper not for in general)
 class Hyperparameter(ProbabilisticModel):
     """
-    This class represents all hyperparameters.
+    This class represents all hyperparameters (i.e. fixed parameters).
 
     Parameters
     ----------
@@ -219,6 +230,7 @@ class Hyperparameter(ProbabilisticModel):
         The values to which the hyperparameter should be set
     """
     def __init__(self, parameters):
+        #a hyperparameter is defined by the fact that it does not have any parents
         self.parents = []
         self.parameter_values = parameters
         self.visited = False

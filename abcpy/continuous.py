@@ -5,7 +5,6 @@ from scipy.stats import multivariate_normal, norm
 from scipy.special import gamma
 
 
-#NOTE super will call the constructor of Probabilistic model, as long as we do not specify a constructor for continuous/discrete
 class Normal(ProbabilisticModel, Continuous):
     """
     This class implements a probabilistic model following a normal distribution with mean mu and variance sigma.
@@ -21,13 +20,23 @@ class Normal(ProbabilisticModel, Continuous):
         self.dimension = 1
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
+        """
+        Samples from a normal distribution using the current values for each probabilistic model from which the model derives.
+
+        Parameters
+        ----------
+        k: integer
+            The number of samples that should be drawn.
+        rng: Random number generator
+            Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+        """
         mu = self.parameter_values[0]
         sigma = self.parameter_values[1]
         return np.array(rng.normal(mu, sigma, k).reshape(-1))
 
     def _check_parameters(self, parameters):
         """
-        Checks parameter values sampled from the parents of the normal distribution. Returns False iff the variance is smaller than 0.
+        Checks parameter values sampled from the parents of the normal distribution at initialization. Returns False iff the variance is smaller than 0.
         """
         if(not(isinstance(parameters, list))):
             raise TypeError('Input for Normal has to be of type list.')
@@ -37,7 +46,7 @@ class Normal(ProbabilisticModel, Continuous):
 
     def _check_parameters_fixed(self, parameters):
         """
-        Checks parameter values that are given as fixed values. returns False iff the variance would be set to 0 or the length of the input and free parameters do not agree.
+        Checks parameter values that are given as fixed values. Returns False iff the variance would be set to 0 or the length of the input and free parameters do not agree.
         """
         if(super(Normal, self).number_of_free_parameters()==len(parameters)):
             if(len(parameters)==2 and parameters[1]<=0):
@@ -46,6 +55,15 @@ class Normal(ProbabilisticModel, Continuous):
         return False
 
     def pdf(self, x):
+        """
+        Calculates the probability density function at point x.
+        Commonly used to determine whether perturbed parameters are still valid according to the pdf.
+
+        Parameters
+        ----------
+        x: list
+            The point at which the pdf should be evaluated.
+        """
         mu = self.parameter_values[0]
         sigma = self.parameter_values[1]
         return norm(mu,sigma).pdf(x)
@@ -66,13 +84,23 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         self.dimension = len(self.parameter_values)-1
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
+        """
+    Samples from a multivariate normal distribution using the current values for each probabilistic model from which the model derives.
+
+    Parameters
+    ----------
+    k: integer
+        The number of samples that should be drawn.
+    rng: Random number generator
+        Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+    """
         mean = self.parameter_values[:len(self.parameter_values)-1]
         cov = self.parameter_values[len(self.parameter_values)-1]
         return rng.multivariate_normal(mean, cov, k)
 
     def _check_parameters(self, parameters):
         """
-        Checks parameter values sampled from the parents. Returns False iff the covariance matrix is not symmetric or not positive definite.
+        Checks parameter values sampled from the parents at initialization. Returns False iff the covariance matrix is not symmetric or not positive definite.
         """
         if(not(isinstance(parameters, list))):
             raise TypeError('Input for MultivariateNormal has to be of type list.')
@@ -82,6 +110,7 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         cov = np.array(parameters[len(parameters)-1])
         if(length!=len(cov[0])):
             raise IndexError('Length of mean and covariance matrix have to match.')
+
         #check whether the covariance matrix is symmetric
         if(not(np.allclose(cov, cov.T, atol=1e-3))):
             return False
@@ -101,6 +130,15 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         return True
 
     def pdf(self, x):
+        """
+       Calculates the probability density function at point x.
+       Commonly used to determine whether perturbed parameters are still valid according to the pdf.
+
+       Parameters
+       ----------
+       x: list
+           The point at which the pdf should be evaluated.
+       """
         mean= self.parameter_values[:len(self.parameter_values)-1]
         cov = self.parameter_values[len(self.parameter_values)-1]
         return multivariate_normal(mean, cov).pdf(x)
@@ -121,6 +159,16 @@ class MixtureNormal(ProbabilisticModel, Continuous):
         self.dimension = len(self.parameter_values)
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
+        """
+        Samples from a multivariate normal distribution using the current values for each probabilistic model from which the model derives.
+
+        Parameters
+        ----------
+        k: integer
+            The number of samples that should be drawn.
+        rng: Random number generator
+            Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+            """
         mean = self.parameter_values
         # Generate k lists from mixture_normal
         Data_array = [None] * k
@@ -135,14 +183,30 @@ class MixtureNormal(ProbabilisticModel, Continuous):
         return np.array(Data_array)
 
     def _check_parameters(self, parameters):
+        """
+        Checks the values for the parameters sampled from the parents of the probabilistic model at initialization.
+        """
         if(not(isinstance(parameters, list))):
             raise TypeError('Input for MixtureNormal has to be of type list.')
         return True
 
     def _check_parameters_fixed(self, parameters):
+        """
+        Checks parameter values given as fixed values.
+        """
         return True
 
+    #TODO ASK RITO WHETHER THIS IS CORRECT
     def pdf(self, x):
+        """
+       Calculates the probability density function at point x.
+       Commonly used to determine whether perturbed parameters are still valid according to the pdf.
+
+       Parameters
+       ----------
+       x: list
+           The point at which the pdf should be evaluated.
+       """
         mean= self.parameter_values[:len(self.parameter_values)-1]
         cov_1 = np.identity(self.dimension)
         cov_2 = 0.01*cov_1
@@ -151,7 +215,7 @@ class MixtureNormal(ProbabilisticModel, Continuous):
 
 class StudentT(ProbabilisticModel, Continuous):
     """
-    This class implements a probabilistic model following the Student-T distribution.
+    This class implements a probabilistic model following the Student's T-distribution.
 
     Parameters
     ----------
@@ -164,6 +228,16 @@ class StudentT(ProbabilisticModel, Continuous):
         self.dimension = 1
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
+        """
+        Samples from a Student's T-distribution using the current values for each probabilistic model from which the model derives.
+
+        Parameters
+        ----------
+        k: integer
+            The number of samples that should be drawn.
+        rng: Random number generator
+            Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+            """
         mean = self.parameter_values[0]
         df = self.parameter_values[1]
         return np.array((rng.standard_t(df,k)+mean).reshape(-1))
@@ -181,6 +255,9 @@ class StudentT(ProbabilisticModel, Continuous):
         return True
 
     def _check_parameters_fixed(self, parameters):
+        """
+        Checks parameter values given as fixed values. Returns False iff the number of free parameters is not equal to the amount of parameters given or if the degrees of freedom are less than or equal to 0.
+        """
         if(super(MixtureNormal, self).number_of_free_parameters()==len(parameters)):
             if(len(parameters)==2 and parameters[1]<=0):
                 return False
@@ -188,6 +265,15 @@ class StudentT(ProbabilisticModel, Continuous):
         return False
 
     def pdf(self, x):
+        """
+       Calculates the probability density function at point x.
+       Commonly used to determine whether perturbed parameters are still valid according to the pdf.
+
+       Parameters
+       ----------
+       x: list
+           The point at which the pdf should be evaluated.
+       """
         df = self.parameter_values[1]
         x-=self.parameter_values[0] #divide by std dev if we include that
         return gamma((df+1)/2)/(np.sqrt(df*np.pi)*gamma(df/2)*(1+x**2/df)**((df+1)/2))
@@ -208,6 +294,16 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         self.dimension = len(self.parameter_values)-2
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
+        """
+        Samples from a multivariate Student's T-distribution using the current values for each probabilistic model from which the model derives.
+
+        Parameters
+        ----------
+        k: integer
+            The number of samples that should be drawn.
+        rng: Random number generator
+            Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+            """
         mean = self.parameter_values[:len(self.parameter_values)-2]
         cov = self.parameter_values[len(self.parameter_values)-2]
         df = self.parameter_values[len(self.parameter_values)-1]
@@ -229,9 +325,11 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         cov = np.array(parameters[len(parameters)-2])
         if(not(length==len(cov[0]))):
             raise IndexError('Mean and covariance matrix have to be of same length.')
+
         #check whether the degrees of freedom are <=0
         if(parameters[len(parameters)-1]<=0):
             return False
+
         cov = np.array(cov)
         #check whether the covariance matrix is symmetric
         if(not(np.allclose(cov, cov.T, atol = 1e-3))):
@@ -244,11 +342,23 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         return True
 
     def _check_parameters_fixed(self, parameters):
+        """
+        Checks parameter values given as fixed values. Returns True iff the number of parameters given equals the number of free parameters of the model.
+        """
         if(self.number_of_free_parameters()==len(parameters)):
             return True
         return False
 
     def pdf(self, x):
+        """
+       Calculates the probability density function at point x.
+       Commonly used to determine whether perturbed parameters are still valid according to the pdf.
+
+       Parameters
+       ----------
+       x: list
+           The point at which the pdf should be evaluated.
+       """
         mean = self.parameter_values[:len(self.parameter_values)-2]
         cov = self.parameter_values[len(self.parameter_values)-2]
         v = self.parameter_values[len(self.parameter_values)-1]
@@ -274,16 +384,20 @@ class Uniform(ProbabilisticModel, Continuous):
     def __init__(self, parameters):
         #the user input is checked, since the input has to be rewritten internally before sending it to the constructor of the probabilistic model
         self._check_user_input(parameters)
+
         #the total number of parameters is initialized
         self._num_parameters = 0
+
         #stores the length of the parameter values of the lower and upper bound. This is needed to check that lower and upper are of same length, just because the total length is even does not guarantee that
         self.length = [0,0]
         joint_parameters = []
+
         #rewrite the user input to be useable by the constructor of probabilistic model and sets the length of upper and lower bound
         for i in range(2):
             for parameter in parameters[i]:
                 joint_parameters.append(parameter)
                 self.length[i]+=1
+                #if the parameter is not a hyperparameter, the length of the bound has to be equal to the parameter dimension. We cannot simply add the parameters dimension since the dimension of a hyperparameter is 0.
                 for j in range(1,parameter.dimension):
                     self.length[i]+=1
         self._num_parameters=self.length[0]+self.length[1]
@@ -297,12 +411,25 @@ class Uniform(ProbabilisticModel, Continuous):
         return self._num_parameters
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
+        """
+        Samples from a uniform distribution using the current values for each probabilistic model from which the model derives.
+
+        Parameters
+        ----------
+        k: integer
+            The number of samples that should be drawn.
+        rng: Random number generator
+            Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+            """
         samples = np.zeros(shape=(k, self.dimension))
         for j in range(0, self.dimension):
             samples[:, j] = rng.uniform(self.parameter_values[j], self.parameter_values[j+self.dimension], k)
         return samples
 
     def _check_user_input(self, parameters):
+        """
+        Checks the users input before it is rewritten to work with the probabilistic model constructor.
+        """
         if(not(isinstance(parameters, list))):
             raise TypeError('Input for Uniform has to be of type list.')
         if(len(parameters)<2):
@@ -331,16 +458,21 @@ class Uniform(ProbabilisticModel, Continuous):
         Returns the number of free parameters of the model.
         """
         length_free = 0
-        i=0
+        current_parent=0
+        #check both the lower and upper bound
         for j in range(2):
             length=0
+            #iterate as long as there are still parameters in the lower/upper bound.
             while(length<self.length[j]):
+                #for each parameter, the length increases by 1
                 length+=1
-                for t in range(self.parents[i].dimension):
+                #for each free parameter, the length increases by its dimension, and the length of the free parameters increases also by the dimension
+                for t in range(self.parents[current_parent].dimension):
                     if(t!=0):
                         length+=1
                     length_free+=1
-                i+=1
+                #make sure a new parent is considered at the next iteration
+                current_parent+=1
         return length_free
 
 
@@ -348,26 +480,33 @@ class Uniform(ProbabilisticModel, Continuous):
         """
         Checks parameter values given as fixed values. Returns False iff a lower bound value is larger than a corresponding upper bound value.
         """
-        i=0
+        current_parent=0
         index=0
         index_paramter_values=0
+        #save the values of the lower and upper bound
         bounds =[[],[]]
-        for j in range(2):
+
+        for current_bound in range(2):
             length=0
-            while(length<self.length[j]):
-                if(isinstance(self.parents[i], Hyperparameter)):
+            #iterate as long as length is smaller than that of the lower/upper bound
+            while(length<self.length[current_bound]):
+                #if the current parent is a hyperparameter, add its value to the current bound.
+                if(isinstance(self.parents[current_parent], Hyperparameter)):
                     length+=1
-                    bounds[j].append(self.parameter_values[index_paramter_values])
+                    bounds[current_bound].append(self.parameter_values[index_paramter_values])
                     index_paramter_values+=1
-                for t in range(self.parents[i].dimension):
-                    bounds[j].append(parameters[index])
+                #if the current parent is not a hyperparameter (i.e. parents.dimension>0), append the new provided value.
+                for t in range(self.parents[current_parent].dimension):
+                    bounds[current_bound].append(parameters[index])
                     index+=1
                     index_paramter_values+=1
-                length+=self.parents[i].dimension
-                i+=1
+                length+=self.parents[current_parent].dimension
+                current_parent+=1
+
+        #check whether the correct number of new parameter values is given, and whether the lower bound is smaller than the upper bound
         if(self.number_of_free_parameters()==len(parameters)):
-            for j in range(len(bounds[0])):
-                if(bounds[0][j]>bounds[1][j]):
+            for lower, upper in zip(bounds[0], bounds[1]):
+                if(lower>upper):
                     return False
             return True
         return False
@@ -375,6 +514,15 @@ class Uniform(ProbabilisticModel, Continuous):
 
 
     def pdf(self, x):
+        """
+       Calculates the probability density function at point x.
+       Commonly used to determine whether perturbed parameters are still valid according to the pdf.
+
+       Parameters
+       ----------
+       x: list
+           The point at which the pdf should be evaluated.
+       """
         lower_bound = self.parameter_values[:self.dimension]
         upper_bound = self.parameter_values[self.dimension:]
         if (np.product(np.greater_equal(x, np.array(lower_bound)) * np.less_equal(x, np.array(upper_bound)))):
@@ -402,7 +550,7 @@ class StochLorenz95(ProbabilisticModel, Continuous):
             Initial state value of the time-series, The default value is None, which assumes a previously computed
             value from a full Lorenz model as the Initial value.
         n_timestep: int, optional
-            Number of steps for a time between [0,4], where 4 corresponds to 20 days. The default value is 160.
+            Number of steps for a time between [0,4], where 4 corresponds to 20 days. The default value is 160 steps.
         """
     def __init__(self, parameters, initial_state= None, n_timestep=160):
         super(StochLorenz95, self).__init__(parameters)
