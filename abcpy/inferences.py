@@ -8,6 +8,15 @@ from scipy import optimize
 #TODO check whether if we set a seed as well as an rng for the distributions, what happens.
 
 #TODO check whether something like for j in range(self.parent.dimension) is done, since this will be wrong for hyperparameters
+
+
+"""
+- This covariance matrix calculation is done assuming all the parameters are continuous. But if you have some of the parameters being discrete, then it breaks down.
+- So for the moment do the following:
+a) group continuous parameters and discrete parameters.
+b) for continuous parameters do as we have done before. meaning computing cov matrix and providing that to multi-normal or muti-t to generate a new sample.
+c) for discrete parameters, user should specify a distribution which can take the present values as input and give a discrete output. 
+"""
 class InferenceMethod(metaclass = ABCMeta):
     """
         This abstract base class represents an inference method.
@@ -90,6 +99,7 @@ class InferenceMethod(metaclass = ABCMeta):
             #if the model is not a root model, the pdf of this model, given the prior, should be calculated
             if(not(is_root)):
                 helper = []
+                #this loop will skip hyperparameters, which doesn't matter due to our definition of the pdf
                 for j in range(model.dimension):
                     helper.append(parameters[index])
                     index+=1
@@ -105,7 +115,7 @@ class InferenceMethod(metaclass = ABCMeta):
                 index=pdf[1]
         return [result, index]
 
-    #NOTE this currently gives back both discrete and continuous, but kernel will only work on continuous
+
     def get_parameters(self, models):
         """
         Returns the current values of all free parameters in the model.
@@ -119,29 +129,33 @@ class InferenceMethod(metaclass = ABCMeta):
         Returns
         -------
         list
-            A list of the values of all free parameters.
+            Two lists, the first containing all continuous parameter values, the second containing all discrete parameter values.
         """
         parameters = []
         for model in models:
+            # append the current values of the free parameters of the model
             for parameter in model.get_parameters():
-                if(isinstance(parameter, list)):
+                if (isinstance(parameter, list)):
                     for param in parameter:
                         parameters.append(param)
                 else:
                     parameters.append(parameter)
+            # append the current values of the free parameters of each parent in order of a dfs.
             for parent in model.parents:
-                if(not(parent.visited)):
+                if (not (parent.visited)):
                     parent_parameters = self.get_parameters([parent])
                     for parameter in parent_parameters:
-                        if(isinstance(parameter, list)):
+                        if (isinstance(parameter, list)):
                             for param in parameter:
                                 parameters.append(param)
                         else:
                             parameters.append(parameter)
-                    #the parent nodes are marked as visited to avoid duplicated values
-                    parent.visited=True
+                    # the parent nodes are marked as visited to avoid duplicated values
+                    parent.visited = True
             model.visited = True
         return parameters
+
+
 
     #NOTE returns false iff we couldnt set some node, in that case, use the old parameters again to resample
     def set_parameters(self, models, parameters, index):
@@ -164,9 +178,11 @@ class InferenceMethod(metaclass = ABCMeta):
             Returns True iff it was possible to set the values for all models as well as their parents.
         """
         for model in models:
+            #if possible, set the parameters of the current model to the appropriate values
             if(not(model.set_parameters(parameters[index:model.number_of_free_parameters()]))):
                 return False
             index+=model.dimension
+            #set the parameters of each parent recursively, in order of dfs.
             for parent in model.parents:
                 if(not(parent.visited)):
                     if(not(self.set_parameters([parent], parameters, index))):
@@ -487,14 +503,14 @@ class RejectionABC(InferenceMethod):
 
         while distance > self.epsilon:
             # Accept new parameter value if the distance is less than epsilon
-            super(RejectionABC, self).sample_from_prior(self.model)
-            super(RejectionABC, self)._reset_flags(self.model)
+            self.sample_from_prior(self.model, rng=rng)
+            self._reset_flags(self.model)
             #TODO WHAT SHOULD HAPPEN IF WE HAVE MORE THAN ONE MODEL
             #NOTE this gives reasonable values for the y_sim. However, the distances are very large, possibly because of the algorithm used, not sure
             y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param, rng=rng).tolist()
             distance = self.distance.distance(self.observations_bds.value(), y_sim)
             #print(distance)
-        return super(RejectionABC, self).get_parameters(self.model)
+        return self.get_parameters(self.model)
 
 class PMCABC(BasePMC, InferenceMethod):
     """
@@ -614,7 +630,6 @@ class PMCABC(BasePMC, InferenceMethod):
         # main PMCABC algorithm
         # print("INFO: Starting PMCABC iterations.")
         for aStep in range(0, steps):
-            print(aStep)
             # print("DEBUG: Iteration " + str(aStep) + " of PMCABC algorithm.")
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
             rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
@@ -708,10 +723,10 @@ class PMCABC(BasePMC, InferenceMethod):
         while distance > self.epsilon:
             # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
             if self.accepted_parameters_bds == None:
-                super(PMCABC, self).sample_from_prior(self.model, rng=rng)
-                super(PMCABC, self)._reset_flags(self.model)
-                theta = super(PMCABC, self).get_parameters(self.model)
-                super(PMCABC, self)._reset_flags(self.model)
+                self.sample_from_prior(self.model, rng=rng)
+                self._reset_flags(self.model)
+                theta = self.get_parameters(self.model)
+                self._reset_flags(self.model)
             else:
                 index = rng.choice(self.n_samples, size=1, p=self.accepted_weights_bds.value().reshape(-1))
                 theta = self.accepted_parameters_bds.value()[index[0]]
@@ -719,12 +734,12 @@ class PMCABC(BasePMC, InferenceMethod):
                 # truncating the normal like this is fine: https://arxiv.org/pdf/0907.4010v1.pdf
                 while True:
                     new_theta = self.kernel.perturb(theta, self.accepted_cov_mat_bds.value())
-                    theta_is_accepted = super(PMCABC, self).set_parameters(self.model, new_theta, 0)
+                    theta_is_accepted = self.set_parameters(self.model, new_theta, 0)
                     self._reset_flags(self.model)
-                    if theta_is_accepted and super(PMCABC, self).pdf_of_prior(self.model, new_theta, 0)[0][0] != 0:
+                    if theta_is_accepted and self.pdf_of_prior(self.model, new_theta, 0)[0][0] != 0:
                         break
             #TODO WHAT IF MORE THAN 1 MODEL
-            y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param).tolist()
+            y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param, rng=rng).tolist()
 
             distance = self.distance.distance(self.observations_bds.value(), y_sim)
         return (theta, distance)
@@ -864,18 +879,18 @@ class PMC(BasePMC, InferenceMethod):
         accepted_cov_mat = None
         new_theta = None
 
-        dim = len(super(PMC, self).get_parameters(self.model))
-        super(PMC, self)._reset_flags(self.model)
+        dim = len(self.get_parameters(self.model))
+        self._reset_flags(self.model)
 
         # Initialize particles: When not supplied, randomly draw them from prior distribution
         # Weights of particles: Assign equal weights for each of the particles
         if iniPoints == None:
             accepted_parameters = np.zeros(shape=(n_samples, dim))
             for ind in range(0, n_samples):
-                super(PMC, self).sample_from_prior(self.model, self.rng)
-                super(PMC, self)._reset_flags(self.model)
-                accepted_parameters[ind, :] = super(PMC, self).get_parameters()
-                super(PMC, self)._reset_flags(self.model)
+                self.sample_from_prior(self.model, rng=self.rng)
+                self._reset_flags(self.model)
+                accepted_parameters[ind, :] = self.get_parameters(self.model)
+                self._reset_flags(self.model)
             accepted_weights = np.ones((n_samples, 1), dtype=np.float) / n_samples
         else:
             accepted_parameters = iniPoints
@@ -903,12 +918,11 @@ class PMC(BasePMC, InferenceMethod):
             # Initialize new_parameters
             new_parameters = np.zeros((n_samples, dim), dtype=np.float)
             for ind in range(0, self.n_samples):
-                self.kernel.set_parameters([accepted_parameters[index[ind], :], accepted_cov_mat])
                 while True:
-                    new_theta = self.kernel.perturb([accepted_parameters[index[ind],:],accepted_cov_mat])
-                    theta_is_accepted = super(PMC, self).set_parameters(self.model, new_theta, 0)
-                    super(PMC, self)._reset_flags(self.model)
-                    if theta_is_accepted and super(PMC, self).pdf_of_prior(self.model, new_theta, 0)[0][0] != 0:
+                    new_theta = self.kernel.perturb(accepted_parameters[index[ind],:],accepted_cov_mat)
+                    theta_is_accepted = self.set_parameters(self.model, new_theta, 0)
+                    self._reset_flags(self.model)
+                    if theta_is_accepted and self.pdf_of_prior(self.model, new_theta, 0)[0][0] != 0:
                         new_parameters[ind, :] = new_theta
                         break
 
@@ -925,6 +939,7 @@ class PMC(BasePMC, InferenceMethod):
             new_weights_pds = self.backend.map(self._calculate_weight, new_parameters_pds)
             new_weights = np.array(self.backend.collect(new_weights_pds)).reshape(-1, 1)
 
+            #NOTE this loop can give 0, for example if the example + synliklihood are used!
             sum_of_weights = 0.0
             for i in range(0, self.n_samples):
                 new_weights[i] = new_weights[i] * approx_likelihood_new_parameters[i]
@@ -979,23 +994,21 @@ class PMC(BasePMC, InferenceMethod):
         """
 
         # Assign theta to model
-        super(PMC, self).set_parameters(self.model, theta, 0)
-        super(PMC, self)._reset_flags(self.model)
+        self.set_parameters(self.model, theta, 0)
+        self._reset_flags(self.model)
 
         # Simulate the fake data from the model given the parameter value theta
         # print("DEBUG: Simulate model for parameter " + str(theta))
 
         #TODO MULTIPLE MODELS
-        y_sim = self.model[0].sample(self.n_samples_per_param)
-
+        y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param).tolist()
         # print("DEBUG: Extracting observation.")
         obs = self.observations_bds.value()
-
         # print("DEBUG: Computing likelihood...")
         lhd = self.likfun.likelihood(obs, y_sim)
 
         # print("DEBUG: Likelihood is :" + str(lhd))
-        pdf_at_theta = super(PMC, self).pdf_of_prior(self.model, theta, 0)[0][0]
+        pdf_at_theta = self.pdf_of_prior(self.model, theta, 0)[0][0]
 
         # print("DEBUG: prior pdf evaluated at theta is :" + str(pdf_at_theta))
         return pdf_at_theta * lhd
@@ -1020,7 +1033,7 @@ class PMC(BasePMC, InferenceMethod):
             return 1.0 / self.n_samples
         else:
             #TODO MULTIPLE MODELS
-            prior_prob = super(PMC, self).pdf_of_prior(self.model, theta, 0)[0][0]
+            prior_prob = self.pdf_of_prior(self.model, theta, 0)[0][0]
 
             denominator = 0.0
             for i in range(0, self.n_samples):
@@ -1029,7 +1042,7 @@ class PMC(BasePMC, InferenceMethod):
 
             return 1.0 * prior_prob / denominator
 
-#TODO PMC NOT YET TESTED, SABC NOT IMPLEMENTED
+
 class SABC(BaseAnnealing, InferenceMethod):
     """
     This base class implements a modified version of Simulated Annealing Approximate Bayesian Computation (SABC) of [1] when the prior is non-informative.
@@ -1142,7 +1155,8 @@ class SABC(BaseAnnealing, InferenceMethod):
         journal.configuration["adaptcov"] = adaptcov
         journal.configuration["full_output"] = full_output
 
-        accepted_parameters = np.zeros(shape=(n_samples, len(self.model.get_parameters())))
+        accepted_parameters = np.zeros(shape=(n_samples, len(self.get_parameters(self.model))))
+        self._reset_flags(self.model)
         distances = np.zeros(shape=(n_samples,))
         smooth_distances = np.zeros(shape=(n_samples,))
         accepted_weights = np.ones(shape=(n_samples, 1))
@@ -1365,7 +1379,7 @@ class SABC(BaseAnnealing, InferenceMethod):
         rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
         #NOTE WE RESEEDED THE PRIOR HERE -> PASS RNG TO SAMPLE_FROM_PRIOR?
         #TODO DO WHATEVER YOU NEED WITH KERNEL.RESEED
-        self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        self.kernel.rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
         all_parameters = []
         all_distances = []
@@ -1373,10 +1387,13 @@ class SABC(BaseAnnealing, InferenceMethod):
 
         if self.accepted_cov_mat_bds == None:
             while acceptance == 0:
-                self.model.sample_from_prior()
-                new_theta = self.model.get_parameters()
-                all_parameters.append(self.model.get_parameters())
-                y_sim = self.model.sample(self.n_samples_per_param)
+                self.sample_from_prior(self.model, rng=rng)
+                self._reset_flags(self.model)
+                new_theta = self.get_parameters(self.model)
+                self._reset_flags(self.model)
+                all_parameters.append(new_theta)
+                #TODO MULTIPLE MODELS
+                y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param, rng=rng).tolist()
                 distance = self.distance.distance(self.observations_bds.value(), y_sim)
                 all_distances.append(distance)
                 acceptance = rng.binomial(1, np.exp(-distance / self.epsilon), 1)
@@ -1387,21 +1404,25 @@ class SABC(BaseAnnealing, InferenceMethod):
             ## Sample proposal parameter and calculate new distance:
             theta = self.accepted_parameters_bds.value()[index, :]
             while True:
-                self.kernel.set_parameters([theta, self.accepted_cov_mat_bds.value()])
+                #TODO not sure what difference is??
                 if len(theta) > 1:
-                    new_theta = self.kernel.sample(1)[0, :]
+                    new_theta = self.kernel.perturb(theta, self.accepted_cov_mat_bds.value())
+                    #new_theta = self.kernel.sample(1)[0, :]
                 else:
-                    new_theta = self.kernel.sample(1)
-                theta_is_accepted = self.model.set_parameters(new_theta)
-                if theta_is_accepted and self.model.prior.pdf(self.model.get_parameters()) != 0:
+                    new_theta = self.kernel.perturb(theta, self.accepted_cov_mat_bds.value())
+                    #new_theta = self.kernel.sample(1)
+                theta_is_accepted = self.set_parameters(self.model, new_theta, 0)
+                self._reset_flags(self.model)
+                if theta_is_accepted and self.pdf_of_prior(self.model, new_theta, 0)[0][0] != 0:
                     break
-            y_sim = self.model.sample(self.n_samples_per_param)
+            #TODO multiple models
+            y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param, rng=rng).tolist()
             distance = self.distance.distance(self.observations_bds.value(), y_sim)
             smooth_distance = self._smoother_distance([distance], self.all_distances_bds.value())
 
             ## Calculate acceptance probability:
-            ratio_prior_prob = self.model.prior.pdf(new_theta) / self.model.prior.pdf(
-                self.accepted_parameters_bds.value()[index, :])
+            ratio_prior_prob = self.pdf_of_prior(self.model, new_theta, 0)[0][0] / self.pdf_of_prior(self.model,
+                self.accepted_parameters_bds.value()[index, :], 0)[0][0]
             ratio_likelihood_prob = np.exp((self.smooth_distances_bds.value()[index] - smooth_distance) / self.epsilon)
             acceptance_prob = ratio_prior_prob * ratio_likelihood_prob
 
@@ -1624,40 +1645,43 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
         rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
         #NOTE AGAIN DELETED PRIOR.RESEED
         #TODO KERNEL RESEEDING -> DO WE WANT A DIFFERENT RNG?
-        self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        self.kernel.rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
         result_theta = []
         result_distance = []
 
         if self.accepted_parameters_bds == None:
-            self.model.sample_from_prior()
-            y_sim = self.model.sample(self.n_samples_per_param)
+            self.sample_from_prior(self.model, rng=rng)
+            self._reset_flags(self.model)
+            #TODO MULTIPLE MODELS
+            y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param, rng=rng).tolist()
             distance = self.distance.distance(self.observations_bds.value(), y_sim)
-            result_theta.append(self.model.get_parameters())
+            result_theta.append(self.get_parameters(self.model))
+            self._reset_flags(self.model)
             result_distance.append(distance)
         else:
+            self._reset_flags(self.model)
             theta = self.accepted_parameters_bds.value()[index]
-            self.model.set_parameters(theta)
-            y_sim = self.model.sample(self.n_samples_per_param)
+            self.set_parameters(self.model, theta, 0)
+            self._reset_flags(self.model)
+            y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param, rng=rng).tolist()
             distance = self.distance.distance(self.observations_bds.value(), y_sim)
             result_theta.append(theta)
             result_distance.append(distance)
             for ind in range(0, self.chain_length - 1):
                 while True:
-                    self.kernel.set_parameters([theta, self.accepted_cov_mat_bds.value()])
-                    new_theta = self.kernel.sample(1)[0, :]
-                    theta_is_accepted = self.model.set_parameters(new_theta)
-                    if theta_is_accepted and self.model.prior.pdf(self.model.get_parameters()) != 0:
+                    new_theta = self.kernel.perturb(theta, self.accepted_cov_mat_bds.value())
+                    theta_is_accepted = self.set_parameters(self.model, new_theta, 0)
+                    self._reset_flags(self.model)
+                    if theta_is_accepted and self.pdf_of_prior(self.model, new_theta, 0)[0][0] != 0:
                         break
-                y_sim = self.model.sample(self.n_samples_per_param)
+                y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param,rng=rng).tolist()
                 new_distance = self.distance.distance(self.observations_bds.value(), y_sim)
 
                 ## Calculate acceptance probability:
-                ratio_prior_prob = self.model.prior.pdf(new_theta) / self.model.prior.pdf(theta)
-                self.kernel.set_parameters([new_theta, self.accepted_cov_mat_bds.value()])
-                kernel_numerator = self.kernel.pdf(theta)
-                self.kernel.set_parameters([theta, self.accepted_cov_mat_bds.value()])
-                kernel_denominator = self.kernel.pdf(new_theta)
+                ratio_prior_prob = self.pdf_of_prior(self.model, new_theta, 0)[0][0] / self.pdf_of_prior(self.model, theta, 0)[0][0]
+                kernel_numerator = self.kernel.pdf(new_theta, self.accepted_cov_mat_bds.value(), theta)
+                kernel_denominator = self.kernel.pdf(theta, self.accepted_cov_mat_bds.value(), new_theta)
                 ratio_likelihood_prob = kernel_numerator / kernel_denominator
                 acceptance_prob = min(1, ratio_prior_prob * ratio_likelihood_prob) * (
                 new_distance < self.anneal_parameter)
@@ -1695,7 +1719,7 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
         rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
         #TODO AGAIN PRIOR RESEED AND KERNEL
-        self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        self.kernel.rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
         acceptance = 0
 
@@ -1703,24 +1727,23 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
 
         theta = self.accepted_parameters_bds.value()[0]
 
-        self.model.set_parameters(theta)
+        #NOTE left this out, since it doesnt seem to do anything anymore?
+        #self.model.set_parameters(theta)
 
         for ind in range(0, self.chain_length):
             while True:
-                self.kernel.set_parameters([theta, accepted_cov_mat_transformed])
-                new_theta = self.kernel.sample(1)[0, :]
-                theta_is_accepted = self.model.set_parameters(new_theta)
-                if theta_is_accepted and self.model.prior.pdf(self.model.get_parameters()) != 0:
+                self._reset_flags(self.model)
+                new_theta = self.kernel.perturb(theta, accepted_cov_mat_transformed)
+                theta_is_accepted = self.set_parameters(self.model, new_theta, 0)
+                if theta_is_accepted and self.pdf_of_prior(self.model, new_theta, 0)[0][0] != 0:
                     break
-                y_sim = self.model.sample(self.n_samples_per_param)
+                y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param, rng=rng).tolist()
                 new_distance = self.distance.distance(self.observations_bds.value(), y_sim)
 
                 ## Calculate acceptance probability:
-                ratio_prior_prob = self.model.prior.pdf(new_theta) / self.model.prior.pdf(theta)
-                self.kernel.set_parameters([new_theta, accepted_cov_mat_transformed])
-                kernel_numerator = self.kernel.pdf(theta)
-                self.kernel.set_parameters([theta, accepted_cov_mat_transformed])
-                kernel_denominator = self.kernel.pdf(new_theta)
+                ratio_prior_prob = self.pdf_of_prior(self.model, new_theta, 0)[0][0] / self.pdf_of_prior(self.model, theta, 0)[0][0]
+                kernel_numerator = self.kernel.pdf(new_theta, accepted_cov_mat_transformed, theta)
+                kernel_denominator = self.kernel.pdf(theta, accepted_cov_mat_transformed, new_theta)
                 ratio_likelihood_prob = kernel_numerator / kernel_denominator
                 acceptance_prob = min(1, ratio_prior_prob * ratio_likelihood_prob) * (
                 new_distance < self.anneal_parameter)
@@ -1733,6 +1756,7 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
         else:
             return (accepted_cov_mat_transformed, t, 0)
 
+#NOTE when testing with example values -> raises singular matrix error during calculation of pdf of kernel. I think this might happen in general, not a mistake of the code ---> desired behavior?
 class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
     """This base class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
     Drovandi and Pettitt [1].
@@ -1945,15 +1969,17 @@ class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
         numpy.ndarray
             accepted parameter
         """
-        rng.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
         #TODO AGAIN PRIOR AND KERNEL
-        self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        self.kernel.rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        self._reset_flags(self.model)
 
         distance = self.distance.dist_max()
         if self.accepted_parameters_bds == None:
             while distance > self.epsilon[-1]:
-                self.model.sample_from_prior()
-                y_sim = self.model.sample(self.n_samples_per_param)
+                self.sample_from_prior(self.model, rng=rng)
+                self._reset_flags(self.model)
+                y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param, rng=rng).tolist()
                 distance = self.distance.distance(self.observations_bds.value(), y_sim)
             index_accept = 1
         else:
@@ -1962,27 +1988,25 @@ class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
             index_accept = 0.0
             for ind in range(self.R):
                 while True:
-                    self.kernel.set_parameters([theta, self.accepted_cov_mat_bds.value()])
-                    new_theta = self.kernel.sample(1)[0, :]
-                    theta_is_accepted = self.model.set_parameters(new_theta)
-                    if theta_is_accepted and self.model.prior.pdf(self.model.get_parameters()) != 0:
+                    new_theta = self.kernel.perturb(theta, self.accepted_cov_mat_bds.value())
+                    theta_is_accepted = self.set_parameters(self.model, new_theta, 0)
+                    self._reset_flags(self.model)
+                    if theta_is_accepted and self.pdf_of_prior(self.model, new_theta, 0)[0][0] != 0:
                         break
-                y_sim = self.model.sample(self.n_samples_per_param)
+                y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param, rng=rng).tolist()
                 distance = self.distance.distance(self.observations_bds.value(), y_sim)
-                ratio_prior_prob = self.model.prior.pdf(new_theta) / self.model.prior.pdf(theta)
-                self.kernel.set_parameters([new_theta, self.accepted_cov_mat_bds.value()])
-                kernel_numerator = self.kernel.pdf(theta)
-                self.kernel.set_parameters([theta, self.accepted_cov_mat_bds.value()])
-                kernel_denominator = self.kernel.pdf(new_theta)
+                ratio_prior_prob = self.pdf_of_prior(self.model, new_theta, 0)[0][0] / self.pdf_of_prior(self.model, theta, 0)[0][0]
+                kernel_numerator = self.kernel.pdf(new_theta, self.accepted_cov_mat_bds.value(), theta)
+                kernel_denominator = self.kernel.pdf(theta, self.accepted_cov_mat_bds.value(), new_theta)
                 ratio_kernel_prob = kernel_numerator / kernel_denominator
                 probability_acceptance = min(1, ratio_prior_prob * ratio_kernel_prob)
                 if distance < self.epsilon[-1] and rng.binomial(1, probability_acceptance) == 1:
                     index_accept += 1
                 else:
-                    self.model.set_parameters(theta)
+                    self.set_parameters(self.model, theta, 0)
                     distance = self.accepted_dist_bds.value()[index[0]]
 
-        return (self.model.get_parameters(), distance, index_accept)
+        return (self.get_parameters(self.model), distance, index_accept)
 
 class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
     """This base class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
@@ -2199,11 +2223,14 @@ class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
 
         rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
         #TODO AGAIN PRIOR AND KERNEL
-        self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        self.kernel.rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        self._reset_flags(self.model)
 
         if self.accepted_parameters_bds == None:
-            self.model.sample_from_prior()
-            y_sim = self.model.sample(self.n_samples_per_param)
+            self.sample_from_prior(self.model, rng=rng)
+            self._reset_flags(self.model)
+            #TODO multiple models
+            y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param, rng=rng).tolist()
             dist = self.distance.distance(self.observations_bds.value(), y_sim)
             weight = 1.0
         else:
@@ -2213,26 +2240,26 @@ class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
             # trucate the normal to the bounds of parameter space of the model
             # truncating the normal like this is fine: https://arxiv.org/pdf/0907.4010v1.pdf
             while True:
-                self.kernel.set_parameters([theta, self.accepted_cov_mat_bds.value()])
-                new_theta = self.kernel.sample(1)[0, :]
-                theta_is_accepted = self.model.set_parameters(new_theta)
-                if theta_is_accepted and self.model.prior.pdf(self.model.get_parameters()) != 0:
+                new_theta = self.kernel.perturb(theta, self.accepted_cov_mat_bds.value())
+                theta_is_accepted = self.set_parameters(self.model, new_theta, 0)
+                self._reset_flags(self.model)
+                if theta_is_accepted and self.pdf_of_prior(self.model, new_theta, 0)[0][0] != 0:
                     break
-
-            y_sim = self.model.sample(self.n_samples_per_param)
+            #todo multiple models
+            y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param, rng=rng).tolist()
             dist = self.distance.distance(self.observations_bds.value(), y_sim)
 
-            prior_prob = self.model.prior.pdf(new_theta)
+            prior_prob = self.pdf_of_prior(self.model, new_theta, 0)[0][0]
             denominator = 0.0
             for i in range(0, len(self.accepted_weights_bds.value())):
-                self.kernel.set_parameters(
-                    [self.accepted_parameters_bds.value()[i, :], self.accepted_cov_mat_bds.value()])
-                pdf_value = self.kernel.pdf(new_theta)
+                pdf_value = self.kernel.pdf(self.accepted_parameters_bds.value()[i,:], self.accepted_cov_mat_bds.value(), new_theta)
                 denominator += self.accepted_weights_bds.value()[i, 0] * pdf_value
             weight = 1.0 * prior_prob / denominator
 
-        return (self.model.get_parameters(), dist, weight)
+        return (self.get_parameters(self.model), dist, weight)
 
+
+#NOTE takes long time to test with example, but no obvious mistakes so far
 class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
     """This base class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
     Del Moral et al. [1].
@@ -2376,6 +2403,7 @@ class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
                         new_weights[ind1] = accepted_weights[ind1] * (numerator / denominator)
                     else:
                         new_weights[ind1] = 0
+                #NOTE gain new_weights can be 0
                 new_weights = new_weights / sum(new_weights)
             else:
                 new_weights = np.ones(shape=(n_samples), ) * (1.0 / n_samples)
@@ -2522,24 +2550,28 @@ class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
 
         rng = rng_and_index[0]
         index = rng_and_index[1]
-        rng.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
         #TODO AGAIN PRIOR AND KERNEL
-        self.kernel.reseed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        self.kernel.rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+        self._reset_flags(self.model)
 
         # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
         if self.accepted_parameters_bds == None:
-            self.model.sample_from_prior()
-            y_sim = self.model.sample(self.n_samples_per_param)
+            self.sample_from_prior(self.model, rng=rng)
+            self._reset_flags(self.model)
+            #todo multiple models
+            y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param, rng=rng).tolist()
         else:
             if self.accepted_weights_bds.value()[index] > 0:
                 theta = self.accepted_parameters_bds.value()[index]
                 while True:
-                    self.kernel.set_parameters([theta, self.accepted_cov_mat_bds.value()])
-                    new_theta = self.kernel.sample(1)[0, :]
-                    theta_is_accepted = self.model.set_parameters(new_theta)
-                    if theta_is_accepted and self.model.prior.pdf(self.model.get_parameters()) != 0:
+                    new_theta = self.kernel.perturb(theta, self.accepted_cov_mat_bds.value())
+                    theta_is_accepted = self.set_parameters(self.model, new_theta, 0)
+                    self._reset_flags(self.model)
+                    if theta_is_accepted and self.pdf_of_prior(self.model, new_theta, 0)[0][0] != 0:
                         break
-                y_sim = self.model.sample(self.n_samples_per_param)
+                #todo multiple models
+                y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param, rng=rng).tolist()
                 y_sim_old = self.accepted_y_sim_bds.value()[index]
                 ## Calculate acceptance probability:
                 numerator = 0.0
@@ -2550,20 +2582,21 @@ class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
                     denominator += (
                     self.distance.distance(self.observations_bds.value(), [y_sim_old[ind]]) < self.epsilon[-1])
                 ratio_data_epsilon = numerator / denominator
-                ratio_prior_prob = self.model.prior.pdf(new_theta) / self.model.prior.pdf(theta)
-                self.kernel.set_parameters([new_theta, self.accepted_cov_mat_bds.value()])
-                kernel_numerator = self.kernel.pdf(theta)
-                self.kernel.set_parameters([theta, self.accepted_cov_mat_bds.value()])
-                kernel_denominator = self.kernel.pdf(new_theta)
+                ratio_prior_prob = self.pdf_of_prior(self.model, new_theta, 0)[0][0] / self.pdf_of_prior(self.model, theta, 0)[0][0]
+                kernel_numerator = self.kernel.pdf(new_theta, self.accepted_cov_mat_bds.value(), theta)
+                kernel_denominator = self.kernel.pdf(theta, self.accepted_cov_mat_bds.value(), new_theta)
                 ratio_likelihood_prob = kernel_numerator / kernel_denominator
                 acceptance_prob = min(1, ratio_data_epsilon * ratio_prior_prob * ratio_likelihood_prob)
                 if rng.binomial(1, acceptance_prob) == 1:
-                    self.model.set_parameters(new_theta)
+                    self.set_parameters(self.model, new_theta, 0)
+                    self._reset_flags(self.model)
                 else:
-                    self.model.set_parameters(theta)
+                    self.set_parameters(self.model, theta, 0)
+                    self._reset_flags(self.model)
                     y_sim = self.accepted_y_sim_bds.value()[index]
             else:
-                self.model.set_parameters(self.accepted_parameters_bds.value()[index])
+                self.set_parameters(self.model, self.accepted_parameters_bds.value()[index], 0)
+                self._reset_flags(self.model)
                 y_sim = self.accepted_y_sim_bds.value()[index]
 
-        return (self.model.get_parameters(), y_sim)
+        return (self.get_parameters(self.model), y_sim)

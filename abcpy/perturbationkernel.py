@@ -3,17 +3,57 @@ import numpy as np
 from scipy.stats import multivariate_normal
 from scipy.special import gamma
 
+
 class PerturbationKernel(metaclass = ABCMeta):
+    """
+    This abstract base class represents all preturbation kernels.
+    """
     @abstractmethod
     def perturb(self, parameters, cov):
+        """
+        Perturbs the parameters with a given covariance matrix, according to the perturbation kernel.
+        Commonly used in inference methods to perturb accepted parameters.
+
+        Parameters
+        ----------
+        parameters: python list
+            The list of parameters to be perturbed.
+        cov: 2D list
+            The covariance matrix of the parameters.
+
+        Returns
+        -------
+        list
+            The perturbed parameters.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def pdf(self, x):
+        """
+        Calculates the probability density function at point x.
+
+        Parameters
+        ----------
+        x: list
+            The point at which the probability density function should be evaluated.
+        Returns
+        -------
+        float
+            The evaluated pdf.
+        """
         raise NotImplementedError
 
 
 class MultivariateNormalKernel(PerturbationKernel):
+    """
+    This class implements a multivariate normal kernel.
+
+    Parameters
+    ----------
+    rng: Random number generator
+        The random number generator to be used by the kernel.
+    """
     def __init__(self, rng=np.random.RandomState()):
         self.rng = rng
 
@@ -23,7 +63,18 @@ class MultivariateNormalKernel(PerturbationKernel):
     def pdf(self, mean, cov, x):
         return multivariate_normal(mean, cov).pdf(x)
 
+
 class MultiStudentTKernel(PerturbationKernel):
+    """
+    This class implements a multivariate Student's T kernel.
+
+    Parameters
+    ----------
+    df: integer
+        The degrees of freedom of the kernel.
+    rng: Random number generator
+        The random number generator to be used by the kernel.
+    """
     def __init__(self, df, rng=np.random.RandomState()):
         self.rng = rng
         self.df = df
