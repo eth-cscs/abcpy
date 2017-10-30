@@ -10,6 +10,7 @@ from scipy import optimize
 #TODO check whether something like for j in range(self.parent.dimension) is done, since this will be wrong for hyperparameters
 
 
+
 """
 - This covariance matrix calculation is done assuming all the parameters are continuous. But if you have some of the parameters being discrete, then it breaks down.
 - So for the moment do the following:
@@ -74,6 +75,7 @@ class InferenceMethod(metaclass = ABCMeta):
 
     #NOTE not tested yet, not sure whether this works.
     #TODO CHECK WHETHER THIS COVERS ALL 3 DIFFERENT CASES
+    #TODO in case self.parents does not contain duplicates, rewrite this function
     def pdf_of_prior(self, models, parameters, index, is_root=True):
         """
         Calculates the joint probability density function of the prior of the specified models at the given parameter values.
@@ -109,13 +111,14 @@ class InferenceMethod(metaclass = ABCMeta):
                     helper = np.array(helper)
                 result[i]*=model.pdf(helper)
             #for each parent, the pdf of this parent has to be calculated as well.
+            #NOTE if we use the new implementation as is, self.parents does not contain duplicates, however, we want to iterate using duplicates, i.e. use the parameter_index array! ALSO consider that then some parameters might not be in the right place to just take in the helper function above!
             for parent in model.parents:
                 pdf = self.pdf_of_prior([parent], parameters, index, is_root=False)
                 result[i]*=pdf[0][0]
                 index=pdf[1]
         return [result, index]
 
-
+    #NOTE need to think about how we traverse the graph. In order of self.parents? it doesnt mention duplicates so this should be fine, however, then the values we give back will not necessarily be the same order as those of parameter_values
     def get_parameters(self, models):
         """
         Returns the current values of all free parameters in the model.
@@ -141,6 +144,7 @@ class InferenceMethod(metaclass = ABCMeta):
                 else:
                     parameters.append(parameter)
             # append the current values of the free parameters of each parent in order of a dfs.
+            #NOTE this doesnt follow the mapping anymore
             for parent in model.parents:
                 if (not (parent.visited)):
                     parent_parameters = self.get_parameters([parent])
@@ -156,7 +160,7 @@ class InferenceMethod(metaclass = ABCMeta):
         return parameters
 
 
-
+    #NOTE SEE GET_PARAMETERS
     #NOTE returns false iff we couldnt set some node, in that case, use the old parameters again to resample
     def set_parameters(self, models, parameters, index):
         """

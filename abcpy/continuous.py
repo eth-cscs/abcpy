@@ -392,7 +392,7 @@ class Uniform(ProbabilisticModel, Continuous):
         self.length = [0,0]
         joint_parameters = []
 
-        #rewrite the user input to be useable by the constructor of probabilistic model and sets the length of upper and lower bound
+        #rewrite the user input to be useable by the constructor of probabilistic model and set the length of upper and lower bound
         for i in range(2):
             for parameter in parameters[i]:
                 joint_parameters.append(parameter)
