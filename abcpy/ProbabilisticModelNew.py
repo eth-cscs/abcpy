@@ -12,6 +12,8 @@ from scipy.special import gamma
 
 #TODO in the constructor of probmodel: we go through all the parameters given: if they are not a prob model, we initialize them as a hyperparameter
 
+#NOTE WE COULD ALSO IMPLEMENT IT SUCH THAT GET AND SET USE THE ORDER OF THE PARENTS AS THEY APPEAR --> EASIER TO DO WITH INFERENCES.PY, BUT WILL HAVE TO IMPLEMENT AN EXTRA FUNCTION FOR USER OUTPUT MAYBE?
+
 
 #NOTE CURRENTLY, IF WE GIVE TWICE THE SAME MODEL, WE GET THE SAME VALUE FOR BOTH PARAMETERS! WE SHOULD RESAMPLE!
 class ProbabilisticModel(metaclass = ABCMeta):
@@ -30,12 +32,14 @@ class ProbabilisticModel(metaclass = ABCMeta):
         # Initialize list which will contain the values for all parameters associated with the model. If the parameters          derive from a probabilistic model, they will be sampled.
         self.parameter_values = []
 
-        #Initialize a list which will contain the order in which the output of a model should be assigned to the parameter values of a derived model
+        #NOTE probably needs renaming
+        #Initialize a list which will contain the order in which the output of a model should be assigned to the parameter values of a model derived from the current model
         self.children_index = []
 
         #Initialize a counter which specifies the current index to be considered in the children_index list.
         self.index = 0
 
+        #NOTE probably needs renaming
         #Initialize a list which will contain a mapping of parameter values to corresponding parents as well as index of a sampled output of the parent
         self.parameter_index = []
 
@@ -117,6 +121,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
             if (isinstance(parameter_value[0], (list, np.ndarray))):
                 parameter_value = parameter_value[0]
             parent_values.append(parameter_value)
+
         #use the mapping provided in parameter_index to assign the proper parameter values to each parameter in a temporary list
         parameter_values_temp = []
         for parameter_index in self.parameter_index:
@@ -166,7 +171,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         self.visited = True
         return True
 
-
+    #NOTE THIS GIVES BACK IN ORDER OF INPUT, IE NORMAL(A[1],A[0]) -> A[1],A[0]
     def get_parameters(self):
         """
         Returns the current values of the free parameters of the probabilistic model.
