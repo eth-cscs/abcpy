@@ -51,8 +51,10 @@ class InferenceMethod(metaclass = ABCMeta):
             for parent in model.parents:
                 if(not(parent.visited)):
                     self.sample_from_prior([parent], rng=rng)
+                    parent.visited = True
             #each model itself samples new parameters
             model.sample_parameters(rng=rng)
+            model.visited = True
 
     def _reset_flags(self, models):
         """
@@ -118,7 +120,7 @@ class InferenceMethod(metaclass = ABCMeta):
                 index=pdf[1]
         return [result, index]
 
-    #NOTE need to think about how we traverse the graph. In order of self.parents? it doesnt mention duplicates so this should be fine, however, then the values we give back will not necessarily be the same order as those of parameter_values
+    #NOTE need to think about how we traverse the graph. In order of self.parents? it doesnt mention duplicates so this should be fine, however, then the values we give back will not necessarily be the same order as those of fix_parameters
     def get_parameters(self, models):
         """
         Returns the current values of all free parameters in the model.
@@ -143,6 +145,7 @@ class InferenceMethod(metaclass = ABCMeta):
                         parameters.append(param)
                 else:
                     parameters.append(parameter)
+            model.visited = True
             # append the current values of the free parameters of each parent in order of a dfs.
             #NOTE this doesnt follow the mapping anymore
             for parent in model.parents:
@@ -195,6 +198,26 @@ class InferenceMethod(metaclass = ABCMeta):
                     parent.visited = True
             model.visited = True
         return True
+
+
+    def sample_parameters(self, models, rng=np.random.RandomState()):
+        """
+        Samples default parameter values for each model, as well as the respective parents.
+        Commonly used before inference starts to provide default values.
+
+        Parameters
+        ----------
+        models: list
+            Defines the models for which the default parameter values should be sampled.
+        rng: Random number generator
+            The random number generator to be used.
+        """
+        for model in models:
+            for parent in model.parents:
+                self.sample_parameters([parent], rng=rng)
+                parent.visited = True
+            model.sample_parameters(rng=rng)
+            model.visited = True
 
 
 
@@ -461,6 +484,7 @@ class RejectionABC(InferenceMethod):
         abcpy.output.Journal
             a journal containing simulation results, metadata and optionally intermediate results.
         """
+        self.sample_parameters(self.model, self.rng)
 
         self.observations_bds = self.backend.broadcast(observations)
         self.n_samples = n_samples
@@ -604,6 +628,7 @@ class PMCABC(BasePMC, InferenceMethod):
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
+        self.sample_parameters(self.model, self.rng)
 
         self.observations_bds = self.backend.broadcast(observations)
         self.n_samples = n_samples
@@ -864,6 +889,7 @@ class PMC(BasePMC, InferenceMethod):
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
+        self.sample_parameters(self.model, self.rng)
 
         self.observations_bds = self.backend.broadcast(observations)
         self.n_samples = n_samples
@@ -1138,6 +1164,7 @@ class SABC(BaseAnnealing, InferenceMethod):
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
+        self.sample_parameters(self.model, self.rng)
 
         self.observations_bds = self.backend.broadcast(observations)
         self.epsilon = epsilon
@@ -1510,6 +1537,7 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
+        self.sample_parameters(self.model, self.rng)
 
         self.observations_bds = self.backend.broadcast(observations)
         self.chain_length = chain_length
@@ -1849,6 +1877,7 @@ class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
+        self.sample_parameters(self.model, self.rng)
 
         self.observations_bds = self.backend.broadcast(observations)
         self.alpha = alpha
@@ -2097,6 +2126,7 @@ class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
+        self.sample_parameters(self.model, self.rng)
 
         self.observations_bds = self.backend.broadcast(observations)
         self.alpha = alpha
@@ -2349,6 +2379,7 @@ class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
+        self.sample_parameters(self.model, self.rng)
 
         self.observations_bds= self.backend.broadcast(observations)
         self.n_samples = n_samples

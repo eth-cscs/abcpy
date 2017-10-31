@@ -1,5 +1,7 @@
 from abc import ABCMeta, abstractmethod
 import numpy as np
+from scipy.stats import multivariate_normal, norm
+from scipy.special import gamma
 
 
 #TODO both ricker and lorenz could support that you give some in a combined model, and some not, we should implement that, but not a priority
@@ -10,6 +12,9 @@ import numpy as np
 
 #TODO in the constructor of probmodel: we go through all the parameters given: if they are not a prob model, we initialize them as a hyperparameter
 
+#NOTE WE COULD ALSO IMPLEMENT IT SUCH THAT GET AND SET USE THE ORDER OF THE PARENTS AS THEY APPEAR --> EASIER TO DO WITH INFERENCES.PY, BUT WILL HAVE TO IMPLEMENT AN EXTRA FUNCTION FOR USER OUTPUT MAYBE?
+
+#NOTE according to rito, if we specify: a[0], a[0], a[1], we want that a[0]s are the same! --> our code already does the right thing.
 class ProbabilisticModel(metaclass = ABCMeta):
     """This abstract class represents all probabilistic models.
 
@@ -20,20 +25,71 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
     """
     def __init__(self, parameters):
-        #Save all probabilistic models and hyperparameters from which the model derives.
-        self.parents = parameters
-        #Initialize list which will contain the values for all parameters associated with the model. If the parameters          derive from a probabilistic model, they will be sampled.
-        self.parameter_values = []
+        #Save all probabilistic models and hyperparameters from which the model derives without duplicates.
+        self.parents = []
 
-        try_finding_parameters = 0
-        #if the probabilistic model depends on other probabilistic models, sampling might create parameters that lie outside of the accepted parameter range of the model. In this case, resampling is tried 10 times before it is concluded that no appropriate parameters can be found.
-        while(try_finding_parameters<10):
-            if(self.sample_parameters()):
-                break
-            try_finding_parameters += 1
-        if(try_finding_parameters==10):
-            raise ValueError('Cannot find appropriate parameters for probabilistic model.')
+        # Initialize list which will contain the values for all parameters associated with the model. If the parameters          derive from a probabilistic model, they will be sampled.
+        self.fix_parameters = [None]
+
+        #NOTE probably needs renaming
+        #Initialize a list which will contain the order in which the output of a model should be assigned to the parameter values of a model derived from the current model
+        self.children_index = []
+
+        #Initialize a counter which specifies the current index to be considered in the children_index list.
+        self.index = 0
+
+        #NOTE probably needs renaming
+        #Initialize a list which will contain a mapping of parameter values to corresponding parents as well as index of a sampled output of the parent
+        self.parameter_index = []
+
+        #boolean to mark whether a parent has been included in the list of parents before
+        has_been_used=False
+
+        #loop over all given parameters, and set the corresponding parameter_index entry to a tupel of the correct parent and index in the output of this parent
+        for parameter in parameters:
+            has_been_used=False
+            for index, parent in enumerate(self.parents):
+                #if the parameter is already contained in the parents-list, it gets marked
+                if(parameter==parent):
+                    has_been_used = True
+                    current_parent=index
+                    break
+
+            #if the parameter is not in the parents list yet, it gets added to it
+            if(not(has_been_used)):
+                self.parents.append(parameter)
+                current_parent = len(self.parents)-1
+
+            #set the parameter_index value, depending on whether the access operator was used or not
+            if(not(parameter.children_index)):
+                #have this outside the loop to ensure that hyperparameters are initialized as well
+                self.parameter_index.append((current_parent, 0))
+                for j in range(1, parameter.dimension):
+                    self.parameter_index.append((current_parent,j))
+            else:
+                self.parameter_index.append((current_parent, parameter.children_index[parameter.index]))
+                parameter.index+=1
+
+        #clear all children_index and index values
+        for parameter in parameters:
+            parameter.children_index=[]
+            parameter.index=0
+
+        #initialize all fix_parameters to None, so that fix_parameters has the correct length
+        #NOTE we could instead also just set the dimension over self.parameter_index, and leave fix_parameters empty until we sample?
+        self.fix_parameters*=len(self.parameter_index)
+
+
         self.visited = False #whether the node has been touched
+
+
+    def __getitem__(self, item):
+        """
+        Overloads the access operator. If the access operator is called, the specified index is saved in the children_index list.
+        Commonly used at initialization of new probabilistic models to specify a mapping between model outputs and parameters.
+        """
+        self.children_index.append(item)
+        return self
 
 
     def sample_parameters(self, rng=np.random.RandomState()):
@@ -52,20 +108,25 @@ class ProbabilisticModel(metaclass = ABCMeta):
             whether it was possible to set the parameters to sampled values
         """
 
-        #for each parent of the probabilistic model, a value is sampled from this parent. The values are saved to a temporary list
-        parameter_values_temp = []
+        #for each parent of the probabilistic model, a value is sampled from this parent. The values are saved to a list
+        parent_values = []
         for parent in self.parents:
-            parameter_value = parent.sample_from_distribution(1, rng=rng)
-            if (isinstance(parameter_value[0], (list, np.ndarray))):
-                parameter_value = parameter_value[0]
-            for parameter in parameter_value:
-                parameter_values_temp.append(parameter)
+            fix_parameters = parent.sample_from_distribution(1, rng=rng)
+            #NOTE THIS CHECKER NOW BREAKS FOR 2D COV MATRICES, SINCE BELOW WE ACCESS THE 0TH ELEMENT AFTERWARDS -> needs additional [] around cov to work properly...
+            #NOTE this will be fixed as soon as we implement that a user can give [[1,0],[0,1]] to a model and it becomes a hyperparameter, since then we can implement that if len>=2 and len[0]>=2 --> pack it in extra list
+            if (isinstance(fix_parameters[0], (list, np.ndarray))):
+                fix_parameters = fix_parameters[0]
+            parent_values.append(fix_parameters)
 
-        #the temporary list is checked for whether the values are valid for the probabilistic model and in case they are, the parameter_values attribute is fixed to these values
-        if (self._check_parameters(parameter_values_temp)):
-            # print('Fixed parameters of %s to %s' % (self.__str__(), parameter_values_temp.__str__()))
-            self.parameter_values = parameter_values_temp
-            self.visited = True
+        #use the mapping provided in parameter_index to assign the proper parameter values to each parameter in a temporary list
+        fix_parameters_temp = []
+        for parameter_index in self.parameter_index:
+            fix_parameters_temp.append(parent_values[parameter_index[0]][parameter_index[1]])
+
+        #the temporary list is checked for whether the values are valid for the probabilistic model and in case they are, the fix_parameters attribute is fixed to these values
+        if (self._check_parameters(fix_parameters_temp)):
+            # print('Fixed parameters of %s to %s' % (self.__str__(), fix_parameters_temp.__str__()))
+            self.fix_parameters = fix_parameters_temp
             return True
         else:
             return False
@@ -91,23 +152,18 @@ class ProbabilisticModel(metaclass = ABCMeta):
         #The input is checked for whether it is a valid input for the probabilistic model
         if (not (self._check_parameters_fixed(parameters))):
             return False
-        index = 0
-        current_parameter_index = 0
-        #for each parent, the corresponding parameter_value entry is set to the new value
-        while (current_parameter_index < len(parameters)):
-            #NOTE WHY DO WE CARE WHETHER IT HAS BEEN VISITED FOR SETTING VALUES?
-            while (self.parents[index].visited):
-                index += 1
-            for j in range(self.parents[index].dimension):
-                self.parameter_values[index] = parameters[current_parameter_index]
-                current_parameter_index += 1
-                index += 1
-
-        #the probabilistic model gets marked as visited so that it does not get set multiple times while setting parameters on the whole graph
-        self.visited = True
+        fix_parameters_index=0
+        current_parameters_index=0
+        #iterate over all parameter_index. If the parent is not a hyperparameter, set the corresponding value
+        for parameter_index in self.parameter_index:
+            #NOTE why do we need to check whether it has been visited?
+            if(not(parameter_index[0].visited) and parameter_index[0].dimension!=0):
+                self.fix_parameters[fix_parameters_index] = parameters[current_parameters_index]
+                current_parameters_index+=1
+            fix_parameters_index+=1
         return True
 
-
+    #NOTE THIS GIVES BACK IN ORDER OF INPUT, IE NORMAL(A[1],A[0]) -> A[1],A[0]
     def get_parameters(self):
         """
         Returns the current values of the free parameters of the probabilistic model.
@@ -119,10 +175,11 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
         return_values = []
         index=0
-        for parent in self.parents:
-            for j in range(parent.dimension):
-                return_values.append(self.parameter_values[index+j])
-            index+=parent.dimension
+        #Append all the parameter values which do not correspond to a hyperparameter
+        for parameter_index in self.parameter_index:
+            if(parameter_index[0].dimension!=0):
+                return_values.append(self.fix_parameters[index])
+            index+=1
         return return_values
 
     def number_of_free_parameters(self):
@@ -219,7 +276,7 @@ class Discrete(metaclass = ABCMeta):
         """
         raise NotImplementedError
 
-#NOTE the parameter_values will be a list, check everywhere whether it is okay to be used like that (for hyper not for in general)
+#NOTE the fix_parameters will be a list, check everywhere whether it is okay to be used like that (for hyper not for in general)
 class Hyperparameter(ProbabilisticModel):
     """
     This class represents all hyperparameters (i.e. fixed parameters).
@@ -232,9 +289,11 @@ class Hyperparameter(ProbabilisticModel):
     def __init__(self, parameters):
         #a hyperparameter is defined by the fact that it does not have any parents
         self.parents = []
-        self.parameter_values = parameters
+        self.fix_parameters = parameters
         self.visited = False
         self.dimension = 0
+        self.children_index = []
+        self.parameter_index = []
 
     def sample_parameters(self, rng=np.random.RandomState()):
         self.visited = True
@@ -254,8 +313,9 @@ class Hyperparameter(ProbabilisticModel):
         return True
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
-        return self.parameter_values*k
+        return self.fix_parameters*k
 
     def pdf(self, x):
+        #Mathematically, the expression for the pdf of a hyperparameter should be: if(x==self.fix_parameters) return 1; else return 0; However, since the pdf is called recursively for the whole model structure, and pdfs multiply, this would mean that all pdfs become 0. Setting the return value to 1 ensures proper calulation of the overall pdf.
         return 1
 
