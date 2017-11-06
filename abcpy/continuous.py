@@ -8,7 +8,7 @@ from scipy.special import gamma
 
 #NOTE there is no "domain" function, since most values of the domains would be np.inf/-np.inf. Instead, relevant checks for the domain are done directly within check_parameters.
 
-#TODO check whether it matters that fix_parameters is not initialized right away, i.e. do we ever use these values but do not necessarily enter the inference beforehand?
+#TODO check whether it matters that fixed_parameters is not initialized right away, i.e. do we ever use these values but do not necessarily enter the inference beforehand?
 
 #TODO add docstring explanation that sample_parameters needs to be called for standalone distributions
 class Normal(ProbabilisticModel, Continuous):
@@ -36,8 +36,8 @@ class Normal(ProbabilisticModel, Continuous):
         rng: Random number generator
             Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
         """
-        mu = self.fix_parameters[0]
-        sigma = self.fix_parameters[1]
+        mu = self.fixed_parameters[0]
+        sigma = self.fixed_parameters[1]
         return np.array(rng.normal(mu, sigma, k).reshape(-1))
 
     def _check_parameters(self, parameters):
@@ -72,8 +72,8 @@ class Normal(ProbabilisticModel, Continuous):
         x: list
             The point at which the pdf should be evaluated.
         """
-        mu = self.fix_parameters[0]
-        sigma = self.fix_parameters[1]
+        mu = self.fixed_parameters[0]
+        sigma = self.fixed_parameters[1]
         return norm(mu,sigma).pdf(x)
 
 
@@ -89,7 +89,7 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
     def __init__(self,parameters):
         super(MultivariateNormal, self).__init__(parameters)
         #Parameter specifying the dimension of the return values of the distribution.
-        self.dimension = len(self.fix_parameters)-1
+        self.dimension = len(self.fixed_parameters)-1
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """
@@ -102,8 +102,8 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
     rng: Random number generator
         Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
     """
-        mean = self.fix_parameters[:-1]
-        cov = self.fix_parameters[-1]
+        mean = self.fixed_parameters[:-1]
+        cov = self.fixed_parameters[-1]
         return rng.multivariate_normal(mean, cov, k)
 
     def _check_parameters(self, parameters):
@@ -160,8 +160,8 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
        x: list
            The point at which the pdf should be evaluated.
        """
-        mean= self.fix_parameters[:-1]
-        cov = self.fix_parameters[-1]
+        mean= self.fixed_parameters[:-1]
+        cov = self.fixed_parameters[-1]
         return multivariate_normal(mean, cov).pdf(x)
 
 
@@ -177,7 +177,7 @@ class MixtureNormal(ProbabilisticModel, Continuous):
     def __init__(self, parameters):
         super(MixtureNormal, self).__init__(parameters)
         #Parameter specifying the dimension of the return values of the distribution.
-        self.dimension = len(self.fix_parameters)
+        self.dimension = len(self.fixed_parameters)
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """
@@ -190,7 +190,7 @@ class MixtureNormal(ProbabilisticModel, Continuous):
         rng: Random number generator
             Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
             """
-        mean = self.fix_parameters
+        mean = self.fixed_parameters
         # Generate k lists from mixture_normal
         Data_array = [None] * k
         dimension = len(mean)
@@ -229,7 +229,7 @@ class MixtureNormal(ProbabilisticModel, Continuous):
        x: list
            The point at which the pdf should be evaluated.
        """
-        mean= self.fix_parameters[:-1]
+        mean= self.fixed_parameters[:-1]
         cov_1 = np.identity(self.dimension)
         cov_2 = 0.01*cov_1
         return 0.5*(multivariate_normal(mean, cov_1).pdf(x))+0.5*(multivariate_normal(mean, cov_2).pdf(x))
@@ -260,8 +260,8 @@ class StudentT(ProbabilisticModel, Continuous):
         rng: Random number generator
             Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
             """
-        mean = self.fix_parameters[0]
-        df = self.fix_parameters[1]
+        mean = self.fixed_parameters[0]
+        df = self.fixed_parameters[1]
         return np.array((rng.standard_t(df,k)+mean).reshape(-1))
 
     def _check_parameters(self, parameters):
@@ -298,8 +298,8 @@ class StudentT(ProbabilisticModel, Continuous):
        x: list
            The point at which the pdf should be evaluated.
        """
-        df = self.fix_parameters[1]
-        x-=self.fix_parameters[0] #divide by std dev if we include that
+        df = self.fixed_parameters[1]
+        x-=self.fixed_parameters[0] #divide by std dev if we include that
         return gamma((df+1)/2)/(np.sqrt(df*np.pi)*gamma(df/2)*(1+x**2/df)**((df+1)/2))
 
 
@@ -315,7 +315,7 @@ class MultiStudentT(ProbabilisticModel, Continuous):
     def __init__(self, parameters):
         super(MultiStudentT, self).__init__(parameters)
         #Parameter specifying the dimension of the return values of the distribution.
-        self.dimension = len(self.fix_parameters)-2
+        self.dimension = len(self.fixed_parameters)-2
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """
@@ -328,9 +328,9 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         rng: Random number generator
             Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
             """
-        mean = self.fix_parameters[:-2]
-        cov = self.fix_parameters[-2]
-        df = self.fix_parameters[-1]
+        mean = self.fixed_parameters[:-2]
+        cov = self.fixed_parameters[-2]
+        df = self.fixed_parameters[-1]
         p = len(mean)
         if (df == np.inf):
             chis1 = 1.0
@@ -385,9 +385,9 @@ class MultiStudentT(ProbabilisticModel, Continuous):
        x: list
            The point at which the pdf should be evaluated.
        """
-        mean = self.fix_parameters[:-2]
-        cov = self.fix_parameters[-2]
-        v = self.fix_parameters[-1]
+        mean = self.fixed_parameters[:-2]
+        cov = self.fixed_parameters[-2]
+        v = self.fixed_parameters[-1]
         mean = np.array(mean)
         cov = np.array(cov)
         p=len(mean)
@@ -400,7 +400,7 @@ class MultiStudentT(ProbabilisticModel, Continuous):
 
 
 #TODO uniform uses self.parents -> rewrite in case the parameter_index stuff is okay
-
+#TODO check marcels implementation for ideas how to write nicer
 class Uniform(ProbabilisticModel, Continuous):
     """
     This class implements a probabilistic model following a uniform distribution.
@@ -452,7 +452,7 @@ class Uniform(ProbabilisticModel, Continuous):
             """
         samples = np.zeros(shape=(k, self.dimension))
         for j in range(0, self.dimension):
-            samples[:, j] = rng.uniform(self.fix_parameters[j], self.fix_parameters[j+self.dimension], k)
+            samples[:, j] = rng.uniform(self.fixed_parameters[j], self.fixed_parameters[j+self.dimension], k)
         return samples
 
     def _check_user_input(self, parameters):
@@ -522,7 +522,7 @@ class Uniform(ProbabilisticModel, Continuous):
                 #if the current parent is a hyperparameter, add its value to the current bound.
                 if(isinstance(self.parents[current_parent], Hyperparameter)):
                     length+=1
-                    bounds[current_bound].append(self.fix_parameters[index_paramter_values])
+                    bounds[current_bound].append(self.fixed_parameters[index_paramter_values])
                     index_paramter_values+=1
                 #if the current parent is not a hyperparameter (i.e. parents.dimension>0), append the new provided value.
                 for t in range(self.parents[current_parent].dimension):
@@ -552,8 +552,8 @@ class Uniform(ProbabilisticModel, Continuous):
        x: list
            The point at which the pdf should be evaluated.
        """
-        lower_bound = self.fix_parameters[:self.dimension]
-        upper_bound = self.fix_parameters[self.dimension:]
+        lower_bound = self.fixed_parameters[:self.dimension]
+        upper_bound = self.fixed_parameters[self.dimension:]
         if (np.product(np.greater_equal(x, np.array(lower_bound)) * np.less_equal(x, np.array(upper_bound)))):
             pdf_value = 1. / np.product(np.array(upper_bound) - np.array(lower_bound))
         else:
@@ -621,7 +621,7 @@ class StochLorenz95(ProbabilisticModel, Continuous):
             # Compute the timeseries for each time steps
             for ind in range(0, self.n_timestep - 1):
                 # parameters to be supplied to the ODE solver
-                parameter = [eta, np.array(self.fix_parameters)]
+                parameter = [eta, np.array(self.fixed_parameters)]
                 # Each timestep is computed by using a 4th order Runge-Kutta solver
                 x = self._rk4ode(self._l95ode_par, np.array([time_steps[ind], time_steps[ind + 1]]), timeseries[:, ind],
                                  parameter)
@@ -747,9 +747,9 @@ class Ricker(ProbabilisticModel, Continuous):
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         timeseries_array = [None] * k
         # Initialize local parameters
-        log_r = self.fix_parameters[0]
-        sigma = self.fix_parameters[1]
-        phi = self.fix_parameters[2]
+        log_r = self.fixed_parameters[0]
+        sigma = self.fixed_parameters[1]
+        phi = self.fixed_parameters[2]
         for k in range(0, k):
             # Initialize the time-series
             timeseries_obs_size = np.zeros(shape=(self.n_timestep), dtype=np.float)
