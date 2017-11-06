@@ -8,8 +8,6 @@ from scipy.special import gamma
 
 #NOTE we could call self.parents self.prior?
 
-#NOTE do we maybe want to average over a couple of samples during initialization, rather than taking a single value? this is an issue for example for StudentT!
-
 #TODO in the constructor of probmodel: we go through all the parameters given: if they are not a prob model, we initialize them as a hyperparameter
 
 #NOTE WE COULD ALSO IMPLEMENT IT SUCH THAT GET AND SET USE THE ORDER OF THE PARENTS AS THEY APPEAR --> EASIER TO DO WITH INFERENCES.PY, BUT WILL HAVE TO IMPLEMENT AN EXTRA FUNCTION FOR USER OUTPUT MAYBE?
@@ -47,6 +45,11 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
         #loop over all given parameters, and set the corresponding parameter_index entry to a tupel of the correct parent and index in the output of this parent
         for parameter in parameters:
+            if(not(isinstance(parameter, ProbabilisticModel))):
+                if(isinstance(parameter, list)):
+                    parameter = Hyperparameter([[parameter]])
+                else:
+                    parameter = Hyperparameter([parameter])
             has_been_used=False
             for index, parent in enumerate(self.parents):
                 #if the parameter is already contained in the parents-list, it gets marked
@@ -72,8 +75,9 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
         #clear all children_index and index values
         for parameter in parameters:
-            parameter.children_index=[]
-            parameter.index=0
+            if(isinstance(parameter, ProbabilisticModel)):
+                parameter.children_index=[]
+                parameter.index=0
 
         #initialize all fix_parameters to None, so that fix_parameters has the correct length
         #NOTE we could instead also just set the dimension over self.parameter_index, and leave fix_parameters empty until we sample?

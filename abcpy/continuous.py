@@ -7,6 +7,10 @@ from scipy.special import gamma
 #TODO domain checks for check_fixed if possible? Will have to rewrite what is passed to check_fixed in this case!
 
 #NOTE there is no "domain" function, since most values of the domains would be np.inf/-np.inf. Instead, relevant checks for the domain are done directly within check_parameters.
+
+#TODO check whether it matters that fix_parameters is not initialized right away, i.e. do we ever use these values but do not necessarily enter the inference beforehand?
+
+#TODO add docstring explanation that sample_parameters needs to be called for standalone distributions
 class Normal(ProbabilisticModel, Continuous):
     """
     This class implements a probabilistic model following a normal distribution with mean mu and variance sigma.
@@ -98,8 +102,8 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
     rng: Random number generator
         Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
     """
-        mean = self.fix_parameters[:len(self.fix_parameters)-1]
-        cov = self.fix_parameters[len(self.fix_parameters)-1]
+        mean = self.fix_parameters[:-1]
+        cov = self.fix_parameters[-1]
         return rng.multivariate_normal(mean, cov, k)
 
     def _check_parameters(self, parameters):
@@ -111,7 +115,7 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         if(len(parameters)<2):
             raise IndexError('Input for MultivariateNormal has to be of at least length 2.')
         length = len(parameters)-1
-        cov = np.array(parameters[len(parameters)-1])
+        cov = np.array(parameters[-1])
         if(length!=len(cov[0])):
             raise IndexError('Length of mean and covariance matrix have to match.')
 
@@ -127,10 +131,23 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
 
     def _check_parameters_fixed(self, parameters):
         """
-        Checks parameter values that are given as fixed values. Returns False iff the number of parameters given and the number of free parameters are not equal.
+        Checks parameter values that are given as fixed values. Returns False iff the number of parameters given and the number of free parameters are not equal or if the covariance matrix is in some way not correct.
         """
         if(len(parameters)!=super(MultivariateNormal, self).number_of_free_parameters()):
             return False
+        #check whether the covariance matrix gets fixed
+        if(isinstance(parameters[-1], list)):
+            #check whether the covariance matrix is of the right dimension
+            if(self.dimension!=len(parameters[-1])):
+                return False
+            #check whether the covariance matrix is symmetric
+            if(not(np.allclose(parameters[-1],parameters[-1].T, atol=1e-3))):
+                return False
+            #check whether the covariance matrix is positive definite
+            try:
+                is_pos = np.linalg.cholesky(parameters[-1])
+            except np.linalg.LinAlgError:
+                return False
         return True
 
     def pdf(self, x):
@@ -143,8 +160,8 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
        x: list
            The point at which the pdf should be evaluated.
        """
-        mean= self.fix_parameters[:len(self.fix_parameters)-1]
-        cov = self.fix_parameters[len(self.fix_parameters)-1]
+        mean= self.fix_parameters[:-1]
+        cov = self.fix_parameters[-1]
         return multivariate_normal(mean, cov).pdf(x)
 
 
@@ -212,7 +229,7 @@ class MixtureNormal(ProbabilisticModel, Continuous):
        x: list
            The point at which the pdf should be evaluated.
        """
-        mean= self.fix_parameters[:len(self.fix_parameters)-1]
+        mean= self.fix_parameters[:-1]
         cov_1 = np.identity(self.dimension)
         cov_2 = 0.01*cov_1
         return 0.5*(multivariate_normal(mean, cov_1).pdf(x))+0.5*(multivariate_normal(mean, cov_2).pdf(x))
@@ -311,9 +328,9 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         rng: Random number generator
             Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
             """
-        mean = self.fix_parameters[:len(self.fix_parameters)-2]
-        cov = self.fix_parameters[len(self.fix_parameters)-2]
-        df = self.fix_parameters[len(self.fix_parameters)-1]
+        mean = self.fix_parameters[:-2]
+        cov = self.fix_parameters[-2]
+        df = self.fix_parameters[-1]
         p = len(mean)
         if (df == np.inf):
             chis1 = 1.0
@@ -329,12 +346,12 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         Checks parameter values sampled from the parents of the probabilistic model. Returns False iff the degrees of freedom are less than or equal to 0, the covariance matrix is not symmetric or the covariance matrix is not positive definite.
         """
         length = len(parameters)-2
-        cov = np.array(parameters[len(parameters)-2])
+        cov = np.array(parameters[-2])
         if(not(length==len(cov[0]))):
             raise IndexError('Mean and covariance matrix have to be of same length.')
 
         #check whether the degrees of freedom are <=0
-        if(parameters[len(parameters)-1]<=0):
+        if(parameters[-1]<=0):
             return False
 
         cov = np.array(cov)
@@ -349,6 +366,7 @@ class MultiStudentT(ProbabilisticModel, Continuous):
             return False
         return True
 
+    #NOTE we could check the self.parents to see whether df or cov is a distribution, and if so do checks. Implement once access operator implementation is okay
     def _check_parameters_fixed(self, parameters):
         """
         Checks parameter values given as fixed values. Returns True iff the number of parameters given equals the number of free parameters of the model.
@@ -367,9 +385,9 @@ class MultiStudentT(ProbabilisticModel, Continuous):
        x: list
            The point at which the pdf should be evaluated.
        """
-        mean = self.fix_parameters[:len(self.fix_parameters)-2]
-        cov = self.fix_parameters[len(self.fix_parameters)-2]
-        v = self.fix_parameters[len(self.fix_parameters)-1]
+        mean = self.fix_parameters[:-2]
+        cov = self.fix_parameters[-2]
+        v = self.fix_parameters[-1]
         mean = np.array(mean)
         cov = np.array(cov)
         p=len(mean)
