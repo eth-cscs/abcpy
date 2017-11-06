@@ -45,6 +45,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
         #loop over all given parameters, and set the corresponding parameter_index entry to a tupel of the correct parent and index in the output of this parent
         for parameter in parameters:
+            #if the user input contains some other type than ProbabilisticModel, convert this to a hyperparameter
             if(not(isinstance(parameter, ProbabilisticModel))):
                 if(isinstance(parameter, list)):
                     parameter = Hyperparameter([[parameter]])
@@ -116,8 +117,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
         parent_values = []
         for parent in self.parents:
             fix_parameters = parent.sample_from_distribution(1, rng=rng)
-            #NOTE THIS CHECKER NOW BREAKS FOR 2D COV MATRICES, SINCE BELOW WE ACCESS THE 0TH ELEMENT AFTERWARDS -> needs additional [] around cov to work properly...
-            #NOTE this will be fixed as soon as we implement that a user can give [[1,0],[0,1]] to a model and it becomes a hyperparameter, since then we can implement that if len>=2 and len[0]>=2 --> pack it in extra list
             if (isinstance(fix_parameters[0], (list, np.ndarray))):
                 fix_parameters = fix_parameters[0]
             parent_values.append(fix_parameters)
