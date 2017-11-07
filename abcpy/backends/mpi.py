@@ -19,8 +19,18 @@ class BackendMPIMaster(Backend):
     finalized = False
 
     def __init__(self, master_node_ranks=[0],chunk_size=1):
+        """
+        Parameters
+        ----------
+        master_node_ranks: Python list
+            list of ranks computation should not happen on.
+            Should include the master so it doesn't get 
+            overwhelmed with work.
 
-        print("Using dirty version from ummavi's repo for MPI based dynamic scheduling")
+        chunk_size: Integer
+            size of one block of data to be sent to free
+            executors
+       """
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
@@ -34,18 +44,16 @@ class BackendMPIMaster(Backend):
         #Initialize a BDS store for both master & slave.
         self.bds_store = {}
         self.pds_store = {}
+
+        #Initialize a store for the pds data that 
+        #.. hasn't been sent to the workers yet
         self.pds_pending_store = {}
 
         self.chunk_size = chunk_size
 
-        # try:
-        #     os.mkdir("logs")
-        # except Exception as e:
-        #     print("folder logs/ already exists")
-
 
     def __command_slaves(self, command, data):
-        """
+        """Tell slaves to enter relevant execution block
         This method handles the sending of the command to the slaves
         telling them what operation to perform next.
 
@@ -66,7 +74,8 @@ class BackendMPIMaster(Backend):
         elif command == self.OP_MAP:
             #In map we receive data as (pds_id,pds_id_new,func)
             #Use cloudpickle to dump the function into a string.
-            function_packed = self.__sanitize_and_pack_func(data[2])
+            # function_packed = self.__sanitize_and_pack_func()
+            function_packed = cloudpickle.dumps(data[2],pickle.HIGHEST_PROTOCOL)
             data_packet = (command, data[0], data[1], function_packed)
 
         elif command == self.OP_BROADCAST:
@@ -85,34 +94,6 @@ class BackendMPIMaster(Backend):
 
         _ = self.comm.bcast(data_packet, root=0)
 
-
-    def __sanitize_and_pack_func(self, func):
-        """
-        Prevents the function from packing the backend by temporarily
-        setting it to another variable and then uses cloudpickle
-        to pack it into a string to be sent.
-
-        Parameters
-        ----------
-        func: Python Function
-            The function we are supposed to pack while sending it along to the slaves
-            during the map function
-
-        Returns
-        -------
-        Returns a string of the function packed by cloudpickle
-
-        """
-
-        #Set the backend to None to prevent it from being packed
-        globals()['backend'] = {}
-
-        function_packed = cloudpickle.dumps(func,pickle.HIGHEST_PROTOCOL)
-
-        #Reset the backend to self after it's been packed
-        globals()['backend'] = self
-
-        return function_packed
 
 
     def __generate_new_pds_id(self):
@@ -179,16 +160,23 @@ class BackendMPIMaster(Backend):
         return pds
 
     def orchestrate_map(self,pds_id):
-        """Orchestrates the slaves to perform a map function
+        """Orchestrates the slaves/workers to perform a map function
+        
+        This works by keeping track of the workers who haven't finished executing,
+        waiting for them to request the next chunk of data when they are free,
+        responding to them with the data and then sending them a Sentinel
+        signalling that they can exit.
         """
         is_map_done = [True if i in self.master_node_ranks else False for i in range(self.size)]
         status = MPI.Status()
 
-        #Copy it to the pending.
+        #Copy it to the pending. This is so when master accesses
+        #the PDS data it's not empty.
         self.pds_pending_store[pds_id] = list(self.pds_store[pds_id])
 
         #While we have some ranks that haven't finished
         while sum(is_map_done)<self.size:
+            #Wait for a reqest from anyone
             data_request = self.comm.recv(
                 source=MPI.ANY_SOURCE,
                 tag=MPI.ANY_TAG,
@@ -204,6 +192,7 @@ class BackendMPIMaster(Backend):
             #Pointer so we don't have to keep doing dict lookups
             current_pds_items = self.pds_pending_store[pds_id]
             num_current_pds_items = len(current_pds_items)
+
             #Everyone's already exhausted all the data.
             # Send a sentinel and mark the node as finished
             if num_current_pds_items == 0:
@@ -248,7 +237,6 @@ class BackendMPIMaster(Backend):
         self.__command_slaves(self.OP_MAP, data)
 
         self.orchestrate_map(pds_id)
-        # rdd = list(map(func, pds.python_list))
 
         pds_res = PDSMPI([], pds_id_new, self)
 
@@ -276,19 +264,16 @@ class BackendMPIMaster(Backend):
 
         all_data = self.comm.gather(pds.python_list, root=0)
 
-
-        # When we gather, the results are a list of lists one
-        # .. per rank. Undo that by one level and still maintain multi
-        # .. dimensional output (which is why we cannot use np.flatten)
+        #Initialize lists to accumulate results
         all_data_indices,all_data_items = [],[]
 
-        # print("All_data",all_data)
         for node_data in all_data:
-            # print("Node_data",node_data)
             for item in node_data:
                 all_data_indices+=[item[0]]
                 all_data_items+=[item[1]]
-    
+
+        #Sort the accumulated data according to the indices we tagged
+        #them with when distributing 
         rdd_sorted = [all_data_items[i] for i in np.argsort(all_data_indices)]
 
 
@@ -357,7 +342,7 @@ class BackendMPIMaster(Backend):
 
 
 class BackendMPISlave(Backend):
-    """Defines the behavior of the slaves processes
+    """Defines the behavior of the slaves/worker processes
 
     This class defines how the slaves should behave during operation.
     Slaves are those processes(not nodes like Spark) that have rank!=0
@@ -378,8 +363,6 @@ class BackendMPISlave(Backend):
 
         #Initialize a BDS store for both master & slave.
         self.bds_store = {}
-
-        self.log_fd = open("logs/slave_"+str(self.rank),"w")
 
         #Go into an infinite loop waiting for commands from the user.
         self.slave_run()
@@ -416,7 +399,6 @@ class BackendMPISlave(Backend):
             if op == self.OP_PARALLELIZE:
                 pds_id = data[1]
                 self.__rec_pds_id = pds_id
-                # pds = self.parallelize([]) #Don't need to really parallelize anymore.
                 pds_id, pds_id_new = self.__get_received_pds_id()
                 self.pds_store[pds_id] = None
 
@@ -427,13 +409,9 @@ class BackendMPISlave(Backend):
 
                 #Use cloudpickle to convert back function string to a function
                 func = cloudpickle.loads(function_packed)
-                #Set the function's backend to current class
-                #so it can access bds_store properly
-                # func.backend = self
 
-
-                # Access an existing PDS
-                # pds = self.pds_store[pds_id]
+                #Enter the map so we can grab data and perform the func.
+                #Func sent before and not during for performance reasons
                 pds_res = self.map(func)
 
                 # Store the result in a newly gnerated PDS pds_id
@@ -502,21 +480,19 @@ class BackendMPISlave(Backend):
 
         rdd = []
         while True:
-            #Ask for a chunk of data 
-
+            #Ask for a chunk of data since it's free
             data_chunks = self.comm.sendrecv(pds_id, 0, pds_id)
-            # print(self.rank,">Data_chunks",data_chunks)
 
+            #If it receives a sentinel, it's done and it can exit
             if data_chunks is None:
                 break
 
+            #Accumulate the indicess and *processed* chunks
             for chunk in data_chunks:
                 data_index,data_item = chunk
                 rdd+=[(data_index,func(data_item))]
 
         pds_res = PDSMPI(rdd, pds_id_new, self)
-
-        self.log_fd.write("MAP_START "+str(map_start)+"\nMAP_END "+str(time.time())+"\n")
 
         return pds_res
 
@@ -578,6 +554,7 @@ class BackendMPI(BackendMPIMaster if MPI.COMM_WORLD.Get_rank() == 0 else Backend
         else:
             super().__init__()
             raise Exception("Slaves exitted main loop.")
+
 
 
 class PDSMPI(PDS):
