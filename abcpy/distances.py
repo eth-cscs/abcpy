@@ -21,7 +21,7 @@ class Distance(metaclass = ABCMeta):
             Statistics extractor object that conforms to the Statistics class.
         """
         
-        raise NotImplemented
+        raise NotImplementedError
 
     
     @abstractmethod
@@ -58,11 +58,11 @@ class Distance(metaclass = ABCMeta):
             The distance between the two input data sets.
         """
                 
-        raise NotImplemented
+        raise NotImplementedError
 
     
     @abstractmethod
-    def dist_max():
+    def dist_max(self):
         """To be overwritten by sub-class: should return maximum possible value of the
         desired distance function.
  
@@ -76,7 +76,7 @@ class Distance(metaclass = ABCMeta):
             The maximal possible value of the desired distance function.
         """
         
-        raise NotImplemented
+        raise NotImplementedError
 
     
     def _calculate_summary_stat(self,d1,d2):
