@@ -2,7 +2,7 @@ from ProbabilisticModel import ProbabilisticModel, Discrete
 
 import numpy as np
 from scipy.special import comb
-
+#TODO rewrite for new implementations
 #NOTE tested using scipy.stats.binom, all functions give correct values
 class Binomial(Discrete, ProbabilisticModel):
     """
