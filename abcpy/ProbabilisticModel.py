@@ -1,7 +1,5 @@
 from abc import ABCMeta, abstractmethod
 import numpy as np
-from scipy.stats import multivariate_normal, norm
-from scipy.special import gamma
 
 #TODO ricker and lorenz implementations
 
