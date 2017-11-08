@@ -1,22 +1,38 @@
+from ProbabilisticModel import *
 from discrete import *
 import unittest
-import numpy as np
-from scipy.stats import binom
 
-class BinomialTests(unittest.TestCase):
-    def setUp(self):
-        self.rng = np.random.RandomState(1)
-        self.binomial = Binomial([10,0.3])
+"""Tests whether the methods defined for discrete probabilistic models are working as intended."""
 
-    def test_sample_from_distribution(self):
-        samples = self.binomial.sample_from_distribution(100, rng=self.rng)
-        expected_samples = binom.rvs(10, 0.3, size=100, random_state = np.random.RandomState(1))
-        self.assertLess((samples-expected_samples).all(),1e-5)
 
-    def test_pmf(self):
-        computed_pmf = self.binomial.pmf(2)
-        expected_pmf = binom.pmf(2, 10, 0.3)
-        self.assertLess(abs(computed_pmf-expected_pmf), 1e-5)
+class CheckParametersAtInitializationTests(unittest.TestCase):
+    """Tests that no probabilistic model with invalid parameters can be initialized."""
+    def test_binomial(self):
+        with self.assertRaises(ValueError):
+            Binomial([-1,0.5])
+        with self.assertRaises(ValueError):
+            Binomial([1,-0.1])
+        with self.assertRaises(ValueError):
+            Binomial([1,3])
+
+
+class CheckParametersBeforeSamplingTests(unittest.TestCase):
+    """Tests whether False will be returned if the input parameters of _check_parameters_before_sampling are not accepted."""
+    def test_binomial(self):
+        B = Binomial([1,0.1])
+        self.assertFalse(B._check_parameters_before_sampling([-1,0.1]))
+        self.assertFalse(B._check_parameters_before_sampling([1,-0.1]))
+        self.assertFalse(B._check_parameters_before_sampling([1,3]))
+
+
+class SampleFromDistributionTests(unittest.TestCase):
+    """Tests the return value of sample_from_distribution for all discrete distributions."""
+    def test_binomial(self):
+        B = Binomial([1,0.1])
+        samples = B.sample_from_distribution(3)
+        self.assertTrue(isinstance(samples, list))
+        self.assertTrue(isinstance(samples[1],np.ndarray))
+        self.assertTrue(len(samples[1])==3)
 
 
 if __name__ == '__main__':

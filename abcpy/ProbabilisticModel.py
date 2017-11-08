@@ -3,14 +3,12 @@ import numpy as np
 from scipy.stats import multivariate_normal, norm
 from scipy.special import gamma
 
-#TODO time the function calls once everything is implemented -> compare to if you use numba
+#TODO ricker and lorenz implementations
 
+#NOTE should we make hyperparameter prviate? the user should never call it as it would break behavior
 
-#TODO both ricker and lorenz could support that you give some in a combined model, and some not, we should implement that, but not a priority
+#NOTE we never check whether the number of parameters we give is equal to that of the number of free parameters associated with a model. But I dont think that is necessary
 
-#NOTE we could call self.parents self.prior?
-
-#NOTE it is not possible to give a hyperparameter as Hyperparameter([1]), only as 1, do we want the other possibility?
 
 class ProbabilisticModel(metaclass = ABCMeta):
     """This abstract class represents all probabilistic models.
@@ -18,19 +16,17 @@ class ProbabilisticModel(metaclass = ABCMeta):
         Parameters
         ----------
         parameters: list, each element is either a tupel containing the parent as well as the output index to which this parameter corresponds, a ProbabilisticModel or a hyperparameter.
-            Contains the probabilistic models and hyperparameters which define the parameters of the probabilistic model.
-
     """
     def __init__(self, parameters):
-        #Save all probabilistic models and hyperparameters from which the model derives
+        # Save all probabilistic models and hyperparameters from which the model derives
         self.parents = []
 
-        #Initialize a list that will later contain the current sampled values for this distribution
+        # Initialize a list that will later contain the current sampled values for this distribution
         self.fixed_values = [None]
 
         parents_temp = []
 
-        #initialize the parents
+        # Initialize the parents
         for parameter in parameters:
             if(not(isinstance(parameter, tuple))):
                 #if an entry is a ProbabilisticModel, all the output values are saved in order in self.parents
@@ -42,21 +38,27 @@ class ProbabilisticModel(metaclass = ABCMeta):
                     parents_temp.append((Hyperparameter([parameter]),0))
             else:
                 parents_temp.append(parameter)
-        #check whether the suggested parameters are allowed for this probabilistic model
-        if(self._check_parameters_at_initialization(parents_temp)):
-            self.parents = parents_temp
-        else:
-            raise ValueError('Domains of the specified parents do not match the required range of this model.')
+        # Check whether the suggested parameters are allowed for this probabilistic model
+        self._check_parameters_at_initialization(parents_temp)
+        self.parents = parents_temp
 
-        self.visited = False #whether the node has been touched
-
+        # A flag containing whether the probabilistic model has been touched during a recursive operation
+        self.visited = False
 
     def __getitem__(self, item):
         """
         Overloads the access operator. If the access operator is called, a tupel of the ProbablisticModel that called the operator and the index at which it was called is returned.
         Commonly used at initialization of new probabilistic models to specify a mapping between model outputs and parameters.
+
+        Parameters
+        ----------
+        item: integer
+            The index in the output of the parent model which should be linked to the parameter being defined.
         """
-        return (self, item)
+        # Ensure the specified index does not lie outside the range of the return value of the model
+        if(item>=self.dimension):
+            raise IndexError('The specified index lies out of range for probabilistic model %s.'%(self.__class__.__name__))
+        return self, item
 
     def get_parameter_values(self):
         """
@@ -64,17 +66,14 @@ class ProbabilisticModel(metaclass = ABCMeta):
         Commonly used when sampling from the distribution.
         """
         return_value = []
-        #saves the parameter values provided by the parents in the desired order specified in self.parents
+        # Saves the parameter values provided by the parents in the desired order specified in self.parents
         for parameter, index in self.parents:
             return_value.append(parameter.fixed_values[index])
         return return_value
 
-
-    #todo: this should check somehow things to know whether to return true or false. Can it even happen that this is false as long we do not have a domain?
-    #NOTE why did this return true/false?
     def sample_parameters(self, rng=np.random.RandomState()):
         """
-        Samples the parameter value using the distribution associated with the model. Saves this value in self.fixed_values.
+        Samples from the distribution associated with the probabilistic model and assigns the result to fixed_values, if applicable.
         Commonly used when sampling from the prior.
 
         Parameters
@@ -88,11 +87,15 @@ class ProbabilisticModel(metaclass = ABCMeta):
             whether it was possible to set the parameters to sampled values
         """
 
-        fixed_values_temp = self.sample_from_distribution(1, rng=rng)
-        if(isinstance(fixed_values_temp[0], (list, np.ndarray))):
-            fixed_values_temp = fixed_values_temp[0]
-        self.fixed_values = fixed_values_temp
-        return True
+        sample_result = self.sample_from_distribution(1, rng=rng)
+        # Sample_result will contain two entries, the first being True, iff the fixed_values from the parent models are an allowed input to the current model
+        if(sample_result[0]):
+            fixed_values_temp=sample_result[1]
+            if(isinstance(fixed_values_temp[0], (list, np.ndarray))):
+                fixed_values_temp = fixed_values_temp[0]
+            self.fixed_values = fixed_values_temp
+            return True
+        return False
 
     #NOTE currently, only check_parameters of uniform can return False
     def set_parameters(self, parameters):
@@ -126,15 +129,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
         return self.fixed_values
 
-    #todo this is wrong, but do we ever need this function anymore?
-    def number_of_free_parameters(self):
-        """
-        Returns the number of free parameters of the probabilistic model.
-        Commonly used to know how many parameters need to be taken from the total number of perturbed parameters to set new values.
-        """
-        return len(self.get_parameters())
-
-
     @abstractmethod
     def _check_parameters_at_initialization(self, parameters):
         """
@@ -144,6 +138,18 @@ class ProbabilisticModel(metaclass = ABCMeta):
         ----------
         parameters: list
             Contains the probabilistic models and hyperparameters which define the probabilistic model.
+        """
+        raise NotImplementedError
+
+    @abstractmethod
+    def _check_parameters_before_sampling(self, parameters):
+        """
+        Checks parameters before sampling from the distribution.
+
+        Parameters
+        ----------
+        parameters: list
+            Contains the current sampled values for all parents of the current probabilistic model.
         """
         raise NotImplementedError
 
@@ -183,7 +189,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         x: list
             The point at which the pdf should be evaluated.
         """
-        #if the probabilistic model is discrete, there is no probability density function, but a probability mass function. This check ensures that calling the pdf of such a model still works.
+        # If the probabilistic model is discrete, there is no probability density function, but a probability mass function. This check ensures that calling the pdf of such a model still works.
         if(isinstance(self, Discrete)):
             return self.pmf(x)
         else:
@@ -242,7 +248,6 @@ class Hyperparameter(ProbabilisticModel):
         return True
 
     def set_parameters(self, parameters, rng=np.random.RandomState()):
-        self.visited = True
         return True
 
     def get_parameters(self):
@@ -251,13 +256,16 @@ class Hyperparameter(ProbabilisticModel):
     def _check_parameters_at_initialization(self, parameters):
         return True
 
+    def _check_parameters_before_sampling(self, parameters):
+        return True
+
     def _check_parameters_fixed(self, parameters):
         return True
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
-        return self.fixed_values*k
+        return [True, self.fixed_values*k]
 
     def pdf(self, x):
-        #Mathematically, the expression for the pdf of a hyperparameter should be: if(x==self.fixed_parameters) return 1; else return 0; However, since the pdf is called recursively for the whole model structure, and pdfs multiply, this would mean that all pdfs become 0. Setting the return value to 1 ensures proper calulation of the overall pdf.
+        # Mathematically, the expression for the pdf of a hyperparameter should be: if(x==self.fixed_parameters) return 1; else return 0; However, since the pdf is called recursively for the whole model structure, and pdfs multiply, this would mean that all pdfs become 0. Setting the return value to 1 ensures proper calulation of the overall pdf.
         return 1
 
