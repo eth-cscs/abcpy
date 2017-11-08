@@ -1,9 +1,9 @@
-from ProbabilisticModel import ProbabilisticModel, Discrete
+from ProbabilisticModel import ProbabilisticModel, Discrete, Hyperparameter
 
 import numpy as np
 from scipy.special import comb
-#TODO rewrite for new implementations
-#NOTE tested using scipy.stats.binom, all functions give correct values
+
+
 class Binomial(Discrete, ProbabilisticModel):
     """
     This class implements a probabilistic model following a binomial distribution.
@@ -16,24 +16,24 @@ class Binomial(Discrete, ProbabilisticModel):
     def __init__(self, parameters):
         super(Binomial, self).__init__(parameters)
         self.dimension = 1
-        #ensure that values sampled from other distributions will be of type int
-        self.parameter_values[0] = int(self.parameter_values[0])
 
-    def set_parameters(self, parameters, rng=np.random.RandomState()):
-        """
-        Sets the parameters of the model. If the first parameter is not an integer, it is casted to one.
-        """
-        if(super(Binomial, self).set_parameters(parameters, rng=rng)):
-            self.parameter_values[0] = int(self.parameter_values[0])
-            return True
-        return False
+    def _check_parameters_at_initialization(self, parameters):
+        if(len(parameters)==2):
+            parameter_1, index_1 = parameters[0]
+            parameter_2, index_2 = parameters[1]
+            if(isinstance(parameter_1, Hyperparameter)):
+                if(parameter_1.fixed_values[0]<0):
+                    raise ValueError('The number of trials has to be larger than or equal to 0.')
+                if(not(isinstance(parameter_1.fixed_values[0], int))):
+                    raise ValueError('The number of trials has to be of type integer.')
+            if(isinstance(parameter_2, Hyperparameter)):
+                if(parameter_2.fixed_values[0]<0 or parameter_2.fixed_values[0]>1):
+                    raise ValueError('The success probability has to be in the interval [0,1]')
 
-    def _check_parameters(self, parameters):
+    def _check_parameters_before_sampling(self, parameters):
         """
-        Checks the parameter values at initialization. Returns False iff the first parameter is less than 0 or the second parameter does not lie in [0,1]
+        Returns False iff the first parameter is smaller than 0 or the second parameter is not in the interval [0,1]
         """
-        if(not(isinstance(parameters, list))):
-            raise TypeError('Input for Binomial has to be of type list.')
         if(parameters[0]<0):
             return False
         if(parameters[1]<0 or parameters[1]>1):
@@ -41,31 +41,51 @@ class Binomial(Discrete, ProbabilisticModel):
         return True
 
     def _check_parameters_fixed(self, parameters):
-        """
-        Checks parameter values given as fixed values. Returns False iff the number of free parameters of the model is not equal to the length of the parameters given, or the given parameter values do not lie within the accepted ranges.
-        """
-        length=0
-        for parent in self.parents:
-            if(super(Binomial, self).number_of_free_parameters()==len(parameters)):
-                if(isinstance(self.parents[0], ProbabilisticModel) and parameters[0]<0):
-                    return False
-                if(isinstance(self.parents[1], ProbabilisticModel) and len(parameters)==1 and (parameters[0]<0 or parameters[0]>1)):
-                    return False
-                if(isinstance(self.parents[1], ProbabilisticModel) and len(parameters)==2 and (parameters[1]<0 or parameters[1]>1)):
-                    return False
-            return True
-        return False
+        return True
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
-        n = self.parameter_values[0]
-        p = self.parameter_values[1]
-        return rng.binomial(n, p, k)
+        """
+        Samples from a binomial distribution using the current values for each probabilistic model from which the model derives.
+
+        Parameters
+        ----------
+        k: integer
+            The number of samples that should be drawn.
+        rng: Random number generator
+            Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+
+        Returns
+        -------
+        list: [boolean, np.ndarray]
+            A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
+        """
+        parameter_values = self.get_parameter_values()
+        return_value = []
+        return_value.append(self._check_parameters_before_sampling(parameter_values))
+
+        if(return_value[0]):
+            n = parameter_values[0]
+            p = parameter_values[1]
+            return_value.append(rng.binomial(n, p, k))
+
+        return return_value
 
     def pmf(self, x):
-        #NOTE either x is for sure an int, or we round it?
+        """
+        Calculates the probability mass function at point x.
+        Commonly used to determine whether perturbed parameters are still valid according to the pmf.
+
+        Parameters
+        ----------
+        x: list
+            The point at which the pmf should be evaluated.
+        """
+        parameter_values = self.get_parameter_values()
+
+        # If the provided point is not an integer, it is converted to one
         x = int(x)
-        n = self.parameter_values[0]
-        p = self.parameter_values[1]
+        n = parameter_values[0]
+        p = parameter_values[1]
         if(x>n):
             return 0
         return comb(n,x)*(p**x)*(1-p)**(n-x)

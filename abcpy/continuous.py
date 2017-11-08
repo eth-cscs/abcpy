@@ -4,11 +4,9 @@ import numpy as np
 from scipy.stats import multivariate_normal, norm
 from scipy.special import gamma
 
-#TODO check whether it matters that fixed_parameters is not initialized right away, i.e. do we ever use these values but do not necessarily enter the inference beforehand?
+#TODO document somewhere that sample_parameters needs to be called for standalone distributions
 
-#TODO add docstring explanation that sample_parameters needs to be called for standalone distributions
 
-#TODO the check_fixed right now always returns True since domains are [-inf,inf] for all of them (Except for uniform) --> what happens in a graph, i.e. parents get set, can this affect the children somehow? i.e. domains
 class Normal(ProbabilisticModel, Continuous):
     """
     This class implements a probabilistic model following a normal distribution with mean mu and variance sigma.
@@ -16,11 +14,11 @@ class Normal(ProbabilisticModel, Continuous):
     Parameters
     ----------
     parameters: list
-        Contains the probabilistic models and hyperparameters from which the model derives. If the list only has 1             entry, this entry is required to be a 2-dimensional ProbabilisticModel. Note that the second value of the list is not allowed to be smaller than 0.
+        Contains the probabilistic models and hyperparameters from which the model derives. Note that the second value of the list is not allowed to be smaller than 0.
     """
     def __init__(self, parameters):
         super(Normal, self).__init__(parameters)
-        #Parameter specifying the dimension of the return values of the distribution.
+        # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = 1
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
@@ -33,20 +31,43 @@ class Normal(ProbabilisticModel, Continuous):
             The number of samples that should be drawn.
         rng: Random number generator
             Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+
+        Returns
+        -------
+        list: [boolean, np.ndarray]
+            A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
         """
         parameter_values = self.get_parameter_values()
-        mu = parameter_values[0]
-        sigma = parameter_values[1]
-        return np.array(rng.normal(mu, sigma, k).reshape(-1))
+        return_value = []
+        # Check the parameters for whether they are a valid input for the normal distribution
+        return_value.append(self._check_parameters_before_sampling(parameter_values))
+
+        if(return_value[0]):
+            mu = parameter_values[0]
+            sigma = parameter_values[1]
+            return_value.append(np.array(rng.normal(mu, sigma, k)).reshape(-1))
+
+        return return_value
 
     def _check_parameters_at_initialization(self, parameters):
+        """
+        Returns True iff the second parameter was not a hyperparameter or was a hyperparameter and was >=0
+        """
         if(not(isinstance(parameters, list))):
             raise TypeError('Input for Normal has to be of type list.')
         parameter, index = parameters[1]
+
         #NOTE this check will be replaced by a loop as soon as we have domain implementations
-        #check whether in case the second parameter is a hyperparameter, it is not smaller than 0
+        # Check whether in case the second parameter is a hyperparameter, it is not smaller than 0
         if(isinstance(parameter, Hyperparameter) and parameter.fixed_values[index]<0):
             raise ValueError('The specified standard deviation is less than 0.')
+
+    def _check_parameters_before_sampling(self, parameters):
+        """
+        Returns False iff the standard deviation is smaller than 0.
+        """
+        if(parameters[1]<0):
+            return False
         return True
 
     #NOTE this should check whether the parameters can come from this distribution --> if there are domains, this function might change
@@ -82,13 +103,15 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         Contains the probabilistic models and hyperparameters from which the model derives. The last entry defines the         covariance matrix, while all other entries define the mean. Note that if the mean is n dimensional, the                covariance matrix is required to be of dimension nxn. The covariance matrix is required to be positive-definite.
     """
     def __init__(self,parameters):
-        #the user input will contain two lists, a list for the mean, and a list for the covariance matrix. Put this into the appropriate format used by the super constructor.
+        # The user input will contain two lists, a list for the mean, and a list for the covariance matrix. Put this into the appropriate format used by the super constructor.
         parameters_temp = []
         for parameter in parameters[0]:
             parameters_temp.append(parameter)
         parameters_temp.append(parameters[1])
+
         super(MultivariateNormal, self).__init__(parameters_temp)
-        #Parameter specifying the dimension of the return values of the distribution.
+
+        # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = len(self.parents)-1
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
@@ -101,11 +124,22 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         The number of samples that should be drawn.
     rng: Random number generator
         Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+
+    Returns
+    -------
+    list: [boolean, np.ndarray]
+        A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
     """
         parameter_values = self.get_parameter_values()
-        mean = parameter_values[:-1]
-        cov = parameter_values[-1]
-        return rng.multivariate_normal(mean, cov, k)
+        return_value = []
+        return_value.append(self._check_parameters_before_sampling(parameter_values))
+
+        if(return_value[0]):
+            mean = parameter_values[:-1]
+            cov = parameter_values[-1]
+            return_value.append(rng.multivariate_normal(mean, cov, k))
+
+        return return_value
 
     def _check_parameters_at_initialization(self, parameters):
         """
@@ -113,25 +147,44 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         """
         if(not(isinstance(parameters, list))):
             raise TypeError('Input for MultivariateNormal has to be of type list.')
+
         if(len(parameters)<2):
             raise IndexError('Input for MultivariateNormal has to be of at least length 2.')
+
         length = len(parameters)-1
         cov, index = parameters[-1]
+
         #NOTE if we allow nonhyperparameter initialization, we replace this by a domain check
         if(isinstance(cov, Hyperparameter)):
             cov = np.array(cov.fixed_values[index])
             if(length!=len(cov[0])):
                 raise IndexError('Length of mean and covariance matrix have to match.')
 
-            #check whether the covariance matrix is symmetric
+            # Check whether the covariance matrix is symmetric
             if(not(np.allclose(cov, cov.T, atol=1e-3))):
-                return False
-            #check whether the covariance matrix is positive definite
+                raise ValueError('Covariance matrix is not symmetric.')
+            # Check whether the covariance matrix is positive definite
             try:
                 is_pos = np.linalg.cholesky(cov)
             except np.linalg.LinAlgError:
-                return False
+                raise ValueError('Covariance matrix is not positive definite.')
+
+    def _check_parameters_before_sampling(self, parameters):
+        """
+        Returns True iff the covariance matrix provided is symmetric and positive definite.
+        """
+
+        cov = np.array(parameters[-1])
+        # Check whether the covariance matrix is symmetric
+        if(not(np.allclose(cov, cov.T, atol=1e-3))):
+            return False
+        # Check whether the covariance matrix is positive definite
+        try:
+            is_pos = np.linalg.cholesky(cov)
+        except np.linalg.LinAlgError:
+            return False
         return True
+
 
     def _check_parameters_fixed(self, parameters):
         """
@@ -166,8 +219,8 @@ class MixtureNormal(ProbabilisticModel, Continuous):
     """
     def __init__(self, parameters):
         super(MixtureNormal, self).__init__(parameters)
-        #Parameter specifying the dimension of the return values of the distribution.
-        self.dimension = len(self.fixed_values)
+        # Parameter specifying the dimension of the return values of the distribution.
+        self.dimension = len(self.parents)
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """
@@ -179,9 +232,16 @@ class MixtureNormal(ProbabilisticModel, Continuous):
             The number of samples that should be drawn.
         rng: Random number generator
             Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+
+        Returns
+        -------
+        list: [boolean, np.ndarray]
+            A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
             """
         parameter_values = self.get_parameter_values()
         mean = parameter_values
+        # There is no check of the parameter_values because the mixture normal will accept all parameters
+
         # Generate k lists from mixture_normal
         Data_array = [None] * k
         dimension = len(mean)
@@ -192,7 +252,8 @@ class MixtureNormal(ProbabilisticModel, Continuous):
             Data = index * rng.multivariate_normal(mean=mean, cov=np.identity(dimension)) \
                    + (1 - index) * rng.multivariate_normal(mean=mean, cov=0.01 * np.identity(dimension))
             Data_array[i] = Data
-        return np.array(Data_array)
+
+        return [True, np.array(Data_array)]
 
     #NOTE is there any restriction on mixture normal parameters/a domain?
     def _check_parameters_at_initialization(self, parameters):
@@ -201,6 +262,8 @@ class MixtureNormal(ProbabilisticModel, Continuous):
         """
         if(not(isinstance(parameters, list))):
             raise TypeError('Input for MixtureNormal has to be of type list.')
+
+    def _check_parameters_before_sampling(self, parameters):
         return True
 
     def _check_parameters_fixed(self, parameters):
@@ -237,7 +300,7 @@ class StudentT(ProbabilisticModel, Continuous):
     """
     def __init__(self, parameters):
         super(StudentT, self).__init__(parameters)
-        #Parameter specifying the dimension of the return values of the distribution.
+        # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = 1
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
@@ -250,11 +313,22 @@ class StudentT(ProbabilisticModel, Continuous):
             The number of samples that should be drawn.
         rng: Random number generator
             Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+
+        Returns
+        -------
+        list: [boolean, np.ndarray]
+            A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
             """
         parameter_values = self.get_parameter_values()
-        mean = parameter_values[0]
-        df = parameter_values[1]
-        return np.array((rng.standard_t(df,k)+mean).reshape(-1))
+        return_value = []
+        return_value.append(self._check_parameters_before_sampling(parameter_values))
+
+        if(return_value[0]):
+            mean = parameter_values[0]
+            df = parameter_values[1]
+            return_value.append(np.array((rng.standard_t(df,k)+mean).reshape(-1)))
+
+        return return_value
 
     def _check_parameters_at_initialization(self, parameters):
         """
@@ -268,6 +342,13 @@ class StudentT(ProbabilisticModel, Continuous):
         parameter, index = parameters[1]
         if(isinstance(parameter, Hyperparameter) and parameter.fixed_values[index]<=0):
             raise ValueError('The sampled values for the model lie outside its domain.')
+
+    def _check_parameters_before_sampling(self, parameters):
+        """
+        Returns False iff the degrees of freedom are smaller than or equal to 0.
+        """
+        if(parameters[1]<=0):
+            return False
         return True
 
     def _check_parameters_fixed(self, parameters):
@@ -291,7 +372,7 @@ class StudentT(ProbabilisticModel, Continuous):
         x-=parameter_values[0] #divide by std dev if we include that
         return gamma((df+1)/2)/(np.sqrt(df*np.pi)*gamma(df/2)*(1+x**2/df)**((df+1)/2))
 
-#NOTE same as MVN
+
 class MultiStudentT(ProbabilisticModel, Continuous):
     """
     This class implements a probabilistic model following the multivariate Student-T distribution.
@@ -302,15 +383,17 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         All but the last two entries contain the probabilistic models and hyperparameters from which the model derives.        The second to last entry contains the covariance matrix. If the mean is of dimension n, the covariance matrix          is required to be nxn dimensional. The last entry contains the degrees of freedom.
     """
     def __init__(self, parameters):
-        #the user input contains a list for the mean. Change this to be compatible with the format required by the super constructor.
+        # The user input contains a list for the mean. Change this to be compatible with the format required by the super constructor.
         parameters_temp = []
         for parameter in parameters[0]:
             parameters_temp.append(parameter)
         parameters_temp.append(parameters[1])
         parameters_temp.append(parameters[2])
-        super(MultiStudentT, self).__init__(parameters)
-        #Parameter specifying the dimension of the return values of the distribution.
-        self.dimension = len(self.fixed_values)-2
+
+        super(MultiStudentT, self).__init__(parameters_temp)
+
+        # Parameter specifying the dimension of the return values of the distribution.
+        self.dimension = len(self.parents)-2
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """
@@ -322,20 +405,31 @@ class MultiStudentT(ProbabilisticModel, Continuous):
             The number of samples that should be drawn.
         rng: Random number generator
             Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+
+        Returns
+        -------
+        list: [boolean, np.ndarray]
+            A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
             """
         parameter_values = self.get_parameter_values()
-        mean = parameter_values[:-2]
-        cov = parameter_values[-2]
-        df = parameter_values[-1]
-        p = len(mean)
-        if (df == np.inf):
-            chis1 = 1.0
-        else:
-            chisq = rng.chisquare(df, k) / df
-            chisq = chisq.reshape(-1, 1).repeat(p, axis=1)
-        mvn = rng.multivariate_normal(np.zeros(p), cov, k)
-        result = (mean + np.divide(mvn, np.sqrt(chisq)))
-        return result
+        return_value = []
+        return_value.append(self._check_parameters_before_sampling(parameter_values))
+
+        if(return_value[0]):
+            mean = parameter_values[:-2]
+            cov = parameter_values[-2]
+            df = parameter_values[-1]
+            p = len(mean)
+            if (df == np.inf):
+                chis1 = 1.0
+            else:
+                chisq = rng.chisquare(df, k) / df
+                chisq = chisq.reshape(-1, 1).repeat(p, axis=1)
+            mvn = rng.multivariate_normal(np.zeros(p), cov, k)
+            result = (mean + np.divide(mvn, np.sqrt(chisq)))
+            return_value.append(result)
+
+        return return_value
 
     def _check_parameters_at_initialization(self, parameters):
         """
@@ -343,25 +437,44 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         """
         length = len(parameters)-2
         cov, index = parameters[-2]
+
         if(isinstance(cov, Hyperparameter)):
             cov = np.array(cov.fixed_values[index])
             if(not(length==len(cov[0]))):
                 raise IndexError('Mean and covariance matrix have to be of same length.')
-            # check whether the covariance matrix is symmetric
+            # Check whether the covariance matrix is symmetric
             if (not (np.allclose(cov, cov.T, atol=1e-3))):
-                return False
-            # check whether the covariance matrix is positive definiet
+                raise ValueError('Covariance matrix is not symmetric.')
+            # Check whether the covariance matrix is positive definiet
             try:
                 is_pos = np.linalg.cholesky(cov)
             except np.linalg.LinAlgError:
-                return False
+                raise ValueError('Covariance matrix is not positive definite.')
+
         df, index = parameters[-1]
-        #check whether the degrees of freedom are <=0
+        # Check whether the degrees of freedom are <=0
         if(df.fixed_values[index]<=0):
+            raise ValueError('Degrees of freedom are required to be larger than 0.')
+
+    def _check_parameters_before_sampling(self, parameters):
+        """
+        Returns False iff the covariance matrix is not symmetric or not positive definite, or the degrees of freedom are smaller than or equal to 0.
+        """
+        df = parameters[-1]
+        cov = np.array(parameters[-2])
+
+        if(not(np.allclose(cov, cov.T, atol=1e-3))):
             return False
+        try:
+            is_pos = np.linalg.cholesky(cov)
+        except np.linalg.LinAlgError:
+            return False
+
+        if(df<=0):
+            return False
+
         return True
 
-    #NOTE we could check the self.parents to see whether df or cov is a distribution, and if so do checks. Implement once access operator implementation is okay
     def _check_parameters_fixed(self, parameters):
         """
         Checks parameter values given as fixed values.
@@ -400,31 +513,34 @@ class Uniform(ProbabilisticModel, Continuous):
     Parameters
     ----------
     parameters: list
-        Contains two lists. The first list specifies the probabilistic models and hyperparameters from which the lower         bound of the uniform distribution derive. The second list specifies the probabilistic models and hyperparameters        from which the upper bound derives.
+        Contains two lists. The first list specifies the probabilistic models and hyperparameters from which the lower         bound of the uniform distribution derive. The second list specifies the probabilistic models and hyperparameters from which the upper bound derives.
     """
     def __init__(self, parameters):
-        #the user input is checked, since the input has to be rewritten internally before sending it to the constructor of the probabilistic model
+        # The user input is checked, since the input has to be rewritten internally before sending it to the constructor of the probabilistic model
         self._check_user_input(parameters)
 
-        #the total number of parameters is initialized
+        # The total number of parameters is initialized
         self._num_parameters = 0
 
-        #stores the length of the parameter values of the lower and upper bound. This is needed to check that lower and upper are of same length, just because the total length is even does not guarantee that
+        # Stores the length of the parameter values of the lower and upper bound. This is needed to check that lower and upper are of same length, just because the total length is even does not guarantee that
         self.length = [0,0]
         joint_parameters = []
 
-        #rewrite the user input to be useable by the constructor of probabilistic model and set the length of upper and lower bound
+        # Rewrite the user input to be useable by the constructor of probabilistic model and set the length of upper and lower bound
         for i in range(2):
             for parameter in parameters[i]:
                 joint_parameters.append(parameter)
                 self.length[i]+=1
-                #if the parameter is not a hyperparameter, the length of the bound has to be equal to the parameter dimension. We cannot simply add the parameters dimension since the dimension of a hyperparameter is 0.
+                # If the parameter is not a hyperparameter, the length of the bound has to be equal to the parameter dimension. We cannot simply add the parameters dimension since the dimension of a hyperparameter is 0.
                 if(not(isinstance(parameter, tuple)) and isinstance(parameter, ProbabilisticModel)):
                     for j in range(1,parameter.dimension):
                         self.length[i]+=1
+
         self._num_parameters=self.length[0]+self.length[1]
-        #Parameter specifying the dimension of the return values of the distribution.
+
+        # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = int(self._num_parameters/2)
+
         super(Uniform, self).__init__(joint_parameters)
         self.visited = False
 
@@ -442,12 +558,23 @@ class Uniform(ProbabilisticModel, Continuous):
             The number of samples that should be drawn.
         rng: Random number generator
             Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+
+        Returns
+        -------
+        list: [boolean, np.ndarray]
+            A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
             """
         parameter_values = self.get_parameter_values()
-        samples = np.zeros(shape=(k, self.dimension))
-        for j in range(0, self.dimension):
-            samples[:, j] = rng.uniform(parameter_values[j], parameter_values[j+self.dimension], k)
-        return samples
+        return_value = []
+        return_value.append(self._check_parameters_before_sampling(parameter_values))
+
+        if(return_value[0]):
+            samples = np.zeros(shape=(k, self.dimension))
+            for j in range(0, self.dimension):
+                samples[:, j] = rng.uniform(parameter_values[j], parameter_values[j+self.dimension], k)
+            return_value.append(samples)
+
+        return return_value
 
     def _check_user_input(self, parameters):
         """
@@ -469,29 +596,15 @@ class Uniform(ProbabilisticModel, Continuous):
         """
         if(self.length[0]!=self.length[1]):
             raise IndexError('Length of upper and lower bound have to be equal.')
+
+    def _check_parameters_before_sampling(self, parameters):
+        """
+        Returns False iff for some pair of lower and upper bound, the lower bound is larger than the upper bound.
+        """
+        for j in range(self.dimension):
+            if(parameters[j]>parameters[j+self.dimension]):
+                return False
         return True
-    #NOTE do we still need this?
-    def number_of_free_parameters(self):
-        """
-        Returns the number of free parameters of the model.
-        """
-        length_free = 0
-        current_parent=0
-        #check both the lower and upper bound
-        for j in range(2):
-            length=0
-            #iterate as long as there are still parameters in the lower/upper bound.
-            while(length<self.length[j]):
-                #for each parameter, the length increases by 1
-                length+=1
-                #for each free parameter, the length increases by its dimension, and the length of the free parameters increases also by the dimension
-                for t in range(self.parents[current_parent].dimension):
-                    if(t!=0):
-                        length+=1
-                    length_free+=1
-                #make sure a new parent is considered at the next iteration
-                current_parent+=1
-        return length_free
 
 
     def _check_parameters_fixed(self, parameters):

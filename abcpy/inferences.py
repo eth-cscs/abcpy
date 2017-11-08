@@ -5,25 +5,17 @@ import numpy as np
 from abcpy.output import Journal
 from scipy import optimize
 
+import numba
+
 #TODO check whether if we set a seed as well as an rng for the distributions, what happens.
 
 #TODO check whether something like for j in range(self.parent.dimension) is done, since this will be wrong for hyperparameters
-
-#TODO check whether it now actually happens that mu already sampled ---> mu will be used as same value for all children
 
 #TODO TESTS
 
 #NOTE currently, you can give a list of models to some functions, but actual inference will only be performed on the 0th element
 
-#TODO more than one model: for most circumstances, it should just break apart, i.e. be seperate for each. But kernels should act on the overall structure, not on the broken parts.
 
-"""
-- This covariance matrix calculation is done assuming all the parameters are continuous. But if you have some of the parameters being discrete, then it breaks down.
-- So for the moment do the following:
-a) group continuous parameters and discrete parameters.
-b) for continuous parameters do as we have done before. meaning computing cov matrix and providing that to multi-normal or muti-t to generate a new sample.
-c) for discrete parameters, user should specify a distribution which can take the present values as input and give a discrete output. 
-"""
 class InferenceMethod(metaclass = ABCMeta):
     """
         This abstract base class represents an inference method.
@@ -38,7 +30,6 @@ class InferenceMethod(metaclass = ABCMeta):
         del state['backend']
         return state
 
-
     def sample_from_prior(self, models, rng=np.random.RandomState()):
         """
        Samples values for all random variables of the model.
@@ -48,19 +39,48 @@ class InferenceMethod(metaclass = ABCMeta):
         ----------
         models: list of probabilistic models
             Defines the models for which, together with their parents, new parameters will be sampled
-        rng: Random number generator to be used
+        rng: Random number generator
             Defines the random number generator to be used
         """
 
-        #all the parents of each model recursively sample new parameter values. This is done via a depth-first search.
-        for model in models:
-            for parent, index in model.parents:
-                if(not(parent.visited)):
-                    self.sample_from_prior([parent], rng=rng)
-                    parent.visited = True
-            #each model itself samples new parameters
-            model.sample_parameters(rng=rng)
-            model.visited = True
+        # If it was at some point not possible to sample (due to incompatible parameter values provided by the parents), we start from scratch
+        while(not(self._sample_from_prior(models, rng=rng))):
+            self._reset_flags(self.model)
+
+    def _sample_from_prior(self, models, rng=np.random.RandomState(), was_accepted = True):
+        """
+        Recursive version of sample_from_prior. Commonly called from within sample_from_prior.
+
+        Parameters
+        ----------
+        models: list of probabilistc models
+            Defines the models for which, together with their parents, new parameters will be sampled
+        rng: Random number generator
+            Defines the random number generator to be used
+
+        Returns
+        -------
+        boolean:
+            Whether it was possible to sample new values for all nodes of the graph.
+        """
+
+        # If it was so far possible to sample parameters for all nodes, the current node as well as its parents are sampled, using depth-first search
+        if(was_accepted):
+            for model in models:
+
+                for parent, index in model.parents:
+                    if(not(parent.visited)):
+                        parent.visited = True
+                        was_accepted = self._sample_from_prior([parent], rng=rng, was_accepted=was_accepted)
+                        if(not(was_accepted)):
+                            return False
+
+                if(not(model.sample_parameters(rng=rng))):
+                    return False
+
+                model.visited = True
+
+        return was_accepted
 
     def _reset_flags(self, models):
         """
@@ -73,9 +93,9 @@ class InferenceMethod(metaclass = ABCMeta):
             The models for which, together with their parents, the flags should be reset.
         """
 
-        #for each model, the flags of the parents get reset recursively.
+        # For each model, the flags of the parents get reset recursively.
         for model in models:
-            for parent in model.parents:
+            for parent, parent_index in model.parents:
                 if(parent.visited):
                     self._reset_flags([parent])
             model.visited = False
@@ -103,24 +123,28 @@ class InferenceMethod(metaclass = ABCMeta):
             The resulting pdf, as well as the next index to be considered in the parameters list.
         """
         result = [1.]*len(models)
+
         for i, model in enumerate(models):
-            #if the model is not a root model, the pdf of this model, given the prior, should be calculated
+            # If the model is not a root model, the pdf of this model, given the prior, should be calculated
             if(not(is_root)):
-                helper = []
-                #this loop will skip hyperparameters, which doesn't matter due to our definition of the pdf
+                # Define a helper list which will contain the parameters relevant to the current model for pdf calculation
+                relevant_parameters = []
+                # This loop will skip hyperparameters, which doesn't matter due to our definition of the pdf
                 for j in range(model.dimension):
-                    helper.append(parameters[index])
+                    relevant_parameters.append(parameters[index])
                     index+=1
-                if(len(helper)==1):
-                    helper = helper[0]
+                if(len(relevant_parameters)==1):
+                    relevant_parameters = relevant_parameters[0]
                 else:
-                    helper = np.array(helper)
-                result[i]*=model.pdf(helper)
-            #for each parent, the pdf of this parent has to be calculated as well.
+                    relevant_parameters = np.array(relevant_parameters)
+                result[i]*=model.pdf(relevant_parameters)
+
+            # For each parent, the pdf of this parent has to be calculated as well.
             for parent, parent_index in model.parents:
                 pdf = self.pdf_of_prior([parent], parameters, index, is_root=False)
                 result[i]*=pdf[0][0]
                 index=pdf[1]
+
         return [result, index]
 
     def get_parameters(self, models, is_root=True):
@@ -141,14 +165,16 @@ class InferenceMethod(metaclass = ABCMeta):
             A list containing all currently sampled values of the free parameters.
         """
         parameters = []
+
         for model in models:
-            #if we are not at the root, the sampled values for the current node should be returned
+            # If we are not at the root, the sampled values for the current node should be returned
             if(not(is_root)):
                 model_parameters = model.get_parameters()
                 for parameter in model_parameters:
                     parameters.append(parameter)
                 model.visited = True
-            #implement a depth-first search to return also the sampled values associated with each parent of the model
+
+            # Implement a depth-first search to return also the sampled values associated with each parent of the model
             for parent, parent_index in model.parents:
                 if(not(parent.visited)):
                     parent_parameters = self.get_parameters([parent], is_root=False)
@@ -156,11 +182,10 @@ class InferenceMethod(metaclass = ABCMeta):
                         #NOTE can it ever happen that parameter is a list? it apparently happened before, but not sure if this can still happen
                         parameters.append(parameter)
                     parent.visited = True
+
         return parameters
 
-
-    #NOTE SEE GET_PARAMETERS
-    #NOTE returns false iff we couldnt set some node, in that case, use the old parameters again to resample
+    # tODO the return values are weird -> what if it ever returns false? we just keep on setting, but that doesnt make sense
     def set_parameters(self, models, parameters, index, is_root=True):
         """
         Sets new values for the currently used values of each random variable.
@@ -179,23 +204,26 @@ class InferenceMethod(metaclass = ABCMeta):
 
         Returns
         -------
-        boolean
-            Returns True iff it was possible to set the values for all models as well as their parents.
+        list: [boolean, integer]
+            Returns whether it was possible to set all parameters and the next index to be considered in the parameters list.
         """
         for model in models:
-            #new parameters should only be set in case we are not at the root
+            # New parameters should only be set in case we are not at the root
             if(not(is_root)):
-                if(not(model.set_parameters(parameters[index:model.dimension]))):
-                    return False
+                if(not(model.set_parameters(parameters[index:index+model.dimension]))):
+                    return [False, index]
                 index+=model.dimension
                 model.visited = True
-            #new parameters for all parents are set using a depth-first search
+
+            # New parameters for all parents are set using a depth-first search
             for parent, parent_index in model.parents:
                 if(not(parent.visited)):
-                    if(not(self.set_parameters([parent], parameters, index, is_root=False))):
-                        return False
+                    is_set, index = self.set_parameters([parent],parameters,index,is_root=False)
+                    if(not(is_set)):
+                        return [False, index]
             model.visited = True
-        return True
+
+        return [True, index]
 
     #TODO should this really also create new values for model?
     def sample_parameters(self, models, rng=np.random.RandomState()):
@@ -211,11 +239,11 @@ class InferenceMethod(metaclass = ABCMeta):
             The random number generator to be used.
         """
         for model in models:
-            #parameters for all parents are sampled, using a depth-first search
+            # Parameters for all parents are sampled, using a depth-first search
             for parent, parent_index in model.parents:
                 if(not(parent.visited)):
-                    self.sample_parameters([parent], rng=rng)
                     parent.visited = True
+                    self.sample_parameters([parent], rng=rng)
             model.sample_parameters(rng=rng)
             model.visited = True
 
