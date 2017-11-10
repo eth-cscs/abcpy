@@ -4,6 +4,9 @@ import numpy as np
 from scipy.stats import multivariate_normal
 from scipy.special import gamma
 
+
+# TODO ask rito how the pdf should be calculated here as well
+
 class PerturbationKernel(metaclass = ABCMeta):
     """This abstract base class represents all perturbation kernels"""
     @abstractmethod
@@ -46,7 +49,9 @@ class StandardKernel(PerturbationKernel):
         continuous_model_values = []
         discrete_model_values = []
 
-        #find all the current values for the discrete and continous models
+        # NOTE we dont want to take the fixed values, btu the values from accepted_parameters_bds corresponding to these models, using the new function!
+
+        # Find all the current values for the discrete and continous models
         for model in self.models:
             if(isinstance(model, Continuous)):
                 for fixed_value in model.fixed_values:
@@ -57,18 +62,19 @@ class StandardKernel(PerturbationKernel):
 
         # Perturb continuous parameters
         cov = np.cov(continuous_model_values, aweights=weights)
+
         perturbed_continuous_values = np.random.multivariate_normal(continuous_model_values, cov)
 
         # Perturb discrete parameters
         perturbed_discrete_values = []
         for discrete_value in discrete_model_values:
-            perturbed_discrete_values.append(np.randint(discrete_value-1,discrete_value+2))
+            perturbed_discrete_values.append(np.random.randint(discrete_value-1,discrete_value+2))
 
-        #NOTE WE could also do that above
         # Merge the two lists
         perturbed_values_including_models = []
         index_in_continuous_models = 0
         index_in_discrete_models=0
+
         for model in self.models:
             if(isinstance(model, Continuous)):
                 model_values = []
