@@ -225,6 +225,41 @@ class InferenceMethod(metaclass = ABCMeta):
 
         return [True, index]
 
+    def get_correct_ordering(self, models, parameters_and_models):
+        ordered_parameters = []
+        for model in models:
+            if(not(model.visited)):
+                model.visited = True
+                for corresponding_model, parameter in parameters_and_models:
+                    if(corresponding_model==model):
+                        for param in parameter:
+                            ordered_parameters.append(param)
+                        break
+                for parent in model.parents:
+                    if(not(parent.visited)):
+                        parent_ordering = self.get_correct_ordering([parent], parameters_and_models)
+                        for parent_parameters in parent_ordering:
+                            ordered_parameters.append(parent_parameters)
+        return ordered_parameters
+
+
+
+    def perturb(self, weights, epochs = 10):
+        while(current_epoch<epochs):
+            self._reset_flags(self.models)
+            new_parameters = self.kernel.update(weights)
+            correctly_ordered_parameters = self.get_correct_ordering(self.models, new_parameters)
+            current_epoch = 0
+            accepted, last_index = self.set_parameters(self.models, correctly_ordered_parameters, 0)
+            if(accepted):
+                break
+            current_epoch+=1
+        if(current_epoch==10):
+            return False
+        return True
+
+
+
     #TODO should this really also create new values for model?
     def sample_parameters(self, models, rng=np.random.RandomState()):
         """

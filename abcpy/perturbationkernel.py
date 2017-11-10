@@ -1,102 +1,91 @@
 from abc import ABCMeta, abstractmethod
+from ProbabilisticModel import Continuous, Discrete
 import numpy as np
 from scipy.stats import multivariate_normal
 from scipy.special import gamma
 
-
 class PerturbationKernel(metaclass = ABCMeta):
-    """
-    This abstract base class represents all preturbation kernels.
-    """
+    """This abstract base class represents all perturbation kernels"""
     @abstractmethod
-    def perturb(self, parameters, cov):
-        """
-        Perturbs the parameters with a given covariance matrix, according to the perturbation kernel.
-        Commonly used in inference methods to perturb accepted parameters.
+    def __init__(self, models):
+        raise NotImplementedError
 
-        Parameters
-        ----------
-        parameters: python list
-            The list of parameters to be perturbed.
-        cov: 2D list
-            The covariance matrix of the parameters.
-
-        Returns
-        -------
-        list
-            The perturbed parameters.
-        """
+    @abstractmethod
+    def update(self, weigths):
         raise NotImplementedError
 
     @abstractmethod
     def pdf(self, x):
+        raise NotImplementedError
+
+class StandardKernel(PerturbationKernel):
+    """Implementation of a standard kernel. All continuous parameters given are perturbed with a multivariate normal distribution, all discrete parameters are perturbed with a random walk.
+
+    Parameters
+    ----------
+    models: list
+        list of all probabilistic models that should be perturbed
         """
-        Calculates the probability density function at point x.
+    def __init__(self, models):
+        self.models = models
+
+    #NOTE we cant do perturb c[0] and c[1] differently!
+    def update(self, weights):
+        """Perturbs all the parameters using the weights given.
 
         Parameters
         ----------
-        x: list
-            The point at which the probability density function should be evaluated.
+        weights: list
+            The weights that should be used to calculate the covariance matrix.
+
         Returns
         -------
-        float
-            The evaluated pdf.
+        list(tuple)
+            A list containing tuples. For each tuple, the first entry corresponds to the probabilistic model to be considered, the second entry corresponds to the perturbed parameters associated with this model.
         """
-        raise NotImplementedError
+        continuous_model_values = []
+        discrete_model_values = []
+
+        #find all the current values for the discrete and continous models
+        for model in self.models:
+            if(isinstance(model, Continuous)):
+                for fixed_value in model.fixed_values:
+                    continuous_model_values.append(fixed_value)
+            else:
+                for fixed_value in model.fixed_values:
+                    discrete_model_values.append(fixed_value)
+
+        # Perturb continuous parameters
+        cov = np.cov(continuous_model_values, aweights=weights)
+        perturbed_continuous_values = np.random.multivariate_normal(continuous_model_values, cov)
+
+        # Perturb discrete parameters
+        perturbed_discrete_values = []
+        for discrete_value in discrete_model_values:
+            perturbed_discrete_values.append(np.randint(discrete_value-1,discrete_value+2))
+
+        #NOTE WE could also do that above
+        # Merge the two lists
+        perturbed_values_including_models = []
+        index_in_continuous_models = 0
+        index_in_discrete_models=0
+        for model in self.models:
+            if(isinstance(model, Continuous)):
+                model_values = []
+                for i in range(model.dimension):
+                    model_values.append(perturbed_continuous_values[index_in_continuous_models])
+                    index_in_continuous_models+=1
+                perturbed_values_including_models.append((model,model_values))
+            else:
+                model_values=[]
+                for i in range(model.dimension):
+                    model_values.append(perturbed_discrete_values[index_in_discrete_models])
+                    index_in_discrete_models+=1
+                perturbed_values_including_models.append((model,model_values))
+
+        return perturbed_values_including_models
+
+    def pdf(self, x):
+        return 1
 
 
-class MultivariateNormalKernel(PerturbationKernel):
-    """
-    This class implements a multivariate normal kernel.
-
-    Parameters
-    ----------
-    rng: Random number generator
-        The random number generator to be used by the kernel.
-    """
-    def __init__(self, rng=np.random.RandomState()):
-        self.rng = rng
-
-    def perturb(self, parameters, cov):
-        return self.rng.multivariate_normal(parameters, cov)
-
-    def pdf(self, mean, cov, x):
-        return multivariate_normal(mean, cov).pdf(x)
-
-
-class MultiStudentTKernel(PerturbationKernel):
-    """
-    This class implements a multivariate Student's T kernel.
-
-    Parameters
-    ----------
-    df: integer
-        The degrees of freedom of the kernel.
-    rng: Random number generator
-        The random number generator to be used by the kernel.
-    """
-    def __init__(self, df, rng=np.random.RandomState()):
-        self.rng = rng
-        self.df = df
-
-    def perturb(self, parameters, cov):
-        p = len(parameters)
-        if (self.df == np.inf):
-            chis1 = 1.0
-        else:
-            chisq = self.rng.chisquare(self.df, 1) / self.df
-            chisq = chisq.reshape(-1, 1).repeat(p, axis=1)
-        mvn = self.rng.multivariate_normal(np.zeros(p), cov, 1)
-        result = (parameters + np.divide(mvn, np.sqrt(chisq)))
-        return result
-
-    def pdf(self, mean, cov, x):
-        mean = np.array(mean)
-        cov = np.array(cov)
-        p = len(mean)
-        numerator = gamma((self.df + p) / 2)
-        denominator = gamma(self.df / 2) * pow(self.df * np.pi, p / 2.) * np.sqrt(abs(np.linalg.det(cov)))
-        normalizing_const = numerator / denominator
-        tmp = 1 + 1 / self.df * np.dot(np.dot(np.transpose(x - mean), np.linalg.inv(cov)), (x - mean))
-        density = normalizing_const * pow(tmp, -((self.df + p) / 2.))
-        return density
