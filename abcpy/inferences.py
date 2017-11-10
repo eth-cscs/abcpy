@@ -1,11 +1,12 @@
 from abc import ABCMeta, abstractmethod, abstractproperty
 
 from ProbabilisticModel import *
+from accepted_parameters_manager import *
+
 import numpy as np
 from abcpy.output import Journal
 from scipy import optimize
 
-import numba
 
 #TODO check whether if we set a seed as well as an rng for the distributions, what happens.
 
@@ -14,6 +15,11 @@ import numba
 #TODO TESTS
 
 #NOTE currently, you can give a list of models to some functions, but actual inference will only be performed on the 0th element
+
+#TODO write rejectionabc or something like that for the accepted_parameter_manager, and then test: can you update_broadcast? can you get the corresponding parameters to a model? ---> write tests overall, also: the perturb of the kernels currently still does it wrong, see comments there and use accepted_parameters_manager
+
+
+#TODO check whether we really have rewritten everything in rejectionabc to work with accepted_parameters_manager
 
 
 class InferenceMethod(metaclass = ABCMeta):
@@ -226,36 +232,84 @@ class InferenceMethod(metaclass = ABCMeta):
         return [True, index]
 
     def get_correct_ordering(self, models, parameters_and_models):
+        """
+        Orders the parameters returned by a kernel in the order required by the graph.
+        Commonly used when perturbing the parameters.
+
+        Parameters
+        ----------
+        models: list
+            Contains the root probabilistic models that make up the graph
+        parameters_and_models: list of tuples
+            Contains tuples containing as the first entry the probabilistic model to be considered and as the second entry the parameter values associated with this model
+
+        Returns
+        -------
+        list
+            The ordering which can be used by recursive functions on the graph.
+        """
         ordered_parameters = []
+
         for model in models:
             if(not(model.visited)):
                 model.visited = True
+
+                # Check all entries in parameters_and_models to determine whether the current model is contained within it
                 for corresponding_model, parameter in parameters_and_models:
                     if(corresponding_model==model):
                         for param in parameter:
                             ordered_parameters.append(param)
                         break
-                for parent in model.parents:
+
+                # Recursively order all the parents of the current model
+                for parent, parents_index in model.parents:
                     if(not(parent.visited)):
                         parent_ordering = self.get_correct_ordering([parent], parameters_and_models)
                         for parent_parameters in parent_ordering:
                             ordered_parameters.append(parent_parameters)
+
         return ordered_parameters
 
 
 
     def perturb(self, weights, epochs = 10):
+        """
+        Perturbs all free parameters, given the current weights.
+        Commonly used during inference.
+
+        Parameters
+        ----------
+        weights: list
+            The current weights associated with the parameters
+        epochs: integer
+            The number of times perturbation should happen before the algorithm is terminated
+
+        Returns
+        -------
+        boolean
+            Whether it was possible to set new parameter values for all probabilistic models
+        """
+        current_epoch = 0
+
         while(current_epoch<epochs):
-            self._reset_flags(self.models)
+            # At each iteration, the flags must be reset in order for depth-first search to work
+            self._reset_flags(self.model)
+
+            # Get new parameters of the graph
             new_parameters = self.kernel.update(weights)
-            correctly_ordered_parameters = self.get_correct_ordering(self.models, new_parameters)
-            current_epoch = 0
-            accepted, last_index = self.set_parameters(self.models, correctly_ordered_parameters, 0)
+
+            # Order the parameters provided by the kernel in depth-first search order
+            correctly_ordered_parameters = self.get_correct_ordering(self.model, new_parameters)
+
+            # Try to set new parameters
+            accepted, last_index = self.set_parameters(self.model, correctly_ordered_parameters, 0)
             if(accepted):
                 break
             current_epoch+=1
+
         if(current_epoch==10):
             return False
+
         return True
 
 
@@ -517,7 +571,7 @@ class RejectionABC(InferenceMethod):
     n_samples_per_param = None
     epsilon = None
 
-    observations_bds = None
+    accepted_parameters_manager = AcceptedParameterManager()
 
     def __init__(self, model, distance, backend, seed=None):
         self.model = model
@@ -549,7 +603,8 @@ class RejectionABC(InferenceMethod):
         """
         self.sample_parameters(self.model, self.rng)
 
-        self.observations_bds = self.backend.broadcast(observations)
+        self.accepted_parameters_manager.broadcast(self.backend, observations)
+
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
         self.epsilon = epsilon
@@ -599,7 +654,7 @@ class RejectionABC(InferenceMethod):
             #TODO WHAT SHOULD HAPPEN IF WE HAVE MORE THAN ONE MODEL
             #NOTE this gives reasonable values for the y_sim. However, the distances are very large, possibly because of the algorithm used, not sure
             y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param, rng=rng).tolist()
-            distance = self.distance.distance(self.observations_bds.value(), y_sim)
+            distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
             #print(distance)
         return self.get_parameters(self.model)
 
@@ -814,6 +869,7 @@ class PMCABC(BasePMC, InferenceMethod):
         distance = self.distance.dist_max()
         while distance > self.epsilon:
             # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
+            #NOTE we could write a chekcer for this, is that necessary?
             if self.accepted_parameters_bds == None:
                 self.sample_from_prior(self.model, rng=rng)
                 self._reset_flags(self.model)
