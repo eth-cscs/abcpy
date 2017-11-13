@@ -113,5 +113,6 @@ class AcceptedParametersManager():
         for model in models:
             for prob_model, index in mapping:
                 if(model==prob_model):
-                    accepted_bds_values.append(self.accepted_parameters_bds.value()[index])
+                    #TODO not sure if correct, see test_pmcabc
+                    accepted_bds_values.append(self.accepted_parameters_bds.value()[index,:])
         return accepted_bds_values
