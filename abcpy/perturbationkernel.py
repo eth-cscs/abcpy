@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from ProbabilisticModel import Continuous
 import numpy as np
+from scipy.stats import multivariate_normal
 
 
 # TODO ask rito how the pdf should be calculated here as well
@@ -31,17 +32,17 @@ class StandardKernel(PerturbationKernel):
         self.models = models
 
     #NOTE we cant do perturb c[0] and c[1] differently!
-    def update(self, weights, accepted_parameters_manager, column_index, rng=np.random.RandomState()):
+    def update(self, accepted_parameters_manager, column_index, rng=np.random.RandomState()):
         """Perturbs all the parameters using the weights given.
 
         Parameters
         ----------
-        weights: list
-            The weights that should be used to calculate the covariance matrix.
         accepted_parameters_manager: abcpy.AcceptedParametersManager object
             Defines the accepted parameters manager to be used to access parameter values.
         column_index: integer
             The column of the accepted parameters matrix that should be perturbed
+        rng: random number generator
+            Defines the random number generator to be used.
 
         Returns
         -------
@@ -52,6 +53,7 @@ class StandardKernel(PerturbationKernel):
         discrete_model_values = []
 
         all_model_values = accepted_parameters_manager.get_accepted_parameters_bds_values(self.models)
+        # TODO this has the wrong dimensions, run test_pmcabc to see, weights have dimension 250, this should have two entries with each 250 values...
 
         model_values_index = 0
 
@@ -67,10 +69,12 @@ class StandardKernel(PerturbationKernel):
                     model_values_index+=1
 
         # Perturb continuous parameters, if applicable
+        # NOTE weights has lenght 250, continuous_model_values is in total 2x2
         if(continuous_model_values):
+            weights = accepted_parameters_manager.accepted_weights_bds.value()
             continuous_model_values = np.array(continuous_model_values)
-            cov = np.cov(continuous_model_values, aweights=weights)
-
+            cov = np.cov(continuous_model_values, aweights=weights.reshape(-1), rowvar=False)
+            #cov = accepted_parameters_manager.accepted_cov_mat_bds.value()
             perturbed_continuous_values = rng.multivariate_normal(continuous_model_values[:,column_index], cov)
 
         # Perturb discrete parameters, if applicable
@@ -100,7 +104,7 @@ class StandardKernel(PerturbationKernel):
 
         return perturbed_values_including_models
 
-    def pdf(self, x):
-        return 1
+    def pdf(self, mean, cov, x):
+        return multivariate_normal(mean,cov).pdf(x)
 
 
