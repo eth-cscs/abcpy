@@ -272,7 +272,7 @@ class InferenceMethod(metaclass = ABCMeta):
 
 
 
-    def perturb(self, weights, epochs = 10):
+    def perturb(self, weights, column_index, epochs = 10):
         """
         Perturbs all free parameters, given the current weights.
         Commonly used during inference.
@@ -296,10 +296,15 @@ class InferenceMethod(metaclass = ABCMeta):
             self._reset_flags(self.model)
 
             # Get new parameters of the graph
-            new_parameters = self.kernel.update(weights)
+            new_parameters = self.kernel.update(weights, self.accepted_parameters_manager, column_index)
+
+            self._reset_flags(self.model)
 
             # Order the parameters provided by the kernel in depth-first search order
             correctly_ordered_parameters = self.get_correct_ordering(self.model, new_parameters)
+
+            #NOTE think about whether we need this
+            self._reset_flags(self.model)
 
             # Try to set new parameters
             accepted, last_index = self.set_parameters(self.model, correctly_ordered_parameters, 0)
@@ -367,12 +372,6 @@ class InferenceMethod(metaclass = ABCMeta):
     @abstractproperty
     def n_samples_per_param(self):
         """To be overwritten by any sub-class: an attribute specifying the number of data points in each simulated         data set."""
-        raise NotImplementedError
-
-    @abstractproperty
-    def observations_bds(self):
-        """To be overwritten by any sub-class: an attribute saving the observations as bds
-        """
         raise NotImplementedError
 
 
@@ -571,13 +570,14 @@ class RejectionABC(InferenceMethod):
     n_samples_per_param = None
     epsilon = None
 
-    accepted_parameters_manager = AcceptedParameterManager()
+
 
     def __init__(self, model, distance, backend, seed=None):
         self.model = model
         self.distance = distance
         self.backend = backend
         self.rng = np.random.RandomState(seed)
+        self.accepted_parameters_manager = AcceptedParametersManager(self.model)
 
     def sample(self, observations, n_samples, n_samples_per_param, epsilon, full_output=0):
         """

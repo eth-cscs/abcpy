@@ -1,8 +1,6 @@
 from abc import ABCMeta, abstractmethod
-from ProbabilisticModel import Continuous, Discrete
+from ProbabilisticModel import Continuous
 import numpy as np
-from scipy.stats import multivariate_normal
-from scipy.special import gamma
 
 
 # TODO ask rito how the pdf should be calculated here as well
@@ -33,13 +31,17 @@ class StandardKernel(PerturbationKernel):
         self.models = models
 
     #NOTE we cant do perturb c[0] and c[1] differently!
-    def update(self, weights):
+    def update(self, weights, accepted_parameters_manager, column_index, rng=np.random.RandomState()):
         """Perturbs all the parameters using the weights given.
 
         Parameters
         ----------
         weights: list
             The weights that should be used to calculate the covariance matrix.
+        accepted_parameters_manager: abcpy.AcceptedParametersManager object
+            Defines the accepted parameters manager to be used to access parameter values.
+        column_index: integer
+            The column of the accepted parameters matrix that should be perturbed
 
         Returns
         -------
@@ -49,26 +51,34 @@ class StandardKernel(PerturbationKernel):
         continuous_model_values = []
         discrete_model_values = []
 
-        # NOTE we dont want to take the fixed values, btu the values from accepted_parameters_bds corresponding to these models, using the new function!
+        all_model_values = accepted_parameters_manager.get_accepted_parameters_bds_values(self.models)
 
-        # Find all the current values for the discrete and continous models
+        model_values_index = 0
+
+        # Find all the currently accepted values for the discrete and continous models
         for model in self.models:
             if(isinstance(model, Continuous)):
-                for fixed_value in model.fixed_values:
-                    continuous_model_values.append(fixed_value)
+                for i in range(model.dimension):
+                    continuous_model_values.append(all_model_values[model_values_index])
+                    model_values_index+=1
             else:
-                for fixed_value in model.fixed_values:
-                    discrete_model_values.append(fixed_value)
+                for i in range(model.dimension):
+                    discrete_model_values.append(all_model_values[model_values_index])
+                    model_values_index+=1
 
-        # Perturb continuous parameters
-        cov = np.cov(continuous_model_values, aweights=weights)
+        # Perturb continuous parameters, if applicable
+        if(continuous_model_values):
+            continuous_model_values = np.array(continuous_model_values)
+            cov = np.cov(continuous_model_values, aweights=weights)
 
-        perturbed_continuous_values = np.random.multivariate_normal(continuous_model_values, cov)
+            perturbed_continuous_values = rng.multivariate_normal(continuous_model_values[:,column_index], cov)
 
-        # Perturb discrete parameters
-        perturbed_discrete_values = []
-        for discrete_value in discrete_model_values:
-            perturbed_discrete_values.append(np.random.randint(discrete_value-1,discrete_value+2))
+        # Perturb discrete parameters, if applicable
+        if(discrete_model_values):
+            perturbed_discrete_values = []
+            discrete_model_values = np.array(discrete_model_values)[:,column_index]
+            for discrete_value in discrete_model_values:
+                perturbed_discrete_values.append(rng.randint(discrete_value-1,discrete_value+2))
 
         # Merge the two lists
         perturbed_values_including_models = []
@@ -76,14 +86,13 @@ class StandardKernel(PerturbationKernel):
         index_in_discrete_models=0
 
         for model in self.models:
+            model_values = []
             if(isinstance(model, Continuous)):
-                model_values = []
                 for i in range(model.dimension):
                     model_values.append(perturbed_continuous_values[index_in_continuous_models])
                     index_in_continuous_models+=1
                 perturbed_values_including_models.append((model,model_values))
             else:
-                model_values=[]
                 for i in range(model.dimension):
                     model_values.append(perturbed_discrete_values[index_in_discrete_models])
                     index_in_discrete_models+=1
