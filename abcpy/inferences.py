@@ -12,9 +12,9 @@ from scipy import optimize
 
 #TODO check whether something like for j in range(self.parent.dimension) is done, since this will be wrong for hyperparameters
 
-#TODO TESTS
-
 #NOTE currently, you can give a list of models to some functions, but actual inference will only be performed on the 0th element
+
+# NOTE for some reason, all weights are the same for pmcabc ---> what is wrong there???
 
 
 class InferenceMethod(metaclass = ABCMeta):
@@ -108,20 +108,20 @@ class InferenceMethod(metaclass = ABCMeta):
                     self._reset_flags([parent])
             model.visited = False
 
-    # TODO does result really have to be a list?
-    def pdf_of_prior(self, models, parameters, index=0, is_root=True):
+    # todo could we somehow use a set?
+    def pdf_of_prior(self, models, parameters, mapping=None, is_root=True):
         """
         Calculates the joint probability density function of the prior of the specified models at the given parameter values.
         Commonly used to check whether new parameters are valid given the prior, as well as to calculate acceptance probabilities.
 
         Parameters
         ----------
-        models: list of probabilistic models
+        models: list of abcpy.ProbabilisticModel objects
             Defines the models for which the pdf of their prior should be evaluated
         parameters: python list
             The parameters at which the pdf should be evaluated
-        index: integer
-            The current index to be considered within the parameters list
+        mapping: list of tupels
+            Defines the mapping of probabilistic models and index in a parameter list.
         is_root: boolean
             A flag specifying whether the provided models are the root models. This is to ensure that the pdf is calculated correctly.
 
@@ -129,6 +129,10 @@ class InferenceMethod(metaclass = ABCMeta):
         list
             The resulting pdf, given as a list, as well as the next index to be considered in the parameters list.
         """
+        # At the beginning of calculation, obtain the mapping
+        if(is_root):
+            mapping, garbage_index = self._get_mapping()
+
         # The pdf of each root model is first calculated seperately
         result = [1.]*len(models)
 
@@ -137,10 +141,14 @@ class InferenceMethod(metaclass = ABCMeta):
             if(not(is_root)):
                 # Define a helper list which will contain the parameters relevant to the current model for pdf calculation
                 relevant_parameters = []
-                # This loop will skip hyperparameters, which doesn't matter due to our definition of the pdf
-                for j in range(model.dimension):
-                    relevant_parameters.append(parameters[index])
-                    index+=1
+
+                for mapped_model, model_index in mapping:
+                    if(mapped_model==model):
+                        parameter_index = model_index
+                        for j in range(model.dimension):
+                            relevant_parameters.append(parameters[parameter_index])
+                            parameter_index+=1
+                        break
                 if(len(relevant_parameters)==1):
                     relevant_parameters = relevant_parameters[0]
                 else:
@@ -156,22 +164,61 @@ class InferenceMethod(metaclass = ABCMeta):
 
                 # Only calculate the pdf if the parent has never been visited for this model
                 if(not(visited_parents[parent_index])):
-                    pdf = self.pdf_of_prior([parent], parameters, index=index, is_root=False)
+                    pdf = self.pdf_of_prior([parent], parameters, mapping=mapping, is_root=False)
                     for j in range(len(model.parents)):
                         if(model.parents[j][0]==parent):
                             visited_parents[j]=True
-                    result[i]*=pdf[0][0]
-                    index=pdf[1]
+                    result[i]*=pdf
 
-        # If we are at the root, the resulting pdf should be the product of all individual pdfs
-        if(is_root):
-            temporary_result = result
-            result = 1.
-            for individual_result in temporary_result:
-                result*=individual_result
-            result = [result]
+        temporary_result = result
+        result = 1.
+        for individual_result in temporary_result:
+            result*=individual_result
 
-        return [result, index]
+        return result
+
+    def _get_mapping(self, models=None, index=0, is_not_root=False):
+        """Returns a mapping of model and first index corresponding to the outputs in this model in parameter lists.
+
+        Parameters
+        ----------
+        models: list
+            List of abcpy.ProbabilisticModel objects
+        index: integer
+            Next index to be mapped in a parameter list
+        is_not_root: boolean
+            Specifies whether the models specified are root models.
+
+        Returns
+        -------
+        list
+            A list containing two entries. The first entry corresponds to the mapping of the root models, including their parents. The second entry corresponds to the next index to be considered in a parameter list.
+        """
+
+        if(models is None):
+            models = self.model
+
+        mapping = []
+
+        for model in models:
+            # If this model corresponds to an unvisited free parameter, add it to the mapping
+            if(is_not_root and not(model.visited) and not(isinstance(model, Hyperparameter))):
+                mapping.append((model, index))
+                index+=model.dimension
+            # Add all parents to the mapping, if applicable
+            for parent, parent_index in model.parents:
+                parent_mapping, index = self._get_mapping([parent], index=index, is_not_root=True)
+                parent.visited=True
+                for mappings in parent_mapping:
+                    mapping.append(mappings)
+
+            model.visited=True
+
+        # At the end of the algorithm, reset all flags such that another method can act on the graph freely.
+        if(not(is_not_root)):
+            self._reset_flags()
+
+        return [mapping, index]
 
     def get_parameters(self, models=None, is_root=True):
         """
@@ -311,6 +358,7 @@ class InferenceMethod(metaclass = ABCMeta):
         # At the end of the algorithm, are flags are reset such that new methods can act on the graph freely
         if(is_root):
             self._reset_flags()
+
         return ordered_parameters
 
 
@@ -356,7 +404,7 @@ class InferenceMethod(metaclass = ABCMeta):
 
         return [True, correctly_ordered_parameters]
 
-
+    # TODO returns array, should return list (else need to convert each time)
     def simulate(self, rng=np.random.RandomState()):
         """Simulates data of each model using the currently sampled or perturbed parameters.
 
@@ -599,6 +647,7 @@ class RejectionABC(InferenceMethod):
         # An object managing the bds objects
         self.accepted_parameters_manager = AcceptedParametersManager(self.model)
 
+    # TODO observations is now a list of lists, instead of 1 list ---> it should act accordingly
     def sample(self, observations, n_samples, n_samples_per_param, epsilon, full_output=0):
         """
         Samples from the posterior distribution of the model parameter given the observed
@@ -649,6 +698,7 @@ class RejectionABC(InferenceMethod):
 
         return journal
 
+    # NOTE gives sensible results, but needs high threshold?
     def _sample_parameter(self, rng):
         """
         Samples a single model parameter and simulates from it until
@@ -657,27 +707,27 @@ class RejectionABC(InferenceMethod):
 
         Parameters
         ----------
-        seed: int
-            value of a seed to be used for reseeding
+        rng: random number generator
+            The random number generator to be used.
         Returns
         -------
         np.array
             accepted parameter
         """
-        distance = self.distance.dist_max()
+        distance = [self.distance.dist_max()]
 
         # NOTE although this does not terminate for the "normal" example from the documentation, it still gives sensible y_sim values and runs ---> probably correct implementaion, but run tests specifically for this
-        while distance > self.epsilon:
+        while any(dist > self.epsilon for dist in distance):
             # Accept new parameter value if the distance is less than epsilon
             self.sample_from_prior(rng=rng)
-            #TODO WHAT SHOULD HAPPEN IF WE HAVE MORE THAN ONE MODEL
             #NOTE this gives reasonable values for the y_sim. However, the distances are very large, possibly because of the algorithm used, not sure
             y_sim = self.simulate(rng=rng)
             if(y_sim is not None):
-                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+                distance = []
+                for observed_data, simulated_data in zip(self.accepted_parameters_manager.observations_bds.value(), y_sim):
+                    distance.append(self.distance.distance(observed_data, simulated_data.tolist()))
             else:
-                distance = self.epsilon+1
-            #print(distance)
+                distance = [self.distance.dist_max()]
         return self.get_parameters(self.model)
 
 class PMCABC(BasePMC, InferenceMethod):
@@ -763,8 +813,8 @@ class PMCABC(BasePMC, InferenceMethod):
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
-
         self.accepted_parameters_manager.broadcast(self.backend, observations)
+        self.accepted_parameters_manager.set_covFactor(covFactor)
         self.n_samples = n_samples
         self.n_samples_per_param=n_samples_per_param
 
@@ -805,6 +855,7 @@ class PMCABC(BasePMC, InferenceMethod):
 
             # 1: calculate resample parameters
             # print("INFO: Resampling parameters")
+            # TODO send the covFactor to the function, to calculate the cov matrix
             params_and_dists_and_ysim_pds = self.backend.map(self._resample_parameter, rng_pds)
             params_and_dists_and_ysim = self.backend.collect(params_and_dists_and_ysim_pds)
             new_parameters, distances = [list(t) for t in zip(*params_and_dists_and_ysim)]
@@ -873,28 +924,30 @@ class PMCABC(BasePMC, InferenceMethod):
 
         # NOTE give rng to all necessary instances
 
-        distance = self.distance.dist_max()
-        while distance > self.epsilon:
+        distance = [self.distance.dist_max()]
+        while any(dist > self.epsilon for dist in distance):
             # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
             #NOTE we could write a chekcer for this, is that necessary?
             if self.accepted_parameters_manager.accepted_parameters_bds == None:
                 self.sample_from_prior(rng=rng)
                 theta = self.get_parameters()
-                y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param, rng=rng)[1].tolist()
+                y_sim = self.simulate(rng=rng)
             else:
                 index = rng.choice(self.n_samples, size=1, p=self.accepted_parameters_manager.accepted_weights_bds.value().reshape(-1))
                 # truncate the normal to the bounds of parameter space of the model
                 # truncating the normal like this is fine: https://arxiv.org/pdf/0907.4010v1.pdf
                 while True:
                     perturbation_output = self.perturb(index[0], rng=rng)
-                    if(perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1])[0][0]!=0):
+                    if(perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1])!=0):
                         theta = perturbation_output[1]
                         break
-                y_sim = self.simulate(rng=rng)[0].tolist()
+                y_sim = self.simulate(rng=rng)
             if(y_sim is not None):
-                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+                distance = []
+                for observed_data, simulated_data in zip(self.accepted_parameters_manager.observations_bds.value(), y_sim):
+                    distance.append(self.distance.distance(observed_data, simulated_data.tolist()))
             else:
-                distance = self.epsilon+1
+                distance = [self.distance.dist_max()]
         return (theta, distance)
 
     def _calculate_weight(self, theta):
@@ -915,7 +968,7 @@ class PMCABC(BasePMC, InferenceMethod):
         if self.accepted_weights_bds is None:
             return 1.0 / self.n_samples
         else:
-            prior_prob = self.pdf_of_prior(self.model, theta, 0)[0][0] #first [0] because it returns a list, second [0] because if we have multiple models
+            prior_prob = self.pdf_of_prior(self.model, theta, 0)
 
             denominator = 0.0
             for i in range(0, self.n_samples):

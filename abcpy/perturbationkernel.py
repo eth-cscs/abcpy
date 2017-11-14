@@ -4,9 +4,6 @@ import numpy as np
 from scipy.stats import multivariate_normal
 
 
-# TODO ask rito how the pdf should be calculated here as well
-
-#TODO overall naming and docstrings, nicer unction writing
 class PerturbationKernel(metaclass = ABCMeta):
     """This abstract base class represents all perturbation kernels"""
     @abstractmethod
@@ -19,9 +16,10 @@ class PerturbationKernel(metaclass = ABCMeta):
 
     def pdf(self, accepted_parameters_manager, index, x):
         if(isinstance(self, DiscreteKernel)):
-            return self.pmf(x)
+            return self.pmf(accepted_parameters_manager, index, x)
         else:
             raise NotImplementedError
+
 
 class ContinuousKernel(metaclass = ABCMeta):
     """This abstract base class represents all perturbation kernels acting on continuous parameters."""
@@ -30,12 +28,14 @@ class ContinuousKernel(metaclass = ABCMeta):
     def pdf(self, accepted_parameters_manager, index, x):
         raise NotImplementedError
 
+
 class DiscreteKernel(metaclass = ABCMeta):
     """This abstract base class represents all perturbation kernels acting on discrete parameters."""
 
     @abstractmethod
     def pmf(self, accepted_parameters_manager, index, x):
         raise NotImplementedError
+
 
 class JointPerturbationKernel(PerturbationKernel):
     """This class joins different kernels to make up the overall perturbation kernel. Any user-implemented perturbation kernel should derive from this class.
@@ -69,7 +69,7 @@ class JointPerturbationKernel(PerturbationKernel):
 
 
     def update(self, accepted_parameters_manager, row_index, rng=np.random.RandomState()):
-        """Perturbes the parameter values contained in accepted_parameters_manager. Commonly used while perturbing.
+        """Perturbs the parameter values contained in accepted_parameters_manager. Commonly used while perturbing.
 
         Parameters
         ----------
@@ -124,8 +124,7 @@ class JointPerturbationKernel(PerturbationKernel):
             The pdf evaluated at point x.
         """
         # Obtain a mapping between the models of the graph and the index of the parameter in each row of the accepted_parameters_bds matrix
-        mapping = accepted_parameters_manager.get_mapping(accepted_parameters_manager.model)
-
+        mapping, garbage_index = accepted_parameters_manager.get_mapping(accepted_parameters_manager.model)
         result = 1.
 
         for kernel in self.kernels:
@@ -139,9 +138,6 @@ class JointPerturbationKernel(PerturbationKernel):
             result*=kernel.pdf(accepted_parameters_manager, index, theta)
 
         return result
-
-
-
 
 
 class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
@@ -169,7 +165,6 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
         """
         # Get all current parameter values relevant for this model
         continuous_model_values = accepted_parameters_manager.get_accepted_parameters_bds_values(self.models)
-
         correctly_ordered_parameters = [[] for i in range(len(continuous_model_values))]
 
         index=0
@@ -184,7 +179,7 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
         # Perturb
         weights = accepted_parameters_manager.accepted_weights_bds.value()
         correctly_ordered_parameters = np.array(correctly_ordered_parameters)
-        cov = np.cov(correctly_ordered_parameters, aweights=weights.reshape(-1), rowvar=False)
+        cov = accepted_parameters_manager.covFactor*np.cov(correctly_ordered_parameters, aweights=weights.reshape(-1), rowvar=False)
         perturbed_continuous_values = rng.multivariate_normal(correctly_ordered_parameters[row_index], cov)
 
         return perturbed_continuous_values
@@ -211,11 +206,13 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
 
         # Gets the relevant accepted parameters from the manager in order to calculate the pdf
         mean = []
+
         for accepted_parameter in accepted_parameters:
             mean.append(accepted_parameter[index])
         mean = np.array(mean)
+
         weights = accepted_parameters_manager.accepted_weights_bds.value()
-        cov = np.cov(mean, aweights=weights.reshape(-1), rowvar=False)
+        cov = accepted_parameters_manager.covFactor*np.cov(mean, aweights=weights.reshape(-1), rowvar=False)
 
         return multivariate_normal(mean, cov).pdf(x)
 
@@ -271,6 +268,7 @@ class RandomWalkKernel(PerturbationKernel, DiscreteKernel):
 
         return perturbed_discrete_values
 
+    # NOTE is this correct?
     def pmf(self, accepted_parameters_manager, index, x):
         """Calculates the pmf of the kernel.
         Commonly used to calculate weights.

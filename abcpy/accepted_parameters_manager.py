@@ -1,6 +1,6 @@
 from ProbabilisticModel import Hyperparameter
 
-
+# NOTE is covFactor really in the right place here?
 class AcceptedParametersManager():
     """
     This class managed the accepted parameters and other bds objects
@@ -10,8 +10,9 @@ class AcceptedParametersManager():
     model: list
         List of all root probabilistic models
     """
-    def __init__(self, model):
+    def __init__(self, model, covFactor=1.):
         self.model = model
+        self.covFactor = covFactor
 
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
@@ -19,6 +20,17 @@ class AcceptedParametersManager():
         self.accepted_parameters_bds = None
         self.accepted_weights_bds = None
         self.accepted_cov_mat_bds = None
+
+    def set_covFactor(self, covFactor):
+        """Sets the covariance matrix factor to the provided value. Commonly used at the start of sampling.
+
+        Parameters
+        ----------
+        covFactor: float
+            The value to which the covariance matrix factor should be set.
+
+        """
+        self.covFactor = covFactor
 
     def broadcast(self, backend, observations):
         """Broadcasts the observations to observations_bds using the specified backend."""
@@ -87,6 +99,10 @@ class AcceptedParametersManager():
                     for element in parent_mapping:
                         mapping.append(element)
 
+        # Reset the flags of all models
+        if(is_root):
+            self._reset_flags()
+
         return [mapping, index]
 
     def get_accepted_parameters_bds_values(self, models):
@@ -106,9 +122,6 @@ class AcceptedParametersManager():
         """
         # Get the enumerated recursive depth-first search ordering
         mapping, mapping_index = self.get_mapping(self.model)
-
-        # Reset the flags of all touched models
-        self._reset_flags()
 
         # The self.accepted_parameters_bds.value() list has dimensions d x n_steps, where d is the number of free parameters
         accepted_bds_values = [[] for i in range(len(self.accepted_parameters_bds.value()))]

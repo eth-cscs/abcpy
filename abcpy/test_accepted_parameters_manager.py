@@ -6,6 +6,7 @@ from abcpy.backends import BackendDummy as Backend
 
 """Tests whether the methods defined for AcceptedParametersManager work as intended."""
 
+
 class BroadcastTests(unittest.TestCase):
     """Tests whether observations can be broadcasted using broadcast."""
     def test(self):
@@ -37,7 +38,7 @@ class UpdateBroadcastTests(unittest.TestCase):
 
 
 class GetMappingTests(unittest.TestCase):
-    """Tests whether the dfs mapping returned from _get_mapping is in the correct order."""
+    """Tests whether the dfs mapping returned from get_mapping is in the correct order."""
     def test(self):
         B1 = Binomial([10,0.2])
         N1 = Normal([0.1,0.01])
@@ -46,8 +47,9 @@ class GetMappingTests(unittest.TestCase):
 
         Manager = AcceptedParametersManager([graph])
 
-        mapping, mapping_index = Manager._get_mapping([graph])
+        mapping, mapping_index = Manager.get_mapping([graph])
         self.assertEqual(mapping, [(B1,0),(N2,1),(N1,2)])
+
 
 class GetAcceptedParametersBdsValuesTests(unittest.TestCase):
     """Tests whether get_accepted_parameters_bds_values returns the correct values."""
@@ -63,6 +65,7 @@ class GetAcceptedParametersBdsValuesTests(unittest.TestCase):
 
         values = Manager.get_accepted_parameters_bds_values([B1,N2,N1])
         self.assertEqual(values, [[2,3,4],[0.27,0.32,0.28],[0.97,0.12,0.99]])
+
 
 if __name__ == '__main__':
     unittest.main()
