@@ -153,6 +153,7 @@ class InferenceMethod(metaclass = ABCMeta):
 
 
     #TODO CHECK WHETHER THIS COVERS ALL 3 DIFFERENT CASES
+    # NOTE something in here doesnt seem to be correct, index out of range?
     def pdf_of_prior(self, models, parameters, index, is_root=True):
         """
         Calculates the joint probability density function of the prior of the specified models at the given parameter values.
@@ -918,7 +919,6 @@ class PMCABC(BasePMC, InferenceMethod):
                 y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param, rng=rng)[1].tolist()
             else:
                 index = rng.choice(self.n_samples, size=1, p=self.accepted_parameters_manager.accepted_weights_bds.value().reshape(-1))
-                print(self.accepted_parameters_manager.accepted_cov_mat_bds.value())
                 # truncate the normal to the bounds of parameter space of the model
                 # truncating the normal like this is fine: https://arxiv.org/pdf/0907.4010v1.pdf
                 while True:

@@ -91,7 +91,7 @@ class AcceptedParametersManager():
         return [mapping, index]
 
     # NOTE after this, _reset_flags should be called
-    def get_accepted_parameters_bds_values(self, models, index=0):
+    def get_accepted_parameters_bds_values(self, models):
         """
         Returns the accepted bds values for the specified models.
 
@@ -99,8 +99,6 @@ class AcceptedParametersManager():
         ----------.
         models: list
             Contains the probabilistic models for which the accepted bds values should be returned
-        index: integer
-            The current index to be considered in the accepted_parameters_bds list
 
         Returns
         -------
@@ -108,11 +106,17 @@ class AcceptedParametersManager():
             The accepted_parameters_bds values of all the probabilistic models specified in models.
 
         """
+        # Get the enumerated recursive depth-first search ordering
         mapping, mapping_index = self._get_mapping(self.model)
-        accepted_bds_values = []
+
+        # The self.accepted_parameters_bds.value() list has dimensions d x n_steps, where d is the number of free parameters
+        accepted_bds_values = [[] for i in range(len(self.accepted_parameters_bds.value()))]
+
+        # Add all columns that correspond to desired parameters to the list that is returned
         for model in models:
             for prob_model, index in mapping:
                 if(model==prob_model):
-                    #TODO not sure if correct, see test_pmcabc
-                    accepted_bds_values.append(self.accepted_parameters_bds.value()[index,:])
+                    for i in range(len(self.accepted_parameters_bds.value())):
+                        accepted_bds_values[i].append(self.accepted_parameters_bds.value()[i][index])
+
         return accepted_bds_values
