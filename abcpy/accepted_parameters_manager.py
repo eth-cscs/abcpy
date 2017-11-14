@@ -1,6 +1,5 @@
 from ProbabilisticModel import Hyperparameter
 
-#in kernel it should have self.accepted_parameters_bds.value() without [index[0]] but instead it should look which model corresponds to which entry and pack these togehter (as rows, it is nxd)
 
 class AcceptedParametersManager():
     """
@@ -52,7 +51,7 @@ class AcceptedParametersManager():
         if not accepted_cov_mat is None:
             self.accepted_cov_mat_bds = backend.broadcast(accepted_cov_mat)
 
-    def _get_mapping(self, models, is_root=True, index=0):
+    def get_mapping(self, models, is_root=True, index=0):
         """Returns the order in which the models are discovered during recursive depth-first search.
         Commonly used when returning the accepted_parameters_bds for certain models.
         Parameters
@@ -84,13 +83,12 @@ class AcceptedParametersManager():
                         index+=1
 
                 for parent, parent_index in model.parents:
-                    parent_mapping, index = self._get_mapping([parent], is_root= False, index=index)
+                    parent_mapping, index = self.get_mapping([parent], is_root= False, index=index)
                     for element in parent_mapping:
                         mapping.append(element)
 
         return [mapping, index]
 
-    # NOTE after this, _reset_flags should be called
     def get_accepted_parameters_bds_values(self, models):
         """
         Returns the accepted bds values for the specified models.
@@ -107,7 +105,10 @@ class AcceptedParametersManager():
 
         """
         # Get the enumerated recursive depth-first search ordering
-        mapping, mapping_index = self._get_mapping(self.model)
+        mapping, mapping_index = self.get_mapping(self.model)
+
+        # Reset the flags of all touched models
+        self._reset_flags()
 
         # The self.accepted_parameters_bds.value() list has dimensions d x n_steps, where d is the number of free parameters
         accepted_bds_values = [[] for i in range(len(self.accepted_parameters_bds.value()))]
@@ -120,3 +121,21 @@ class AcceptedParametersManager():
                         accepted_bds_values[i].append(self.accepted_parameters_bds.value()[i][index])
 
         return accepted_bds_values
+
+    def _reset_flags(self, models=None):
+        """Resets the visited flags of all models specified, such that other functions can act on the graph freely.
+        Commonly used after calling the get_mapping method.
+
+        Parameters
+        ----------
+        models: list
+            List of abcpy.ProbabilisticModel objects, the models the root models for which, together with their parents, the flags should be reset
+        """
+        if(models is None):
+            models = self.model
+
+        for model in models:
+            for parent, parent_index in model.parents:
+                if(parent.visited):
+                    self._reset_flags([parent])
+            model.visited=False

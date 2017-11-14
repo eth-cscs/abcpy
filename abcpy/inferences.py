@@ -31,49 +31,6 @@ class InferenceMethod(metaclass = ABCMeta):
         del state['backend']
         return state
 
-    def get_probabilistic_models_corresponding_to_free_parameters(self, type, models=None, is_not_root=False):
-        """Returns a list of all probabilistic models corresponding to free parameters of a given type.
-        Commonly used at initialization of kernels.
-
-        Parameters
-        ----------
-        type: ProbabilisticModel.Continuous or ProbabilisticModel.discrete
-            The type of probabilistic models that should be returned.
-        models: list
-            The root probabilistic models of the graph. If no value is provided, the root models are assumed to be the model of the inference method.
-        is_root: boolean
-            Whether the probabilistic models given in models are root models.
-
-        Returns
-        -------
-        list
-            List of all probabilistic models of a given type.
-
-        """
-        free_parameter_models = []
-
-        # If we are at the root, we need to set the models parameter
-        if(is_not_root == False):
-            models = self.model
-
-        # Use depth-first search to provide all the relevant probabilistic models
-        for model in models:
-            model.visited = True
-
-            if(is_not_root and isinstance(model, type)):
-                free_parameter_models.append(model)
-
-            for parent, parent_index in model.parents:
-                if(not(parent.visited)):
-                    parent_models = self.get_probabilistic_models_corresponding_to_free_parameters(type, models = [parent], is_not_root=True)
-                    for parent_model in parent_models:
-                        free_parameter_models.append(parent_model)
-
-        # At the end of the algorithm, are flags are reset such that new methods can act on the graph freely
-        self._reset_flags(models)
-
-        return free_parameter_models
-
     def sample_from_prior(self, rng=np.random.RandomState()):
         """
        Samples values for all random variables of the model.
@@ -151,10 +108,8 @@ class InferenceMethod(metaclass = ABCMeta):
                     self._reset_flags([parent])
             model.visited = False
 
-
-    #TODO CHECK WHETHER THIS COVERS ALL 3 DIFFERENT CASES
-    # NOTE something in here doesnt seem to be correct, index out of range?
-    def pdf_of_prior(self, models, parameters, index, is_root=True):
+    # TODO does result really have to be a list?
+    def pdf_of_prior(self, models, parameters, index=0, is_root=True):
         """
         Calculates the joint probability density function of the prior of the specified models at the given parameter values.
         Commonly used to check whether new parameters are valid given the prior, as well as to calculate acceptance probabilities.
@@ -172,8 +127,9 @@ class InferenceMethod(metaclass = ABCMeta):
 
         Returns:
         list
-            The resulting pdf, as well as the next index to be considered in the parameters list.
+            The resulting pdf, given as a list, as well as the next index to be considered in the parameters list.
         """
+        # The pdf of each root model is first calculated seperately
         result = [1.]*len(models)
 
         for i, model in enumerate(models):
@@ -191,11 +147,29 @@ class InferenceMethod(metaclass = ABCMeta):
                     relevant_parameters = np.array(relevant_parameters)
                 result[i]*=model.pdf(relevant_parameters)
 
+            # Mark whether the parents of each model have been visited before for this model to avoid repeated calculation
+            visited_parents = [False for j in range(len(model.parents))]
+
             # For each parent, the pdf of this parent has to be calculated as well.
-            for parent, parent_index in model.parents:
-                pdf = self.pdf_of_prior([parent], parameters, index, is_root=False)
-                result[i]*=pdf[0][0]
-                index=pdf[1]
+            for parent_index, parents in enumerate(model.parents):
+                parent = parents[0]
+
+                # Only calculate the pdf if the parent has never been visited for this model
+                if(not(visited_parents[parent_index])):
+                    pdf = self.pdf_of_prior([parent], parameters, index=index, is_root=False)
+                    for j in range(len(model.parents)):
+                        if(model.parents[j][0]==parent):
+                            visited_parents[j]=True
+                    result[i]*=pdf[0][0]
+                    index=pdf[1]
+
+        # If we are at the root, the resulting pdf should be the product of all individual pdfs
+        if(is_root):
+            temporary_result = result
+            result = 1.
+            for individual_result in temporary_result:
+                result*=individual_result
+            result = [result]
 
         return [result, index]
 
@@ -341,7 +315,6 @@ class InferenceMethod(metaclass = ABCMeta):
 
 
     # NOTE this wont work for rejectionabc, but is a method of that -> how to fix?
-    # NOTE this function could also return the parameters, after setting them (setting is still required due to sanity checks). This way, we would not need to call get_parameters after perturbing
     # TODO pass a covFactor to calculate cov matrix in kernel -> why cant we ues the one provided in the accepted_parameters_bds?
     def perturb(self, column_index, epochs = 10, rng=np.random.RandomState()):
         """
@@ -384,36 +357,27 @@ class InferenceMethod(metaclass = ABCMeta):
         return [True, correctly_ordered_parameters]
 
 
-    # NOTE I think this is the same as sample_from_prior?
-    '''
-    def sample_parameters(self, models, rng=np.random.RandomState()):
-        """
-        Samples default parameter values for each model, as well as the respective parents.
-        Commonly used before inference starts to provide default values.
+    def simulate(self, rng=np.random.RandomState()):
+        """Simulates data of each model using the currently sampled or perturbed parameters.
 
         Parameters
         ----------
-        models: list
-            Defines the models for which the default parameter values should be sampled.
-        rng: Random number generator
+        rng: random number generator
             The random number generator to be used.
-        """
-        for model in models:
-            # Parameters for all parents are sampled, using a depth-first search
-            for parent, parent_index in model.parents:
-                if(not(parent.visited)):
-                    parent.visited = True
-                    self.sample_parameters([parent], rng=rng)
-            model.sample_parameters(rng=rng)
-            model.visited = True
-        '''
 
-    def simulate(self, rng=np.random.RandomState()):
-        result = self.model[0].sample_from_distribution(self.n_samples_per_param, rng=rng)
-        if(result[0]):
-            return result[1].tolist()
-        else:
-            return None
+        Returns
+        -------
+        list
+            Each entry corresponds to the simulated data of one model.
+        """
+        result = []
+        for model in self.model:
+            simulation_result = model.sample_from_distribution(self.n_samples_per_param, rng=rng)
+            if(simulation_result[0]):
+                result.append(simulation_result[1])
+            else:
+                return None
+        return result
 
 
     @abstractmethod
@@ -923,10 +887,10 @@ class PMCABC(BasePMC, InferenceMethod):
                 # truncating the normal like this is fine: https://arxiv.org/pdf/0907.4010v1.pdf
                 while True:
                     perturbation_output = self.perturb(index[0], rng=rng)
-                    if(perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1], 0)[0][0]!=0):
+                    if(perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1])[0][0]!=0):
                         theta = perturbation_output[1]
                         break
-                y_sim = self.simulate(rng=rng)
+                y_sim = self.simulate(rng=rng)[0].tolist()
             if(y_sim is not None):
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
             else:
@@ -955,7 +919,7 @@ class PMCABC(BasePMC, InferenceMethod):
 
             denominator = 0.0
             for i in range(0, self.n_samples):
-                pdf_value = self.kernel.pdf(self.accepted_parameters_manager.accepted_parameters_bds.value()[i,:], self.accepted_parameters_manager.accepted_cov_mat_bds.value(), theta)
+                pdf_value = self.kernel.pdf(self.accepted_parameters_manager, i, theta)
                 denominator += self.accepted_parameters_manager.accepted_weights_bds.value()[i, 0] * pdf_value
             return 1.0 * prior_prob / denominator
 
