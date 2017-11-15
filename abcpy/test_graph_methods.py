@@ -186,7 +186,7 @@ class SimulateTests(unittest.TestCase):
 
         self.assertTrue(len(y_sim)==2)
 
-        self.assertTrue(isinstance(y_sim[0], np.ndarray))
+        self.assertTrue(isinstance(y_sim[0], list))
 
 
 class GetMappingTests(unittest.TestCase):
@@ -215,11 +215,12 @@ class GetMappingTests(unittest.TestCase):
 class PdfOfPriorTests(unittest.TestCase):
     """Tests the implemetation of pdf_of_prior"""
     def setUp(self):
-        class Mockobejct(Normal):
+        class Mockobject(Normal):
             def __init__(self, parameters):
-                super(Mockobejct, self).__init__(parameters)
+                super(Mockobject, self).__init__(parameters)
             def pdf(self, x):
                 return x
+
         self.N1 = Mockobject([1,0.1])
         self.N2 = Mockobject([self.N1, 0.1])
         self.N3 = Mockobject([0.1,0.01])

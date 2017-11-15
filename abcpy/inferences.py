@@ -10,12 +10,6 @@ from scipy import optimize
 
 #TODO check whether if we set a seed as well as an rng for the distributions, what happens.
 
-#TODO check whether something like for j in range(self.parent.dimension) is done, since this will be wrong for hyperparameters
-
-#NOTE currently, you can give a list of models to some functions, but actual inference will only be performed on the 0th element
-
-# NOTE for some reason, all weights are the same for pmcabc ---> what is wrong there???
-
 
 class InferenceMethod(metaclass = ABCMeta):
     """
@@ -312,6 +306,7 @@ class InferenceMethod(metaclass = ABCMeta):
         # At the end of the algorithm, are flags are reset such that new methods can act on the graph freely
         if(is_root):
             self._reset_flags()
+
         return [True, index]
 
     def get_correct_ordering(self, parameters_and_models, models=None, is_root = True):
@@ -363,7 +358,6 @@ class InferenceMethod(metaclass = ABCMeta):
 
 
     # NOTE this wont work for rejectionabc, but is a method of that -> how to fix?
-    # TODO pass a covFactor to calculate cov matrix in kernel -> why cant we ues the one provided in the accepted_parameters_bds?
     def perturb(self, column_index, epochs = 10, rng=np.random.RandomState()):
         """
         Perturbs all free parameters, given the current weights.
@@ -404,7 +398,6 @@ class InferenceMethod(metaclass = ABCMeta):
 
         return [True, correctly_ordered_parameters]
 
-    # TODO returns array, should return list (else need to convert each time)
     def simulate(self, rng=np.random.RandomState()):
         """Simulates data of each model using the currently sampled or perturbed parameters.
 
@@ -422,7 +415,7 @@ class InferenceMethod(metaclass = ABCMeta):
         for model in self.model:
             simulation_result = model.sample_from_distribution(self.n_samples_per_param, rng=rng)
             if(simulation_result[0]):
-                result.append(simulation_result[1])
+                result.append(simulation_result[1].tolist())
             else:
                 return None
         return result
@@ -549,6 +542,7 @@ class BaseAnnealing(InferenceMethod, metaclass = ABCMeta):
         """
         raise NotImplementedError
 
+
 class BaseAdaptivePopulationMC(InferenceMethod, metaclass = ABCMeta):
     """
             This abstract base class represents inference methods that use Adaptive Population Monte Carlo.
@@ -609,6 +603,7 @@ class BaseAdaptivePopulationMC(InferenceMethod, metaclass = ABCMeta):
         """
         raise NotImplementedError
 
+
 class RejectionABC(InferenceMethod):
     """This base class implements the rejection algorithm based inference scheme [1] for
         Approximate Bayesian Computation.
@@ -647,7 +642,6 @@ class RejectionABC(InferenceMethod):
         # An object managing the bds objects
         self.accepted_parameters_manager = AcceptedParametersManager(self.model)
 
-    # TODO observations is now a list of lists, instead of 1 list ---> it should act accordingly
     def sample(self, observations, n_samples, n_samples_per_param, epsilon, full_output=0):
         """
         Samples from the posterior distribution of the model parameter given the observed
@@ -716,19 +710,18 @@ class RejectionABC(InferenceMethod):
         """
         distance = [self.distance.dist_max()]
 
-        # NOTE although this does not terminate for the "normal" example from the documentation, it still gives sensible y_sim values and runs ---> probably correct implementaion, but run tests specifically for this
         while any(dist > self.epsilon for dist in distance):
             # Accept new parameter value if the distance is less than epsilon
             self.sample_from_prior(rng=rng)
-            #NOTE this gives reasonable values for the y_sim. However, the distances are very large, possibly because of the algorithm used, not sure
             y_sim = self.simulate(rng=rng)
             if(y_sim is not None):
                 distance = []
                 for observed_data, simulated_data in zip(self.accepted_parameters_manager.observations_bds.value(), y_sim):
-                    distance.append(self.distance.distance(observed_data, simulated_data.tolist()))
+                    distance.append(self.distance.distance(observed_data, simulated_data))
             else:
                 distance = [self.distance.dist_max()]
         return self.get_parameters(self.model)
+
 
 class PMCABC(BasePMC, InferenceMethod):
     """
@@ -867,15 +860,23 @@ class PMCABC(BasePMC, InferenceMethod):
 
             # Compute epsilon for next step
             # print("INFO: Calculating acceptance threshold (epsilon).")
+            # TODO before we used distances here, but distances is now a list of lists -> which value should be used?
             if aStep < steps - 1:
                 if epsilon_arr[aStep + 1] == None:
-                    epsilon_arr[aStep + 1] = np.percentile(distances, epsilon_percentile)
+                    epsilon_arr[aStep + 1] = np.percentile(distances[0], epsilon_percentile)
                 else:
                     epsilon_arr[aStep + 1] = np.max(
-                        [np.percentile(distances, epsilon_percentile), epsilon_arr[aStep + 1]])
-
+                        [np.percentile(distances[0], epsilon_percentile), epsilon_arr[aStep + 1]])
             # 2: calculate weights for new parameters
             # print("INFO: Calculating weights.")
+
+            # The parameters relevant to each kernel have to be used to calculate n_sample times. It is therefore more efficient to broadcast these parameters once, instead of collecting them at each kernel in each step
+            if(self.accepted_parameters_manager.accepted_parameters_bds is not None):
+                kernel_parameters=[]
+                for kernel in self.kernel.kernels:
+                    kernel_parameters.append(self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
+                self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters)
+
             new_parameters_pds = self.backend.parallelize(new_parameters)
             new_weights_pds = self.backend.map(self._calculate_weight, new_parameters_pds)
             new_weights = np.array(self.backend.collect(new_weights_pds)).reshape(-1, 1)
@@ -927,7 +928,6 @@ class PMCABC(BasePMC, InferenceMethod):
         distance = [self.distance.dist_max()]
         while any(dist > self.epsilon for dist in distance):
             # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
-            #NOTE we could write a chekcer for this, is that necessary?
             if self.accepted_parameters_manager.accepted_parameters_bds == None:
                 self.sample_from_prior(rng=rng)
                 theta = self.get_parameters()
@@ -945,7 +945,7 @@ class PMCABC(BasePMC, InferenceMethod):
             if(y_sim is not None):
                 distance = []
                 for observed_data, simulated_data in zip(self.accepted_parameters_manager.observations_bds.value(), y_sim):
-                    distance.append(self.distance.distance(observed_data, simulated_data.tolist()))
+                    distance.append(self.distance.distance(observed_data, simulated_data))
             else:
                 distance = [self.distance.dist_max()]
         return (theta, distance)
@@ -965,14 +965,23 @@ class PMCABC(BasePMC, InferenceMethod):
         float
             the new weight for theta
         """
-        if self.accepted_weights_bds is None:
+        if self.accepted_parameters_manager.kernel_parameters_bds is None:
             return 1.0 / self.n_samples
         else:
             prior_prob = self.pdf_of_prior(self.model, theta, 0)
 
             denominator = 0.0
+
+            # Calculate all covariance matrices once since this is more efficient
+            # NOTE this halfs execution time on my pc compared to calculating it individually each time pdf is called
+            covs = self.kernel.calculate_cov(self.accepted_parameters_manager)
+
+            # Get the mapping of the models to be used by the kernels
+            # NOTE this shaves off about 6 seconds -> do we want this out here?
+            mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(self.accepted_parameters_manager.model)
+
             for i in range(0, self.n_samples):
-                pdf_value = self.kernel.pdf(self.accepted_parameters_manager, i, theta)
+                pdf_value = self.kernel.pdf(covs, mapping_for_kernels, self.accepted_parameters_manager, i, theta)
                 denominator += self.accepted_parameters_manager.accepted_weights_bds.value()[i, 0] * pdf_value
             return 1.0 * prior_prob / denominator
 

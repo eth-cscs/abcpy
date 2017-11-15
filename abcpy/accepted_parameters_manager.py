@@ -21,6 +21,9 @@ class AcceptedParametersManager():
         self.accepted_weights_bds = None
         self.accepted_cov_mat_bds = None
 
+        # saves the current parameters relevant to each kernel
+        self.kernel_parameters_bds = None
+
     def set_covFactor(self, covFactor):
         """Sets the covariance matrix factor to the provided value. Commonly used at the start of sampling.
 
@@ -35,6 +38,10 @@ class AcceptedParametersManager():
     def broadcast(self, backend, observations):
         """Broadcasts the observations to observations_bds using the specified backend."""
         self.observations_bds = backend.broadcast(observations)
+
+    def update_kernel_values(self, backend, kernel_parameters):
+        """Broadcasts new parameters for each kernel"""
+        self.kernel_parameters_bds = backend.broadcast(kernel_parameters)
 
     def update_broadcast(self, backend, accepted_parameters=None, accepted_weights=None, accepted_cov_mat=None):
         """Updates the broadcasted values using the specified backend
@@ -125,7 +132,6 @@ class AcceptedParametersManager():
 
         # The self.accepted_parameters_bds.value() list has dimensions d x n_steps, where d is the number of free parameters
         accepted_bds_values = [[] for i in range(len(self.accepted_parameters_bds.value()))]
-
         # Add all columns that correspond to desired parameters to the list that is returned
         for model in models:
             for prob_model, index in mapping:

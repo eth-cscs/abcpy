@@ -6,7 +6,7 @@ from abcpy.backends import BackendDummy as Backend
 from perturbationkernel import *
 
 """Tests whether the methods for each perturbation kernel are working as intended"""
-
+# TODO test new functions
 
 class JointCheckKernelsTests(unittest.TestCase):
     """Tests whether value errors are raised correctly during initialization."""
@@ -56,9 +56,14 @@ class PdfTests(unittest.TestCase):
         Manager = AcceptedParametersManager([graph])
         backend = Backend()
         kernel = StandardKernel([N1, N2, B1])
-        Manager.update_broadcast(backend, [[2, 0.27, 0.097], [3, 0.32, 0.012]], np.array([1, 1]))
-
-        pdf = kernel.pdf(Manager, 1, [2,0.3,0.1])
+        Manager.update_broadcast(backend, [[2, 0.4, 0.09], [3, 0.2, 0.008]], np.array([0.5, 0.2]))
+        kernel_parameters = []
+        for krnl in kernel.kernels:
+            kernel_parameters.append(Manager.get_accepted_parameters_bds_values(krnl.models))
+        Manager.update_kernel_values(backend, kernel_parameters)
+        mapping, mapping_index = Manager.get_mapping(Manager.model)
+        covs = [[[1,0],[0,1]],[]]
+        pdf = kernel.pdf(covs, mapping, Manager, 1, [2,0.3,0.1])
         self.assertTrue(isinstance(pdf, float))
 
 if __name__ == '__main__':
