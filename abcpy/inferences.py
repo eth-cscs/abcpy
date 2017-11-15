@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod, abstractproperty
 
 from ProbabilisticModel import *
 from accepted_parameters_manager import *
+from perturbationkernel import DefaultKernel
 
 import numpy as np
 from abcpy.output import Journal
@@ -9,6 +10,11 @@ from scipy import optimize
 
 
 #TODO check whether if we set a seed as well as an rng for the distributions, what happens.
+
+# TODO accepted cov_mat will always only be used for kernels. that means in the bds object, we can instead save a list corresponding to those, and get that? however, calculation is not always same, try understanding how it is calculated first --> how would it be done for parts of kernel instead of whole graph
+# Note durign sampling, we always recalculate cov, which is not necessary. We can just know it from the last step, since we anyways use that of the old step -> at the ned, when the matrix is normally calculated, just calculate for each individually and send that ------> each kernel can access its part of cov!
+
+# todo do the above mentioned first, then rewrite it such that there is robust calculation
 
 
 class InferenceMethod(metaclass = ABCMeta):
@@ -24,6 +30,7 @@ class InferenceMethod(metaclass = ABCMeta):
         state = self.__dict__.copy()
         del state['backend']
         return state
+
 
     def sample_from_prior(self, rng=np.random.RandomState()):
         """
@@ -708,18 +715,16 @@ class RejectionABC(InferenceMethod):
         np.array
             accepted parameter
         """
-        distance = [self.distance.dist_max()]
+        distance = self.distance.dist_max()
 
-        while any(dist > self.epsilon for dist in distance):
+        while distance > self.epsilon:
             # Accept new parameter value if the distance is less than epsilon
             self.sample_from_prior(rng=rng)
             y_sim = self.simulate(rng=rng)
             if(y_sim is not None):
-                distance = []
-                for observed_data, simulated_data in zip(self.accepted_parameters_manager.observations_bds.value(), y_sim):
-                    distance.append(self.distance.distance(observed_data, simulated_data))
+                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
             else:
-                distance = [self.distance.dist_max()]
+                distance = self.distance.dist_max()
         return self.get_parameters(self.model)
 
 
@@ -764,10 +769,17 @@ class PMCABC(BasePMC, InferenceMethod):
     accepted_cov_mat_bds = None
 
 
-    def __init__(self, model, distance, kernel, backend, seed=None):
+    def __init__(self, model, distance, backend, kernel=None,seed=None):
 
         self.model = model
         self.distance = distance
+        if(kernel is None):
+            print('Warning: No kernel has been defined. The default kernel will be used. All continuous parameters are perturbed using a multivariate normal, all discrete parameters are perturbed using a random walk.')
+            mapping, garbage_index = self._get_mapping()
+            models = []
+            for mdl, mdl_index in mapping:
+                models.append(mdl)
+            kernel = DefaultKernel(models)
         self.kernel = kernel
         self.backend = backend
         self.rng = np.random.RandomState(seed)
@@ -863,10 +875,10 @@ class PMCABC(BasePMC, InferenceMethod):
             # TODO before we used distances here, but distances is now a list of lists -> which value should be used?
             if aStep < steps - 1:
                 if epsilon_arr[aStep + 1] == None:
-                    epsilon_arr[aStep + 1] = np.percentile(distances[0], epsilon_percentile)
+                    epsilon_arr[aStep + 1] = np.percentile(distances, epsilon_percentile)
                 else:
                     epsilon_arr[aStep + 1] = np.max(
-                        [np.percentile(distances[0], epsilon_percentile), epsilon_arr[aStep + 1]])
+                        [np.percentile(distances, epsilon_percentile), epsilon_arr[aStep + 1]])
             # 2: calculate weights for new parameters
             # print("INFO: Calculating weights.")
 
@@ -925,8 +937,8 @@ class PMCABC(BasePMC, InferenceMethod):
 
         # NOTE give rng to all necessary instances
 
-        distance = [self.distance.dist_max()]
-        while any(dist > self.epsilon for dist in distance):
+        distance = self.distance.dist_max()
+        while distance > self.epsilon:
             # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
             if self.accepted_parameters_manager.accepted_parameters_bds == None:
                 self.sample_from_prior(rng=rng)
@@ -943,11 +955,9 @@ class PMCABC(BasePMC, InferenceMethod):
                         break
                 y_sim = self.simulate(rng=rng)
             if(y_sim is not None):
-                distance = []
-                for observed_data, simulated_data in zip(self.accepted_parameters_manager.observations_bds.value(), y_sim):
-                    distance.append(self.distance.distance(observed_data, simulated_data))
+                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),y_sim)
             else:
-                distance = [self.distance.dist_max()]
+                distance = self.distance.dist_max()
         return (theta, distance)
 
     def _calculate_weight(self, theta):

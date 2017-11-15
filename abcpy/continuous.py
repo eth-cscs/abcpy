@@ -17,7 +17,15 @@ class Normal(ProbabilisticModel, Continuous):
         Contains the probabilistic models and hyperparameters from which the model derives. Note that the second value of the list is not allowed to be smaller than 0.
     """
     def __init__(self, parameters):
-        super(Normal, self).__init__(parameters)
+        # Rewrite user input
+        input_parameters = []
+        for parameter in parameters:
+            if(isinstance(parameter, list)):
+                input_parameters.append(parameter[0])
+            else:
+                input_parameters.append(parameter)
+
+        super(Normal, self).__init__(input_parameters)
         # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = 1
 
@@ -299,7 +307,15 @@ class StudentT(ProbabilisticModel, Continuous):
         If the list has two entries, the first entry contains the mean of the distribution, while the second entry             contains the degrees of freedom.
     """
     def __init__(self, parameters):
-        super(StudentT, self).__init__(parameters)
+        # Rewrite user input
+        input_parameters = []
+        for parameter in parameters:
+            if (isinstance(parameter, list)):
+                input_parameters.append(parameter[0])
+            else:
+                input_parameters.append(parameter)
+
+        super(StudentT, self).__init__(input_parameters)
         # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = 1
 

@@ -350,7 +350,7 @@ class RandomWalkKernel(PerturbationKernel, DiscreteKernel):
         return 1./3
 
 
-class StandardKernel(JointPerturbationKernel):
+class DefaultKernel(JointPerturbationKernel):
     """This class implements a kernel that perturbs all continuous parameters using a multivariate normal, and all discrete parameters using a random walk.
     To be used as an example for user defined kernels.
 
@@ -370,10 +370,10 @@ class StandardKernel(JointPerturbationKernel):
         continuous_kernel = MultivariateNormalKernel(continuous_models)
         discrete_kernel = RandomWalkKernel(discrete_models)
         if(not(continuous_models)):
-            super(StandardKernel, self).__init__([discrete_kernel])
+            super(DefaultKernel, self).__init__([discrete_kernel])
         elif(not(discrete_models)):
-            super(StandardKernel, self).__init__([continuous_kernel])
+            super(DefaultKernel, self).__init__([continuous_kernel])
         else:
-            super(StandardKernel, self).__init__([continuous_kernel, discrete_kernel])
+            super(DefaultKernel, self).__init__([continuous_kernel, discrete_kernel])
 
 
