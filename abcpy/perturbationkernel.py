@@ -304,7 +304,7 @@ class RandomWalkKernel(PerturbationKernel, DiscreteKernel):
         correctly_ordered_parameters = [[] for i in range(len(discrete_model_values))]
 
         index = 0
-
+        # NOTE see above
         # Order the obtained parameters in the order required by the kernel
         for model in self.models:
             for i in range(model.dimension):

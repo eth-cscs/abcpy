@@ -5,7 +5,7 @@ from accepted_parameters_manager import *
 from abcpy.backends import BackendDummy as Backend
 
 """Tests whether the methods defined for AcceptedParametersManager work as intended."""
-# TODO new function
+
 
 class BroadcastTests(unittest.TestCase):
     """Tests whether observations can be broadcasted using broadcast."""
@@ -15,6 +15,16 @@ class BroadcastTests(unittest.TestCase):
         backend = Backend()
         Manager.broadcast(backend, [1,2,3])
         self.assertEqual(Manager.observations_bds.value(), [1,2,3])
+
+
+class UpdateKernelValuesTests(unittest.TestCase):
+    """Tests whether kernel_parameters_bds can be updated."""
+    def test(self):
+        model = Normal([1, 0.1])
+        Manager = AcceptedParametersManager([model])
+        backend = Backend()
+        Manager.update_kernel_values(backend, [1])
+        self.assertEqual(Manager.kernel_parameters_bds.value(),[1])
 
 
 class UpdateBroadcastTests(unittest.TestCase):
