@@ -5,7 +5,7 @@ from accepted_parameters_manager import *
 from abcpy.backends import BackendDummy as Backend
 
 """Tests whether the methods defined for AcceptedParametersManager work as intended."""
-
+# TODO new function
 
 class BroadcastTests(unittest.TestCase):
     """Tests whether observations can be broadcasted using broadcast."""
