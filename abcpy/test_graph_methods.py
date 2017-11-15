@@ -144,7 +144,7 @@ class PerturbTests(unittest.TestCase):
 
         self.sampler.sample_from_prior(self.rng)
 
-        kernel = StandardKernel([self.N1, self.N2, self.B1])
+        kernel = DefaultKernel([self.N1, self.N2, self.B1])
         self.sampler.kernel = kernel
 
         self.sampler.accepted_parameters_manager.update_broadcast(self.sampler.backend, [[3, 0.11, 0.029],[4,0.098, 0.031]], np.array([1,1]))

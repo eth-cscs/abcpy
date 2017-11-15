@@ -36,7 +36,7 @@ class CalculateCovTets(unittest.TestCase):
 
         Manager = AcceptedParametersManager([graph])
         backend = Backend()
-        kernel = StandardKernel([N1, N2, B1])
+        kernel = DefaultKernel([N1, N2, B1])
         Manager.update_broadcast(backend, [[2, 0.27, 0.097], [3, 0.32, 0.012]], np.array([1, 1]))
 
         kernel_parameters = []
@@ -53,7 +53,7 @@ class CalculateCovTets(unittest.TestCase):
 
 class UpdateTests(unittest.TestCase):
     """Tests whether the values returned after perturbation are in the correct format for each perturbation kernel."""
-    def test_StandardKernel(self):
+    def test_DefaultKernel(self):
         B1 = Binomial([10, 0.2])
         N1 = Normal([0.1, 0.01])
         N2 = Normal([0.3, N1])
@@ -61,7 +61,7 @@ class UpdateTests(unittest.TestCase):
 
         Manager = AcceptedParametersManager([graph])
         backend = Backend()
-        kernel = StandardKernel([N1, N2, B1])
+        kernel = DefaultKernel([N1, N2, B1])
         Manager.update_broadcast(backend, [[2, 0.27, 0.097], [3, 0.32, 0.012]], np.array([1,1]))
 
         rng = np.random.RandomState(1)
@@ -79,7 +79,7 @@ class PdfTests(unittest.TestCase):
 
         Manager = AcceptedParametersManager([graph])
         backend = Backend()
-        kernel = StandardKernel([N1, N2, B1])
+        kernel = DefaultKernel([N1, N2, B1])
         Manager.update_broadcast(backend, [[2, 0.4, 0.09], [3, 0.2, 0.008]], np.array([0.5, 0.2]))
         kernel_parameters = []
         for krnl in kernel.kernels:
