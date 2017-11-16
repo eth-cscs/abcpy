@@ -71,7 +71,7 @@ class UpdateTests(unittest.TestCase):
 
 class PdfTests(unittest.TestCase):
     """Tests whether the pdf returns the correct results."""
-    def test(self):
+    def test_return_value(self):
         B1 = Binomial([10, 0.2])
         N1 = Normal([0.1, 0.01])
         N2 = Normal([0.3, N1])
@@ -87,7 +87,8 @@ class PdfTests(unittest.TestCase):
         Manager.update_kernel_values(backend, kernel_parameters)
         mapping, mapping_index = Manager.get_mapping(Manager.model)
         covs = [[[1,0],[0,1]],[]]
-        pdf = kernel.pdf(covs, mapping, Manager, 1, [2,0.3,0.1])
+        Manager.update_broadcast(backend, accepted_cov_mats=covs)
+        pdf = kernel.pdf(mapping, Manager, 1, [2,0.3,0.1])
         self.assertTrue(isinstance(pdf, float))
 
 if __name__ == '__main__':

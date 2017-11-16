@@ -59,6 +59,7 @@ class SynLiklihood(Approx_likelihood):
     Journal of Multivariate Analysis, Volume 88, Issue 2, pages 365-411, February 2004.
     """
     def __init__(self, statistics_calc):
+        self.stat_obs = None
         self.statistics_calc = statistics_calc
 
 
@@ -71,7 +72,8 @@ class SynLiklihood(Approx_likelihood):
             raise TypeError('simulated data is not of allowed types')
 
         # Extract summary statistics from the observed data
-        stat_obs = self.statistics_calc.statistics(y_obs)
+        if(self.stat_obs is None):
+            self.stat_obs = self.statistics_calc.statistics(y_obs)
 
         # Extract summary statistics from the simulated data
         stat_sim = self.statistics_calc.statistics(y_sim)
@@ -85,9 +87,9 @@ class SynLiklihood(Approx_likelihood):
         # print("DEBUG: robust_precision_sim_det computation..")
         robust_precision_sim_det = np.linalg.det(robust_precision_sim)
         # print("DEBUG: combining.")
-        result = pow(np.sqrt((1/(2*np.pi))*robust_precision_sim_det),stat_obs.shape[0])\
-        *np.exp(np.sum(-0.5*np.sum(np.array(stat_obs-mean_sim)* \
-        np.array(np.matrix(robust_precision_sim)*np.matrix(stat_obs-mean_sim).T).T, axis = 1)))
+        result = pow(np.sqrt((1/(2*np.pi))*robust_precision_sim_det),self.stat_obs.shape[0])\
+        *np.exp(np.sum(-0.5*np.sum(np.array(self.stat_obs-mean_sim)* \
+        np.array(np.matrix(robust_precision_sim)*np.matrix(self.stat_obs-mean_sim).T).T, axis = 1)))
 
         return result
 
@@ -136,6 +138,8 @@ class PenLogReg(Approx_likelihood):
         self.max_iter = max_iter
         # Simulate reference data and extract summary statistics from the reference data
         self.ref_data_stat = self._simulate_ref_data()
+
+        self.stat_obs = None
         
 
         
@@ -147,7 +151,8 @@ class PenLogReg(Approx_likelihood):
             raise TypeError('simulated data is not of allowed types')            
         
         # Extract summary statistics from the observed data
-        stat_obs = self.statistics_calc.statistics(y_obs)
+        if(self.stat_obs is None):
+            self.stat_obs = self.statistics_calc.statistics(y_obs)
                 
         # Extract summary statistics from the simulated data
         stat_sim = self.statistics_calc.statistics(y_sim)
@@ -157,7 +162,7 @@ class PenLogReg(Approx_likelihood):
         X = np.array(np.concatenate((stat_sim,self.ref_data_stat),axis=0))
         m = LogitNet(alpha = 1, n_splits = self.n_folds, max_iter = self.max_iter, random_state= self.seed)
         m = m.fit(X, y)
-        result = np.exp(-np.sum((m.intercept_+np.sum(np.multiply(m.coef_,stat_obs),axis=1)),axis=0))
+        result = np.exp(-np.sum((m.intercept_+np.sum(np.multiply(m.coef_,self.stat_obs),axis=1)),axis=0))
         
         return result
 

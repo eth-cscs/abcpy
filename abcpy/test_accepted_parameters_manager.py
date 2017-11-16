@@ -28,7 +28,7 @@ class UpdateKernelValuesTests(unittest.TestCase):
 
 
 class UpdateBroadcastTests(unittest.TestCase):
-    """Tests whether it is possible to update accepted_parameters_bds, accepted_weights_bds and accepted_cov_mat_bds through update_broadcast."""
+    """Tests whether it is possible to update accepted_parameters_bds, accepted_weights_bds and accepted_cov_mats_bds through update_broadcast."""
     def setUp(self):
         self.model = Normal([1,0.1])
         self.backend = Backend()
@@ -42,9 +42,9 @@ class UpdateBroadcastTests(unittest.TestCase):
         self.Manager.update_broadcast(self.backend, accepted_weights=[1,2,3])
         self.assertEqual(self.Manager.accepted_weights_bds.value(),[1,2,3])
 
-    def test_accepted_cov_matrix(self):
-        self.Manager.update_broadcast(self.backend, accepted_cov_mat=[[1,0],[0,1]])
-        self.assertEqual(self.Manager.accepted_cov_mat_bds.value(), [[1,0],[0,1]])
+    def test_accepted_cov_matsrix(self):
+        self.Manager.update_broadcast(self.backend, accepted_cov_mats=[[1,0],[0,1]])
+        self.assertEqual(self.Manager.accepted_cov_mats_bds.value(), [[1,0],[0,1]])
 
 
 class GetMappingTests(unittest.TestCase):

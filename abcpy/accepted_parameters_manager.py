@@ -1,6 +1,5 @@
 from ProbabilisticModel import Hyperparameter
 
-# NOTE is covFactor really in the right place here?
 class AcceptedParametersManager():
     """
     This class managed the accepted parameters and other bds objects
@@ -10,30 +9,18 @@ class AcceptedParametersManager():
     model: list
         List of all root probabilistic models
     """
-    def __init__(self, model, covFactor=1.):
+    def __init__(self, model):
         self.model = model
-        self.covFactor = covFactor
 
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
         self.observations_bds = None
         self.accepted_parameters_bds = None
         self.accepted_weights_bds = None
-        self.accepted_cov_mat_bds = None
+        self.accepted_cov_mats_bds = None
 
         # saves the current parameters relevant to each kernel
         self.kernel_parameters_bds = None
-
-    def set_covFactor(self, covFactor):
-        """Sets the covariance matrix factor to the provided value. Commonly used at the start of sampling.
-
-        Parameters
-        ----------
-        covFactor: float
-            The value to which the covariance matrix factor should be set.
-
-        """
-        self.covFactor = covFactor
 
     def broadcast(self, backend, observations):
         """Broadcasts the observations to observations_bds using the specified backend."""
@@ -43,7 +30,7 @@ class AcceptedParametersManager():
         """Broadcasts new parameters for each kernel"""
         self.kernel_parameters_bds = backend.broadcast(kernel_parameters)
 
-    def update_broadcast(self, backend, accepted_parameters=None, accepted_weights=None, accepted_cov_mat=None):
+    def update_broadcast(self, backend, accepted_parameters=None, accepted_weights=None, accepted_cov_mats=None):
         """Updates the broadcasted values using the specified backend
 
         Parameters
@@ -54,7 +41,7 @@ class AcceptedParametersManager():
             The accepted parameters to be broadcasted
         accepted_weights: list
             The accepted weights to be broadcasted
-        accepted_cov_mat: np.ndarray
+        accepted_cov_mats: np.ndarray
             The accepted covariance matrix to be broadcasted
         """
         #NOTE what does this do????
@@ -67,8 +54,8 @@ class AcceptedParametersManager():
             self.accepted_parameters_bds = backend.broadcast(accepted_parameters)
         if not accepted_weights is None:
             self.accepted_weights_bds = backend.broadcast(accepted_weights)
-        if not accepted_cov_mat is None:
-            self.accepted_cov_mat_bds = backend.broadcast(accepted_cov_mat)
+        if not accepted_cov_mats is None:
+            self.accepted_cov_mats_bds = backend.broadcast(accepted_cov_mats)
 
     def get_mapping(self, models, is_root=True, index=0):
         """Returns the order in which the models are discovered during recursive depth-first search.

@@ -1,4 +1,6 @@
 from abc import ABCMeta, abstractmethod
+from scipy.integrate import quad
+from model_operations import *
 import numpy as np
 
 #TODO ricker and lorenz implementations
@@ -193,6 +195,9 @@ class ProbabilisticModel(metaclass = ABCMeta):
         else:
             raise NotImplementedError
 
+    def __add__(self, other):
+        return SummedModel([self,other])
+
 class Continuous(metaclass = ABCMeta):
     """
     This abstract class represents all continuous probabilistic models.
@@ -267,3 +272,87 @@ class Hyperparameter(ProbabilisticModel):
         # Mathematically, the expression for the pdf of a hyperparameter should be: if(x==self.fixed_parameters) return 1; else return 0; However, since the pdf is called recursively for the whole model structure, and pdfs multiply, this would mean that all pdfs become 0. Setting the return value to 1 ensures proper calulation of the overall pdf.
         return 1
 
+class SummedModel(ProbabilisticModel):
+    """This class implements probabilistic models returned after adding two probabilistic models
+
+    Parameters
+    ----------
+    parameters: list
+        List of probabilistic models that should be added together.
+    """
+    def __init__(self, parameters):
+        super(SummedModel, self).__init__(parameters)
+
+    def _check_parameters_at_initialization(self, parameters):
+        """Checks whether the parameters are valid at initialization.
+
+        Parameters
+        ----------
+        parameters: list of tupels
+
+        Returns
+        -------
+        boolean
+            Returns True iff an equal number of values will be sampled from both parents.
+        """
+        parent_1= parameters[0][0]
+        parent_2 = parameters[-1][0]
+        length_parent_1=0
+        length_parent_2=0
+
+        for parent, parent_index in parameters:
+            if(parent==parent_1):
+                length_parent_1+=1
+            if(parent==parent_2):
+                length_parent_2+=1
+
+        if(length_parent_1==length_parent_2):
+            self.dimension = length_parent_2
+            return True
+
+        return False
+
+    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+        """Adds the sampled values of both parent distributions.
+
+        Parameters
+        ----------
+        k: integer
+            The number of samples that should be sampled
+        rng: random number generator
+            The random number generator to be used.
+
+        Returns
+        -------
+        list:
+            The first entry is True, it is always possible to sample, given two parent values. The second entry is the sum of the parents values.
+        """
+        parameter_values = self.get_parameter_values()
+        return_value = sum(parameter_values)
+        return [True, return_value]
+
+    def _check_parameters_before_sampling(self, parameters):
+        """Checks parameters before sampling. Provided due to inheritance."""
+        return True
+
+    def _check_parameters_fixed(self, parameters):
+        """Checks parameters while setting them. Provided due to inheritance."""
+        return True
+
+    def pdf(self, x):
+        """Calculates the probability density function at point x.
+
+        Parameters
+        ----------
+        x: float or list
+            The point at which the pdf should be evaluated.
+
+        Returns
+        -------
+        float
+            The probability density function evaluated at point x.
+        """
+        x = np.array(x)
+        # For the sum of two random variables, their pdf is defined by their convolution
+        integrand = lambda y: self.parents[0][0].pdf(x-y)*self.parents[-1][0].pdf(y)
+        return quad(integrand, -np.inf, np.inf)[0]
