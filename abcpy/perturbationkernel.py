@@ -23,9 +23,9 @@ class PerturbationKernel(metaclass = ABCMeta):
     def update(self, accepted_parameters_manager, index, rng):
         raise NotImplementedError
 
-    def pdf(self, cov, accepted_parameters_manager, kernel_index, index, x):
+    def pdf(self, accepted_parameters_manager, kernel_index, index, x):
         if(isinstance(self, DiscreteKernel)):
-            return self.pmf(cov, accepted_parameters_manager, kernel_index, index, x)
+            return self.pmf(accepted_parameters_manager, kernel_index, index, x)
         else:
             raise NotImplementedError
 
@@ -34,7 +34,7 @@ class ContinuousKernel(metaclass = ABCMeta):
     """This abstract base class represents all perturbation kernels acting on continuous parameters."""
 
     @abstractmethod
-    def pdf(self, cov, accepted_parameters_manager, kernel_index, index, x):
+    def pdf(self, accepted_parameters_manager, kernel_index, index, x):
         raise NotImplementedError
 
 
@@ -42,7 +42,7 @@ class DiscreteKernel(metaclass = ABCMeta):
     """This abstract base class represents all perturbation kernels acting on discrete parameters."""
 
     @abstractmethod
-    def pmf(self, cov, accepted_parameters_manager, kernel_index, index, x):
+    def pmf(self, accepted_parameters_manager, kernel_index, index, x):
         raise NotImplementedError
 
 
@@ -134,14 +134,12 @@ class JointPerturbationKernel(PerturbationKernel):
 
         return perturbed_values_including_models
 
-    def pdf(self, covs, mapping, accepted_parameters_manager, index, x):
+    def pdf(self, mapping, accepted_parameters_manager, index, x):
         """Calculates the overall pdf of the kernel.
         Commonly used to calculate weights.
 
         Parameters
         ----------
-        covs: list
-            Each entry contains the covariance matrix of the corresponding kernel.
         mapping: list
             Each entry is a tupel of which the first entry is a abcpy.ProbabilisticModel object, the second entry is the index in the accepted_parameters_bds list corresponding to an output of this model.
         accepted_parameters_manager: abcpy.AcceptedParametersManager object
@@ -166,7 +164,7 @@ class JointPerturbationKernel(PerturbationKernel):
                     if(kernel_model==model):
                         theta.append(x[model_output_index])
             theta = np.array(theta)
-            result*=kernel.pdf(covs[kernel_index], accepted_parameters_manager, kernel_index, index, theta)
+            result*=kernel.pdf(accepted_parameters_manager, kernel_index, index, theta)
 
         return result
 
@@ -192,7 +190,7 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
             The covariance matrix corresponding to this kernel.
         """
         weights = accepted_parameters_manager.accepted_weights_bds.value()
-        cov = accepted_parameters_manager.covFactor * np.cov(
+        cov = np.cov(
             accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], aweights=weights.reshape(-1),
             rowvar=False)
         return cov
@@ -232,12 +230,12 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
         # Perturb
         weights = accepted_parameters_manager.accepted_weights_bds.value()
         correctly_ordered_parameters = np.array(correctly_ordered_parameters)
-        cov = accepted_parameters_manager.covFactor*np.cov(correctly_ordered_parameters, aweights=weights.reshape(-1), rowvar=False)
+        cov = np.cov(correctly_ordered_parameters, aweights=weights.reshape(-1), rowvar=False)
         perturbed_continuous_values = rng.multivariate_normal(correctly_ordered_parameters[row_index], cov)
 
         return perturbed_continuous_values
 
-    def pdf(self, cov, accepted_parameters_manager, kernel_index, index, x):
+    def pdf(self, accepted_parameters_manager, kernel_index, index, x):
         """Calculates the pdf of the kernel.
         Commonly used to calculate weights.
 
@@ -263,6 +261,8 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
 
         # Gets the relevant accepted parameters from the manager in order to calculate the pdf
         mean = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][index]
+
+        cov = accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]
 
         #weights = accepted_parameters_manager.accepted_weights_bds.value()
         #cov = accepted_parameters_manager.covFactor*np.cov(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], aweights=weights.reshape(-1), rowvar=False)
@@ -326,7 +326,7 @@ class RandomWalkKernel(PerturbationKernel, DiscreteKernel):
         return []
 
     # NOTE is this correct?
-    def pmf(self, cov, accepted_parameters_manager, kernel_index, index, x):
+    def pmf(self, accepted_parameters_manager, kernel_index, index, x):
         """Calculates the pmf of the kernel.
         Commonly used to calculate weights.
 

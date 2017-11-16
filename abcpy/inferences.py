@@ -491,24 +491,6 @@ class BasePMC(InferenceMethod, metaclass = ABCMeta):
         """
         raise NotImplementedError
 
-    @abstractproperty
-    def accepted_parameters_bds(self):
-        """To be overwritten by any sub-class: an attribute saving the accepted parameters as bds
-        """
-        raise NotImplementedError
-
-    @abstractproperty
-    def accepted_weights_bds(self):
-        """To be overwritten by any sub-class: an attribute saving the accepted weights as bds
-        """
-        raise NotImplementedError
-
-    @abstractproperty
-    def accepted_cov_mat_bds(self):
-        """To be overwritten by any sub-class: an attribute saving the accepted covariance matrix as bds
-        """
-        raise NotImplementedError
-
 
 
 class BaseAnnealing(InferenceMethod, metaclass = ABCMeta):
@@ -763,11 +745,6 @@ class PMCABC(BasePMC, InferenceMethod):
     n_samples = 2
     n_samples_per_param = None
 
-    observations_bds = None
-    accepted_parameters_bds = None
-    accepted_weights_bds = None
-    accepted_cov_mat_bds = None
-
 
     def __init__(self, model, distance, backend, kernel=None,seed=None):
 
@@ -819,7 +796,6 @@ class PMCABC(BasePMC, InferenceMethod):
             A journal containing simulation results, metadata and optionally intermediate results.
         """
         self.accepted_parameters_manager.broadcast(self.backend, observations)
-        self.accepted_parameters_manager.set_covFactor(covFactor)
         self.n_samples = n_samples
         self.n_samples_per_param=n_samples_per_param
 
@@ -833,7 +809,7 @@ class PMCABC(BasePMC, InferenceMethod):
 
         accepted_parameters = None
         accepted_weights = None
-        accepted_cov_mat = None
+        accepted_cov_mats = None
 
         # Define epsilon_arr
         if len(epsilon_init) == steps:
@@ -856,7 +832,7 @@ class PMCABC(BasePMC, InferenceMethod):
             # 0: update remotely required variables
             # print("INFO: Broadcasting parameters.")
             self.epsilon = epsilon_arr[aStep]
-            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters, accepted_weights, accepted_cov_mat)
+            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters, accepted_weights, accepted_cov_mats)
 
             # 1: calculate resample parameters
             # print("INFO: Resampling parameters")
@@ -868,7 +844,7 @@ class PMCABC(BasePMC, InferenceMethod):
 
             #NOTE here we did not change anything about the three values, even though we might have accepted new ones ---> what should actually happen, this doesnt do anything?
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters, accepted_weights,
-                                                              accepted_cov_mat)
+                                                              accepted_cov_mats)
 
             # Compute epsilon for next step
             # print("INFO: Calculating acceptance threshold (epsilon).")
@@ -882,12 +858,7 @@ class PMCABC(BasePMC, InferenceMethod):
             # 2: calculate weights for new parameters
             # print("INFO: Calculating weights.")
 
-            # The parameters relevant to each kernel have to be used to calculate n_sample times. It is therefore more efficient to broadcast these parameters once, instead of collecting them at each kernel in each step
-            if(self.accepted_parameters_manager.accepted_parameters_bds is not None):
-                kernel_parameters=[]
-                for kernel in self.kernel.kernels:
-                    kernel_parameters.append(self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
-                self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters)
+
 
             new_parameters_pds = self.backend.parallelize(new_parameters)
             new_weights_pds = self.backend.map(self._calculate_weight, new_parameters_pds)
@@ -897,14 +868,25 @@ class PMCABC(BasePMC, InferenceMethod):
                 sum_of_weights += w
             new_weights = new_weights / sum_of_weights
 
+            # NOTE the calculation of cov_mats needs the new weights and new parameters -> is broadcasting expensive?
+            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters = new_parameters, accepted_weights=new_weights)
+
+            # The parameters relevant to each kernel have to be used to calculate n_sample times. It is therefore more efficient to broadcast these parameters once, instead of collecting them at each kernel in each step
+            kernel_parameters = []
+            for kernel in self.kernel.kernels:
+                kernel_parameters.append(
+                    self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
+            self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters)
+
             # 3: calculate covariance
             # print("INFO: Calculating covariance matrix.")
-            new_cov_mat = covFactor * np.cov(new_parameters, aweights=new_weights.reshape(-1), rowvar=False)
+            new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
+            new_cov_mats = [covFactor*new_cov_mat for new_cov_mat in new_cov_mats]
 
             # 4: Update the newly computed values
             accepted_parameters = new_parameters
             accepted_weights = new_weights
-            accepted_cov_mat = new_cov_mat
+            accepted_cov_mats = new_cov_mats
 
             # print("INFO: Saving configuration to output journal.")
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
@@ -982,16 +964,12 @@ class PMCABC(BasePMC, InferenceMethod):
 
             denominator = 0.0
 
-            # Calculate all covariance matrices once since this is more efficient
-            # NOTE this halfs execution time on my pc compared to calculating it individually each time pdf is called
-            covs = self.kernel.calculate_cov(self.accepted_parameters_manager)
-
             # Get the mapping of the models to be used by the kernels
             # NOTE this shaves off about 6 seconds -> do we want this out here?
             mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(self.accepted_parameters_manager.model)
 
             for i in range(0, self.n_samples):
-                pdf_value = self.kernel.pdf(covs, mapping_for_kernels, self.accepted_parameters_manager, i, theta)
+                pdf_value = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, i, theta)
                 denominator += self.accepted_parameters_manager.accepted_weights_bds.value()[i, 0] * pdf_value
             return 1.0 * prior_prob / denominator
 
