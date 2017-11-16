@@ -1,5 +1,5 @@
 from continuous import *
-from ProbabilisticModel import Hyperparameter
+from ProbabilisticModel import *
 import unittest
 
 """These test cases implement tests for the probabilistic model class."""
@@ -56,6 +56,59 @@ class GetParametersTest(unittest.TestCase):
         U = Uniform([[0],[1]])
         U.sample_parameters()
         self.assertTrue((U.fixed_values[0]>=0 and U.fixed_values[0]<=1))
+
+
+class SummationModelTests(unittest.TestCase):
+    """Tests whether all methods associated with the SummationModel are working as intended."""
+
+    def test_check_parameters_at_initialization(self):
+        N1 = Normal([1,0.1])
+        M1 = MultivariateNormal([[1,1],[[1,0],[0,1]]])
+        with self.assertRaises(ValueError):
+            model = N1+M1
+
+    def test_initialization(self):
+        M1 = MultivariateNormal([[1,1],[[1,0],[0,1]]])
+        M2 = MultivariateNormal([[1,1],[[1,0],[0,1]]])
+        M3 = M1+M2
+        self.assertTrue(M3.dimension==2)
+
+    def test_sample_from_distribution(self):
+        N1 = Normal([1,0.1])
+        N2 = 10+N1
+        rng=np.random.RandomState(1)
+        N1.sample_parameters(rng=rng)
+
+        sample = N2.sample_from_distribution(1, rng)
+
+        self.assertTrue(sample[0])
+        self.assertTrue(isinstance(sample[1], np.ndarray))
+
+class SubtractionModelTests(unittest.TestCase):
+    """Tests whether all methods associated with the SubtractionModel are working as intended."""
+    def test_check_parameters_at_initialization(self):
+        N1 = Normal([1,0.1])
+        M1 = MultivariateNormal([[1,1],[[1,0],[0,1]]])
+        with self.assertRaises(ValueError):
+            model = N1-M1
+
+    def test_initialization(self):
+        M1 = MultivariateNormal([[1,1],[[1,0],[0,1]]])
+        M2 = MultivariateNormal([[1,1],[[1,0],[0,1]]])
+        M3 = M1-M2
+        self.assertTrue(M3.dimension==2)
+
+    def test_sample_from_distribution(self):
+        N1 = Normal([1,0.1])
+        N2 = 10-N1
+        rng=np.random.RandomState(1)
+        N1.sample_parameters(rng=rng)
+
+        sample = N2.sample_from_distribution(1, rng)
+
+        self.assertTrue(sample[0])
+        self.assertTrue(isinstance(sample[1], np.ndarray))
+
 
 
 if __name__ == '__main__':
