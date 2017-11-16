@@ -11,10 +11,7 @@ from scipy import optimize
 
 #TODO check whether if we set a seed as well as an rng for the distributions, what happens.
 
-# TODO accepted cov_mat will always only be used for kernels. that means in the bds object, we can instead save a list corresponding to those, and get that? however, calculation is not always same, try understanding how it is calculated first --> how would it be done for parts of kernel instead of whole graph
-# Note durign sampling, we always recalculate cov, which is not necessary. We can just know it from the last step, since we anyways use that of the old step -> at the ned, when the matrix is normally calculated, just calculate for each individually and send that ------> each kernel can access its part of cov!
-
-# todo do the above mentioned first, then rewrite it such that there is robust calculation
+# TODO if journal thing is ok in pmcabc -> do same for all others
 
 
 class InferenceMethod(metaclass = ABCMeta):
@@ -800,12 +797,14 @@ class PMCABC(BasePMC, InferenceMethod):
         self.n_samples_per_param=n_samples_per_param
 
         journal = Journal(full_output)
-        journal.configuration["type_model"] = type(self.model)
-        journal.configuration["type_dist_func"] = type(self.distance)
+        # NOTE I am not 100% sure that this will give the desired effect (i.e. the best name), but now it doesnt need the model file anymore
+        journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
+        journal.configuration["type_dist_func"] = type(self.distance).__name__
         journal.configuration["n_samples"] = self.n_samples
         journal.configuration["n_samples_per_param"] = self.n_samples_per_param
         journal.configuration["steps"] = steps
         journal.configuration["epsilon_percentile"] = epsilon_percentile
+        journal.configuration["type_statistics_calc_func"] = type(self.distance.statistics_calc).__name__
 
         accepted_parameters = None
         accepted_weights = None
@@ -843,6 +842,7 @@ class PMCABC(BasePMC, InferenceMethod):
             new_parameters = np.array(new_parameters)
 
             #NOTE here we did not change anything about the three values, even though we might have accepted new ones ---> what should actually happen, this doesnt do anything?
+            # NOTE WE SHOULD NOT AND CANNOT UPDATE THE ACCEPTED PARAMETERS HERE, SINCE THEN CALCULATE WEIGHT WILL NOT WORK -> everything is okay, but I think we dont need this broadcast statement?
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters, accepted_weights,
                                                               accepted_cov_mats)
 
@@ -881,6 +881,7 @@ class PMCABC(BasePMC, InferenceMethod):
             # 3: calculate covariance
             # print("INFO: Calculating covariance matrix.")
             new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
+            # Since each entry of new_cov_mats is a numpy array, we can multiply like this
             new_cov_mats = [covFactor*new_cov_mat for new_cov_mat in new_cov_mats]
 
             # 4: Update the newly computed values

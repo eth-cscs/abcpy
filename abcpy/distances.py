@@ -234,7 +234,7 @@ class LogReg(Distance):
     def dist_max(self):
         return 1.0
 
-# NOTE WHAT SHOULD THE DIST_MAX BE PROPERLY?
+# NOTE do we want that he can also provide a default distance function?
 class DefaultJointDistance(Distance):
     """This class implements a default distance to be used when multiple root models exist. It uses LogReg as the distance calculator for each root model, and adds all individual distances.
 
@@ -245,19 +245,18 @@ class DefaultJointDistance(Distance):
     number_of_models: integer
         The number of root models on which the distance will act.
     """
-    def __init__(self, statistics, number_of_models):
+    def __init__(self, statistics):
         self.statistics_calc = statistics
-        # NOTE if we do not have euclidean here, then what should dist_max be?
         self.distance_calc = LogReg(self.statistics_calc)
-        self.number_of_models = number_of_models
 
     def distance(self, d1, d2):
         total_distance = 0
         for observed_data, simulated_data in zip(d1,d2):
             total_distance+=self.distance_calc.distance(observed_data, simulated_data)
+        total_distance/=len(d2)
         return total_distance
 
     def dist_max(self):
-        return self.number_of_models
+        return 1.0
          
     
