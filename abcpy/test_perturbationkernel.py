@@ -62,11 +62,18 @@ class UpdateTests(unittest.TestCase):
         Manager = AcceptedParametersManager([graph])
         backend = Backend()
         kernel = DefaultKernel([N1, N2, B1])
-        Manager.update_broadcast(backend, [[2, 0.27, 0.097], [3, 0.32, 0.012]], np.array([1,1]))
+        Manager.update_broadcast(backend, [[2, 0.27, 0.097], [3, 0.32, 0.012]], np.array([1,1]), accepted_cov_mats=[[[0.01,0],[0,0.01]],[]])
+
+        kernel_parameters = []
+        for krnl in kernel.kernels:
+            kernel_parameters.append(
+                Manager.get_accepted_parameters_bds_values(krnl.models))
+
+        Manager.update_kernel_values(backend, kernel_parameters=kernel_parameters)
 
         rng = np.random.RandomState(1)
         perturbed_values_and_models = kernel.update(Manager, 1, rng)
-        self.assertEqual(perturbed_values_and_models, [(N1, [-0.085629777838992588]), (N2, [0.37742928108176033]), (B1, [3])])
+        self.assertEqual(perturbed_values_and_models, [(N1, [0.17443453636632419]), (N2, [0.25882435863499248]), (B1, [3])])
 
 
 class PdfTests(unittest.TestCase):
@@ -90,6 +97,7 @@ class PdfTests(unittest.TestCase):
         Manager.update_broadcast(backend, accepted_cov_mats=covs)
         pdf = kernel.pdf(mapping, Manager, 1, [2,0.3,0.1])
         self.assertTrue(isinstance(pdf, float))
+
 
 if __name__ == '__main__':
     unittest.main()

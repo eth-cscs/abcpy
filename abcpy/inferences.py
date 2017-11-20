@@ -8,12 +8,16 @@ import numpy as np
 from abcpy.output import Journal
 from scipy import optimize
 
+import warnings
+
 
 #TODO check whether if we set a seed as well as an rng for the distributions, what happens.
 
 # TODO if journal thing is ok in pmcabc -> do same for all others (ie add statcalc, change naming)
 
 # TODO  do we want something like "at initialization, check whether self.model is valid, i.e. all required things have pdf and so on?
+
+# TODO maybe some error if yobs != [[]]?
 
 
 class InferenceMethod(metaclass = ABCMeta):
@@ -426,7 +430,6 @@ class InferenceMethod(metaclass = ABCMeta):
                 return None
         return result
 
-
     @abstractmethod
     def sample(self):
         """To be overwritten by any sub-class:
@@ -748,8 +751,10 @@ class PMCABC(BasePMC, InferenceMethod):
 
         self.model = model
         self.distance = distance
+
         if(kernel is None):
-            print('Warning: No kernel has been defined. The default kernel will be used. All continuous parameters are perturbed using a multivariate normal, all discrete parameters are perturbed using a random walk.')
+            warnings.warn("No kernel has been defined. The default kernel will be used. All continuous parameters are perturbed using a multivariate normal, all discrete parameters are perturbed using a random walk.", Warning)
+
             mapping, garbage_index = self._get_mapping()
             models = []
             for mdl, mdl_index in mapping:
@@ -835,7 +840,6 @@ class PMCABC(BasePMC, InferenceMethod):
 
             # 1: calculate resample parameters
             # print("INFO: Resampling parameters")
-            # TODO send the covFactor to the function, to calculate the cov matrix
             params_and_dists_and_ysim_pds = self.backend.map(self._resample_parameter, rng_pds)
             params_and_dists_and_ysim = self.backend.collect(params_and_dists_and_ysim_pds)
             new_parameters, distances = [list(t) for t in zip(*params_and_dists_and_ysim)]
@@ -868,7 +872,7 @@ class PMCABC(BasePMC, InferenceMethod):
                 sum_of_weights += w
             new_weights = new_weights / sum_of_weights
 
-            # NOTE the calculation of cov_mats needs the new weights and new parameters -> is broadcasting expensive?
+            # The calculation of cov_mats needs the new weights and new parameters
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters = new_parameters, accepted_weights=new_weights)
 
             # The parameters relevant to each kernel have to be used to calculate n_sample times. It is therefore more efficient to broadcast these parameters once, instead of collecting them at each kernel in each step
@@ -876,7 +880,7 @@ class PMCABC(BasePMC, InferenceMethod):
             for kernel in self.kernel.kernels:
                 kernel_parameters.append(
                     self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
-            self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters)
+            self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
             # 3: calculate covariance
             # print("INFO: Calculating covariance matrix.")
