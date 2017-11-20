@@ -58,8 +58,7 @@ class GetParametersTest(unittest.TestCase):
         self.assertTrue((U.fixed_values[0]>=0 and U.fixed_values[0]<=1))
 
 
-class SummationModelTests(unittest.TestCase):
-    """Tests whether all methods associated with the SummationModel are working as intended."""
+class ModelResultingFromOperationTests(unittest.TestCase):
 
     def test_check_parameters_at_initialization(self):
         N1 = Normal([1,0.1])
@@ -67,11 +66,16 @@ class SummationModelTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             model = N1+M1
 
-    def test_initialization(self):
-        M1 = MultivariateNormal([[1,1],[[1,0],[0,1]]])
-        M2 = MultivariateNormal([[1,1],[[1,0],[0,1]]])
-        M3 = M1+M2
-        self.assertTrue(M3.dimension==2)
+        def test_initialization(self):
+            M1 = MultivariateNormal([[1, 1], [[1, 0], [0, 1]]])
+            M2 = MultivariateNormal([[1, 1], [[1, 0], [0, 1]]])
+            M3 = M1 + M2
+            self.assertTrue(M3.dimension == 2)
+
+
+class SummationModelTests(unittest.TestCase):
+    """Tests whether all methods associated with the SummationModel are working as intended."""
+
 
     def test_sample_from_distribution(self):
         N1 = Normal([1,0.1])
@@ -84,19 +88,9 @@ class SummationModelTests(unittest.TestCase):
         self.assertTrue(sample[0])
         self.assertTrue(isinstance(sample[1], np.ndarray))
 
+
 class SubtractionModelTests(unittest.TestCase):
     """Tests whether all methods associated with the SubtractionModel are working as intended."""
-    def test_check_parameters_at_initialization(self):
-        N1 = Normal([1,0.1])
-        M1 = MultivariateNormal([[1,1],[[1,0],[0,1]]])
-        with self.assertRaises(ValueError):
-            model = N1-M1
-
-    def test_initialization(self):
-        M1 = MultivariateNormal([[1,1],[[1,0],[0,1]]])
-        M2 = MultivariateNormal([[1,1],[[1,0],[0,1]]])
-        M3 = M1-M2
-        self.assertTrue(M3.dimension==2)
 
     def test_sample_from_distribution(self):
         N1 = Normal([1,0.1])
@@ -109,6 +103,90 @@ class SubtractionModelTests(unittest.TestCase):
         self.assertTrue(sample[0])
         self.assertTrue(isinstance(sample[1], np.ndarray))
 
+
+class MultiplicationModelTests(unittest.TestCase):
+    """Tests whether all methods associated with the MultiplicationModel are working as intended."""
+
+    def test_sample_from_distribution(self):
+        N1 = Normal([1,0.1])
+        N2 = N1*2
+        rng=np.random.RandomState(1)
+        N1.sample_parameters(rng=rng)
+
+        sample = N2.sample_from_distribution(1,rng)
+
+        self.assertTrue(sample[0])
+        self.assertTrue(isinstance(sample[1], np.ndarray))
+
+    def test_multiplication_from_right(self):
+        N1 = Normal([1,0.1])
+        N2 = 2*N1
+
+        self.assertTrue(len(N2.parents)==2)
+
+        self.assertTrue(isinstance(N2.parents[0][0], Hyperparameter))
+
+
+class DivisionModelTests(unittest.TestCase):
+    """Tests whether all methods associated with the DivisionModel are working as intended."""
+
+    def test_sample_from_distribution(self):
+        N1 = Normal([1,0.1])
+        N2 = Normal([2,0.1])
+        N3 = N1/N2
+        rng = np.random.RandomState(1)
+
+        N1.sample_parameters(rng=rng)
+        N2.sample_parameters(rng=rng)
+
+        sample = N3.sample_from_distribution(1)
+
+        self.assertTrue(sample[0])
+
+        self.assertTrue(isinstance(sample[1], np.ndarray))
+
+    def test_division_from_right(self):
+        N1 = Normal([1,0.1])
+        N2 = 2/N1
+
+        self.assertTrue(len(N2.parents)==2)
+
+        self.assertTrue(isinstance(N2.parents[0][0], Hyperparameter))
+
+
+class ExponentialModelTests(unittest.TestCase):
+    """Tests whether all methods associated with ExponentialModel are working as intended."""
+
+    def test_check_parameters_at_initialization(self):
+        """Tests whether it is possible to have a multidimensional exponent."""
+        M1 = MultivariateNormal([[1,1],[[1,0],[0,1]]])
+        N1 = Normal([1,0.1])
+        with self.assertRaises(ValueError):
+            N1**M1
+
+    def test_initialization(self):
+        """Tests that no errors during initialization are raised."""
+        N1 = Normal([1,0.1])
+        N2 = Normal([1,0.1])
+
+        N3 = N1**N2
+
+        N4 = N1**2
+
+        N5 = 2**N1
+
+    def test_sample_from_distribution(self):
+        """Tests whether sample_from_distribution gives the desired output."""
+        N1 = Normal([1,0.1])
+        N2 = N1**2
+
+        rng = np.random.RandomState(1)
+
+        N1.sample_parameters(rng=rng)
+
+        sample = N2.sample_from_distribution(1, rng=rng)[1]
+
+        self.assertTrue(isinstance(sample, np.ndarray))
 
 
 if __name__ == '__main__':

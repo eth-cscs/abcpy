@@ -1,5 +1,6 @@
 from ProbabilisticModel import Hyperparameter
 
+
 class AcceptedParametersManager():
     """
     This class managed the accepted parameters and other bds objects

@@ -5,9 +5,8 @@ from scipy.stats import multivariate_normal
 
 # TODO check docstrings again
 
-# todo support c[0] gets perturbed with this only, not the other things
+# NOTE c[0] gets perturbed differently than c[1] is not supported! we could add it if we want, but it sounds a bit weird?
 
-# todo maybe pass different factors to different kernels? in that case, it would be best to associate the factor with the kernel!
 
 class PerturbationKernel(metaclass = ABCMeta):
     """This abstract base class represents all perturbation kernels"""
