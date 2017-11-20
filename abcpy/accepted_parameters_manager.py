@@ -45,7 +45,7 @@ class AcceptedParametersManager():
         accepted_cov_mats: np.ndarray
             The accepted covariance matrix to be broadcasted
         """
-        #NOTE what does this do????
+        # NOTE mabye it should be documented what this is for, I just took 20 minutes to find that it is connected to spark
         def destroy(bc):
             if bc != None:
                 bc.unpersist

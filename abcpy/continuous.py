@@ -433,12 +433,12 @@ class MultiStudentT(ProbabilisticModel, Continuous):
             df = parameter_values[-1]
             p = len(mean)
             if (df == np.inf):
-                chis1 = 1.0
+                chisq = 1.0
             else:
                 chisq = rng.chisquare(df, k) / df
                 chisq = chisq.reshape(-1, 1).repeat(p, axis=1)
             mvn = rng.multivariate_normal(np.zeros(p), cov, k)
-            result = (mean + np.divide(mvn, np.sqrt(chisq)))
+            result = (mean + np.divide(mvn, np.sqrt(chisq))[0])
             return_value.append(result)
 
         return return_value
@@ -648,4 +648,10 @@ class Uniform(ProbabilisticModel, Continuous):
         else:
             pdf_value = 0.
         return pdf_value
+
+"""
+class ChiSquared(Continuous, ProbabilisticModel):
+    def __init__(self, parameters):
+        super(ChiSquared, self).__init__(parameters)
+        self.dimension = 1"""
 

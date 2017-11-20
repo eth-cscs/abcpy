@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 from ProbabilisticModel import Continuous
 import numpy as np
 from scipy.stats import multivariate_normal
+from scipy.special import gamma
 
 # TODO check docstrings again
 
@@ -116,8 +117,8 @@ class JointPerturbationKernel(PerturbationKernel):
         perturbed_values = []
 
         # Perturb values according to each kernel defined
-        for kernel in self.kernels:
-            perturbed_values.append(kernel.update(accepted_parameters_manager, row_index, rng=rng))
+        for kernel_index, kernel in enumerate(self.kernels):
+            perturbed_values.append(kernel.update(accepted_parameters_manager, kernel_index, row_index, rng=rng))
 
         perturbed_values_including_models = []
 
@@ -194,13 +195,15 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
             rowvar=False)
         return cov
 
-    def update(self, accepted_parameters_manager, row_index, rng=np.random.RandomState()):
+    def update(self, accepted_parameters_manager, kernel_index, row_index, rng=np.random.RandomState()):
         """Updates the parameter values contained in the accepted_paramters_manager using a multivariate normal distribution.
 
         Parameters
         ----------
         accepted_parameters_manager: abcpy.AcceptedParametersManager object
             Defines the AcceptedParametersManager to be used.
+        kernel_index: integer
+            The index of the kernel in the list of kernels in the joint kernel.
         row_index: integer
             The index of the row that should be considered from the accepted_parameters_bds matrix.
         rng: random number generator
@@ -213,7 +216,7 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
 
         """
         # Get all current parameter values relevant for this model
-        continuous_model_values = accepted_parameters_manager.get_accepted_parameters_bds_values(self.models)
+        continuous_model_values = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]
         correctly_ordered_parameters = [[] for i in range(len(continuous_model_values))]
 
         index=0
@@ -227,11 +230,9 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
                 index+=1
 
         # Perturb
-        weights = accepted_parameters_manager.accepted_weights_bds.value()
         correctly_ordered_parameters = np.array(correctly_ordered_parameters)
-        cov = np.cov(correctly_ordered_parameters, aweights=weights.reshape(-1), rowvar=False)
+        cov = accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]
         perturbed_continuous_values = rng.multivariate_normal(correctly_ordered_parameters[row_index], cov)
-
         return perturbed_continuous_values
 
     def pdf(self, accepted_parameters_manager, kernel_index, index, x):
@@ -240,8 +241,6 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
 
         Parameters
         ----------
-        cov: list
-            The covariance matrix to be used to calculate the pdf.
         accepted_parameters_manager: abcpy.AcceptedParametersManager object
             The AcceptedParametersManager to be used.
         kernel_index: integer
@@ -255,8 +254,6 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
         float
             The pdf evaluated at point x.
                 """
-        # Get the parameters relevant to this kernel
-        #accepted_parameters = accepted_parameters_manager.get_accepted_parameters_bds_values(self.models)
 
         # Gets the relevant accepted parameters from the manager in order to calculate the pdf
         mean = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][index]
@@ -267,6 +264,126 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
         #cov = accepted_parameters_manager.covFactor*np.cov(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], aweights=weights.reshape(-1), rowvar=False)
 
         return multivariate_normal(mean, cov).pdf(x)
+
+
+class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
+    """This class defines a kernel perturbing the parameters using a multivariate normal distribution.
+
+    Parameters
+    ----------
+    models: list of abcpy.probabilisticmodel objects
+        The models that should be perturbed using this kernel
+    df: integer
+        The degrees of freedom to be used.
+    """
+    def __init__(self, models, df):
+        self.models = models
+        self.df = df
+
+    def calculate_cov(self, accepted_parameters_manager, kernel_index):
+        """Calculates the covariance matrix relevant to this kernel.
+
+        Parameters
+        ----------
+        accepted_parameters_manager: abcpy.AcceptedParametersManager object
+            AcceptedParametersManager to be used.
+        kernel_index: integer
+            The index of the kernel in the list of kernels of the joint kernel.
+
+        Returns
+        -------
+        list
+            The covariance matrix corresponding to this kernel.
+        """
+        weights = accepted_parameters_manager.accepted_weights_bds.value()
+        cov = np.cov(
+            accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], aweights=weights.reshape(-1),
+            rowvar=False)
+        return cov
+
+    def update(self, accepted_parameters_manager, kernel_index, row_index, rng=np.random.RandomState()):
+        """Updates the parameter values contained in the accepted_paramters_manager using a multivariate normal distribution.
+
+        Parameters
+        ----------
+        accepted_parameters_manager: abcpy.AcceptedParametersManager object
+            Defines the AcceptedParametersManager to be used.
+        kernel_index: integer
+            The index of the kernel in the list of kernels in the joint kernel.
+        row_index: integer
+            The index of the row that should be considered from the accepted_parameters_bds matrix.
+        rng: random number generator
+            The random number generator to be used.
+
+        Returns
+        -------
+        np.ndarray
+            The perturbed parameter values.
+
+        """
+        # Get all parameters relevant to this kernel
+        continuous_model_values = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]
+        correctly_ordered_parameters = [[] for i in range(len(continuous_model_values))]
+
+        index = 0
+
+        # NOTE I think this is not required?
+        # Order the parameters in the order required by the kernel
+        for model in self.models:
+            for i in range(model.dimension):
+                for j in range(len(continuous_model_values)):
+                    correctly_ordered_parameters[j].append(continuous_model_values[j][index])
+                index += 1
+
+        # Perturb
+        correctly_ordered_parameters = np.array(correctly_ordered_parameters)
+        cov = accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]
+        p = len(correctly_ordered_parameters[row_index])
+
+        if(self.df==np.inf):
+            chisq = 1.0
+        else:
+            chisq = rng.chisquare(self.df, 1)/self.df
+            chisq = chisq.reshape(-1,1).repeat(p, axis=1)
+
+
+        mvn = rng.multivariate_normal(np.zeros(p), cov, 1)
+        perturbed_continuous_values = correctly_ordered_parameters[row_index]+np.divide(mvn, np.sqrt(chisq))[0]
+        return perturbed_continuous_values
+
+    def pdf(self, accepted_parameters_manager, kernel_index, index, x):
+        """Calculates the pdf of the kernel.
+        Commonly used to calculate weights.
+
+        Parameters
+        ----------
+        accepted_parameters_manager: abcpy.AcceptedParametersManager object
+            The AcceptedParametersManager to be used.
+        kernel_index: integer
+            The index of the kernel in the list of kernels in the joint kernel.
+        index: integer
+            The row to be considered in the accepted_parameters_bds matrix.
+        x: The point at which the pdf should be evaluated.
+
+        Returns
+        -------
+        float
+            The pdf evaluated at point x.
+                """
+        mean = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][index]
+
+        cov = accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]
+        v = self.df
+        mean = np.array(mean)
+        cov = np.array(cov)
+        p = len(mean)
+        numerator = gamma((v + p) / 2)
+        denominator = gamma(v / 2) * pow(v * np.pi, p / 2.) * np.sqrt(abs(np.linalg.det(cov)))
+        normalizing_const = numerator / denominator
+        tmp = 1 + 1 / v * np.dot(np.dot(np.transpose(x - mean), np.linalg.inv(cov)), (x - mean))
+        density = normalizing_const * pow(tmp, -((v + p) / 2.))
+
+        return density
 
 
 class RandomWalkKernel(PerturbationKernel, DiscreteKernel):
@@ -280,7 +397,7 @@ class RandomWalkKernel(PerturbationKernel, DiscreteKernel):
     def __init__(self, models):
         self.models = models
 
-    def update(self, accepted_parameters_manager, row_index, rng=np.random.RandomState()):
+    def update(self, accepted_parameters_manager, kernel_index, row_index, rng=np.random.RandomState()):
         """Updates the parameter values contained in the accepted_paramters_manager using a random walk.
 
         Parameters
@@ -299,7 +416,7 @@ class RandomWalkKernel(PerturbationKernel, DiscreteKernel):
 
                 """
         # Get parameter values relevant to this kernel
-        discrete_model_values = accepted_parameters_manager.get_accepted_parameters_bds_values(self.models)
+        discrete_model_values = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]
         correctly_ordered_parameters = [[] for i in range(len(discrete_model_values))]
 
         index = 0
