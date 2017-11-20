@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from ProbabilisticModel import Continuous
+from probabilisticmodels import Continuous
 import numpy as np
 from scipy.stats import multivariate_normal
 from scipy.special import gamma

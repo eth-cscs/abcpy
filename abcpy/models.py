@@ -1,4 +1,4 @@
-from ProbabilisticModel import ProbabilisticModel, Hyperparameter
+from probabilisticmodels import ProbabilisticModel, Hyperparameter
 import numpy as np
 
 
