@@ -4,6 +4,7 @@ import numpy as np
 from glmnet import LogitNet
 from sklearn import linear_model
 
+#TODO  we could give an option to initialize the default distance with either of the three other distances. Then, we would not expect the other threes to be ever called by the user and could remove the [] in the default/d1[0] in the rest.
 
 class Distance(metaclass = ABCMeta):
     """This abstract base class defines how the distance between the observed and
@@ -102,7 +103,6 @@ class Distance(metaclass = ABCMeta):
         return (s1,s2)
 
 
-# TODO there must be some nicer way to do this than to check whether each of them is a list, and if so, assing properly!!!
 class Euclidean(Distance):
     """
     This class implements the Euclidean distance between two vectors.
@@ -118,9 +118,15 @@ class Euclidean(Distance):
 
         
     def distance(self, d1, d2):
-        if(isinstance(d1[0], list)):
-            d1 = d1[0]
-            d2 = d2[0]
+        """Calculates the distance between two datasets.
+
+        Parameters
+        ----------
+        d1, d2: list
+            A list, containing a list describing the data set
+        """
+        d1 = d1[0]
+        d2 = d2[0]
         if len(d1) != len(d2):
             raise BaseException("Input data sets have different sizes: {} vs {}".format(len(d1), len(d2)))
         if(self.s1 is None):
@@ -168,9 +174,13 @@ class PenLogReg(Distance):
         self.s1 = None
         
     def distance(self, d1, d2):
-        if(isinstance(d1[0], list)):
-            d1=d1[0]
-            d2=d2[0]
+        """Calculates the distance between two datasets.
+
+        Parameters
+        ----------
+        d1, d2: list
+            A list, containing a list describing the data set
+        """
         # Extract summary statistics from the dataset
         if(self.s1 is None):
             self.s1 = self.statistics_calc.statistics(d1)
@@ -210,9 +220,15 @@ class LogReg(Distance):
         self.s1 = None
         
     def distance(self, d1, d2):
-        if(isinstance(d1[0], list)):
-            d1=d1[0]
-            d2=d2[0]
+        """Calculates the distance between two datasets.
+
+        Parameters
+        ----------
+        d1, d2: list
+            A list, containing a list describing the data set
+        """
+        d1 = d1[0]
+        d2 = d2[0]
         # Extract summary statistics from the dataset
         if(self.s1 is None):
             self.s1 = self.statistics_calc.statistics(d1)
@@ -234,7 +250,7 @@ class LogReg(Distance):
     def dist_max(self):
         return 1.0
 
-# NOTE do we want that he can also provide a default distance function?
+
 class DefaultJointDistance(Distance):
     """This class implements a default distance to be used when multiple root models exist. It uses LogReg as the distance calculator for each root model, and adds all individual distances.
 
@@ -252,7 +268,7 @@ class DefaultJointDistance(Distance):
     def distance(self, d1, d2):
         total_distance = 0
         for observed_data, simulated_data in zip(d1,d2):
-            total_distance+=self.distance_calc.distance(observed_data, simulated_data)
+            total_distance+=self.distance_calc.distance([observed_data], [simulated_data])
         total_distance/=len(d2)
         return total_distance
 

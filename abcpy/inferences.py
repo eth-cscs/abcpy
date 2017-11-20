@@ -11,7 +11,9 @@ from scipy import optimize
 
 #TODO check whether if we set a seed as well as an rng for the distributions, what happens.
 
-# TODO if journal thing is ok in pmcabc -> do same for all others
+# TODO if journal thing is ok in pmcabc -> do same for all others (ie add statcalc, change naming)
+
+# TODO  do we want something like "at initialization, check whether self.model is valid, i.e. all required things have pdf and so on?
 
 
 class InferenceMethod(metaclass = ABCMeta):
@@ -678,7 +680,6 @@ class RejectionABC(InferenceMethod):
 
         return journal
 
-    # NOTE gives sensible results, but needs high threshold?
     def _sample_parameter(self, rng):
         """
         Samples a single model parameter and simulates from it until
@@ -797,7 +798,6 @@ class PMCABC(BasePMC, InferenceMethod):
         self.n_samples_per_param=n_samples_per_param
 
         journal = Journal(full_output)
-        # NOTE I am not 100% sure that this will give the desired effect (i.e. the best name), but now it doesnt need the model file anymore
         journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
         journal.configuration["type_dist_func"] = type(self.distance).__name__
         journal.configuration["n_samples"] = self.n_samples
@@ -918,8 +918,6 @@ class PMCABC(BasePMC, InferenceMethod):
         """
         rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
-        # NOTE give rng to all necessary instances
-
         distance = self.distance.dist_max()
         while distance > self.epsilon:
             # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
@@ -966,7 +964,6 @@ class PMCABC(BasePMC, InferenceMethod):
             denominator = 0.0
 
             # Get the mapping of the models to be used by the kernels
-            # NOTE this shaves off about 6 seconds -> do we want this out here?
             mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(self.accepted_parameters_manager.model)
 
             for i in range(0, self.n_samples):

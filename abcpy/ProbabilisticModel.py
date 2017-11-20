@@ -2,11 +2,7 @@ from abc import ABCMeta, abstractmethod
 from scipy.integrate import quad
 import numpy as np
 
-#TODO ricker and lorenz implementations
-
 #NOTE should we make hyperparameter prviate? the user should never call it as it would break behavior
-
-#NOTE we never check whether the number of parameters we give is equal to that of the number of free parameters associated with a model. But I dont think that is necessary
 
 
 class ProbabilisticModel(metaclass = ABCMeta):
@@ -155,7 +151,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
     @abstractmethod
     def _check_parameters_fixed(self, parameters):
         """
-        Checks parameters in the fixed_parameters method.
+        Checks parameters in the set_parameters method. Should return False iff the parameters cannot come from the distribution of the probabilistic model.
 
         Parameters
         ----------
@@ -222,7 +218,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         SummationModel
             A probabilistic model describgin a model coming from summation.
         """
-        return SummationModel([self,other])
+        return SummationModel([other, self])
 
     def __sub__(self, other):
         """Overload the - operator for probabilistic models.
@@ -250,9 +246,9 @@ class ProbabilisticModel(metaclass = ABCMeta):
         Returns
         -------
         SubtractionModel
-            A probabilistic model describgin a model coming from subtraction.
+            A probabilistic model describing a model coming from subtraction.
         """
-        return SubtractionModel([self,other])
+        return SubtractionModel([other,self])
 
     def __mul__(self, other):
         """Overload the * operator for probabilistic models.
@@ -269,7 +265,22 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
         return MultiplicationModel([self,other])
 
-    def __div__(self, other):
+    def __rmul__(self, other):
+        """Overload the * operator from the righthand side to support subtraction of Hyperparameters from the left.
+
+                Parameters
+                ----------
+                Other: Hyperparameter
+                    The hyperparameter to be subtracted from self.
+
+                Returns
+                -------
+                MultiplicationModel
+                    A probabilistic model describing a model coming from multiplication.
+                """
+        return MultiplicationModel([other,self])
+
+    def __truediv__(self, other):
         """Overload the / operator for probabilistic models.
 
         Parameters
@@ -283,6 +294,28 @@ class ProbabilisticModel(metaclass = ABCMeta):
             A probabilistic model describing a model coming from division.
         """
         return DivisionModel([self, other])
+
+    def __rtruediv__(self, other):
+        """Overload the / operator from the righthand side to support subtraction of Hyperparameters from the left.
+
+        Parameters
+        ----------
+        Other: Hyperparameter
+            The hyperparameter to be subtracted from self.
+
+        Returns
+        -------
+        DivisionModel
+            A probabilistic model describing a model coming from division.
+        """
+        return DivisionModel([other, self])
+
+    def __pow__(self, power, modulo=None):
+        return ExponentialModel([self, power])
+
+    def __rpow__(self, other):
+        return RExponentialModel([other, self])
+
 
 class Continuous(metaclass = ABCMeta):
     """
@@ -300,6 +333,7 @@ class Continuous(metaclass = ABCMeta):
         """
         raise NotImplementedError
 
+
 class Discrete(metaclass = ABCMeta):
     """
     This abstract class represents all discrete probabilistic models.
@@ -315,6 +349,7 @@ class Discrete(metaclass = ABCMeta):
             The location at which the probability mass function should be evaluated.
         """
         raise NotImplementedError
+
 
 class Hyperparameter(ProbabilisticModel):
     """
@@ -358,6 +393,7 @@ class Hyperparameter(ProbabilisticModel):
         # Mathematically, the expression for the pdf of a hyperparameter should be: if(x==self.fixed_parameters) return 1; else return 0; However, since the pdf is called recursively for the whole model structure, and pdfs multiply, this would mean that all pdfs become 0. Setting the return value to 1 ensures proper calulation of the overall pdf.
         return 1.
 
+
 class ModelResultingFromOperation(ProbabilisticModel):
     """This class implements probabilistic models returned after performing an operation on two probabilistic models
 
@@ -379,13 +415,20 @@ class ModelResultingFromOperation(ProbabilisticModel):
         Parameters
         ----------
         parameters: list of tupels
-
-        Returns
-        -------
-        boolean
-
             """
-        raise NotImplementedError
+        parent_1 = parameters[0][0]
+        parent_2 = parameters[-1][0]
+        length_parent_1 = 0
+        length_parent_2 = 0
+        for parent, parent_index in parameters:
+            if (parent == parent_1):
+                length_parent_1 += 1
+            else:
+                length_parent_2 += 1
+        if (length_parent_1 == length_parent_2):
+            self.dimension = length_parent_1
+            return
+        raise ValueError('The provided models are not of equal dimension.')
 
     def _check_parameters_before_sampling(self, parameters):
         """Checks parameters before sampling. Provided due to inheritance."""
@@ -415,33 +458,6 @@ class ModelResultingFromOperation(ProbabilisticModel):
 class SummationModel(ModelResultingFromOperation):
     """This class represents all probabilistic models resulting from an addition of two probabilistic models"""
 
-    def _check_parameters_at_initialization(self, parameters):
-        """Checks whether the parameters are valid at initialization.
-
-        Parameters
-        ----------
-        parameters: list of tupels
-
-        Returns
-        -------
-        boolean
-            Returns True iff both provided parents have equal amounts of outputs associated with the summed model.
-
-        """
-        parent_1 = parameters[0][0]
-        parent_2 = parameters[-1][0]
-        length_parent_1 = 0
-        length_parent_2 = 0
-        for parent, parent_index in parameters:
-            if(parent==parent_1):
-                length_parent_1+=1
-            else:
-                length_parent_2+=1
-        if(length_parent_1==length_parent_2):
-            self.dimension = length_parent_1
-            return
-        raise ValueError('The provided models are not of equal dimension.')
-
     # NOTE since we do not resample the parents, this will give the same result always if we sample multiple times
     # Note normally, we do not do this during our algorithms anyways, but what if we want to do it -> either we do not support this, or we support it and need a different loop for all k>1, where we get new samples from the parents!
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
@@ -462,43 +478,18 @@ class SummationModel(ModelResultingFromOperation):
         parameter_values = self.get_parameter_values()
         return_value = []
         sample_value = []
+
         for i in range(k):
             sample_value = []
             for j in range(self.dimension):
                 sample_value.append(parameter_values[j]+parameter_values[j+self.dimension])
             return_value.append(sample_value)
+
         return [True, np.array(return_value)]
 
 
 class SubtractionModel(ModelResultingFromOperation):
     """This class represents all probabilistic models resulting from an subtraction of two probabilistic models"""
-
-    def _check_parameters_at_initialization(self, parameters):
-        """Checks whether the parameters are valid at initialization.
-
-        Parameters
-        ----------
-        parameters: list of tupels
-
-        Returns
-        -------
-        boolean
-            Returns True iff both provided parents have equal amounts of outputs associated with the summed model.
-
-        """
-        parent_1 = parameters[0][0]
-        parent_2 = parameters[-1][0]
-        length_parent_1 = 0
-        length_parent_2 = 0
-        for parent, parent_index in parameters:
-            if (parent == parent_1):
-                length_parent_1 += 1
-            else:
-                length_parent_2 += 1
-        if (length_parent_1 == length_parent_2):
-            self.dimension = length_parent_1
-            return
-        raise ValueError('The provided models are not of equal dimension.')
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """Adds the sampled values of both parent distributions.
@@ -513,30 +504,169 @@ class SubtractionModel(ModelResultingFromOperation):
         Returns
         -------
         list:
-            The first entry is True, it is always possible to sample, given two parent values. The second entry is the sum of the parents values.
+            The first entry is True, it is always possible to sample, given two parent values. The second entry is the difference of the parents values.
         """
         parameter_values = self.get_parameter_values()
         return_value = []
         sample_value = []
+
         for i in range(k):
             sample_value = []
             for j in range(self.dimension):
                 sample_value.append(parameter_values[j] - parameter_values[j + self.dimension])
             return_value.append(sample_value)
+
         return [True, np.array(return_value)]
 
 
 class MultiplicationModel(ModelResultingFromOperation):
-    def _check_parameters_at_initialization(self, parameters):
-        raise NotImplementedError
-
+    """This class represents all probabilistic models resulting from a multiplication of two probabilistic models"""
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
-        raise NotImplementedError
+        """Multiplies the sampled values of both parent distributions element wise.
+
+        Parameters
+        ----------
+        k: integer
+            The number of samples that should be sampled
+        rng: random number generator
+            The random number generator to be used.
+
+        Returns
+        -------
+        list:
+            The first entry is True, it is always possible to sample, given two parent values. The second entry is the product of the parents values.
+            """
+        parameter_values = self.get_parameter_values()
+        return_value = []
+
+        for i in range(k):
+            sample_value = []
+            for j in range(self.dimension):
+                sample_value.append(parameter_values[j]*parameter_values[j+self.dimension])
+            return_value.append(sample_value)
+
+        return [True, np.array(return_value)]
 
 
 class DivisionModel(ModelResultingFromOperation):
+    """This class represents all probabilistic models resulting from a division of two probabilistic models"""
+    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+        """Divides the sampled values of both parent distributions.
+
+        Parameters
+        ----------
+        k: integer
+            The number of samples that should be sampled
+        rng: random number generator
+            The random number generator to be used.
+
+        Returns
+        -------
+        list:
+            The first entry is True, it is always possible to sample, given two parent values. The second entry is the fraction of the parents values.
+        """
+        parameter_values = self.get_parameter_values()
+        return_value = []
+
+        for i in range(k):
+            sample_value = []
+            for j in range(self.dimension):
+                sample_value.append(parameter_values[j] * parameter_values[j + self.dimension])
+            return_value.append(sample_value)
+
+        return [True, np.array(return_value)]
+
+
+class ExponentialModel(ModelResultingFromOperation):
+    """This class represents all probabilistic models resulting from an exponentiation of two probabilistic models"""
+
     def _check_parameters_at_initialization(self, parameters):
-        raise NotImplementedError
+        """Raises an error iff the exponent has more than 1 dimension."""
+        parent_power = parameters[-1][0]
+        number_of_parent_power = 0
+
+        for parent_parameters, parent_parameters_index in parameters:
+            if(parent_parameters==parent_power):
+                number_of_parent_power+=1
+
+        if(number_of_parent_power>1):
+            raise ValueError('The exponent can only be 1 dimensional.')
+
+        self.dimension = len(parameters[:-1])
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
-        raise NotImplementedError
+        """Raises the sampled values of the base by the exponent.
+
+        Parameters
+        ----------
+        k: integer
+            The number of samples that should be sampled
+        rng: random number generator
+            The random number generator to be used.
+
+        Returns
+        -------
+        list:
+            The first entry is True, it is always possible to sample, given two parent values. The second entry is the exponential of the parents values.
+        """
+        parameter_values = self.get_parameter_values()
+        power = parameter_values[-1]
+
+        result = []
+        for i in range(k):
+            result_values = [1. for j in range(len(parameter_values[:-1]))]
+
+            for current_value, parameter in enumerate(parameter_values[:-1]):
+                result_values[current_value]=parameter**power
+            result.append(np.array(result_values))
+
+        return [True, np.array(result)]
+
+
+class RExponentialModel(ModelResultingFromOperation):
+    """This class represents all probabilistic models resulting from an exponentiation of a Hyperparameter by another probabilistic model."""
+
+    def _check_parameters_at_initialization(self, parameters):
+        """Raises an error iff the exponent has more than 1 dimension."""
+
+        parent_power = parameters[0][0]
+        number_of_parent_power = 0
+
+        for parent_parameteres, parent_parameters_index in parameters:
+            if(parent_parameteres==parent_power):
+                number_of_parent_power+=1
+
+        if(number_of_parent_power>1):
+            raise ValueError('The exponent can only be 1 dimensional.')
+
+        self.dimension = len(parameters[1:])
+
+    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+        """Raises the base by the sampled value of the exponent.
+
+        Parameters
+        ----------
+        k: integer
+            The number of samples that should be sampled
+        rng: random number generator
+            The random number generator to be used.
+
+        Returns
+        -------
+        list:
+            The first entry is True, it is always possible to sample, given two parent values. The second entry is the exponential of the parents values.
+        """
+        parameter_values = self.get_parameter_values()
+        power = parameter_values[0]
+
+        result = []
+        for i in range(k):
+            result_values = [1. for j in range(len(parameter_values[1:]))]
+
+            for current_value, parameter in enumerate(parameter_values[1:]):
+                result_values[current_value]=parameter**power
+
+            result.append(np.array(result_values))
+
+        return [True, np.array(result)]
+

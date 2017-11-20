@@ -14,13 +14,28 @@ class Binomial(Discrete, ProbabilisticModel):
         Contains the probabilistic models and hyperparameters from which the model derives. Note that the first entry of the list, n, has to be larger than or equal to 0, while the second entry, p, has to be in the interval [0,1].
     """
     def __init__(self, parameters):
-        super(Binomial, self).__init__(parameters)
+        # Rewrite user input
+        input_parameters = []
+        for parameter in parameters:
+            if (isinstance(parameter, list)):
+                input_parameters.append(parameter[0])
+            else:
+                input_parameters.append(parameter)
+
+        super(Binomial, self).__init__(input_parameters)
         self.dimension = 1
 
+    # TODO what should happen if parameters[0] is a dist?
     def _check_parameters_at_initialization(self, parameters):
+        """Raises an Error iff:
+        - The number of trials is smaller than 0
+        - The number of trials is not an integer
+        - The success probability is not in [0,1]
+        """
         if(len(parameters)==2):
             parameter_1, index_1 = parameters[0]
             parameter_2, index_2 = parameters[1]
+
             if(isinstance(parameter_1, Hyperparameter)):
                 if(parameter_1.fixed_values[0]<0):
                     raise ValueError('The number of trials has to be larger than or equal to 0.')
