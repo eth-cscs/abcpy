@@ -1,7 +1,8 @@
 from abc import ABCMeta, abstractmethod, abstractproperty
+from graphtools import GraphTools
 
-from ProbabilisticModel import *
-from accepted_parameters_manager import *
+from probabilisticmodels import *
+from acceptedparametersmanager import *
 from perturbationkernel import DefaultKernel
 
 import numpy as np
@@ -20,7 +21,7 @@ import warnings
 # TODO maybe some error if yobs != [[]]?
 
 
-class InferenceMethod(metaclass = ABCMeta):
+class InferenceMethod(GraphTools, metaclass = ABCMeta):
     """
         This abstract base class represents an inference method.
 
@@ -35,336 +36,6 @@ class InferenceMethod(metaclass = ABCMeta):
         return state
 
 
-    def sample_from_prior(self, rng=np.random.RandomState()):
-        """
-       Samples values for all random variables of the model.
-        Commonly used to sample new parameter values on the whole graph.
-
-        Parameters
-        ----------
-        rng: Random number generator
-            Defines the random number generator to be used
-        """
-
-        # If it was at some point not possible to sample (due to incompatible parameter values provided by the parents), we start from scratch
-        while(not(self._sample_from_prior(self.model, rng=rng))):
-            self._reset_flags()
-
-        # At the end of the algorithm, are flags are reset such that new methods can act on the graph freely
-        self._reset_flags()
-
-    def _sample_from_prior(self, models, is_not_root=False, was_accepted=True, rng=np.random.RandomState()):
-        """
-        Recursive version of sample_from_prior. Commonly called from within sample_from_prior.
-
-        Parameters
-        ----------
-        models: list of probabilistc models
-            Defines the models for which, together with their parents, new parameters will be sampled
-        is_root: boolean
-            Whether the probabilistic models provided in models are root models.
-        was_accepted: boolean
-            Whether the sampled values for all previous/parent models were accepted.
-        rng: Random number generator
-            Defines the random number generator to be used
-
-        Returns
-        -------
-        boolean:
-            Whether it was possible to sample new values for all nodes of the graph.
-        """
-
-        # If it was so far possible to sample parameters for all nodes, the current node as well as its parents are sampled, using depth-first search
-        if(was_accepted):
-            for model in models:
-
-                for parent, index in model.parents:
-                    if(not(parent.visited)):
-                        parent.visited = True
-                        was_accepted = self._sample_from_prior([parent], is_not_root = True, was_accepted=was_accepted, rng=rng)
-                        if(not(was_accepted)):
-                            return False
-
-                if(is_not_root and not(model.sample_parameters(rng=rng))):
-                    return False
-
-                model.visited = True
-
-        return was_accepted
-
-    def _reset_flags(self, models=None):
-        """
-        Resets all flags that say that a probabilistic model has been updated.
-        Commonly used after actions on the whole graph, to ensure that new actions can take place.
-
-        Parameters
-        ----------
-        models: list of probabilistic models
-            The models for which, together with their parents, the flags should be reset. If no value is provided, the root models are assumed to be the model of the inference method.
-        """
-        if(not(models)):
-            models=self.model
-
-        # For each model, the flags of the parents get reset recursively.
-        for model in models:
-            for parent, parent_index in model.parents:
-                if(parent.visited):
-                    self._reset_flags([parent])
-            model.visited = False
-
-    # todo could we somehow use a set?
-    def pdf_of_prior(self, models, parameters, mapping=None, is_root=True):
-        """
-        Calculates the joint probability density function of the prior of the specified models at the given parameter values.
-        Commonly used to check whether new parameters are valid given the prior, as well as to calculate acceptance probabilities.
-
-        Parameters
-        ----------
-        models: list of abcpy.ProbabilisticModel objects
-            Defines the models for which the pdf of their prior should be evaluated
-        parameters: python list
-            The parameters at which the pdf should be evaluated
-        mapping: list of tupels
-            Defines the mapping of probabilistic models and index in a parameter list.
-        is_root: boolean
-            A flag specifying whether the provided models are the root models. This is to ensure that the pdf is calculated correctly.
-
-        Returns:
-        list
-            The resulting pdf, given as a list, as well as the next index to be considered in the parameters list.
-        """
-        # At the beginning of calculation, obtain the mapping
-        if(is_root):
-            mapping, garbage_index = self._get_mapping()
-
-        # The pdf of each root model is first calculated seperately
-        result = [1.]*len(models)
-
-        for i, model in enumerate(models):
-            # If the model is not a root model, the pdf of this model, given the prior, should be calculated
-            if(not(is_root)):
-                # Define a helper list which will contain the parameters relevant to the current model for pdf calculation
-                relevant_parameters = []
-
-                for mapped_model, model_index in mapping:
-                    if(mapped_model==model):
-                        parameter_index = model_index
-                        for j in range(model.dimension):
-                            relevant_parameters.append(parameters[parameter_index])
-                            parameter_index+=1
-                        break
-                if(len(relevant_parameters)==1):
-                    relevant_parameters = relevant_parameters[0]
-                else:
-                    relevant_parameters = np.array(relevant_parameters)
-                result[i]*=model.pdf(relevant_parameters)
-
-            # Mark whether the parents of each model have been visited before for this model to avoid repeated calculation
-            visited_parents = [False for j in range(len(model.parents))]
-
-            # For each parent, the pdf of this parent has to be calculated as well.
-            for parent_index, parents in enumerate(model.parents):
-                parent = parents[0]
-
-                # Only calculate the pdf if the parent has never been visited for this model
-                if(not(visited_parents[parent_index])):
-                    pdf = self.pdf_of_prior([parent], parameters, mapping=mapping, is_root=False)
-                    for j in range(len(model.parents)):
-                        if(model.parents[j][0]==parent):
-                            visited_parents[j]=True
-                    result[i]*=pdf
-
-        temporary_result = result
-        result = 1.
-        for individual_result in temporary_result:
-            result*=individual_result
-
-        return result
-
-    def _get_mapping(self, models=None, index=0, is_not_root=False):
-        """Returns a mapping of model and first index corresponding to the outputs in this model in parameter lists.
-
-        Parameters
-        ----------
-        models: list
-            List of abcpy.ProbabilisticModel objects
-        index: integer
-            Next index to be mapped in a parameter list
-        is_not_root: boolean
-            Specifies whether the models specified are root models.
-
-        Returns
-        -------
-        list
-            A list containing two entries. The first entry corresponds to the mapping of the root models, including their parents. The second entry corresponds to the next index to be considered in a parameter list.
-        """
-
-        if(models is None):
-            models = self.model
-
-        mapping = []
-
-        for model in models:
-            # If this model corresponds to an unvisited free parameter, add it to the mapping
-            if(is_not_root and not(model.visited) and not(isinstance(model, Hyperparameter))):
-                mapping.append((model, index))
-                index+=model.dimension
-            # Add all parents to the mapping, if applicable
-            for parent, parent_index in model.parents:
-                parent_mapping, index = self._get_mapping([parent], index=index, is_not_root=True)
-                parent.visited=True
-                for mappings in parent_mapping:
-                    mapping.append(mappings)
-
-            model.visited=True
-
-        # At the end of the algorithm, reset all flags such that another method can act on the graph freely.
-        if(not(is_not_root)):
-            self._reset_flags()
-
-        return [mapping, index]
-
-    def get_parameters(self, models=None, is_root=True):
-        """
-        Returns the current values of all free parameters in the model.
-        Commonly used before perturbing the parameters of the model.
-
-        Parameters
-        ----------
-        models: list of probabilistic models
-            The models for which, together with their parents, the parameter values should be returned. If no value is provided, the root models are assumed to be the model of the inference method.
-        is_root: boolean
-            Specifies whether the current models are at the root. This ensures that the values corresponding to simulated observations will not be returned.
-
-        Returns
-        -------
-        list
-            A list containing all currently sampled values of the free parameters.
-        """
-        parameters = []
-
-        # If we are at the root, we sed models to the model attribute of the inference method
-        if(is_root):
-            models = self.model
-
-        for model in models:
-            # If we are not at the root, the sampled values for the current node should be returned
-            if(not(is_root)):
-                model_parameters = model.get_parameters()
-                for parameter in model_parameters:
-                    parameters.append(parameter)
-                model.visited = True
-
-            # Implement a depth-first search to return also the sampled values associated with each parent of the model
-            for parent, parent_index in model.parents:
-                if(not(parent.visited)):
-                    parent_parameters = self.get_parameters(models=[parent], is_root=False)
-                    for parameter in parent_parameters:
-                        parameters.append(parameter)
-                    parent.visited = True
-
-        # At the end of the algorithm, are flags are reset such that new methods can act on the graph freely
-        if(is_root):
-            self._reset_flags()
-
-        return parameters
-
-    def set_parameters(self, parameters, models=None, index=0, is_root=True):
-        """
-        Sets new values for the currently used values of each random variable.
-        Commonly used after perturbing the parameter values using a kernel.
-
-        Parameters
-        ----------
-        parameters: list
-            Defines the values to which the respective parameter values of the models should be set
-        model: list of probabilistic models
-             Defines all models for which, together with their parents, new values should be set. If no value is provided, the root models are assumed to be the model of the inference method.
-        index: integer
-            The current index to be considered in the parameters list
-        is_root: boolean
-            Defines whether the current models are at the root. This ensures that only values corresponding to random variables will be set.
-
-        Returns
-        -------
-        list: [boolean, integer]
-            Returns whether it was possible to set all parameters and the next index to be considered in the parameters list.
-        """
-        # If we are at the root, we set models to the model attribute of the inference method
-        if(is_root):
-            models = self.model
-
-        for model in models:
-            # New parameters should only be set in case we are not at the root
-            if(not(is_root)):
-                if(not(model.set_parameters(parameters[index:index+model.dimension]))):
-                    return [False, index]
-                index+=model.dimension
-                model.visited = True
-
-            # New parameters for all parents are set using a depth-first search
-            for parent, parent_index in model.parents:
-                if(not(parent.visited)):
-                    is_set, index = self.set_parameters(parameters,models=[parent],index=index,is_root=False)
-                    if(not(is_set)):
-                        # At the end of the algorithm, are flags are reset such that new methods can act on the graph freely
-                        if(is_root):
-                            self._reset_flags()
-                        return [False, index]
-            model.visited = True
-
-        # At the end of the algorithm, are flags are reset such that new methods can act on the graph freely
-        if(is_root):
-            self._reset_flags()
-
-        return [True, index]
-
-    def get_correct_ordering(self, parameters_and_models, models=None, is_root = True):
-        """
-        Orders the parameters returned by a kernel in the order required by the graph.
-        Commonly used when perturbing the parameters.
-
-        Parameters
-        ----------
-        parameters_and_models: list of tuples
-            Contains tuples containing as the first entry the probabilistic model to be considered and as the second entry the parameter values associated with this model
-        models: list
-            Contains the root probabilistic models that make up the graph. If no value is provided, the root models are assumed to be the model of the inference method.
-
-        Returns
-        -------
-        list
-            The ordering which can be used by recursive functions on the graph.
-        """
-        ordered_parameters = []
-
-        # If we are at the root, we set models to the model attribute of the inference method
-        if(is_root):
-            models=self.model
-
-        for model in models:
-            if(not(model.visited)):
-                model.visited = True
-
-                # Check all entries in parameters_and_models to determine whether the current model is contained within it
-                for corresponding_model, parameter in parameters_and_models:
-                    if(corresponding_model==model):
-                        for param in parameter:
-                            ordered_parameters.append(param)
-                        break
-
-                # Recursively order all the parents of the current model
-                for parent, parents_index in model.parents:
-                    if(not(parent.visited)):
-                        parent_ordering = self.get_correct_ordering(parameters_and_models, models=[parent],is_root=False)
-                        for parent_parameters in parent_ordering:
-                            ordered_parameters.append(parent_parameters)
-
-        # At the end of the algorithm, are flags are reset such that new methods can act on the graph freely
-        if(is_root):
-            self._reset_flags()
-
-        return ordered_parameters
 
 
     # NOTE this wont work for rejectionabc, but is a method of that -> how to fix?
@@ -408,27 +79,6 @@ class InferenceMethod(metaclass = ABCMeta):
 
         return [True, correctly_ordered_parameters]
 
-    def simulate(self, rng=np.random.RandomState()):
-        """Simulates data of each model using the currently sampled or perturbed parameters.
-
-        Parameters
-        ----------
-        rng: random number generator
-            The random number generator to be used.
-
-        Returns
-        -------
-        list
-            Each entry corresponds to the simulated data of one model.
-        """
-        result = []
-        for model in self.model:
-            simulation_result = model.sample_from_distribution(self.n_samples_per_param, rng=rng)
-            if(simulation_result[0]):
-                result.append(simulation_result[1].tolist())
-            else:
-                return None
-        return result
 
     @abstractmethod
     def sample(self):
@@ -1022,19 +672,28 @@ class PMC(BasePMC, InferenceMethod):
     accepted_weights_bds = None
     accepted_cov_mat_bds = None
 
-    def __init__(self, model, likfun, kernel, backend, seed=None):
+    def __init__(self, model, likfun, backend, kernel=None, seed=None):
         self.model = model
         self.likfun = likfun
+
+        if(kernel is None):
+            warnings.warn(
+                "No kernel has been defined. The default kernel will be used. All continuous parameters are perturbed using a multivariate normal, all discrete parameters are perturbed using a random walk.",
+                Warning)
+
+            mapping, garbage_index = self._get_mapping()
+            models = []
+            for mdl, mdl_index in mapping:
+                models.append(mdl)
+            kernel = DefaultKernel(models)
+
         self.kernel = kernel
         self.backend = backend
         self.rng = np.random.RandomState(seed)
 
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
-        self.observations_bds = None
-        self.accepted_parameters_bds = None
-        self.accepted_weights_bds = None
-        self.accepted_cov_mat_bds = None
+        self.accepted_parameters_manager = AcceptedParametersManager()
 
 
     def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 100, covFactor = None, iniPoints = None, full_output=0):
@@ -1064,9 +723,9 @@ class PMC(BasePMC, InferenceMethod):
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
-        self.sample_parameters(self.model, self.rng)
+        self.sample_from_prior(rng=self.rng)
 
-        self.observations_bds = self.backend.broadcast(observations)
+        self.accepted_parameters_manager.broadcast(self.backend, observations)
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
 
@@ -1084,18 +743,15 @@ class PMC(BasePMC, InferenceMethod):
         accepted_cov_mat = None
         new_theta = None
 
-        dim = len(self.get_parameters(self.model))
-        self._reset_flags(self.model)
+        dim = len(self.get_parameters())
 
         # Initialize particles: When not supplied, randomly draw them from prior distribution
         # Weights of particles: Assign equal weights for each of the particles
         if iniPoints == None:
             accepted_parameters = np.zeros(shape=(n_samples, dim))
             for ind in range(0, n_samples):
-                self.sample_from_prior(self.model, rng=self.rng)
-                self._reset_flags(self.model)
-                accepted_parameters[ind, :] = self.get_parameters(self.model)
-                self._reset_flags(self.model)
+                self.sample_from_prior(rng=self.rng)
+                accepted_parameters[ind, :] = self.get_parameters()
             accepted_weights = np.ones((n_samples, 1), dtype=np.float) / n_samples
         else:
             accepted_parameters = iniPoints
@@ -1104,8 +760,9 @@ class PMC(BasePMC, InferenceMethod):
         if covFactor is None:
             covFactor = np.ones(shape=(dim,))
 
+        # TODO rewrite this like in pmcabc
         # Calculate initial covariance matrix
-        accepted_cov_mat = covFactor * np.cov(accepted_parameters, aweights=accepted_weights.reshape(-1), rowvar=False)
+        accepted_cov_mats = covFactor * np.cov(accepted_parameters, aweights=accepted_weights.reshape(-1), rowvar=False)
 
         # main SMC algorithm
         # print("INFO: Starting PMC iterations.")
@@ -1114,7 +771,7 @@ class PMC(BasePMC, InferenceMethod):
 
             # 0: update remotely required variables
             # print("INFO: Broadcasting parameters.")
-            self._update_broadcasts(accepted_parameters, accepted_weights, accepted_cov_mat)
+            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights, accepted_cov_mats=accepted_cov_mat)
 
             # 1: calculate resample parameters
             # print("INFO: Resample parameters.")
@@ -1124,11 +781,9 @@ class PMC(BasePMC, InferenceMethod):
             new_parameters = np.zeros((n_samples, dim), dtype=np.float)
             for ind in range(0, self.n_samples):
                 while True:
-                    new_theta = self.kernel.perturb(accepted_parameters[index[ind],:],accepted_cov_mat)
-                    theta_is_accepted = self.set_parameters(self.model, new_theta, 0)
-                    self._reset_flags(self.model)
-                    if theta_is_accepted and self.pdf_of_prior(self.model, new_theta, 0)[0][0] != 0:
-                        new_parameters[ind, :] = new_theta
+                    perturbation_output = self.perturb(index[ind], rng=self.rng)
+                    if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1])!= 0:
+                        new_parameters[ind, :] = perturbation_output[1]
                         break
 
             # 2: calculate approximate lieklihood for new parameters
@@ -1154,6 +809,7 @@ class PMC(BasePMC, InferenceMethod):
 
             # 4: calculate covariance
             # print("INFO: Calculating covariance matrix.")
+            # TODO implement new covmatrix like pmcabc
             new_cov_mat = covFactor * np.cov(accepted_parameters, aweights=accepted_weights.reshape(-1), rowvar=False)
 
             # 5: Update the newly computed values
@@ -1168,19 +824,6 @@ class PMC(BasePMC, InferenceMethod):
                 journal.add_opt_values(approx_likelihood_new_parameters)
 
         return journal
-
-    def _update_broadcasts(self, accepted_parameters, accepted_weights, accepted_cov_mat):
-        def destroy(bc):
-            if bc != None:
-                bc.unpersist
-                # bc.destroy
-
-        if not accepted_parameters is None:
-            self.accepted_parameters_bds = self.backend.broadcast(accepted_parameters)
-        if not accepted_weights is None:
-            self.accepted_weights_bds = self.backend.broadcast(accepted_weights)
-        if not accepted_cov_mat is None:
-            self.accepted_cov_mat_bds = self.backend.broadcast(accepted_cov_mat)
 
     # define helper functions for map step
     def _approx_lik_calc(self, theta):
@@ -1198,22 +841,19 @@ class PMC(BasePMC, InferenceMethod):
             The approximated likelihood function
         """
 
-        # Assign theta to model
-        self.set_parameters(self.model, theta, 0)
-        self._reset_flags(self.model)
-
         # Simulate the fake data from the model given the parameter value theta
         # print("DEBUG: Simulate model for parameter " + str(theta))
 
         #TODO MULTIPLE MODELS
-        y_sim = self.model[0].sample_from_distribution(self.n_samples_per_param).tolist()
+        # Todo check old thing -> do we want to simulate n_samples_per_aram times???
+        y_sim = self.simulate(self.rng)
         # print("DEBUG: Extracting observation.")
-        obs = self.observations_bds.value()
+        obs = self.accepted_parameters_manager.observations_bds.value()
         # print("DEBUG: Computing likelihood...")
         lhd = self.likfun.likelihood(obs, y_sim)
 
         # print("DEBUG: Likelihood is :" + str(lhd))
-        pdf_at_theta = self.pdf_of_prior(self.model, theta, 0)[0][0]
+        pdf_at_theta = self.pdf_of_prior(self.model, theta)
 
         # print("DEBUG: prior pdf evaluated at theta is :" + str(pdf_at_theta))
         return pdf_at_theta * lhd
@@ -1237,13 +877,16 @@ class PMC(BasePMC, InferenceMethod):
         if self.accepted_weights_bds is None:
             return 1.0 / self.n_samples
         else:
-            #TODO MULTIPLE MODELS
-            prior_prob = self.pdf_of_prior(self.model, theta, 0)[0][0]
+            prior_prob = self.pdf_of_prior(self.model, theta)
 
             denominator = 0.0
+
+            mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(
+                self.accepted_parameters_manager.model)
+
             for i in range(0, self.n_samples):
-                pdf_value = self.kernel.pdf(self.accepted_parameters_bds.value()[i,:], self.accepted_cov_mat_bds.value(), theta)
-                denominator += self.accepted_weights_bds.value()[i, 0] * pdf_value
+                pdf_value = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, i, theta)
+                denominator+=self.accepted_parameters_manager.accepted_weights_bds.value()[i,0]*pdf_value
 
             return 1.0 * prior_prob / denominator
 

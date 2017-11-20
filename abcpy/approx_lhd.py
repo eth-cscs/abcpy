@@ -60,6 +60,7 @@ class SynLiklihood(Approx_likelihood):
     """
     def __init__(self, statistics_calc):
         self.stat_obs = None
+        self.data_set=None
         self.statistics_calc = statistics_calc
 
 
@@ -72,8 +73,9 @@ class SynLiklihood(Approx_likelihood):
             raise TypeError('simulated data is not of allowed types')
 
         # Extract summary statistics from the observed data
-        if(self.stat_obs is None):
+        if(self.stat_obs is None or y_obs!=self.data_set):
             self.stat_obs = self.statistics_calc.statistics(y_obs)
+            self.data_set=y_obs
 
         # Extract summary statistics from the simulated data
         stat_sim = self.statistics_calc.statistics(y_sim)
@@ -140,6 +142,7 @@ class PenLogReg(Approx_likelihood):
         self.ref_data_stat = self._simulate_ref_data()
 
         self.stat_obs = None
+        self.data_set
         
 
         
@@ -151,8 +154,9 @@ class PenLogReg(Approx_likelihood):
             raise TypeError('simulated data is not of allowed types')            
         
         # Extract summary statistics from the observed data
-        if(self.stat_obs is None):
+        if(self.stat_obs is None or self.data_set!=y_obs):
             self.stat_obs = self.statistics_calc.statistics(y_obs)
+            self.data_set=y_obs
                 
         # Extract summary statistics from the simulated data
         stat_sim = self.statistics_calc.statistics(y_sim)

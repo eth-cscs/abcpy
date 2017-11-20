@@ -115,6 +115,7 @@ class Euclidean(Distance):
 
         # Since the observations do always stay the same, we can save the summary statistics of them and not recalculate it each time
         self.s1 = None
+        self.data_set = None
 
         
     def distance(self, d1, d2):
@@ -129,8 +130,9 @@ class Euclidean(Distance):
         d2 = d2[0]
         if len(d1) != len(d2):
             raise BaseException("Input data sets have different sizes: {} vs {}".format(len(d1), len(d2)))
-        if(self.s1 is None):
+        if(self.s1 is None or self.data_set!=d1):
             self.s1 = self.statistics_calc.statistics(d1)
+            self.data_set = d1
         s2 = self.statistics_calc.statistics(d2)
 
         # compute distance between the statistics
@@ -172,6 +174,7 @@ class PenLogReg(Distance):
 
         # Since the observations do always stay the same, we can save the summary statistics of them and not recalculate it each time
         self.s1 = None
+        self.data_set
         
     def distance(self, d1, d2):
         """Calculates the distance between two datasets.
@@ -182,8 +185,9 @@ class PenLogReg(Distance):
             A list, containing a list describing the data set
         """
         # Extract summary statistics from the dataset
-        if(self.s1 is None):
+        if(self.s1 is None or self.data_set!=d1):
             self.s1 = self.statistics_calc.statistics(d1)
+            self.data_set = d1
         s2 = self.statistics_calc.statistics(d2)
          
         # compute distnace between the statistics 
@@ -218,6 +222,7 @@ class LogReg(Distance):
 
         # Since the observations do always stay the same, we can save the summary statistics of them and not recalculate it each time
         self.s1 = None
+        self.data_set = None
         
     def distance(self, d1, d2):
         """Calculates the distance between two datasets.
@@ -230,8 +235,9 @@ class LogReg(Distance):
         d1 = d1[0]
         d2 = d2[0]
         # Extract summary statistics from the dataset
-        if(self.s1 is None):
+        if(self.s1 is None or self.data_set!=d1):
             self.s1 = self.statistics_calc.statistics(d1)
+            self.data_set = d1
         s2 = self.statistics_calc.statistics(d2)
         
         # compute distance between the statistics
