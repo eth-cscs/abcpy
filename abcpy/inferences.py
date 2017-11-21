@@ -696,7 +696,7 @@ class PMC(BasePMC, InferenceMethod):
         self.accepted_parameters_manager = AcceptedParametersManager()
 
 
-    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 100, covFactor = None, iniPoints = None, full_output=0):
+    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 100, covFactors = None, iniPoints = None, full_output=0):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -710,7 +710,7 @@ class PMC(BasePMC, InferenceMethod):
             number of samples to generate. The default value is 10000.
         n_samples_per_param : integer, optional
             number of data points in each simulated data set. The default value is 100.
-        covFactor : float, optional
+        covFactor : list of float, optional
             scaling parameter of the covariance matrix. The default is a p dimensional array of 1 when p is the dimension of the parameter.
         inipoints : numpy.ndarray, optional
             parameter vaulues from where the sampling starts. By default sampled from the prior.
@@ -729,18 +729,19 @@ class PMC(BasePMC, InferenceMethod):
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
 
+        # NOTE DOESNT HAVE DISTCALC/STATCALC
         journal = Journal(full_output)
-        journal.configuration["type_model"] = type(self.model)
-        journal.configuration["type_lhd_func"] = type(self.likfun)
+        journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
+        journal.configuration["type_lhd_func"] = type(self.likfun).__name__
         journal.configuration["n_samples"] = self.n_samples
         journal.configuration["n_samples_per_param"] = self.n_samples_per_param
         journal.configuration["steps"] = steps
-        journal.configuration["covFactor"] = covFactor
+        journal.configuration["covFactor"] = covFactors
         journal.configuration["iniPoints"] = iniPoints
 
         accepted_parameters = None
         accepted_weights = None
-        accepted_cov_mat = None
+        accepted_cov_mats = None
         new_theta = None
 
         dim = len(self.get_parameters())
@@ -757,12 +758,29 @@ class PMC(BasePMC, InferenceMethod):
             accepted_parameters = iniPoints
             accepted_weights = np.ones((iniPoints.shape[0], 1), dtype=np.float) / iniPoints.shape[0]
 
-        if covFactor is None:
-            covFactor = np.ones(shape=(dim,))
+        if covFactors is None:
+            covFactors = np.ones(shape=(len(self.kernel.kernels),))
 
-        # TODO rewrite this like in pmcabc
-        # Calculate initial covariance matrix
-        accepted_cov_mats = covFactor * np.cov(accepted_parameters, aweights=accepted_weights.reshape(-1), rowvar=False)
+        self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights)
+
+        # The parameters relevant to each kernel have to be used to calculate n_sample times. It is therefore more efficient to broadcast these parameters once, instead of collecting them at each kernel in each step
+        kernel_parameters = []
+        for kernel in self.kernel.kernels:
+            kernel_parameters.append(
+                self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
+
+        self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
+
+        # 3: calculate covariance
+        # print("INFO: Calculating covariance matrix.")
+
+
+        new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
+        # Since each entry of new_cov_mats is a numpy array, we can multiply like this
+
+        accepted_cov_mats = [covFactor * new_cov_mat for covFactor, new_cov_mat in zip(covFactors,new_cov_mats)]
+
+        self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
 
         # main SMC algorithm
         # print("INFO: Starting PMC iterations.")
@@ -771,7 +789,7 @@ class PMC(BasePMC, InferenceMethod):
 
             # 0: update remotely required variables
             # print("INFO: Broadcasting parameters.")
-            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights, accepted_cov_mats=accepted_cov_mat)
+            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights, accepted_cov_mats=accepted_cov_mats)
 
             # 1: calculate resample parameters
             # print("INFO: Resample parameters.")
@@ -807,15 +825,33 @@ class PMC(BasePMC, InferenceMethod):
             new_weights = new_weights / sum_of_weights
             accepted_parameters = new_parameters
 
+            # NOTE  before, the cov matrix was calculated with accepted_weights, but I think it should be new weights? we use the new parameters...
+            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights)
+
             # 4: calculate covariance
             # print("INFO: Calculating covariance matrix.")
-            # TODO implement new covmatrix like pmcabc
-            new_cov_mat = covFactor * np.cov(accepted_parameters, aweights=accepted_weights.reshape(-1), rowvar=False)
+            # The parameters relevant to each kernel have to be used to calculate n_sample times. It is therefore more efficient to broadcast these parameters once, instead of collecting them at each kernel in each step
+            kernel_parameters = []
+            for kernel in self.kernel.kernels:
+                kernel_parameters.append(
+                    self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
+
+            self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
+
+            # 3: calculate covariance
+            # print("INFO: Calculating covariance matrix.")
+
+
+            new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
+            # Since each entry of new_cov_mats is a numpy array, we can multiply like this
+
+            new_cov_mats = [covFactor * new_cov_mat for covFactor, new_cov_mat in zip(covFactors, new_cov_mats)]
+
 
             # 5: Update the newly computed values
             accepted_parameters = new_parameters
             accepted_weights = new_weights
-            accepted_cov_mat = new_cov_mat
+            accepted_cov_mat = new_cov_mats
 
             # print("INFO: Saving configuration to output journal.")
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
@@ -844,7 +880,6 @@ class PMC(BasePMC, InferenceMethod):
         # Simulate the fake data from the model given the parameter value theta
         # print("DEBUG: Simulate model for parameter " + str(theta))
 
-        #TODO MULTIPLE MODELS
         # Todo check old thing -> do we want to simulate n_samples_per_aram times???
         y_sim = self.simulate(self.rng)
         # print("DEBUG: Extracting observation.")
