@@ -125,7 +125,6 @@ class GraphTools():
                     relevant_parameters = relevant_parameters[0]
                 else:
                     relevant_parameters = np.array(relevant_parameters)
-                result[i]*=model.pdf(relevant_parameters)
 
             # Mark whether the parents of each model have been visited before for this model to avoid repeated calculation
             visited_parents = [False for j in range(len(model.parents))]
@@ -141,6 +140,8 @@ class GraphTools():
                         if(model.parents[j][0]==parent):
                             visited_parents[j]=True
                     result[i]*=pdf
+            if(not(is_root)):
+                result[i] *= model.pdf(relevant_parameters)
 
         temporary_result = result
         result = 1.
