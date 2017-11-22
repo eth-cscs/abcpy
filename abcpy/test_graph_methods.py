@@ -1,7 +1,7 @@
 import unittest
 from inferences import *
-from continuous import *
-from discrete import *
+from continuousmodels import *
+from discretemodels import *
 from abcpy.distances import LogReg
 from abcpy.statistics import Identity
 from abcpy.backends import BackendDummy as Backend

@@ -10,7 +10,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
         Parameters
         ----------
-        parameters: list, each element is either a tupel containing the parent as well as the output index to which this parameter corresponds, a ProbabilisticModel or a hyperparameter.
+        parameters: list, each element is either a tupel containing the parent of type abcpy.ProbabilisticModel as well as the output index to which this parameter corresponds, a ProbabilisticModel or a hyperparameter.
     """
     def __init__(self, parameters):
         # Save all probabilistic models and hyperparameters from which the model derives

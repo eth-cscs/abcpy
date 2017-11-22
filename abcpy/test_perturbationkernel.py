@@ -1,7 +1,7 @@
 import unittest
-from continuous import Normal
-from discrete import Binomial
-from accepted_parameters_manager import AcceptedParametersManager
+from continuousmodels import Normal
+from discretemodels import Binomial
+from acceptedparametersmanager import AcceptedParametersManager
 from abcpy.backends import BackendDummy as Backend
 from perturbationkernel import *
 

@@ -276,7 +276,6 @@ class MixtureNormal(ProbabilisticModel, Continuous):
         """
         return True
 
-    #TODO ASK RITO WHETHER THIS IS CORRECT
     def pdf(self, x):
         """
        Calculates the probability density function at point x.
