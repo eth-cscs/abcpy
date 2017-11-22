@@ -13,7 +13,7 @@ from abcpy.distributions import Uniform
 
 from abcpy.statistics import Identity
 
-from abcpy.inferences import RejectionABC, PMC, PMCABC, _RemoteContextPMCABC, SABC, ABCsubsim, SMCABC, APMCABC, RSMCABC
+from abcpy.inferences import RejectionABC, PMC, PMCABC, SABC, ABCsubsim, SMCABC, APMCABC, RSMCABC
 
 class RejectionABCTest(unittest.TestCase):
     def test_sample(self):
@@ -115,8 +115,6 @@ class PMCTests(unittest.TestCase):
         self.assertLess(abs(mu_post_mean - (-1.4033145848) ), 1e-10)
         self.assertLess(abs(sigma_post_mean - 7.05175546876), 1e-10)
 
-        
-
 
 class PMCABCTests(unittest.TestCase):
     def setUp(self):
@@ -147,7 +145,7 @@ class PMCABCTests(unittest.TestCase):
         
     def test_calculate_weight(self):
         n_samples = 2
-        rc = _RemoteContextPMCABC(self.backend, self.model, self.dist_calc, self.kernel, self.observation, n_samples, 1)
+        rc = PMCABC(self.model, self.dist_calc, self.kernel, self.backend, 1)
         theta = np.array([1.0])
 
 
@@ -157,7 +155,7 @@ class PMCABCTests(unittest.TestCase):
         accepted_parameters = np.array([[1.0], [1.0 + np.sqrt(2)]])
         accepted_weights = np.array([[.5], [.5]])
         accepted_cov_mat = np.array([[1.0]])
-        rc._update_broadcasts(self.backend, accepted_parameters, accepted_weights, accepted_cov_mat)
+        rc._update_broadcasts(accepted_parameters, accepted_weights, accepted_cov_mat)
         weight = rc._calculate_weight(theta)
         expected_weight = (2.0 * np.sqrt(2.0 * np.pi)) /(( 1 + np.exp(-1))*100)
         self.assertEqual(weight, expected_weight)
@@ -325,7 +323,8 @@ class ABCsubsimTests(unittest.TestCase):
         self.assertEqual(sigma_sample_shape, (10,))
         self.assertEqual(weights_sample_shape, (10,))
         self.assertLess(mu_post_mean - (-2.98633946126), 10e-2)
-        self.assertLess(sigma_post_mean - 6.40146881524, 10e-2)     
+        self.assertLess(sigma_post_mean - 6.40146881524, 10e-2)
+
 
 class SMCABCTests(unittest.TestCase):
     def setUp(self):
