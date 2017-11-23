@@ -1,4 +1,4 @@
-from abcpy.probabilisticmodels import Hyperparameter
+from abcpy.probabilisticmodels import Hyperparameter, ModelResultingFromOperation
 
 
 class AcceptedParametersManager():
@@ -80,7 +80,7 @@ class AcceptedParametersManager():
         mapping = []
 
         for model in models:
-            if(not(model.visited) and not(isinstance(model, Hyperparameter))):
+            if(not(model.visited) and not(isinstance(model, Hyperparameter)) and not(isinstance(model, ModelResultingFromOperation))):
                 model.visited = True
 
                 # Only parameters that are neither root nor Hyperparameters are included in the mapping

@@ -1,5 +1,5 @@
 import numpy as np
-from abcpy.probabilisticmodels import Hyperparameter
+from abcpy.probabilisticmodels import Hyperparameter, ModelResultingFromOperation
 
 class GraphTools():
     """This class implements all methods that will be called recursively on the graph structure."""
@@ -79,6 +79,7 @@ class GraphTools():
                 if(parent.visited):
                     self._reset_flags([parent])
             model.visited = False
+            model.calculated_pdf = None
 
     # todo could we somehow use a set?
     def pdf_of_prior(self, models, parameters, mapping=None, is_root=True):
@@ -109,7 +110,7 @@ class GraphTools():
 
         for i, model in enumerate(models):
             # If the model is not a root model, the pdf of this model, given the prior, should be calculated
-            if(not(is_root)):
+            if(not(is_root) and not(isinstance(model, ModelResultingFromOperation))):
                 # Define a helper list which will contain the parameters relevant to the current model for pdf calculation
                 relevant_parameters = []
 
@@ -124,6 +125,8 @@ class GraphTools():
                     relevant_parameters = relevant_parameters[0]
                 else:
                     relevant_parameters = np.array(relevant_parameters)
+            else:
+                relevant_parameters=[]
 
             # Mark whether the parents of each model have been visited before for this model to avoid repeated calculation
             visited_parents = [False for j in range(len(model.parents))]
@@ -138,7 +141,10 @@ class GraphTools():
                             visited_parents[j]=True
                     result[i]*=pdf
             if(not(is_root)):
-                result[i] *= model.pdf(relevant_parameters)
+                if(model.calculated_pdf is None):
+                    result[i] *= model.pdf(relevant_parameters)
+                else:
+                    result[i]*=model.calculated_pdf
 
         temporary_result = result
         result = 1.
@@ -172,7 +178,7 @@ class GraphTools():
 
         for model in models:
             # If this model corresponds to an unvisited free parameter, add it to the mapping
-            if(is_not_root and not(model.visited) and not(isinstance(model, Hyperparameter))):
+            if(is_not_root and not(model.visited) and not(isinstance(model, Hyperparameter)) and not(isinstance(model, ModelResultingFromOperation))):
                 mapping.append((model, index))
                 index+=model.dimension
             # Add all parents to the mapping, if applicable
@@ -215,7 +221,7 @@ class GraphTools():
 
         for model in models:
             # If we are not at the root, the sampled values for the current node should be returned
-            if(not(is_root)):
+            if(not(is_root) and not(isinstance(model, ModelResultingFromOperation))):
                 model_parameters = model.get_parameters()
                 for parameter in model_parameters:
                     parameters.append(parameter)
@@ -262,7 +268,7 @@ class GraphTools():
 
         for model in models:
             # New parameters should only be set in case we are not at the root
-            if(not(is_root)):
+            if(not(is_root) and not(isinstance(model, ModelResultingFromOperation))):
                 if(not(model.set_parameters(parameters[index:index+model.dimension]))):
                     return [False, index]
                 index+=model.dimension
@@ -331,6 +337,7 @@ class GraphTools():
             self._reset_flags()
 
         return ordered_parameters
+
 
     def simulate(self, rng=np.random.RandomState()):
         """Simulates data of each model using the currently sampled or perturbed parameters.

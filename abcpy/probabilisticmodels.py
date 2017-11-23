@@ -40,6 +40,8 @@ class ProbabilisticModel(metaclass = ABCMeta):
         # A flag containing whether the probabilistic model has been touched during a recursive operation
         self.visited = False
 
+        self.calculated_pdf = None
+
     def __getitem__(self, item):
         """
         Overloads the access operator. If the access operator is called, a tupel of the ProbablisticModel that called the operator and the index at which it was called is returned.
@@ -458,8 +460,6 @@ class ModelResultingFromOperation(ProbabilisticModel):
 class SummationModel(ModelResultingFromOperation):
     """This class represents all probabilistic models resulting from an addition of two probabilistic models"""
 
-    # NOTE since we do not resample the parents, this will give the same result always if we sample multiple times
-    # Note normally, we do not do this during our algorithms anyways, but what if we want to do it -> either we do not support this, or we support it and need a different loop for all k>1, where we get new samples from the parents!
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """Adds the sampled values of both parent distributions.
 
@@ -475,14 +475,28 @@ class SummationModel(ModelResultingFromOperation):
         list:
             The first entry is True, it is always possible to sample, given two parent values. The second entry is the sum of the parents values.
         """
-        parameter_values = self.get_parameter_values()
         return_value = []
         sample_value = []
 
         for i in range(k):
+            visited_parents = [False for i in range(len(self.parents))]
+            parameter_values = [0 for i in range(len(self.parents))]
+            for parent_loc, parent in enumerate(self.parents):
+                parent = parent[0]
+                if(not(visited_parents[parent_loc])):
+                    sample_of_parent = parent.sample_from_distribution(1, rng=rng)
+                    if(sample_of_parent[0]):
+                        for parent_loc_tmp, parent_tmp in enumerate(self.parents):
+                            if(parent==parent_tmp[0]):
+                                visited_parents[parent_loc_tmp]=True
+                                parameter_values[parent_loc_tmp]=sample_of_parent[1][parent_tmp[1]]
+                    else:
+                        return [False]
             sample_value = []
             for j in range(self.dimension):
                 sample_value.append(parameter_values[j]+parameter_values[j+self.dimension])
+            if(len(sample_value)==1):
+                sample_value=sample_value[0]
             return_value.append(sample_value)
 
         return [True, np.array(return_value)]
@@ -506,14 +520,29 @@ class SubtractionModel(ModelResultingFromOperation):
         list:
             The first entry is True, it is always possible to sample, given two parent values. The second entry is the difference of the parents values.
         """
-        parameter_values = self.get_parameter_values()
         return_value = []
         sample_value = []
 
         for i in range(k):
+            visited_parents = [False for i in range(len(self.parents))]
+            parameter_values = [0 for i in range(len(self.parents))]
+            for parent_loc, parent in enumerate(self.parents):
+                parent = parent[0]
+                if (not (visited_parents[parent_loc])):
+                    sample_of_parent = parent.sample_from_distribution(1, rng=rng)
+                    if (sample_of_parent[0]):
+                        for parent_loc_tmp, parent_tmp in enumerate(self.parents):
+                            if (parent == parent_tmp[0]):
+                                visited_parents[parent_loc_tmp] = True
+                                parameter_values[parent_loc_tmp] = sample_of_parent[1][parent_tmp[1]]
+                    else:
+                        return [False]
+
             sample_value = []
             for j in range(self.dimension):
                 sample_value.append(parameter_values[j] - parameter_values[j + self.dimension])
+            if(len(sample_value)==1):
+                sample_value=sample_value[0]
             return_value.append(sample_value)
 
         return [True, np.array(return_value)]
@@ -536,13 +565,29 @@ class MultiplicationModel(ModelResultingFromOperation):
         list:
             The first entry is True, it is always possible to sample, given two parent values. The second entry is the product of the parents values.
             """
-        parameter_values = self.get_parameter_values()
         return_value = []
 
         for i in range(k):
+            visited_parents = [False for i in range(len(self.parents))]
+            parameter_values = [0 for i in range(len(self.parents))]
+            for parent_loc, parent in enumerate(self.parents):
+                parent = parent[0]
+                if (not (visited_parents[parent_loc])):
+                    sample_of_parent = parent.sample_from_distribution(1, rng=rng)
+                    if (sample_of_parent[0]):
+                        for parent_loc_tmp, parent_tmp in enumerate(self.parents):
+                            if (parent == parent_tmp[0]):
+                                visited_parents[parent_loc_tmp] = True
+                                parameter_values[parent_loc_tmp] = sample_of_parent[1][parent_tmp[1]]
+                    else:
+                        return [False]
+
             sample_value = []
+
             for j in range(self.dimension):
                 sample_value.append(parameter_values[j]*parameter_values[j+self.dimension])
+            if (len(sample_value) == 1):
+                sample_value = sample_value[0]
             return_value.append(sample_value)
 
         return [True, np.array(return_value)]
@@ -565,11 +610,24 @@ class DivisionModel(ModelResultingFromOperation):
         list:
             The first entry is True, it is always possible to sample, given two parent values. The second entry is the fraction of the parents values.
         """
-        parameter_values = self.get_parameter_values()
         return_value = []
 
         for i in range(k):
+            visited_parents = [False for i in range(len(self.parents))]
+            parameter_values = [0 for i in range(len(self.parents))]
+            for parent_loc, parent in enumerate(self.parents):
+                parent = parent[0]
+                if (not (visited_parents[parent_loc])):
+                    sample_of_parent = parent.sample_from_distribution(1, rng=rng)
+                    if (sample_of_parent[0]):
+                        for parent_loc_tmp, parent_tmp in enumerate(self.parents):
+                            if (parent == parent_tmp[0]):
+                                visited_parents[parent_loc_tmp] = True
+                                parameter_values[parent_loc_tmp] = sample_of_parent[1][parent_tmp[1]]
+                    else:
+                        return [False]
             sample_value = []
+
             for j in range(self.dimension):
                 sample_value.append(parameter_values[j] * parameter_values[j + self.dimension])
             return_value.append(sample_value)
@@ -594,6 +652,7 @@ class ExponentialModel(ModelResultingFromOperation):
 
         self.dimension = len(parameters[:-1])
 
+    # NOTE I THINK THIS IS STILL WRONG, SEE ABOVE FOR SAMPLING
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """Raises the sampled values of the base by the exponent.
 

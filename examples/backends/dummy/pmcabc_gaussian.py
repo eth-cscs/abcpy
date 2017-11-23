@@ -21,7 +21,7 @@ def infer_parameters():
     distance_calculator = LogReg(statistics_calculator)
     
     # define kernel
-    from abcpy.perturbationkernels import DefaultKernel
+    from abcpy.perturbationkernel import DefaultKernel
     kernel = DefaultKernel([prior])
 
     # define backend

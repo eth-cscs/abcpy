@@ -97,7 +97,9 @@ class Normal(ProbabilisticModel, Continuous):
         parameter_values = self.get_parameter_values()
         mu = parameter_values[0]
         sigma = parameter_values[1]
-        return norm(mu,sigma).pdf(x)
+        pdf = norm(mu,sigma).pdf(x)
+        self.calculated_pdf = pdf
+        return pdf
 
 
 class MultivariateNormal(ProbabilisticModel, Continuous):
@@ -211,7 +213,9 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         parameter_values = self.get_parameter_values()
         mean= parameter_values[:-1]
         cov = parameter_values[-1]
-        return multivariate_normal(mean, cov).pdf(x)
+        pdf = multivariate_normal(mean, cov).pdf(x)
+        self.calculated_pdf = pdf
+        return pdf
 
 
 class MixtureNormal(ProbabilisticModel, Continuous):
@@ -290,7 +294,9 @@ class MixtureNormal(ProbabilisticModel, Continuous):
         mean = self.get_parameter_values()
         cov_1 = np.identity(self.dimension)
         cov_2 = 0.01*cov_1
-        return 0.5*(multivariate_normal(mean, cov_1).pdf(x))+0.5*(multivariate_normal(mean, cov_2).pdf(x))
+        pdf = 0.5*(multivariate_normal(mean, cov_1).pdf(x))+0.5*(multivariate_normal(mean, cov_2).pdf(x))
+        self.calculated_pdf = pdf
+        return pdf
 
 
 class StudentT(ProbabilisticModel, Continuous):
@@ -382,7 +388,9 @@ class StudentT(ProbabilisticModel, Continuous):
         parameter_values = self.get_parameter_values()
         df = parameter_values[1]
         x-=parameter_values[0] #divide by std dev if we include that
-        return gamma((df+1)/2)/(np.sqrt(df*np.pi)*gamma(df/2)*(1+x**2/df)**((df+1)/2))
+        pdf = gamma((df+1)/2)/(np.sqrt(df*np.pi)*gamma(df/2)*(1+x**2/df)**((df+1)/2))
+        self.calculated_pdf = pdf
+        return pdf
 
 
 class MultiStudentT(ProbabilisticModel, Continuous):
@@ -515,6 +523,7 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         normalizing_const = numerator / denominator
         tmp = 1 + 1 / v * np.dot(np.dot(np.transpose(x - mean), np.linalg.inv(cov)), (x - mean))
         density = normalizing_const * pow(tmp, -((v + p) / 2.))
+        self.calculated_pdf = density
         return density
 
 
@@ -647,6 +656,7 @@ class Uniform(ProbabilisticModel, Continuous):
             pdf_value = 1. / np.product(np.array(upper_bound) - np.array(lower_bound))
         else:
             pdf_value = 0.
+        self.calculated_pdf = pdf_value
         return pdf_value
 
 """

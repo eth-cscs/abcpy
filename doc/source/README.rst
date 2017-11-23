@@ -34,8 +34,9 @@ As a simple example, let us consider a Gaussian model. We want to model the heig
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
-    :lines: 5
+    :lines:
     :dedent: 4
+
 Now, we want to model the height of humans by a Gaussian or Normal model, which has two parameters: the mean, denoted by :math:`\mu`, and the standard deviation, denoted by :math:`\sigma`. The goal is to use ABC to infer these yet unknown parameters from the information contained in the observed data.
 
 A pre-requisite for ABC is that we provide certain *prior* knowledge about the parameters which we want to infer. In our case, it is quite simple. We know from experience that the average height should be somewhere between 150cm and 200cm, while the standard deviation is around 5 to 25.
@@ -130,15 +131,18 @@ To see what this means, let us consider the following model:
 
 We are considering a school with different classes. Each class has some number of students. All students of the school take an exam and receive some grade. These grades are our first observed data set.
 
-INCLUDE DATA HERE
+.. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
+    :language: python
+    :lines: 6
+    :dedent: 4
 
-We assume that these grades depend on two priors: the size of the class a student is in, as well as the social background from which the student originates. Both of these quantities can be described using some penalty score. Let's assume that the scores are both normally distributed with some mean and variance. However, they also both depend on the location of the school. We, therefore, have an additional prior, specifiying that the mean of these normal distributions will vary uniformly between two lower and upper bounds.
+We assume that these grades depend on two priors: the size of the class a student is in, as well as the social background from which the student originates. Both of these quantities can be described using some penalty score. Let's assume that the scores are both normally distributed with some mean and variance. However, they also both depend on the location of the school. We, therefore, have an additional parameter in our prior, specifiying that the mean of these normal distributions will vary uniformly between two lower and upper bounds.
 
 Let us define these quantities and dependencies in ABCpy:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
     :language: python
-    :lines: 7-8, 11, 13
+    :lines: 9-10, 16, 18
     :dedent: 4
 
 First, observe that the individual parameters given to *Normal* are given as lists. This is to keep a uniform interface for all probabilistic models.
@@ -150,14 +154,14 @@ We can imagine that if the effects of the priors defined above are negligible, t
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
     :language: python
-    :lines: 16
+    :lines: 21
     :dedent: 4
 
-So, each student will receive some grade which is normally distributed, but this grade is distorted by the other priors defined above. The model which we obtain for the grade of some student hence can be written as:
+So, each student will receive some grade which is normally distributed, but this grade is distorted by the other priors defined above. The model which we obtain for the grade of some student, hence, can be written as:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
     :language: python
-    :lines: 19
+    :lines: 24
     :dedent: 4
 
 Note that we here specified a model using operators. This allows for a lot of flexibility when creating models. Currently, the operators "+", "-", "*", "/" and "**", the power operator in python, are supported.
@@ -168,19 +172,22 @@ For example, let us assume that the school gives out scholarships to students. W
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
     :language: python
-    :lines: 22
+    :lines: 27
     :dedent: 4
 
-However, depending on the students social background, again, the probability will be increased or decreased.
+However, depending on the students social background, again, the score changed.
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
     :language: python
-    :lines: 25
+    :lines: 30
     :dedent: 4
 
 Last but not least, we also need data associated with this second model:
 
-INSERT DATA HERE
+.. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
+    :language: python
+    :lines: 9
+    :dedent: 4
 
 We are now done with specifying the complete structure of the models. Due to the graphical representation for bayesian networks, this can be called a *graph*.
 
@@ -188,14 +195,14 @@ As in the 'Beginners' section, we now need to define a summary statistics to ext
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
     :language: python
-    :lines: 27-28
+    :lines: 33-34
     :dedent: 4
 
 We will also again need to define some distance measure. However, unlike before, we now have two data sets, and we will need to define an overall distance for the two of them together. ABCpy defines a *DefaultJointDistance* which uses logistic regression to compare each data set individually. All individual distances are then added and the result is divided by the number of data sets given.
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
     :language: python
-    :lines: 30-31
+    :lines: 37-38
     :dedent: 4
 
 However, it is very easy to implement your own distances, in case this does not suit you. You can check out our code here to have a starting point on how to do it: INCLUDE LINK TO DISTANCES.PY
@@ -204,7 +211,7 @@ Again, we also need a backend:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
     :language: python
-    :lines: 33-34
+    :lines: 41-42
     :dedent: 4
 
 Finally, we need to specify some kernel to perturb all parameters given by the prior. The parameters that need to be perturbed correspond to the school location, the class size, the social background, the grade and the scholarship score.
@@ -213,35 +220,35 @@ To mix things up from the 'Beginners' section, let us define a few different Ker
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
     :language: python
-    :lines: 36-38
+    :lines: 45-47
     :dedent: 4
 
-To make things easier for our algorithm, we need to pack all kernels together into one overall 'kernel object'. For this, we provide the *JointPerturbationKernel* class.
+To make things easier for our algorithm, we need to pack all kernels together into one overall 'kernel object'. For this, we provide the :py:class:`abcpy.perturbationkernel.JointPerturbationKernel` class.
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
     :language: python
-    :lines: 40-41
+    :lines: 50-51
     :dedent: 4
 
 Now, we just have to define our sampling parameters
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
     :language: python
-    :lines: 43-45
+    :lines: 54-56
     :dedent: 4
 
 , define our PMCABC object
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
     :language: python
-    :lines: 47-48
+    :lines: 59-60
     :dedent: 4
 
 and sample:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
     :language: python
-    :lines: 49
+    :lines: 63
     :dedent: 4
 
 Before you head off to implement your own models, note that there are more probabilistic models describing both continuous and discrete distributions than described in this tutorial. A comprehensive list can be found in INSERT A LINK HERE
