@@ -96,7 +96,7 @@ class PMCTests(unittest.TestCase):
         # use the PMC scheme for T = 2
         T, n_sample, n_samples_per_param = 2, 10, 100
         sampler = PMC([model], likfun, backend, seed = 1)
-        journal = sampler.sample([y_obs], T, n_sample, n_samples_per_param, covFactor = np.array([.1,.1]), iniPoints = None)
+        journal = sampler.sample([y_obs], T, n_sample, n_samples_per_param, covFactors = np.array([.1,.1]), iniPoints = None)
         samples = (journal.get_parameters(), journal.get_weights())
         
         # Compute posterior mean
@@ -105,13 +105,11 @@ class PMCTests(unittest.TestCase):
 
         # test shape of sample
         mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
-        print(mu_post_mean)
-        print(sigma_post_mean)
         self.assertEqual(mu_sample_shape, (10,))
         self.assertEqual(sigma_sample_shape, (10,))
         self.assertEqual(weights_sample_shape, (10,))
-        self.assertLess(abs(mu_post_mean - (-1.4033145848) ), 1e-10)
-        self.assertLess(abs(sigma_post_mean - 7.05175546876), 1e-10)
+        self.assertLess(abs(mu_post_mean - (-3.02112130335) ), 1e-10)
+        self.assertLess(abs(sigma_post_mean - 5.91683779367), 1e-10)
 
 
 class PMCABCTests(unittest.TestCase):
@@ -145,7 +143,7 @@ class PMCABCTests(unittest.TestCase):
         
         accepted_parameters = [[1.0, 1.0 + np.sqrt(2)],[0,0]]
         accepted_weights = np.array([[.5], [.5]])
-        accepted_cov_mat = [np.array([[1.0]])]
+        accepted_cov_mat = [np.array([[1.0,0],[0,1]])]
         rc.accepted_parameters_manager.update_broadcast(rc.backend, accepted_parameters, accepted_weights, accepted_cov_mat)
         kernel_parameters = []
         for kernel in rc.kernel.kernels:
@@ -155,7 +153,7 @@ class PMCABCTests(unittest.TestCase):
         rc.accepted_parameters_manager.update_kernel_values(rc.backend, kernel_parameters=kernel_parameters)
         weight = rc._calculate_weight(theta)
         expected_weight = 0.170794684453
-        self.assertEqual(weight, expected_weight)
+        self.assertAlmostEqual(weight, expected_weight)
         
 
         
