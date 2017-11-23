@@ -126,7 +126,7 @@ Since release XX.XX of ABCpy, it is possible to define more complicated priors t
 
 To see what this means, let us consider the following model:
 
-INSERT PICTURE
+.. image:: network.png
 
 We are considering a school with different classes. Each class has some number of students. All students of the school take an exam and receive some grade. These grades are our first observed data set.
 

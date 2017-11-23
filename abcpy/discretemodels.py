@@ -1,4 +1,5 @@
-from probabilisticmodels import ProbabilisticModel, Discrete, Hyperparameter
+#from probabilisticmodels import ProbabilisticModel, Discrete, Hyperparameter
+from abcpy.probabilisticmodels import ProbabilisticModel, Discrete, Hyperparameter
 
 import numpy as np
 from scipy.special import comb

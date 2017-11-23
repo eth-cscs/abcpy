@@ -1,5 +1,5 @@
 import numpy as np
-from probabilisticmodels import Hyperparameter
+from abcpy.probabilisticmodels import Hyperparameter
 
 class GraphTools():
     """This class implements all methods that will be called recursively on the graph structure."""
@@ -104,7 +104,6 @@ class GraphTools():
         # At the beginning of calculation, obtain the mapping
         if(is_root):
             mapping, garbage_index = self._get_mapping()
-
         # The pdf of each root model is first calculated seperately
         result = [1.]*len(models)
 
@@ -128,11 +127,9 @@ class GraphTools():
 
             # Mark whether the parents of each model have been visited before for this model to avoid repeated calculation
             visited_parents = [False for j in range(len(model.parents))]
-
             # For each parent, the pdf of this parent has to be calculated as well.
             for parent_index, parents in enumerate(model.parents):
                 parent = parents[0]
-
                 # Only calculate the pdf if the parent has never been visited for this model
                 if(not(visited_parents[parent_index])):
                     pdf = self.pdf_of_prior([parent], parameters, mapping=mapping, is_root=False)

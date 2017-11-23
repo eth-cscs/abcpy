@@ -1,5 +1,5 @@
 from abc import ABCMeta, abstractmethod
-from probabilisticmodels import Continuous
+from abcpy.probabilisticmodels import Continuous
 import numpy as np
 from scipy.stats import multivariate_normal
 from scipy.special import gamma
@@ -221,6 +221,7 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
         correctly_ordered_parameters = [[] for i in range(len(continuous_model_values))]
 
         index=0
+
 
         # NOTE I think this is not required?
         # Order the parameters in the order required by the kernel

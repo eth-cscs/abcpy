@@ -1,4 +1,5 @@
-from probabilisticmodels import ProbabilisticModel, Hyperparameter
+#from probabilisticmodels import ProbabilisticModel, Hyperparameter
+from abcpy.probabilisticmodels import ProbabilisticModel, Hyperparameter
 import numpy as np
 
 

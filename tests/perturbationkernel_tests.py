@@ -1,9 +1,9 @@
 import unittest
-from continuousmodels import Normal
-from discretemodels import Binomial
-from acceptedparametersmanager import AcceptedParametersManager
+from abcpy.continuousmodels import Normal
+from abcpy.discretemodels import Binomial
+from abcpy.acceptedparametersmanager import AcceptedParametersManager
 from abcpy.backends import BackendDummy as Backend
-from perturbationkernel import *
+from abcpy.perturbationkernel import *
 
 """Tests whether the methods for each perturbation kernel are working as intended"""
 

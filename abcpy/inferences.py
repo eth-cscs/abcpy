@@ -1,9 +1,10 @@
 from abc import ABCMeta, abstractmethod, abstractproperty
-from graphtools import GraphTools
 
-from probabilisticmodels import *
-from acceptedparametersmanager import *
-from perturbationkernel import DefaultKernel
+from abcpy.graphtools import GraphTools
+from abcpy.probabilisticmodels import *
+from abcpy.acceptedparametersmanager import *
+from abcpy.perturbationkernel import DefaultKernel
+
 
 import numpy as np
 from abcpy.output import Journal
@@ -11,17 +12,6 @@ from scipy import optimize
 
 import warnings
 
-#TODO how can we compare before and after? how do we know that what we produce is correct????
-
-#TODO check whether if we set a seed as well as an rng for the distributions, what happens.
-
-# TODO rename self.model to something like self.root_models?
-
-# TODO  do we want something like "at initialization, check whether self.model is valid, i.e. all required things have pdf and so on?
-
-# TODO maybe some error if yobs != [[]]?
-
-# todo can we always give back perturbation_output? check
 
 class InferenceMethod(GraphTools, metaclass = ABCMeta):
     """
@@ -37,7 +27,6 @@ class InferenceMethod(GraphTools, metaclass = ABCMeta):
         del state['backend']
         return state
 
-    # NOTE this wont work for rejectionabc, but is a method of that -> how to fix?
     def perturb(self, column_index, epochs = 10, rng=np.random.RandomState()):
         """
         Perturbs all free parameters, given the current weights.
@@ -197,7 +186,7 @@ class BaseAdaptivePopulationMC(InferenceMethod, metaclass = ABCMeta):
         """
         raise NotImplementedError
 
-# NOTE as with all other algos: how do we check that this is the same thing as before/ as in general??
+
 class RejectionABC(InferenceMethod):
     """This base class implements the rejection algorithm based inference scheme [1] for
         Approximate Bayesian Computation.
@@ -225,8 +214,8 @@ class RejectionABC(InferenceMethod):
     n_samples_per_param = None
     epsilon = None
 
-    def __init__(self, model, distance, backend, seed=None):
-        self.model = model
+    def __init__(self, root_models, distance, backend, seed=None):
+        self.model = root_models
         self.distance = distance
         self.backend = backend
         self.rng = np.random.RandomState(seed)
@@ -311,7 +300,7 @@ class RejectionABC(InferenceMethod):
                 distance = self.distance.dist_max()
         return self.get_parameters(self.model)
 
-# NOTE the results are not the same as before, but they look like they come from the same thing, it looks okay
+# NOTE seems to be fine
 class PMCABC(BasePMC, InferenceMethod):
     """
     This base class implements a modified version of Population Monte Carlo based inference scheme
@@ -348,11 +337,10 @@ class PMCABC(BasePMC, InferenceMethod):
     n_samples_per_param = None
 
 
-    def __init__(self, model, distance, backend, kernel=None,seed=None):
+    def __init__(self, root_models, distance, backend, kernel=None,seed=None):
 
-        self.model = model
+        self.model = root_models
         self.distance = distance
-
         if(kernel is None):
             warnings.warn("No kernel has been defined. The default kernel will be used. All continuous parameters are perturbed using a multivariate normal, all discrete parameters are perturbed using a random walk.", Warning)
 
@@ -600,7 +588,7 @@ class PMCABC(BasePMC, InferenceMethod):
             return 1.0 * prior_prob / denominator
 
 
-# NOTE NEED MODEL THAT DOESNT CREATE SINGULAR MATRIX!!!!
+# NOTE seems to work
 class PMC(BasePMC, InferenceMethod):
     """
     Population Monte Carlo based inference scheme of Cappé et. al. [1].
@@ -642,8 +630,8 @@ class PMC(BasePMC, InferenceMethod):
     n_samples_per_param = None
 
 
-    def __init__(self, model, likfun, backend, kernel=None, seed=None):
-        self.model = model
+    def __init__(self, root_models, likfun, backend, kernel=None, seed=None):
+        self.model = root_models
         self.likfun = likfun
 
         if(kernel is None):
@@ -812,7 +800,6 @@ class PMC(BasePMC, InferenceMethod):
             new_weights_pds = self.backend.map(self._calculate_weight, new_parameters_pds)
             new_weights = np.array(self.backend.collect(new_weights_pds)).reshape(-1, 1)
 
-            #NOTE this loop can give 0, for example if the example + synliklihood are used!
             sum_of_weights = 0.0
             for i in range(0, self.n_samples):
                 new_weights[i] = new_weights[i] * approx_likelihood_new_parameters[i]
@@ -873,19 +860,23 @@ class PMC(BasePMC, InferenceMethod):
 
         # Simulate the fake data from the model given the parameter value theta
         # print("DEBUG: Simulate model for parameter " + str(theta))
-        y_sim = self.simulate(self.rng)
+        all_y_sim = self.simulate(self.rng)
         # print("DEBUG: Extracting observation.")
-        obs = self.accepted_parameters_manager.observations_bds.value()
+        all_obs = self.accepted_parameters_manager.observations_bds.value()
         # print("DEBUG: Computing likelihood...")
 
-        # NOTE here we get a bug, since obs and y_sib are both list of list -> we need to know what to do in approx_lhd for each element of the list, should we caculate likfun for each and then multiply? or something else?
-        lhd = self.likfun.likelihood(obs, y_sim)
+        total_pdf_at_theta = 1.
 
-        # print("DEBUG: Likelihood is :" + str(lhd))
-        pdf_at_theta = self.pdf_of_prior(self.model, theta)
+        for obs, y_sim in zip(all_obs, all_y_sim):
+            lhd = self.likfun.likelihood(obs, y_sim)
+
+            # print("DEBUG: Likelihood is :" + str(lhd))
+            pdf_at_theta = self.pdf_of_prior(self.model, theta)
+
+            total_pdf_at_theta*=(pdf_at_theta*lhd)
 
         # print("DEBUG: prior pdf evaluated at theta is :" + str(pdf_at_theta))
-        return pdf_at_theta * lhd
+        return total_pdf_at_theta
 
     def _calculate_weight(self, theta):
         """
@@ -953,8 +944,8 @@ class SABC(BaseAnnealing, InferenceMethod):
     smooth_distances_bds = None
     all_distances_bds = None
 
-    def __init__(self, model, distance, backend, kernel=None, seed=None):
-        self.model = model
+    def __init__(self, root_models, distance, backend, kernel=None, seed=None):
+        self.model = root_models
         self.distance = distance
 
         if (kernel is None):
@@ -1382,8 +1373,8 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
     n_samples_per_param = None
     chain_length = None
 
-    def __init__(self, model, distance, backend, kernel=None,seed=None):
-        self.model = model
+    def __init__(self, root_models, distance, backend, kernel=None,seed=None):
+        self.model = root_models
         self.distance = distance
 
         if (kernel is None):
@@ -1726,8 +1717,8 @@ class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
     accepted_dist_bds = None
 
 
-    def __init__(self, model, distance, backend, kernel=None,seed=None):
-        self.model = model
+    def __init__(self, root_models, distance, backend, kernel=None,seed=None):
+        self.model = root_models
         self.distance = distance
 
         if (kernel is None):
@@ -1841,7 +1832,6 @@ class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
                     accepted_cov_mats=None
             else:
                 n_replenish = round(n_samples * alpha)
-                # NOTE will this still do the correct thing?
                 # Throw away N_alpha particles with largest dist
                 accepted_parameters = np.delete(accepted_parameters, np.arange(round(n_samples * alpha)) + (
                 self.n_samples - round(n_samples * alpha)), 0)
@@ -1974,7 +1964,7 @@ class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
                 if distance < self.epsilon[-1] and rng.binomial(1, probability_acceptance) == 1:
                     index_accept += 1
                 else:
-                    self.set_parameters(self.model, theta, 0)
+                    self.set_parameters(theta)
                     distance = self.accepted_dist_bds.value()[index[0]]
 
         return (self.get_parameters(self.model), distance, index_accept)
@@ -2014,8 +2004,8 @@ class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
 
     accepted_dist = None
 
-    def __init__(self,  model, distance, backend, kernel = None,seed=None):
-        self.model = model
+    def __init__(self,  root_models, distance, backend, kernel = None,seed=None):
+        self.model = root_models
         self.distance = distance
 
         if (kernel is None):
@@ -2290,8 +2280,8 @@ class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
 
     accepted_y_sim_bds = None
 
-    def __init__(self, model, distance, backend, kernel = None,seed=None):
-        self.model = model
+    def __init__(self, root_models, distance, backend, kernel = None,seed=None):
+        self.model = root_models
         self.distance = distance
 
         if (kernel is None):

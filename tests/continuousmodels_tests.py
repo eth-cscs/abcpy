@@ -1,4 +1,4 @@
-from continuousmodels import *
+from abcpy.continuousmodels import *
 import unittest
 
 """Tests whether the methods defined for continuous probabilistic models are working as intended."""

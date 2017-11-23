@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
-from abcpy.distributions import Uniform
-from abcpy.models import Gaussian
+from abcpy.continuousmodels import Uniform
+from abcpy.continuousmodels import Normal
 from abcpy.statistics import Identity
 from abcpy.backends import BackendDummy as Backend
 from abcpy.summaryselections import Semiautomatic
@@ -13,8 +13,9 @@ class SemiautomaticTests(unittest.TestCase):
         self.stat_calc = Identity(degree = 1, cross = 0)
         
         # define prior and model
-        prior = Uniform([150, 5],[200, 25])
-        self.model = Gaussian(prior, seed = 1)
+        prior = Uniform([[150, 5],[200, 25]])
+        prior.sample_parameters()
+        self.model = Normal([prior])
 
         # define backend
         self.backend = Backend()
@@ -29,7 +30,7 @@ class SemiautomaticTests(unittest.TestCase):
     def test_transformation(self):
         #Transform statistics extraction
         self.statistics_cal.statistics = lambda x, f2=self.summaryselection.transformation, f1=self.statistics_cal.statistics: f2(f1(x))
-        y_obs = self.model.simulate(10)
+        y_obs = self.model.sample_from_distribution(10)[1]
         extracted_statistics_10 = self.statistics_cal.statistics(y_obs)
         self.assertEqual(np.shape(extracted_statistics_10), (10,2))
         y_obs = self.model.simulate(1)

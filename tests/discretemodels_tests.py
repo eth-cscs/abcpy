@@ -1,5 +1,5 @@
-from probabilisticmodels import *
-from discretemodels import *
+from abcpy.probabilisticmodels import *
+from abcpy.discretemodels import *
 import unittest
 
 """Tests whether the methods defined for discrete probabilistic models are working as intended."""

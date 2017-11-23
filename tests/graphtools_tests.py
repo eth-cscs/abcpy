@@ -1,11 +1,11 @@
 import unittest
-from inferences import *
-from continuousmodels import *
-from discretemodels import *
+from abcpy.inferences import *
+from abcpy.continuousmodels import *
+from abcpy.discretemodels import *
 from abcpy.distances import LogReg
 from abcpy.statistics import Identity
 from abcpy.backends import BackendDummy as Backend
-from perturbationkernel import *
+from abcpy.perturbationkernel import *
 
 """Tests whether the methods defined for operations on the graph work as intended."""
 
@@ -147,7 +147,15 @@ class PerturbTests(unittest.TestCase):
         kernel = DefaultKernel([self.N1, self.N2, self.B1])
         self.sampler.kernel = kernel
 
-        self.sampler.accepted_parameters_manager.update_broadcast(self.sampler.backend, [[3, 0.11, 0.029],[4,0.098, 0.031]], np.array([1,1]))
+        self.sampler.accepted_parameters_manager.update_broadcast(self.sampler.backend, [[3, 0.11, 0.029],[4,0.098, 0.031]], accepted_cov_mats = [[[1,0],[0,1]]], accepted_weights=np.array([1,1]))
+
+
+        kernel_parameters = []
+        for kernel in self.sampler.kernel.kernels:
+            kernel_parameters.append(
+                self.sampler.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
+        self.sampler.accepted_parameters_manager.update_kernel_values(self.sampler.backend, kernel_parameters)
+
 
     def test(self):
         B1_value = self.B1.fixed_values

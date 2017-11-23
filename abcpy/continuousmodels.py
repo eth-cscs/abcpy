@@ -1,4 +1,5 @@
-from probabilisticmodels import ProbabilisticModel, Continuous, Hyperparameter
+#from probabilisticmodels import ProbabilisticModel, Continuous, Hyperparameter
+from abcpy.probabilisticmodels import ProbabilisticModel, Continuous, Hyperparameter
 import numpy as np
 
 from scipy.stats import multivariate_normal, norm
@@ -437,7 +438,7 @@ class MultiStudentT(ProbabilisticModel, Continuous):
                 chisq = rng.chisquare(df, k) / df
                 chisq = chisq.reshape(-1, 1).repeat(p, axis=1)
             mvn = rng.multivariate_normal(np.zeros(p), cov, k)
-            result = (mean + np.divide(mvn, np.sqrt(chisq))[0])
+            result = (mean + np.divide(mvn, np.sqrt(chisq)))
             return_value.append(result)
 
         return return_value

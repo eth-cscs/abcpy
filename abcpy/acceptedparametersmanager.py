@@ -1,4 +1,4 @@
-from probabilisticmodels import Hyperparameter
+from abcpy.probabilisticmodels import Hyperparameter
 
 
 class AcceptedParametersManager():

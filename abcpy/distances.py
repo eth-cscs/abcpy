@@ -174,7 +174,7 @@ class PenLogReg(Distance):
 
         # Since the observations do always stay the same, we can save the summary statistics of them and not recalculate it each time
         self.s1 = None
-        self.data_set
+        self.data_set = None
         
     def distance(self, d1, d2):
         """Calculates the distance between two datasets.

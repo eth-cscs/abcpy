@@ -1,7 +1,7 @@
 import unittest
-from continuousmodels import Normal
-from discretemodels import Binomial
-from acceptedparametersmanager import *
+from abcpy.continuousmodels import Normal
+from abcpy.discretemodels import Binomial
+from abcpy.acceptedparametersmanager import *
 from abcpy.backends import BackendDummy as Backend
 
 """Tests whether the methods defined for AcceptedParametersManager work as intended."""

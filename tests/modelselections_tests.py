@@ -1,7 +1,7 @@
 import unittest
-from abcpy.distributions import Uniform
-from abcpy.models import Gaussian
-from abcpy.models import Student_t
+from abcpy.continuousmodels import Uniform
+from abcpy.continuousmodels import Normal
+from abcpy.continuousmodels import StudentT
 from abcpy.statistics import Identity
 from abcpy.backends import BackendDummy as Backend
 from abcpy.modelselections import RandomForest
@@ -13,14 +13,14 @@ class RandomForestTests(unittest.TestCase):
         self.model_array = [None]*2
         #Model 1: Gaussian
         # define prior
-        prior = Uniform([150, 5],[200, 25])
+        prior = Uniform([[150, 5],[200, 25]])
         # define the model
-        self.model_array[0] = Gaussian(prior, seed = 1)
+        self.model_array[0] = Normal([prior])
         #Model 2: Student t
         # define prior
-        prior = Uniform([150, 1],[200, 30])
+        prior = Uniform([[150, 1],[200, 30]])
         # define the model
-        self.model_array[1] = Student_t(prior, seed = 1)
+        self.model_array[1] = StudentT([prior])
 
         # define statistics
         self.statistics_calc = Identity(degree = 2, cross = False)
