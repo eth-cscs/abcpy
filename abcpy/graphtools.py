@@ -80,7 +80,6 @@ class GraphTools():
             model.visited = False
             model.calculated_pdf = None
 
-    # todo could we somehow use a set?
     def pdf_of_prior(self, models, parameters, mapping=None, is_root=True):
         """
         Calculates the joint probability density function of the prior of the specified models at the given parameter values.
@@ -336,7 +335,6 @@ class GraphTools():
             self._reset_flags()
 
         return ordered_parameters
-
 
     def simulate(self, rng=np.random.RandomState()):
         """Simulates data of each model using the currently sampled or perturbed parameters.

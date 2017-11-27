@@ -5,11 +5,12 @@ from abcpy.continuousmodels import Normal
 from abcpy.continuousmodels import Uniform
 from abcpy.statistics import Identity
 from abcpy.approx_lhd import PenLogReg, SynLiklihood
-
+# NOTE SOME THINGS NOT FIXED
 
 class PenLogRegTests(unittest.TestCase):
     def setUp(self):
         self.prior = Uniform([[-5.0, 5.0], [5.0, 10.0]])
+        self.prior.sample_parameters()
         self.model = Normal([self.prior])
         self.stat_calc = Identity(degree = 2, cross = 0)
         self.likfun = PenLogReg(self.stat_calc, self.model, n_simulate = 100, n_folds = 10, max_iter = 100000, seed = 1)
@@ -53,4 +54,7 @@ class SynLiklihoodTests(unittest.TestCase):
         expected_likelihood = 0.00924953470649
         # This checks whether it computes a correct value and dimension is right
         self.assertLess(comp_likelihood - expected_likelihood, 10e-2)
+
+if __name__ == '__main__':
+    unittest.main()
         

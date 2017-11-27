@@ -1,16 +1,16 @@
 from abcpy.probabilisticmodels import Hyperparameter, ModelResultingFromOperation
 
 
-class AcceptedParametersManager():
-    """
-    This class managed the accepted parameters and other bds objects
-
-    Parameters
-    ----------
-    model: list
-        List of all root probabilistic models
-    """
+class AcceptedParametersManager:
     def __init__(self, model):
+        """
+        This class managed the accepted parameters and other bds objects.
+
+        Parameters
+        ----------
+        model: list
+            List of all root probabilistic models
+        """
         self.model = model
 
         # these are usually big tables, so we broadcast them to have them once
@@ -45,7 +45,7 @@ class AcceptedParametersManager():
         accepted_cov_mats: np.ndarray
             The accepted covariance matrix to be broadcasted
         """
-        # NOTE mabye it should be documented what this is for, I just took 20 minutes to find that it is connected to spark
+        # Used for Spark backend
         def destroy(bc):
             if bc != None:
                 bc.unpersist

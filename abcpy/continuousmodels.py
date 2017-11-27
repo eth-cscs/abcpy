@@ -1,23 +1,22 @@
-#from probabilisticmodels import ProbabilisticModel, Continuous, Hyperparameter
 from abcpy.probabilisticmodels import ProbabilisticModel, Continuous, Hyperparameter
 import numpy as np
 
 from scipy.stats import multivariate_normal, norm
 from scipy.special import gamma
 
-#TODO document somewhere that sample_parameters needs to be called for standalone distributions
 
 
 class Normal(ProbabilisticModel, Continuous):
-    """
-    This class implements a probabilistic model following a normal distribution with mean mu and variance sigma.
-
-    Parameters
-    ----------
-    parameters: list
-        Contains the probabilistic models and hyperparameters from which the model derives. Note that the second value of the list is not allowed to be smaller than 0.
-    """
     def __init__(self, parameters):
+        """
+        This class implements a probabilistic model following a normal distribution with mean mu and variance sigma.
+
+        Parameters
+        ----------
+        parameters: list
+            Contains the probabilistic models and hyperparameters from which the model derives. Note that the second value of the list is not allowed to be smaller than 0.
+        """
+
         # Rewrite user input
         input_parameters = []
         for parameter in parameters:
@@ -103,15 +102,16 @@ class Normal(ProbabilisticModel, Continuous):
 
 
 class MultivariateNormal(ProbabilisticModel, Continuous):
-    """
-    This class implements a probabilistic model following a multivariate normal distribution with mean and covariance matrix.
-
-    Parameters
-    ----------
-    parameters: list of at least length 2
-        Contains the probabilistic models and hyperparameters from which the model derives. The last entry defines the         covariance matrix, while all other entries define the mean. Note that if the mean is n dimensional, the                covariance matrix is required to be of dimension nxn. The covariance matrix is required to be positive-definite.
-    """
     def __init__(self,parameters):
+        """
+        This class implements a probabilistic model following a multivariate normal distribution with mean and covariance matrix.
+
+        Parameters
+        ----------
+        parameters: list of at least length 2
+            Contains the probabilistic models and hyperparameters from which the model derives. The last entry defines the         covariance matrix, while all other entries define the mean. Note that if the mean is n dimensional, the                covariance matrix is required to be of dimension nxn. The covariance matrix is required to be positive-definite.
+        """
+
         # The user input will contain two lists, a list for the mean, and a list for the covariance matrix. Put this into the appropriate format used by the super constructor.
         parameters_temp = []
         for parameter in parameters[0]:
@@ -219,15 +219,15 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
 
 
 class MixtureNormal(ProbabilisticModel, Continuous):
-    """
-    This class implements a probabilistic model following a mixture normal distribution.
-
-    Parameters
-    ----------
-    parameters: list
-        Contains all the probabilistic models and hyperparameters from which the model derives.
-    """
     def __init__(self, parameters):
+        """
+        This class implements a probabilistic model following a mixture normal distribution.
+
+        Parameters
+        ----------
+        parameters: list
+            Contains all the probabilistic models and hyperparameters from which the model derives.
+        """
         super(MixtureNormal, self).__init__(parameters)
         # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = len(self.parents)
@@ -300,15 +300,16 @@ class MixtureNormal(ProbabilisticModel, Continuous):
 
 
 class StudentT(ProbabilisticModel, Continuous):
-    """
-    This class implements a probabilistic model following the Student's T-distribution.
-
-    Parameters
-    ----------
-    parameters: list
-        If the list has two entries, the first entry contains the mean of the distribution, while the second entry             contains the degrees of freedom.
-    """
     def __init__(self, parameters):
+        """
+        This class implements a probabilistic model following the Student's T-distribution.
+
+        Parameters
+        ----------
+        parameters: list
+            If the list has two entries, the first entry contains the mean of the distribution, while the second entry             contains the degrees of freedom.
+        """
+
         # Rewrite user input
         input_parameters = []
         for parameter in parameters:
@@ -394,15 +395,16 @@ class StudentT(ProbabilisticModel, Continuous):
 
 
 class MultiStudentT(ProbabilisticModel, Continuous):
-    """
-    This class implements a probabilistic model following the multivariate Student-T distribution.
-
-    Parameters
-    ----------
-    parameters: list
-        All but the last two entries contain the probabilistic models and hyperparameters from which the model derives.        The second to last entry contains the covariance matrix. If the mean is of dimension n, the covariance matrix          is required to be nxn dimensional. The last entry contains the degrees of freedom.
-    """
     def __init__(self, parameters):
+        """
+        This class implements a probabilistic model following the multivariate Student-T distribution.
+
+        Parameters
+        ----------
+        parameters: list
+            All but the last two entries contain the probabilistic models and hyperparameters from which the model derives.        The second to last entry contains the covariance matrix. If the mean is of dimension n, the covariance matrix          is required to be nxn dimensional. The last entry contains the degrees of freedom.
+        """
+
         # The user input contains a list for the mean. Change this to be compatible with the format required by the super constructor.
         parameters_temp = []
         for parameter in parameters[0]:
@@ -528,15 +530,16 @@ class MultiStudentT(ProbabilisticModel, Continuous):
 
 
 class Uniform(ProbabilisticModel, Continuous):
-    """
-    This class implements a probabilistic model following a uniform distribution.
-
-    Parameters
-    ----------
-    parameters: list
-        Contains two lists. The first list specifies the probabilistic models and hyperparameters from which the lower         bound of the uniform distribution derive. The second list specifies the probabilistic models and hyperparameters from which the upper bound derives.
-    """
     def __init__(self, parameters):
+        """
+        This class implements a probabilistic model following a uniform distribution.
+
+        Parameters
+        ----------
+        parameters: list
+            Contains two lists. The first list specifies the probabilistic models and hyperparameters from which the lower         bound of the uniform distribution derive. The second list specifies the probabilistic models and hyperparameters from which the upper bound derives.
+        """
+
         # The user input is checked, since the input has to be rewritten internally before sending it to the constructor of the probabilistic model
         self._check_user_input(parameters)
 
@@ -659,9 +662,4 @@ class Uniform(ProbabilisticModel, Continuous):
         self.calculated_pdf = pdf_value
         return pdf_value
 
-"""
-class ChiSquared(Continuous, ProbabilisticModel):
-    def __init__(self, parameters):
-        super(ChiSquared, self).__init__(parameters)
-        self.dimension = 1"""
 

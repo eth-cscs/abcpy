@@ -1,4 +1,3 @@
-#from probabilisticmodels import ProbabilisticModel, Hyperparameter
 from abcpy.probabilisticmodels import ProbabilisticModel, Hyperparameter
 import numpy as np
 
@@ -28,6 +27,7 @@ class StochLorenz95(ProbabilisticModel):
         super(StochLorenz95, self).__init__(parameters)
         self.n_timestep = n_timestep
 
+
         # Assign initial state
         if not initial_state == None:
             self.initial_state = initial_state
@@ -45,6 +45,7 @@ class StochLorenz95(ProbabilisticModel):
         self.F = 10
         self.sigma_e = 1
         self.phi = 0.4
+
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         # Generate n_simulate time-series of weather variables satisfying Lorenz 95 equations
@@ -156,7 +157,6 @@ class StochLorenz95(ProbabilisticModel):
         # Return the solved timeseries at the values in timespan
         return timeseries
 
-    # NOTE are there any restrictions?
     def _check_parameters_at_initialization(self, parameters):
         return True
 

@@ -4,7 +4,7 @@ WGET=wget -q
 
 CC=g++
 CPPFLAGS=-fPIC
-INCLUDEPATH=/usr/include/python3.4m
+INCLUDEPATH=/usr/include/python3.5m
 
 cpp_simple: _gaussian_model_simple.so gaussian_model_simple.py
 

@@ -1,4 +1,3 @@
-#from probabilisticmodels import ProbabilisticModel, Discrete, Hyperparameter
 from abcpy.probabilisticmodels import ProbabilisticModel, Discrete, Hyperparameter
 
 import numpy as np
@@ -7,14 +6,14 @@ from scipy.stats import poisson, bernoulli
 
 
 class Bernoulli(Discrete, ProbabilisticModel):
-    """This class implements a probabilistic model following a bernoulli distribution.
-
-    Parameters
-    ----------
-    parameters: list
-         A list containing one entry, the probability of the distribution.
-    """
     def __init__(self, parameters):
+        """This class implements a probabilistic model following a bernoulli distribution.
+
+        Parameters
+        ----------
+        parameters: list
+             A list containing one entry, the probability of the distribution.
+        """
         super(Bernoulli, self).__init__(parameters)
         self.dimension = 1
 
@@ -70,15 +69,16 @@ class Bernoulli(Discrete, ProbabilisticModel):
 
 
 class Binomial(Discrete, ProbabilisticModel):
-    """
-    This class implements a probabilistic model following a binomial distribution.
-
-    Parameters
-    ----------
-    parameters: list
-        Contains the probabilistic models and hyperparameters from which the model derives. Note that the first entry of the list, n, has to be larger than or equal to 0, while the second entry, p, has to be in the interval [0,1].
-    """
     def __init__(self, parameters):
+        """
+        This class implements a probabilistic model following a binomial distribution.
+
+        Parameters
+        ----------
+        parameters: list
+            Contains the probabilistic models and hyperparameters from which the model derives. Note that the first entry of the list, n, has to be larger than or equal to 0, while the second entry, p, has to be in the interval [0,1].
+        """
+
         # Rewrite user input
         input_parameters = []
         for parameter in parameters:
@@ -171,14 +171,14 @@ class Binomial(Discrete, ProbabilisticModel):
 
 
 class Poisson(Discrete, ProbabilisticModel):
-    """This class implements a probabilistic model following a poisson distribution.
-
-    Parameters
-    ----------
-    parameters: list
-        A list containing one entry, the mean of the distribution.
-    """
     def __init__(self, parameters):
+        """This class implements a probabilistic model following a poisson distribution.
+
+        Parameters
+        ----------
+        parameters: list
+            A list containing one entry, the mean of the distribution.
+        """
         super(Poisson, self).__init__(parameters)
         self.dimension = 1
 

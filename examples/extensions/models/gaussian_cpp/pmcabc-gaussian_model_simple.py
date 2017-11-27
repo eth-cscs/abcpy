@@ -1,6 +1,6 @@
 import numpy as np
 
-from abcpy.probabilisticmodels import ProbabilisticModel
+from abcpy.probabilisticmodels import ProbabilisticModel, Hyperparameter
 from gaussian_model_simple import gaussian_model
 
 class Gaussian(ProbabilisticModel):
@@ -70,7 +70,7 @@ def infer_parameters():
     
     # define sampling scheme
     from abcpy.inferences import PMCABC
-    sampler = PMCABC([model], distance_calculator, kernel, backend)
+    sampler = PMCABC([model], distance_calculator, backend)
     
     # sample from scheme
     T, n_sample, n_samples_per_param = 3, 100, 10

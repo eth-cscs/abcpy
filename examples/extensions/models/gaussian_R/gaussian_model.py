@@ -1,6 +1,6 @@
 import numpy as np
 
-from abcpy.models import Model
+from abcpy.probabilisticmodels import ProbabilisticModel, Hyperparameter
 
 
 import rpy2.robjects as robjects

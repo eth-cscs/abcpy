@@ -55,17 +55,19 @@ If these properties are ensured, you can implement the dependency structure in A
 
 Let us now introduce some terms to make understanding the rest of this tutorial easier.
 
-In ABCpy, a :py:class:`abcpy.probabilisticmodel.ProbabilisticModel` object represents a *node* in our network. This includes the models, which we will usually call *root models* due to the fact that they can be seen as roots of the directed graph (with all nodes that are not root models pointing to the roots, either directly or indirectly). The rest of the graph is usually called the *prior*.
+In ABCpy, a :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object represents a *node* in our network. This includes the models, which we will usually call *root models* due to the fact that they can be seen as roots of the directed graph (with all nodes that are not root models pointing to the roots, either directly or indirectly). The rest of the graph is usually called the *prior*.
 
 A probabilistic model here has various properties. Although it is often possible and useful to think of one as a distribution, there is more associated with this object than just a distribution, which is why we did not call the object distribution.
 
 For you to perform inference on some data, it is not necessary to understand these properties. If you are interested in implementing either your own distributions or other models, please check the `Implementing a new Model`_ section  below.
 
 
-The way a bayesian network is now built is simple: :py:class:`abcpy.probabilisticmodel.ProbabilisticModel` object has some input parameters. Each of these parameters can either be a 'fixed value', for bayesian networks often called Hyperparameter, or another probabilistic model. Behind the scene, ABCpy will ensure that the graph structure is implemented and that inference will be performed on the whole construct.
+The way a bayesian network is now built is simple: :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object has some input parameters. Each of these parameters can either be a 'fixed value', for bayesian networks often called hyperparameter, or another probabilistic model. Behind the scene, ABCpy will ensure that the graph structure is implemented and that inference will be performed on the whole construct.
 
 
 Since each node of our graph can be a probabilistic model, it does not have one fixed value. However, to perform inference, we of course need to sample values from the probabilistic models, and use those to simulate data. These sampled values we will usually call parameter values. These values are what you will get as an end result of the inference.
+
+An important thing to keep in mind: probabilistic models are initialized without sampling values from them immediately. This works for inference algorithms, since they will always first sample from the prior. However, if you want to implement a graph and then sample from the root model, or any other model within the graph structure, the necessary parameter values will not yet be defined. Therefore, if you want to have a 'stand-alone' distribution or model, you will need to call the method :py:method:`abcpy.probabilisticmodels.sample_parameter()` for any parameter in the graph, which is best done right after initializing the relevant parameters. Only after this step is performed can you call the :py:method:`abcpy.probabilisticmodel.sample_from_distribution` method to obtain samples from the distribution.
 
 
 It is now also possible to define multiple root models on which the inference acts. The graphs given for each root model can be connected to those of different root models or they can be independent (however, it is not possible for a root model to be input to another root model within the same round of inference). Note though that of course, for each root model, the graph has to be one connected component. Otherwise, there is no way for the algorithm to know how to connect the information on different nodes to affect the root model.
@@ -778,19 +780,90 @@ Let us first look at the constructor. Distances in ABCpy should act on summary s
     :lines: 16-18
     :dedent: 4
 
+Then, we need to define how the total distance is calculated. In our case, we decide that we will iterate over each observed and simulated data set, calculate the individual distance between those, add all these individual distances, and in the end divide the result by the number of data sets that we calculated the distance of in this way.
+
+.. literalinclude:: ../../examples/extensions/distances/default_distance.py
+    :language: python
+    :lines: 20-25
+    :dedent: 4
+
+Finally, we need to define the maximal distance that can be obtained from this distance measure. Since logistic regression is bound by one, and we divide the sum of LogRegs by the number of data sets compared, this new distance will still be bound by one:
+
+.. literalinclude:: ../../examples/extensions/distances/default_distance.py
+    :language: python
+    :lines: 27-28
+    :dedent: 4
+
+
+Add your perturbation kernel
+============================
+
+Kernels in ABCpy can be of two types. They can either be derived from the class :py:class:`abcpy.perturbationkernel.ContinuousKernel` or from :py:class:`abcpy.perturbationkernel.DiscreteKernel`. Whether it is a discrete or continuous kernel defines whether this kernel will act on discrete or continuous parameters. The only difference between the two is that a continous kernel has a probability density function, while a discrete kernel has a probability mass function.
+
+For this example, we will implement a kernel which perturbs continuous parameters using a multivariate normal distribution. This is one of the kernels already implemented within ABCpy.
+
+A kernel always needs the following methods to be a valid object of type :py:class:`abcpy.perturbationkernel.PerturbationKernel`:
+
+.. literalinclude:: ../../examples/extensions/perturbationkernels/multivariate_normal_kernel.py
+    :language: python
+    :lines: 5,8,30,60
+    :dedent: 4
+
+First, we need to define a constructor. This should be rather easy. We expect that the arguments passed to the constructor should be of type :py:class:`abcpy.probabilisticmodels.ProbabilisticModel`, the probabilistic models that should be perturbed using this kernel. All these models should be saved on the kernel for future reference.
+
+.. literalinclude:: ../../examples/extensions/perturbationkernels/multivariate_normal_kernel.py
+    :language: python
+    :lines: 5-6
+    :dedent: 4
+
+Next, we need the method :py:method:`calculate_cov`. This method calculates the covariance matrix for your kernel. Of course, not all kernels will have covariance matrices. However, since some kernels do, it is necessary to implement this method for all kernels. If your kernel does not have a covariance matrix, simply return an empty list.
+
+The two arguments passed to this method are the accepted parameters manager and the kernel index. An object of type :py:class:`abcpy.acceptedparametersmanager.AcceptedParametersManager` is always initialized when an inference method object is instantiated. On this object, the accepted parameters, accepted weights, accepted covariance matrices for all kernels and other information is stored. This is such that various objects can access this information without much hassle centrally. To access any of the quantities mentioned above, you will have to call the `.value()` method of the corresponding quantity.
+The second parameter, the kernel index, specifies the index of the kernel in the :py:class:abcpy.perturbationkernel.JointPerturbationKernel`. Since the user is expected to collect all his kernels in one object of this class, this index will automatically be provided. You do not need any knowledge of what the index actually is. However, it is used to access the values relevant to your kernel, for example the current calculated covariance matrix for a kernel.
+
+Let us now look at the implementation of the method:
+
+.. literalinclude:: ../../examples/extensions/perturbationkernels/multivariate_normal_kernel.py
+    :language: python
+    :lines: 8,23-28
+    :dedent: 4
+
+Some of the implemented inference algorithms weigh different sets of parameters differently. Therefore, if such weights are provided, we would like to weight the covariance matrix accordingly. We, therefore, check whether the accepted parameters manager contains any weights. If it does, we retrieve these weights, and calculate the covariance matrix using numpy, the parameters relevant to this kernel and the weights. If there are no weights, we simply calculate an unweighted covariance matrix.
+
+
+Next, we need a method called :py:method:`update`. This method perturbs the parameters that are associated with the probabilistic models the kernel should perturb.
+
+The method again requires an accepted parameters manager and a kernel index. In addition to this, a row index is required, as well as a random number generator. The row index specifies which set of parameters should be perturbed. There are usually multiple sets, which should be perturbed by different workers during parallelization. You, again, need not worry about the actual value of this index. The random number generator should be a random number generator compatible with numpy. This is due to the fact that other methods will pass their random number generator to this method, and all random number generators used within ABCpy are provided by numpy. Also, note that even if your kernel does not require a random number generator, you still need to pass this argument.
+
+.. literalinclude:: ../../examples/extensions/perturbationkernels/multivariate_normal_kernel.py
+    :language: python
+    :lines: 31,52-60
+    :dedent: 4
+
+The first line shows how you obtain the values of the parameters that your kernel should perturb. These values are converted to a numpy array. Then, the covariance matrix is retrieved from the accepted parameters manager using a similar function call. Finally, the parameters are perturbed and returned.
+
+Last but not least, each kernel requires a probability density or probability mass function.
+
+This method requires an accepted parameters manager, a kernel index and a row index, which all do the same things as explained above. Additionally, a parameter `x` is required, which specifies the point at which the probability density function should be evaluated.
+
+.. literalinclude:: ../../examples/extensions/perturbationkernels/multivariate_normal_kernel.py
+    :language: python
+    :lines: 62,83-87
+    :dedent: 4
+
+We simply obtain the parameter values and covariance matrix for this kernel and calculate the probability density function using scipy.
+
+Note that after defining your own kernel, you will need to collect all your kernels in a :py:class:`abcpy.perturbationkernel.JointPerturbationKernel` object in order for inference to work. For an example on how to do this, check the `Advanced`_ section.
+
+
+
 
 ..
-  Extending: Add your Distance
-  ============================
-  TBD
   Extending: Add your Statistics
   ==============================
   TBD
   Extending: Add your approx_likelihood
   =====================================
-  TBD
-  Extending: Add you prior
-  ========================
   TBD
   Extending: Add your own inference scheme
   ========================================

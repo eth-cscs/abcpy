@@ -4,7 +4,6 @@ import numpy as np
 from glmnet import LogitNet
 from sklearn import linear_model
 
-#TODO  we could give an option to initialize the default distance with either of the three other distances. Then, we would not expect the other threes to be ever called by the user and could remove the [] in the default/d1[0] in the rest.
 
 class Distance(metaclass = ABCMeta):
     """This abstract base class defines how the distance between the observed and
@@ -258,16 +257,16 @@ class LogReg(Distance):
 
 
 class DefaultJointDistance(Distance):
-    """This class implements a default distance to be used when multiple root models exist. It uses LogReg as the distance calculator for each root model, and adds all individual distances.
-
-    Parameters
-    ----------
-    statistics: abcpy.statistics object
-        The statistics calculator to be used
-    number_of_models: integer
-        The number of root models on which the distance will act.
-    """
     def __init__(self, statistics):
+        """This class implements a default distance to be used when multiple root models exist. It uses LogReg as the distance calculator for each root model, and adds all individual distances.
+
+        Parameters
+        ----------
+        statistics: abcpy.statistics object
+            The statistics calculator to be used
+        number_of_models: integer
+            The number of root models on which the distance will act.
+        """
         self.statistics_calc = statistics
         self.distance_calc = LogReg(self.statistics_calc)
 

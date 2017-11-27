@@ -1,5 +1,5 @@
 import numpy as np
-from abcpy.distances import Distance
+from abcpy.distances import Distance, LogReg
 
 
 class DefaultJointDistance(Distance):

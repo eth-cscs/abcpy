@@ -2,17 +2,16 @@ from abc import ABCMeta, abstractmethod
 from scipy.integrate import quad
 import numpy as np
 
-#NOTE should we make hyperparameter prviate? the user should never call it as it would break behavior
-
-
 class ProbabilisticModel(metaclass = ABCMeta):
     """This abstract class represents all probabilistic models.
-
+    """
+    def __init__(self, parameters):
+        """
         Parameters
         ----------
         parameters: list, each element is either a tupel containing the parent of type abcpy.ProbabilisticModel as well as the output index to which this parameter corresponds, a ProbabilisticModel or a hyperparameter.
-    """
-    def __init__(self, parameters):
+        """
+
         # Save all probabilistic models and hyperparameters from which the model derives
         self.parents = []
 
@@ -94,7 +93,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
             return True
         return False
 
-    #NOTE currently, only check_parameters of uniform can return False
     def set_parameters(self, parameters):
         """
         Sets the parameter values of the probabilistic model to the specified values.
@@ -357,13 +355,16 @@ class Hyperparameter(ProbabilisticModel):
     """
     This class represents all hyperparameters (i.e. fixed parameters).
 
-    Parameters
-    ----------
-    parameters: list
-        The values to which the hyperparameter should be set
     """
     def __init__(self, parameters):
-        #a hyperparameter is defined by the fact that it does not have any parents
+        """
+
+        Parameters
+        ----------
+        parameters: list
+            The values to which the hyperparameter should be set
+        """
+        # A hyperparameter is defined by the fact that it does not have any parents
         self.parents = []
         self.fixed_values = parameters
         self.visited = False
@@ -398,14 +399,16 @@ class Hyperparameter(ProbabilisticModel):
 
 class ModelResultingFromOperation(ProbabilisticModel):
     """This class implements probabilistic models returned after performing an operation on two probabilistic models
+        """
+
+    def __init__(self, parameters):
+        """
 
         Parameters
         ----------
         parameters: list
             List of probabilistic models that should be added together.
         """
-
-    def __init__(self, parameters):
         super(ModelResultingFromOperation, self).__init__(parameters)
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):

@@ -42,7 +42,7 @@ class Summaryselections(metaclass = ABCMeta):
 
 
 class Semiautomatic(Summaryselections):
-    """This class implements the semi auomatic summary statistics choice described in Fearnhead and Prangle [1].
+    """This class implements the semi automatic summary statistics choice described in Fearnhead and Prangle [1].
     
     [1] Fearnhead P., Prangle D. 2012. Constructing summary statistics for approximate
     Bayesian computation: semi-automatic approximate Bayesian computation. J. Roy. Stat. Soc. B 74:419–474.    
