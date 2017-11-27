@@ -222,7 +222,6 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
 
         index=0
 
-
         # NOTE I think this is not required?
         # Order the parameters in the order required by the kernel
         for model in self.models:

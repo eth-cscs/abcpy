@@ -80,11 +80,11 @@ class AcceptedParametersManager():
         mapping = []
 
         for model in models:
-            if(not(model.visited) and not(isinstance(model, Hyperparameter)) and not(isinstance(model, ModelResultingFromOperation))):
+            if(not(model.visited) and not(isinstance(model, Hyperparameter))):
                 model.visited = True
 
                 # Only parameters that are neither root nor Hyperparameters are included in the mapping
-                if(not(is_root)):
+                if(not(is_root) and not(isinstance(model, ModelResultingFromOperation))):
                     for i in range(model.dimension):
                         mapping.append((model, index))
                         index+=1

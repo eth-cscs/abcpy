@@ -4,6 +4,9 @@ import numpy as np
 from sklearn.covariance import ledoit_wolf
 from glmnet import LogitNet 
 
+
+#note CAN WE GIVE GRAPHTOOLS TO THIS, SO WE CAN SAMPLE_PARAMETERS FOR ALL?
+
 class Approx_likelihood(metaclass = ABCMeta):
     """This abstract base class defines the approximate likelihood 
     function. To approximate the likelihood function at a parameter value given observed data set,

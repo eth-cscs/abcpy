@@ -76,8 +76,7 @@ class GraphTools():
         # For each model, the flags of the parents get reset recursively.
         for model in models:
             for parent, parent_index in model.parents:
-                if(parent.visited):
-                    self._reset_flags([parent])
+                self._reset_flags([parent])
             model.visited = False
             model.calculated_pdf = None
 

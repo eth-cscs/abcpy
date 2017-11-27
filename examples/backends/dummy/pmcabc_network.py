@@ -8,31 +8,26 @@ y_obs_1 = [3.872486707973337, 4.6735380808674405, 3.9703538990858376, 4.11021272
 # The data corresponding to model_2 defined below
 y_obs_2 = [2.7179657436207805, 2.124647285937229, 3.07193407853297, 2.335024761813643, 2.871893855192, 3.4332002458233837, 3.649996835818173, 3.50292335102711, 2.815638168018455, 2.3581613289315992, 2.2794821846395568, 2.8725835459926503, 3.5588573782815685, 2.26053126526137, 1.8998143530749971, 2.101110815311782, 2.3482974964831573, 2.2707679029919206, 2.4624550491079225, 2.867017757972507, 3.204249152084959, 2.4489542437714213, 1.875415915801106, 2.5604889644872433, 3.891985093269989, 2.7233633223405205, 2.2861070389383533, 2.9758813233490082, 3.1183403287267755, 2.911814060853062, 2.60896794303205, 3.5717098647480316, 3.3355752461779824, 1.99172284546858, 2.339937680892163, 2.9835630207301636, 2.1684912355975774, 3.014847335983034, 2.7844122961916202, 2.752119871525148, 2.1567428931391635, 2.5803629307680644, 2.7326646074552103, 2.559237193255186, 3.13478196958166, 2.388760269933492, 3.2822443541491815, 2.0114405441787437, 3.0380056368041073, 2.4889680313769724, 2.821660164621084, 3.343985964873723, 3.1866861970287808, 4.4535037154856045, 3.0026333138006027, 2.0675706089352612, 2.3835301730913185, 2.584208398359566, 3.288077633446465, 2.6955853384148183, 2.918315169739928, 3.2464814419322985, 2.1601516779909433, 3.231003347780546, 1.0893224045062178, 0.8032302688764734, 2.868438615047827]
 
-# The prior information specifiying that depending on the school location, the score for class size and social background should be different
+# The prior information changing the class size and social background, depending on school location
 from abcpy.continuousmodels import Uniform, Normal
-school_location_score = Uniform([[0.2,0.2],[0.3,0.3]])
+school_location = Uniform([[0.2,0.2],[0.3,0.3]])
 
-# The school location affects both the class size and the social background
-class_size_score = Normal([[school_location_score[0]], [0.1]])
+# The average class size of a certain school
+class_size = Normal([[school_location_score[0]], [0.1]])
 
-background_score = Normal([[school_location_score[1]], [0.1]])
+# The average social background of a student in a certain school
+background = Normal([[school_location_score[1]], [0.1]])
 
-# Mean grade
+# The average grade obtained in the exam
 grade = Normal([[4.5],[0.25]])
 
-# Define a intermediate parameter, so the kernel can perturb it
-#intermediate_1 = grade-class_size_score
+# The grade a student of a certain school receives
+model_1 = grade-class_size-background
 
+# A quantity that determines whether a student will receive a scholarship
+scholarship = Normal([[2],[0.5]])
 
-# The final model of the grade
-model_1 = grade-class_size_score-background_score
-
-#Probability that somebody gets scholarship
-scholarship_score = Normal([[2],[0.5]])
-
-#intermediate_2 = 3*background_score
-
-# The final score, including the social background
+# A quantity determining whether a student receives a scholarship, including his social background
 model_2 = scholarship_score + 3*background_score
 
 # Define a summary statistics
@@ -49,8 +44,8 @@ backend = Backend()
 
 # Define kernels
 from abcpy.perturbationkernel import MultivariateNormalKernel, MultivariateStudentTKernel
-kernel_1 = MultivariateNormalKernel([school_location_score, scholarship_score])
-kernel_2 = MultivariateStudentTKernel([class_size_score, background_score, grade], df=3)
+kernel_1 = MultivariateNormalKernel([school_location, scholarship])
+kernel_2 = MultivariateStudentTKernel([class_size, background, grade], df=3)
 
 # Join the defined kernels
 from abcpy.perturbationkernel import JointPerturbationKernel
@@ -62,9 +57,8 @@ eps_arr = np.array([.75])
 epsilon_percentile = 10
 
 # Define sampler
-from inferences import PMCABC
+from abcpy.inferences import PMCABC
 sampler = PMCABC([model_1, model_2], distance_calculator, backend, kernel)
-
 
 # Sample
 journal = sampler.sample([y_obs_1, y_obs_2], T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
