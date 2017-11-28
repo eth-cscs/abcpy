@@ -29,8 +29,11 @@ We first give a short intro into the structure of ABCpy, to hopefully make the r
 
 After that, if you are new to either inference in general, ABC or bayesian networks, we recommend you start with the `Beginners`_ section. If you are already more experienced, there is an `Advanced`_ section further along.
 
-The structure of ABCpy
-~~~~~~~~~~~~~~~~~~~~~~
+What's new?
+===========
+
+The graph structure
+~~~~~~~~~~~~~~~~~~~
 
 Since ABCpy XX.XX, it is possible to perform inference on bayesian networks. To illustrate what this means, let us consider the following example from Wikipedia:
 
@@ -47,7 +50,7 @@ Dependencies are represented as arrows.
 
 As you can see, this structure can be seen as a graph. For a graph to be a bayesian network, some things need to be fulfilled:
 
-1) the graph is directed. This means that an arrow can only go in one direction. It is not possible for example, that the sprinkler only runs when it is not raining, but the sprinkler also somehow affects whether it is raining.
+1) the graph is directed. This means that the arrows, the edges of the graph, have a direction associated with them. The direction tells us which parameter affects which other parameter. In our example, rain affects whether the sprinkler is running. Therefore, there is a directed edge from rain to sprinkler. However, the sprinkler does not affect whether it is raining, and, therefore, there is no directed edge from sprinkler to rain.
 
 2) the graph is acyclic. This means that no parameter can indirectly or indirectly affect itself.
 
@@ -55,25 +58,35 @@ If these properties are ensured, you can implement the dependency structure in A
 
 Let us now introduce some terms to make understanding the rest of this tutorial easier.
 
-In ABCpy, a :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object represents a *node* in our network. This includes the models, which we will usually call *root models* due to the fact that they can be seen as roots of the directed graph (with all nodes that are not root models pointing to the roots, either directly or indirectly). The rest of the graph is usually called the *prior*.
+In ABCpy, a :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object represents a *node* in our network. This includes the models that model our observed data. These we will usually call *root models* or *roots* due to the fact that they can be seen as roots of the directed graph (with all nodes that are not root models pointing to the roots, either directly or indirectly). The rest of the graph is usually called the *prior*.
 
 A probabilistic model here has various properties. Although it is often possible and useful to think of one as a distribution, there is more associated with this object than just a distribution, which is why we did not call the object distribution.
 
 For you to perform inference on some data, it is not necessary to understand these properties. If you are interested in implementing either your own distributions or other models, please check the `Implementing a new Model`_ section  below.
 
 
-The way a bayesian network is now built is simple: :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object has some input parameters. Each of these parameters can either be a 'fixed value', for bayesian networks often called hyperparameter, or another probabilistic model. Behind the scene, ABCpy will ensure that the graph structure is implemented and that inference will be performed on the whole construct.
+The way a bayesian network is now built within ABCpy is simple: each :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object has some input parameters. Each of these parameters can either be a 'fixed value', for bayesian networks often called hyperparameter, or another probabilistic model. Behind the scene, ABCpy will ensure that the graph structure is implemented and that inference will be performed on the whole construct.
 
 
 Since each node of our graph can be a probabilistic model, it does not have one fixed value. However, to perform inference, we of course need to sample values from the probabilistic models, and use those to simulate data. These sampled values we will usually call parameter values. These values are what you will get as an end result of the inference.
 
-An important thing to keep in mind: probabilistic models are initialized without sampling values from them immediately. This works for inference algorithms, since they will always first sample from the prior. However, if you want to implement a graph and then sample from the root model, or any other model within the graph structure, the necessary parameter values will not yet be defined. Therefore, if you want to have a 'stand-alone' distribution or model, you will need to call the method :py:method:`abcpy.probabilisticmodels.sample_parameter()` for any parameter in the graph, which is best done right after initializing the relevant parameters. Only after this step is performed can you call the :py:method:`abcpy.probabilisticmodel.sample_from_distribution` method to obtain samples from the distribution.
+An important thing to keep in mind: probabilistic models are initialized without sampling values from them immediately. This works for inference algorithms, since these algorithms will contain a statement that samples from the prior first. However, if you want to implement a graph and then sample from the root model, or any other model within the graph structure, the necessary parameter values will not yet be defined. Therefore, if you want to have a 'stand-alone' distribution or model, you will need to call the method :py:method:`abcpy.probabilisticmodels.sample_parameter()` for any parameter in the graph, which is best done right after initializing the relevant parameters. Only after this step is performed can you call the :py:method:`abcpy.probabilisticmodel.sample_from_distribution` method to obtain samples from the distribution.
+
+Some words on performance: all operations on this graph structure are performed using recursion. This will, in general, slow down your code compared to previous versions of ABCpy, even if the prior information you give is the exact same as before. However, this will not affect the time inference needs to complete for most use cases, where you define your own root model. This is due to the fact that simulation is usually a lot slower than traversing the graph. Even if you do not specify such a complicated root model, your run time should still be acceptable, given that you do not implement large graphs. Due to the limitations of ABC regarding low dimensionality of your problem, this should, however, not be an issue.
+
+Multiple roots
+~~~~~~~~~~~~~~
+
+It is now also possible to define multiple root models on which the inference acts. The graphs given for each root model can be connected to those of different root models or they can be independent (however, it is not possible for a root model to be input to another root model within the same round of inference). Note though that of course, for each root model, the graph has to consist of only one weakly connected component. Otherwise, there is no way for the algorithm to know how to connect the information on different nodes to affect the root model.
+
+Operations
+~~~~~~~~~~
+
+Not only can you now connect :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` objects through their input parameters, it is also possible to perform operations on these objects to produce new probabilistic models. In short, this means that you can now perform the operations "+", "-", "*", "/" and "**" (the power operator in python) on any two nodes of your graph, giving a new node. It is possible to perform these operations between both probabilistic models and other probabilistic models, or probabilistic models and general data types of python (integer, float, and so on).
+
+Please keep in mind that parameters defined via operations will not be included in your list of parameters in the journal file. However, all parameters that are part of the operation, and are not fixed, will be included, so you can easily perform the required operations on the final result to get these parameters, if necessary.
 
 
-It is now also possible to define multiple root models on which the inference acts. The graphs given for each root model can be connected to those of different root models or they can be independent (however, it is not possible for a root model to be input to another root model within the same round of inference). Note though that of course, for each root model, the graph has to be one connected component. Otherwise, there is no way for the algorithm to know how to connect the information on different nodes to affect the root model.
-
-
-Some words on performance: all operations on this graph structure are performed using recursion. This will, in general, slow down your code compared to previous versions of ABCpy, even if the prior information you give is the exact same as before. However, this will not affect the time inference needs to complete for most use cases, where you define your own root model. This is due to the fact that simulation is usually a lot slower than traversing the graph. Even if you do not specify a special root model, your run time should still be acceptable, given that you do not implement large graphs. Due to the limitations of ABC regarding low dimensionality of your problem, this should, however, not be an issue.
 
 
 Beginners
@@ -209,10 +222,6 @@ So, each student will receive some grade which is normally distributed, but this
     :language: python
     :lines: 25
     :dedent: 4
-
-Note that we here specified a model using operators. This allows for a lot of flexibility when creating models. Currently, the operators "+", "-", "*", "/" and "**", the power operator in python, are supported.
-
-Please keep in mind that parameters defined via operations will not be included in your list of parameters in the journal file. However, all parameters that are part of the operation, and are not fixed, will be included, so you can easily perform the required operations on the final result to get these parameters, if necessary.
 
 
 ABCpy not only supports the creation of complicated priors. It is now also possible to have multiple models, each associated with some observed data, that share some parts of their priors.

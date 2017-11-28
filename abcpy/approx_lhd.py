@@ -1,11 +1,11 @@
 from abc import ABCMeta, abstractmethod
 
+from abcpy.graphtools import GraphTools
+
 import numpy as np
 from sklearn.covariance import ledoit_wolf
 from glmnet import LogitNet 
 
-
-#note CAN WE GIVE GRAPHTOOLS TO THIS, SO WE CAN SAMPLE_PARAMETERS FOR ALL?
 
 class Approx_likelihood(metaclass = ABCMeta):
     """This abstract base class defines the approximate likelihood 
@@ -99,7 +99,7 @@ class SynLiklihood(Approx_likelihood):
         return result
 
 
-class PenLogReg(Approx_likelihood):
+class PenLogReg(Approx_likelihood, GraphTools):
     """This class implements the approximate likelihood function which computes the approximate
     likelihood up to a constant using penalized logistic regression described in
     Dutta et. al. [1]. It takes one additional function handler defining the 
@@ -145,11 +145,11 @@ class PenLogReg(Approx_likelihood):
         self.ref_data_stat = self._simulate_ref_data()
 
         self.stat_obs = None
-        self.data_set
+        self.data_set = None
         
 
         
-    def likelihood(self, y_obs, y_sim):
+    def likelihood(self, y_obs, y_sim, ind):
         if not isinstance(y_obs, list):
             raise TypeError('Observed data is not of allowed types')
         
@@ -166,7 +166,7 @@ class PenLogReg(Approx_likelihood):
         
         # Compute the approximate likelihood for the y_obs given theta
         y = np.append(np.zeros(self.n_simulate),np.ones(self.n_simulate))
-        X = np.array(np.concatenate((stat_sim,self.ref_data_stat),axis=0))
+        X = np.array(np.concatenate((stat_sim,self.ref_data_stat[ind]),axis=0))
         m = LogitNet(alpha = 1, n_splits = self.n_folds, max_iter = self.max_iter, random_state= self.seed)
         m = m.fit(X, y)
         result = np.exp(-np.sum((m.intercept_+np.sum(np.multiply(m.coef_,self.stat_obs),axis=1)),axis=0))
@@ -174,15 +174,22 @@ class PenLogReg(Approx_likelihood):
         return result
 
 
-    def _simulate_ref_data(self):
+    def _simulate_ref_data(self, rng=np.random.RandomState()):
         """
         Simulate the reference data set. This code is run at the initialization of
         Penlogreg
         """
 
-        ref_data_stat = [None]*self.n_simulate
-        for ind in range(0,self.n_simulate):        
-            self.model.sample_from_prior()
-            ref_data_stat[ind] = self.statistics_calc.statistics(self.model.simulate(1))
+        ref_data_stat = [[None]*self.n_simulate for i in range(len(self.model))]
+        self.sample_from_prior(rng=rng)
+        for model_index, model in enumerate(self.model):
+            ind=0
+            while(ref_data_stat[model_index][-1] is None):
+                data = model.sample_from_distribution(1, rng=rng)
+                if(data[0]):
+                    data_stat = self.statistics_calc.statistics(data[1].tolist())
+                    ref_data_stat[model_index][ind]= data_stat
+                    ind+=1
+            ref_data_stat[model_index] = np.squeeze(np.asarray(ref_data_stat[model_index]))
             
-        return np.squeeze(np.asarray(ref_data_stat))            
+        return ref_data_stat
