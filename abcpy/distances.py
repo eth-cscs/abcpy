@@ -268,7 +268,7 @@ class DefaultJointDistance(Distance):
             The number of root models on which the distance will act.
         """
         self.statistics_calc = statistics
-        self.distance_calc = LogReg(self.statistics_calc)
+        self.distance_calc = Euclidean(self.statistics_calc)
 
     def distance(self, d1, d2):
         total_distance = 0
@@ -278,6 +278,6 @@ class DefaultJointDistance(Distance):
         return total_distance
 
     def dist_max(self):
-        return 1.0
+        return np.inf
          
     

@@ -20,79 +20,98 @@ To create a package and install it do
 
 Note that ABCpy requires Python3.
 
+
+What's new?
+===========
+
+It is now possible to implement bayesian networks in ABCpy. If you are new to bayesian networks, check the section `Bayesian networks - an introduction`_.
+
+In this section, we will introduce the various new features for this version of ABCpy.
+
+Random variables and hierarchical models
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In short, the following is now possible:
+
+::
+
+    parameter = Normal([[1],[0.1]])
+    model = Normal([parametere, [0.2]])
+
+Check out `Using random variables`_ for an example of how to implement things discussed in this section.
+
+In ABCpy, a :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object represents a *node* in our network, a random variable. This includes the models that model our observed data. The part of the graph that isn't a model is usually called the *prior*.
+
+Since there are many properties associated with these objects, we did not simply call them random variable or distribution. For you to perform inference on some data, it is not necessary to understand these properties. If you are interested in implementing either your own distributions or other models, please check the `Implementing a new Model`_ section  below.
+
+The way a bayesian network is now built within ABCpy is the following: each :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object has some input parameters. Each of these parameters can either be a 'fixed' and known to the user, for bayesian networks often called hyperparameter, or another random variable. Behind the scene, ABCpy will ensure that the graph structure is implemented and that inference will be performed on the whole construct.
+
+
+Since each node of our graph can be a random variable, it does, in general, not have one fixed value. However, to perform inference, we of course need to sample values from the random variables, and use those to simulate data. These sampled values we will usually call parameter values. These values are what you will get as an end result of the inference.
+
+An important thing to keep in mind: random variables are initialized without sampling values from them immediately. This works for inference algorithms, since these algorithms will contain a statement that samples from the prior first. However, if you want to implement a graph and then sample from the root model, or any other model within the graph structure, the necessary parameter values will not yet be defined. Therefore, if you want to have a 'stand-alone' distribution or model, you will need to call the method `sample_parameters()` for any parameter in the graph, which is best done right after initializing the relevant parameters. Only after this step is performed can you call the `sample_from_distribution()` method to obtain samples from the distribution.
+
+Some words on performance: all operations on this graph structure are performed using recursion. This will, in general, slow down your code compared to previous versions of ABCpy, even if the prior information you give is the exact same as before. However, this will not affect the time inference needs to complete for most use cases, where you define your own hierarchical model. This is due to the fact that simulation is usually a lot slower than traversing the graph. Even if you do not specify such a complicated model, your run time should still be acceptable, given that you do not implement large graphs. Due to the limitations of ABC regarding low dimensionality of your problem, this should, however, not be an issue.
+
+
+Multiple hierarchical models
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Check out `Using multiple hierarchical models`_ for an example on how to implement things discussed in this section.
+
+It is now also possible to define multiple models on which the inference acts. The graphs given for each hierarchical model can be connected to those of different models or they can be independent (however, it is not possible for a model to be input to another model within the same round of inference). Note though that of course, for each model the graph has to consist of only one weakly connected component. Otherwise, there is no way for the algorithm to know how to connect the information on different nodes to affect the model.
+
+Operations
+~~~~~~~~~~
+
+In short, the following is now possible:
+
+::
+
+    parameter = MultivariateNormal([[1,2],[[0.1,0],[0,0.1]])
+    model = 2*parameter[1]+parameter[0]
+
+Check out `Using operations`_ for an example on how to implement things discussed in this section.
+
+Not only can you now connect random variables through their input parameters, it is also possible to perform operations on these objects to produce new random variables. In short, this means that you can now perform the operations "+", "-", "*", "/" and "**" (the power operator in Python) on any two nodes of your graph, giving a new node. It is possible to perform these operations between two random variables or between random variables and general data types of Python (integer, float, and so on).
+
+Please keep in mind that parameters defined via operations will not be included in your list of parameters in the journal file. However, all parameters that are part of the operation, and are not fixed, will be included, so you can easily perform the required operations on the final result to get these parameters, if necessary.
+
+In addition to these operators, you can now also use the "[]" operator (the access operator in Python). This allows you to only use selected values from a multidimensional random variable sample as a parameter of a new random variable.
+
+Perturbation kernels
+~~~~~~~~~~~~~~~~~~~~
+
+In short, this is now how you define kernels on different parameters:
+
+::
+
+    kernel = MultivariateNormalKernel([parameter_1, parameter_2])
+    kernel_joint = JointPerturbationKernel([kernel])
+
+Check out `Using perturbation kernels`_ for an example on how to implement things discussed in this section.
+
+Since you can now define much more complicated priors, the kernels have changed accordingly. There are two classes, :py:class:`abcpy.perturbationkernel.ContinuousKernel` and :py:class:`abcpy.perturbationkernel.DiscreteKernel`. The only difference between these two is that the first class acts on continuous random variables (and, therefore, has a probability density function), while the second class acts on discrete random variables (and, therefore, has a probability mass function).
+
+For each kernel you define, you can specify which random variables of the graph it should perturb. In the end, you join all kernels using an object of type :py:class:`abcpy.perturbationkernel.JointPerturbationKernel`. Note that you need to join your kernels, even if you only defined one kernel! This is due to the fact that the algorithm cannot know how many kernels you defined otherwise.
+
+Each algorithm is provided with a default kernel. If you do not specify another kernel and pass it to the sampling object, it will automatically create its own kernel. It will perturb all continuous parameters using a multivariate normal and all discrete parameters using a random walk.
+
+Please keep in mind that you can only perturb whole parameters. You cannot use the access operator to perturb one part of a random variable differently than another part of the same variable.
+
+
 Getting Started
 ===============
 
 Here, we explain how to use ABCpy to infer parameters of models, given some observed data sets.
 
-We first give a short intro into the structure of ABCpy, to hopefully make the rest of this tutorial easily understandable.
-
-After that, if you are new to either inference in general, ABC or bayesian networks, we recommend you start with the `Beginners`_ section. If you are already more experienced, there is an `Advanced`_ section further along.
-
-What's new?
-===========
-
-The graph structure
-~~~~~~~~~~~~~~~~~~~
-
-Since ABCpy XX.XX, it is possible to perform inference on bayesian networks. To illustrate what this means, let us consider the following example from Wikipedia:
-
-.. image:: bayes_net.png
-
-The fact whether the grass is wet is called our observed data. We can look outside and easily see whether this is true or not.
-
-The observation of grass being wet can be due to two circumstances: the sprinkler is running or it is raining. This is indicated by the arrows going from sprinkler/rain to grass.
-
-Finally, there is also an arrow going from rain to sprinkler. If there is rain, we assume our sprinkler is smart enough to not run.
-
-In general in bayesian networks, the parameters of interest (whether the sprinkler is running and whether it is raining), as well as the model (whether the grass is wet, the thing we can observe) are called *nodes* and represented as in the picture above.
-Dependencies are represented as arrows.
-
-As you can see, this structure can be seen as a graph. For a graph to be a bayesian network, some things need to be fulfilled:
-
-1) the graph is directed. This means that the arrows, the edges of the graph, have a direction associated with them. The direction tells us which parameter affects which other parameter. In our example, rain affects whether the sprinkler is running. Therefore, there is a directed edge from rain to sprinkler. However, the sprinkler does not affect whether it is raining, and, therefore, there is no directed edge from sprinkler to rain.
-
-2) the graph is acyclic. This means that no parameter can indirectly or indirectly affect itself.
-
-If these properties are ensured, you can implement the dependency structure in ABCpy, and perform inference on it.
-
-Let us now introduce some terms to make understanding the rest of this tutorial easier.
-
-In ABCpy, a :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object represents a *node* in our network. This includes the models that model our observed data. These we will usually call *root models* or *roots* due to the fact that they can be seen as roots of the directed graph (with all nodes that are not root models pointing to the roots, either directly or indirectly). The rest of the graph is usually called the *prior*.
-
-A probabilistic model here has various properties. Although it is often possible and useful to think of one as a distribution, there is more associated with this object than just a distribution, which is why we did not call the object distribution.
-
-For you to perform inference on some data, it is not necessary to understand these properties. If you are interested in implementing either your own distributions or other models, please check the `Implementing a new Model`_ section  below.
+If you are new to either inference in general, ABC or bayesian networks, we recommend you start with the `Using random variables`_ section. If you would like to see all features in action together, check out `Using perturbation kernels`_.
 
 
-The way a bayesian network is now built within ABCpy is simple: each :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object has some input parameters. Each of these parameters can either be a 'fixed value', for bayesian networks often called hyperparameter, or another probabilistic model. Behind the scene, ABCpy will ensure that the graph structure is implemented and that inference will be performed on the whole construct.
+Using random variables
+~~~~~~~~~~~~~~~~~~~~~~
 
-
-Since each node of our graph can be a probabilistic model, it does not have one fixed value. However, to perform inference, we of course need to sample values from the probabilistic models, and use those to simulate data. These sampled values we will usually call parameter values. These values are what you will get as an end result of the inference.
-
-An important thing to keep in mind: probabilistic models are initialized without sampling values from them immediately. This works for inference algorithms, since these algorithms will contain a statement that samples from the prior first. However, if you want to implement a graph and then sample from the root model, or any other model within the graph structure, the necessary parameter values will not yet be defined. Therefore, if you want to have a 'stand-alone' distribution or model, you will need to call the method :py:method:`abcpy.probabilisticmodels.sample_parameter()` for any parameter in the graph, which is best done right after initializing the relevant parameters. Only after this step is performed can you call the :py:method:`abcpy.probabilisticmodel.sample_from_distribution` method to obtain samples from the distribution.
-
-Some words on performance: all operations on this graph structure are performed using recursion. This will, in general, slow down your code compared to previous versions of ABCpy, even if the prior information you give is the exact same as before. However, this will not affect the time inference needs to complete for most use cases, where you define your own root model. This is due to the fact that simulation is usually a lot slower than traversing the graph. Even if you do not specify such a complicated root model, your run time should still be acceptable, given that you do not implement large graphs. Due to the limitations of ABC regarding low dimensionality of your problem, this should, however, not be an issue.
-
-Multiple roots
-~~~~~~~~~~~~~~
-
-It is now also possible to define multiple root models on which the inference acts. The graphs given for each root model can be connected to those of different root models or they can be independent (however, it is not possible for a root model to be input to another root model within the same round of inference). Note though that of course, for each root model, the graph has to consist of only one weakly connected component. Otherwise, there is no way for the algorithm to know how to connect the information on different nodes to affect the root model.
-
-Operations
-~~~~~~~~~~
-
-Not only can you now connect :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` objects through their input parameters, it is also possible to perform operations on these objects to produce new probabilistic models. In short, this means that you can now perform the operations "+", "-", "*", "/" and "**" (the power operator in python) on any two nodes of your graph, giving a new node. It is possible to perform these operations between both probabilistic models and other probabilistic models, or probabilistic models and general data types of python (integer, float, and so on).
-
-Please keep in mind that parameters defined via operations will not be included in your list of parameters in the journal file. However, all parameters that are part of the operation, and are not fixed, will be included, so you can easily perform the required operations on the final result to get these parameters, if necessary.
-
-
-
-
-Beginners
-~~~~~~~~~
-
-As a simple example, let us consider a Gaussian model. We want to model the height of a grown up human, given the following set of measurements, which we call observation or observed data.
+As an example, let us consider a Gaussian model. We want to model the height of a grown up human, given the following set of measurements, which we call observation or observed data.
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
@@ -109,13 +128,11 @@ A pre-requisite for ABC is that we provide certain *prior* knowledge about the p
     :lines: 8-10, 12-13
     :dedent: 4
 
-Note that this prior, in general, can be a much more complicated structure. Each input parameter for a probabilistic model, defined in **abcpy.continuousmodels** or **abcpy.discretemodels** can again be a probabilistic model. To see how to implement such a dependency structure, see the 'Advanced' section.
-
 Further, we need a means to quantify how close our observation is to synthetic
 data (generated by the model). Often, the real and synthetic observations cannot be
 compared directly in a reasonable or efficient way. Thus, *summary statistics*
 are used to extract relevant properties from the observations, with the idea that
-these stastistics then compare.
+these statistics then compare.
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
@@ -131,14 +148,12 @@ functions operate not on the observations, but on summary statistics.
     :dedent: 4	    
 
 We can now set up an inference scheme -- let us chose PMCABC as our inference
-algorithm of choice. As a pre-requisit, it requires a perturbation kernel. For this, we need to specify all probabilistic models that will be perturbed by a kernel. This is simple in our case. However, for more complicated priors, it will be possible to define different kernels acting on a different set of nodes. Check out the 'Advanced' section to learn more.
+algorithm of choice. As a pre-requisit, it requires a perturbation kernel. For this, we need to specify all random variables that will be perturbed by a kernel. Here, we use the default kernel provided in ABCpy. This will perturb our continuous prior using a multivariate normal. If our prior were discrete, it would be perturbed using a random walk. Please refere to `Using perturbation kernels`_ to see a more involved example.
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
     :lines: 24-25
     :dedent: 4
-
-Please note that it would also be possible to not specify a kernel. In this case, a :py:class:`abcpy.perturbationkernel.DefaultKernel` object will be initialized when creating the PMCABC object. This ensures that all continuous parameters will be perturbed using a multivariate normal, while all discrete parameters will be pertubed using a random walk. But in general, it is often desirable to define your own kernel.
 
 We also need to define a backend:
 
@@ -155,7 +170,7 @@ constructor:
     :lines: 33-34
     :dedent: 4	    
 
-Note that the model is given as a list. This is due to the fact that in ABCpy, it is possible to have multiple root models associated with an overall prior, all giving seperate data sets. To learn more, see the 'Advanced' section.
+Note that the model is given as a list. This is due to the fact that in ABCpy, it is possible to have multiple hierarchical models associated with an overall prior, all giving separate data sets. To learn more, see the `Using multiple hierarchical models`_ section.
 
 Finally, we need to parametrize and start the actual sampling:
 
@@ -172,28 +187,32 @@ information on extracting results.
 
 The code currently uses the dummy backend `BackendDummy` which does not
 parallelize the execution of the inference schemes, but is very handy quick
-prototyping and testing. To execute the code you only need to run
-
-::
-   
-   python3 gaussian.py
-
+prototyping and testing.
 
 The full source can be found in `examples/backends/dummy/pmcabc_gaussian.py`.
 
+To execute the code you only need to run
 
-Advanced
-~~~~~~~~
+::
 
-Since release XX.XX of ABCpy, it is possible to define more complicated priors than previously. You can now define your prior to be a bayesian network. This means, in short, that any distribution, in what follows called *probabilistic model*, can have other probabilistic models as its parameters. It is now also possible to perform operations on probabilistic models.
+   python3 pmcabc_gaussian.py
 
-To see what this means, let us consider the following model:
 
-.. image:: network.png
 
-We are considering a school with different classes. Each class has some number of students. All students of the school take an exam and receive some grade. These grades are our first observed data set.
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
+
+Using operations
+~~~~~~~~~~~~~~~~
+
+Since release XX.XX of ABCpy, it is possible to define more complicated priors than previously. This includes having operations between random variables to produce new random variables.
+
+For this tutorial, we will consider the following network:
+
+.. image:: network_1_model.png
+
+We are considering a school with different classes. Each class has some number of students. All students of the school take an exam and receive some grade. These grades are our observed data set:
+
+.. literalinclude:: ../../examples/backends/dummy/pmcabc_operations.py
     :language: python
     :lines: 6
     :dedent: 4
@@ -206,113 +225,120 @@ Finally, we can assume that the grade without any bias would be a normally distr
 
 Let us define these quantities and dependencies in ABCpy:
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
+.. literalinclude:: ../../examples/backends/dummy/pmcabc_operations.py
     :language: python
-    :lines: 12-13, 16, 19, 22
+    :lines: 9-10, 13, 16, 19
     :dedent: 4
-
-First, observe that the individual parameters given to *Normal* are given as lists. This is to keep a uniform interface for all probabilistic models.
-
-Second, also notice how the access operator is used for probabilistic models in ABCpy. With the access operator, it is possible to only use certain sampled values of a probabilistic model as parameters of another model. If a probabilistic model is n-dimensional and no access operator is specified, then the next n parameters of the new probabilistic model will be assigned to the respective parameter values.
-
 
 So, each student will receive some grade which is normally distributed, but this grade is distorted by the other priors defined. The model which we obtain for the grade of some student, hence, can be written as:
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
+.. literalinclude:: ../../examples/backends/dummy/pmcabc_operations.py
+    :language: python
+    :lines: 22
+    :dedent: 4
+
+As in the `Using random variables`_ section, we now need to define a summary statistics to extract relevant properties of our data.
+
+.. literalinclude:: ../../examples/backends/dummy/pmcabc_operations.py
+    :language: python
+    :lines: 25-26
+    :dedent: 4
+
+And just as before, we need to provide a distance measure, a backend and a kernel.
+
+.. literalinclude:: ../../examples/backends/dummy/pmcabc_operations.py
+    :language: python
+    :lines: 29-30, 33-34, 37-38
+    :dedent: 4
+
+Now, again, we need to provide the parameters relevant to sampling and start sampling:
+
+.. literalinclude:: ../../examples/backends/dummy/pmcabc_operations.py
+    :language: python
+    :lines: 41-43, 46-47, 50
+    :dedent: 4
+
+The source code can be found in `examples/backends/dummy/pmcabc_operations.py`.
+
+
+Using multiple hierarchical models
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+As mentioned above, ABCpy supports inference on multiple hierarchical models at once. These hierarchical models can share some parts of their prior. To illustrate how this is implemented, we will extend the model given in `Using operations`_.
+
+.. image:: network.png
+
+As in the last section, our first model consists of the final grades students receive in an exam. This final grade depends on an average grade, the size of the class of each student and the students social background. The latter two parameters also depend on the location of the school.
+
+For an explanation of the code, please see `Using operations`_.
+
+We now consider the second hierarchical model. First, we again need to define our observed data set:
+
+.. literalinclude:: ../../examples/backends/dummy/pmcabc_multiple_models.py
     :language: python
     :lines: 25
     :dedent: 4
 
+Let us assume that the school gives out scholarships to students. Each student receives some score, which determines whether he will receive a scholarship or not. We assume that this score is normally distributed:
 
-ABCpy not only supports the creation of complicated priors. It is now also possible to have multiple models, each associated with some observed data, that share some parts of their priors.
-
-For example, let us assume that the school gives out scholarships to students. We could say that each student receives some score, depending on which it is decided whether he receives a scholarship. Assume this score is normally distributed:
-
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
+.. literalinclude:: ../../examples/backends/dummy/pmcabc_multiple_models.py
     :language: python
     :lines: 28
     :dedent: 4
 
-However, depending on the students social background, again, the score changed.
+However, depending on the students social background, the score will be changed, giving us the definition of our second hierarchical model.
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
+.. literalinclude:: ../../examples/backends/dummy/pmcabc_multiple_models.py
     :language: python
     :lines: 31
     :dedent: 4
 
-Last but not least, we also need data associated with this second model:
+As in the algorithms before, we now define summary statistics, distance, backend and kernel. We will skip the definitions that have not changed from the previous section. However, we would like to point out the difference in definition of the distance.
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
-    :language: python
-    :lines: 9
-    :dedent: 4
+Since we are now considering two hierarchical models, we need to define an overall distance on the two. Here, we use the default distance provided in ABCpy. It uses the euclidean distance for each hierarchical model and corresponding data set seperatly. All distances are added, and the result is divided by the number of data sets given. If you would like to implement a different distance measure on multiple data sets, check `Implementing a new distance`_.
 
-We are now done with specifying the complete structure of the models. Due to the graphical representation for bayesian networks, this can be called a *graph*. For more information, check the 'Structure of ABCpy' section.
-
-As in the 'Beginners' section, we now need to define a summary statistics to extract relevant properties of our data.
-
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
-    :language: python
-    :lines: 34-35
-    :dedent: 4
-
-We will also again need to define some distance measure. However, unlike before, we now have two data sets, and we will need to define an overall distance for the two of them together. ABCpy defines a *DefaultJointDistance* which uses logistic regression to compare each data set individually. All individual distances are then added and the result is divided by the number of data sets given.
-
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
+.. literalinclude:: ../../examples/backends/dummy/pmcabc_multiple_models.py
     :language: python
     :lines: 38-39
     :dedent: 4
 
-However, it is very easy to implement your own distances, in case this does not suit you. You can check out our code here to have a starting point on how to do it: INCLUDE LINK TO DISTANCES.PY
 
-Again, we also need a backend:
+We then define the sampler, the sampling parameters, and sample:
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
+.. literalinclude:: ../../examples/backends/dummy/pmcabc_multiple_models.py
     :language: python
-    :lines: 42-43
+    :lines: 50-52, 55-56, 59
     :dedent: 4
 
-Finally, we need to specify some kernel to perturb all parameters given by the prior. The parameters that need to be perturbed correspond to the school location, the class size, the social background, the grade and the scholarship score.
+Observe that the lists given to the sampler and the sampling method now contain two entries. These correspond to the two hierarchical models and the observed data for the two models, respectively.
 
-To mix things up from the 'Beginners' section, let us define a few different Kernels, operating on different parameters. For each kernel, it is necessary to specify all the probabilistic models that should be perturbed by this kernel. Assuming the parameters corresponding to the school location and scholarship score are perturbed using a multivariate normal distribution, while the parameters corresponding to class size, social background and grade are are perturbed by a multivariate Student's T-distribution:
+The source code can be found in `examples/backends/dummy/pmcabc_multiple_models.py`.
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
+
+Using perturbation kernels
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+We will consider the same example as in the `Using multiple hierarchical models`_ section.
+
+As pointed out earlier, it is possible to define multiple kernels on your parameters, perturbing them in different ways. Let us assume that we want to perturb the schools location, as well as the scholarship score, using a multivariate normal kernel. However, the remaining parameters we would like to perturb using a multivariate Student's-T kernel.
+
+This is implemented as follows:
+
+.. literalinclude:: ../../examples/backends/dummy/pmcabc_perturbation_kernels.py
     :language: python
-    :lines: 46-48
+    :lines: 44-46
     :dedent: 4
 
-To make things easier for our algorithm, we need to pack all kernels together into one overall 'kernel object'. For this, we provide the :py:class:`abcpy.perturbationkernel.JointPerturbationKernel` class.
+We have now defined how each set of parameters is perturbed on its own. The sampler object, however, needs to be provided with one single kernel. We, therefore, provide a class which will group all kernels together. This class, :py:class:`abcpy.perturbationkernel.JointPerturbationKernel`, knows how to perturb each set of parameters individually. It just needs to be provided with all the relevant kernels:
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
+.. literalinclude:: ../../examples/backends/dummy/pmcabc_perturbation_kernels.py
     :language: python
-    :lines: 51-52
+    :lines: 49-50
     :dedent: 4
 
-Now, we just have to define our sampling parameters
+This is all that needs to be changed. The rest of the implementation works the exact same as in the previous example. If you would like to implement your own perturbation kernel, please check `Implementing a new perturbation kernel`_.
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
-    :language: python
-    :lines: 55-57
-    :dedent: 4
-
-, define our PMCABC object
-
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
-    :language: python
-    :lines: 60-61
-    :dedent: 4
-
-and sample:
-
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_network.py
-    :language: python
-    :lines: 64
-    :dedent: 4
-
-Before you head off to implement your own models, note that there are more probabilistic models describing both continuous and discrete distributions than described in this tutorial. A comprehensive list can be found in INSERT A LINK HERE
-
-
-
+The source code to this section can be found in `examples/backends/dummy/pmcabc_perturbation_kernels.py`
 
 Post Analysis
 =============
@@ -511,18 +537,18 @@ EMR <http://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-overview.html>`_.
 Implementing a new Model
 ========================
 
-Often, one wants to use one of the provided inference schemes on a new probabilistic model,
+Often, one wants to use one of the provided inference schemes on a new random variable,
 which is not part of ABCpy. We now go through the details of such a scenario
-using the probabilistic model of the Normal distribution to exemplify the mechanics.
+using the normal distribution to exemplify the mechanics.
 
 Every model has to conform to the API specified by the base class
-:py:class:`abcpy.probabilisticmodels.ProbabilisticModel`. Thus, making a new model compatible with ABCpy, essentially boils down to implementing the following methods:
+:py:class:`abcpy.probabilisticmodels.ProbabilisticModel`. Thus, making a new model compatible with ABCpy essentially boils down to implementing the following methods:
 
 .. literalinclude:: ../../abcpy/probabilisticmodels.py
     :language: python
     :lines: 15, 128, 140, 152, 164, 177
 
-Of course, if your model does not have a easily implemented probability density function, this method does not have to be provided. But keep in mind that in this case, your model can only be used as one of the root models of the network, and not for any nodes contained in the prior. The prior can only contain probabilistic models that have a defined probability density function. Of course, it is possible to use an approximative technique to approximate the probability density function, and provide this instead.
+Of course, if your model does not have a easily implemented probability density function, this method does not have to be provided. But keep in mind that in this case, your model can only be used as one of the hierarhical models of the network, and not for any nodes contained in the prior. The prior can only contain random variables that have a defined probability density function. Of course, it is possible to use an approximative technique to approximate the probability density function, and provide this instead.
 
 In the following we go through a few of the required methods, explain what is expected, and
 show how it would be implemented for the Gaussian model.
@@ -536,11 +562,11 @@ consult the reference for implementation details. For the constructor, the refer
 
 The constructor expects to receive a list, containing all parameters of the new model. These can be given in three ways:
 
-First, a tupel, containing the parent, a probabilistic model object, as well as the output index. The output index refers to the index within a sample of the parent model which should be used for a parameter. Such a tupel is also returned when the access operator is used.
+First, a tupel, containing the parent, a :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object, as well as the output index. The output index refers to the index within a sample of the parent model which should be used for a parameter. Such a tupel is also returned when the access operator is used.
 
-Second, a probabilistic model. This ensures, like the first point, that a graphical structure can be implemented.
+Second, a probabilistic model object. This ensures, like the first point, that a graphical structure can be implemented.
 
-Finally, a hyperparameter. This refers to any fixed value that can be given. The constructor of the :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` is implemented such that fixed values will always be converted to an object of type :py:class:`abcpy.probabilisticmodels.Hyperparameter`.
+Finally, a hyperparameter. This refers to any fixed value that can be given. The constructor of the base class is implemented such that fixed values will always be converted to an object of type :py:class:`abcpy.probabilisticmodels.Hyperparameter`.
 
 
 If we would like to implement our own constructor of a new model, we should in the end call the constructor of :py:class:`abcpy.probabilisticmodels.ProbabilisticModel`.
@@ -551,11 +577,11 @@ Consequently, we would implement a simple version of a Gaussian model as follows
     :language: python
     :lines: 6-8
 
-Note that this implementation slightly differs from the actual ABCpy implementation. This is due to the fact that we wanted to provide the user with the opportunity to give each parameter of the Normal model as a list, in order to keep a uniform interface for all distributions. Since the :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` class does not expect your parameters to be lists of probabilistic models, but just probabilistic models, we would have to rewrite the user input in order to provide this feature.
+Note that this implementation slightly differs from the actual ABCpy implementation. This is due to the fact that we wanted to provide the user with the opportunity to give each parameter of the Normal model as a list, in order to keep a uniform interface for all distributions. Since the probabilistic model class does not expect your parameters to be lists of probabilistic models, but just probabilistic models, we would have to rewrite the user input in order to provide this feature.
 
 Also, observe that we defined an additional attribute **self.dimension**. This attribute has to be defined for any probabilistic model you implement. It defines the dimension a sample of your probabilistic model will have. Since a normal distribution will give one value per sample, its dimension is one.
 
-If you have a look at the definition of the constructor of :py:class:`abcpy.probabilisticmodels.ProbabilisticModel`, you might notice the following statement:
+If you have a look at the definition of the constructor of the probabilistic model class, you might notice the following statement:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_normal_model_simple.py
     :language: python
@@ -565,14 +591,14 @@ Before this, all parameters given to the model are rewritten in the following wa
 
 As we said before, each entry in the parameters list can be of type :py:class:`abcpy.probabilisticmodels.ProbabilisticModel`, a fixed value, or a tupel.
 
-However, to easily check parent nodes, as well as the correct output index for these parents, it is best to save all these parameters as a tupel. If an n dimensional :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` is given, the list you see denoted as *parents_temp* will contain n tupels, where the first entry is each time said :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` and the second entry is numbered from 0 to n-1, the indices of a sampled value from the :py:class:`abcpy.probabilisticmodels.ProbabilisticModel`.
+However, to easily check parent nodes, as well as the correct output index for these parents, it is best to save all these parameters as a tupel. If an n dimensional probabilistic model is given, the list you see denoted as *parents_temp* will contain n tupels, where the first entry is each time said probabilistic model and the second entry is numbered from 0 to n-1, the indices of a sampled value from the probabilistic model.
 
 If a user provided a fixed value, this value is converted to an object of type :py:class:`abcpy.probabilisticmodels.Hyperparameter` and the tupel contains this object as the first entry and 0 as the second entry.
 
-Finally, if a user used the access operator, the tupel will contain the :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` as well as the index which was given in the access operator.
+Finally, if a user used the access operator, the tupel will contain the probabilistic model as well as the index which was given in the access operator.
 
 
-Now, we need to check whether the parameters that were given to our new :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` are valid parameters:
+Now, we need to check whether the parameters that were given to our new probabilistic model are valid parameters:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_normal_model_simple.py
     :language: python
@@ -589,7 +615,7 @@ Next, we need the following method:
     :lines: 140
 
 
-You might wonder what this method is for. We can imagine that our normal model might have a variance that is not a fixed value, but rather comes from some other :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object. This so called parent might be able to sample negative values. Due to the graph structure in ABCpy, it would, therefore, be possible that our model would receive a negative value for its variance and for example would try to sample using that variance. This should not be possible.
+You might wonder what this method is for. We can imagine that our normal model might have a variance that is not a fixed value, but rather comes from some other probabilistic modelt. This so called parent might be able to sample negative values. Due to the graph structure in ABCpy, it would, therefore, be possible that our model would receive a negative value for its variance and for example would try to sample using that variance. This should not be possible.
 
 So, we have the following implementation:
 
@@ -607,7 +633,7 @@ Next, we need the method:
 
 Again, let us explain the use of this method. A lot of the implemented ABC algorithms involve perturbing previously selected parameters using a perturbation kernel. Then, we try to fix the values for the parameters to these perturbed values. However, it could of course be possible that for some probabilistic model, the perturbed value is not acceptable. For example because the node can only return positive values, but the perturbation changed the parameter to some negative value. In this case, the parameters should be rejected.
 
-However, for the normal model we are trying to implement, all values are acceptable. This is due to the fact that the range of a normal distribution is the reel numbers.
+However, for the normal model we are trying to implement, all values are acceptable. This is due to the fact that the range of a normal distribution is the real numbers.
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_normal_model_simple.py
     :language: python
@@ -621,7 +647,7 @@ Next, we get to the sampling method:
     :language: python
     :lines: 164
 
-Even if your model does not strictly implement a distribution, it is still named this way to avoid confusion. This method should simply sample from the distribution associated with the :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` or simulate from a model.
+Even if your model does not strictly implement a distribution, it is still named this way to avoid confusion. This method should simply sample from the distribution associated with the probabilistic model or simulate from a model.
 
 There are two input parameters, *k* and *rng*. *k* corresponds to the number of parameters that should be sampled. *rng* defines a random number generator. Keep in mind that other methods will try to send their random number generator to this method during sampling. It is, therefore, recommended that you use a numpy random number generator.
 
@@ -633,14 +659,14 @@ Now, let's look at the implementation of the method for our model:
     :language: python
     :lines: 25-36
 
-First, we need to obtain the values that correspond to each parameter of our model. Since the parents of our object can be of type :py:class:`abcpy.probabilisticmodels.ProbabilisticModel`, the values might not always be the same, and need to be obtained each time we want to sample. You do not need to implement the method used to to this, as long as you have used the constructor of the :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` class at the start.
+First, we need to obtain the values that correspond to each parameter of our model. Since the parents of our object can be probabilistic models, the values might not always be the same, and need to be obtained each time we want to sample. You do not need to implement the method used to to this, as long as you have derived your class from the :py:class:`abcpy.probabilisticmodel.ProbabilisticModel` class.
 
 Now, we check whether the the values we obtained are okay to be used by our model. Whether this is the case forms the first entry in the list that we will return. Note that this is a necessary requirement. Other methods expect the first entry in this list to be a boolean corresponding to whether or not we could (and did) sample for this model.
 
 Then, if the values are fine to be used, we simply sample using the random number generator, append this to the list that will be returned, and return the list.
 
 
-Finally, we need to implement the probability density function. Again, this is not a must, but if there is no probability density function, it will only be possible to use the model as one of the roots (i.e. it cannot be part of the prior).
+Finally, we need to implement the probability density function. Again, this is not a must, but if there is no probability density function, it will only be possible to use the model as one of the hierarchical models (i.e. it cannot be part of the prior).
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_normal_model_simple.py
     :language: python
@@ -768,10 +794,10 @@ The default output for R functions in Python is a float vector. This must be
 converted into a Python numpy array for the purposes of ABCpy.
 
 
-Extending: Add your Distance
+Implementing a new distance
 ============================
 
-As discussed in the `Advanced`_ section, our distance functions can, in general, act on multiple models. We provide a :py:class:`abcpy.distances.DefaultJointDistance` object to give a basic implementation of a distance acting on multiple data sets.
+As discussed in the `Using multiple hierarchical models`_ section, our distance functions can, in general, act on multiple hierarchical models. We provide a :py:class:`abcpy.distances.DefaultJointDistance` object to give a basic implementation of a distance acting on multiple data sets.
 
 We will now explain how you can implement your own distance measure.
 
@@ -804,8 +830,8 @@ Finally, we need to define the maximal distance that can be obtained from this d
     :dedent: 4
 
 
-Add your perturbation kernel
-============================
+Implementing a new perturbation kernel
+======================================
 
 Kernels in ABCpy can be of two types. They can either be derived from the class :py:class:`abcpy.perturbationkernel.ContinuousKernel` or from :py:class:`abcpy.perturbationkernel.DiscreteKernel`. Whether it is a discrete or continuous kernel defines whether this kernel will act on discrete or continuous parameters. The only difference between the two is that a continous kernel has a probability density function, while a discrete kernel has a probability mass function.
 
@@ -865,6 +891,29 @@ We simply obtain the parameter values and covariance matrix for this kernel and 
 Note that after defining your own kernel, you will need to collect all your kernels in a :py:class:`abcpy.perturbationkernel.JointPerturbationKernel` object in order for inference to work. For an example on how to do this, check the `Advanced`_ section.
 
 
+Bayesian networks - an introduction
+===================================
+
+Since ABCpy XX.XX, it is possible to perform inference on bayesian networks. To illustrate what this means, let us consider the following example from Wikipedia:
+
+.. image:: bayes_net.png
+
+The fact whether the grass is wet is called our observed data. We can look outside and easily see whether this is true or not.
+
+The observation of grass being wet can be due to two circumstances: the sprinkler is running or it is raining. This is indicated by the arrows going from sprinkler/rain to grass.
+
+Finally, there is also an arrow going from rain to sprinkler. If there is rain, we assume our sprinkler is smart enough to not run.
+
+In general in bayesian networks, the parameters of interest (whether the sprinkler is running and whether it is raining), as well as the model (whether the grass is wet, the thing we can observe) are called *nodes* and represented as in the picture above.
+Dependencies are represented as arrows.
+
+As you can see, this structure can be seen as a graph. For a graph to be a bayesian network, some things need to be fulfilled:
+
+1) the graph is directed. This means that the arrows, the edges of the graph, have a direction associated with them. The direction tells us which parameter affects which other parameter. In our example, rain affects whether the sprinkler is running. Therefore, there is a directed edge from rain to sprinkler. However, the sprinkler does not affect whether it is raining, and, therefore, there is no directed edge from sprinkler to rain.
+
+2) the graph is acyclic. This means that no parameter can indirectly or indirectly affect itself.
+
+If these properties are ensured, you can implement the dependency structure in ABCpy, and perform inference on it.
 
 
 ..

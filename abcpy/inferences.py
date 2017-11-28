@@ -867,8 +867,8 @@ class PMC(BasePMC, InferenceMethod):
 
         total_pdf_at_theta = 1.
 
-        for obs, y_sim in zip(all_obs, all_y_sim):
-            lhd = self.likfun.likelihood(obs, y_sim)
+        for ind, obs, y_sim in enumerate(zip(all_obs, all_y_sim)):
+            lhd = self.likfun.likelihood(obs, y_sim, ind)
 
             # print("DEBUG: Likelihood is :" + str(lhd))
             pdf_at_theta = self.pdf_of_prior(self.model, theta)
