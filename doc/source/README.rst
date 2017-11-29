@@ -295,7 +295,7 @@ However, depending on the students social background, the score will be changed,
 
 As in the algorithms before, we now define summary statistics, distance, backend and kernel. We will skip the definitions that have not changed from the previous section. However, we would like to point out the difference in definition of the distance.
 
-Since we are now considering two hierarchical models, we need to define an overall distance on the two. Here, we use the default distance provided in ABCpy. It uses the euclidean distance for each hierarchical model and corresponding data set seperatly. All distances are added, and the result is divided by the number of data sets given. If you would like to implement a different distance measure on multiple data sets, check `Implementing a new distance`_.
+Since we are now considering two hierarchical models, we need to define an overall distance on the two. Here, we use the default distance provided in ABCpy. It uses the euclidean distance for each hierarchical model and corresponding data set seperatly. All distances are added, and the result is divided by the number of data sets given. If you would like to implement a different distance measure on multiple data sets, check `Implementing a new Distance`_.
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_multiple_models.py
     :language: python
@@ -336,7 +336,7 @@ We have now defined how each set of parameters is perturbed on its own. The samp
     :lines: 49-50
     :dedent: 4
 
-This is all that needs to be changed. The rest of the implementation works the exact same as in the previous example. If you would like to implement your own perturbation kernel, please check `Implementing a new perturbation kernel`_.
+This is all that needs to be changed. The rest of the implementation works the exact same as in the previous example. If you would like to implement your own perturbation kernel, please check `Implementing a new Perturbation Kernel`_.
 
 The source code to this section can be found in `examples/backends/dummy/pmcabc_perturbation_kernels.py`
 
@@ -546,63 +546,61 @@ Every model has to conform to the API specified by the base class
 
 .. literalinclude:: ../../abcpy/probabilisticmodels.py
     :language: python
-    :lines: 15, 128, 140, 152, 164, 177
+    :lines: 5, 8, 130, 142, 154, 166, 179
 
-Of course, if your model does not have a easily implemented probability density function, this method does not have to be provided. But keep in mind that in this case, your model can only be used as one of the hierarhical models of the network, and not for any nodes contained in the prior. The prior can only contain random variables that have a defined probability density function. Of course, it is possible to use an approximative technique to approximate the probability density function, and provide this instead.
+Of course, **if your model does not have a easily implemented probability density function, this method does not have to be provided**. But keep in mind that in this case, your model can only be used as one of the hierarhical models of the network, and not for any nodes contained in the prior. **The prior can only contain random variables that have a defined probability density function**. Of course, it is possible to use an approximative technique to approximate the probability density function, and provide this instead.
 
-In the following we go through a few of the required methods, explain what is expected, and
+In the following we go through the required methods, explain what is expected, and
 show how it would be implemented for the Gaussian model.
 
 As a general note, one can say that it is always a good  idea to
 consult the reference for implementation details. For the constructor, the reference of the base class states:
 
-.. literalinclude:: ../../abcpy/probabilisticmodels.py
-    :language: python
-    :lines: 11-13
+.. automethod:: abcpy.probabilisticmodels.ProbabilisticModel.__init__
+    :noindex:
 
 The constructor expects to receive a list, containing all parameters of the new model. These can be given in three ways:
 
-First, a tupel, containing the parent, a :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object, as well as the output index. The output index refers to the index within a sample of the parent model which should be used for a parameter. Such a tupel is also returned when the access operator is used.
+1. A tupel, containing the parent, a :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object, as well as the output index. The output index refers to the index within a sample of the parent model which should be used for a parameter.
 
-Second, a probabilistic model object. This ensures, like the first point, that a graphical structure can be implemented.
+2. A probabilistic model object. This ensures, like the first point, that a graphical structure can be implemented.
 
-Finally, a hyperparameter. This refers to any fixed value that can be given. The constructor of the base class is implemented such that fixed values will always be converted to an object of type :py:class:`abcpy.probabilisticmodels.Hyperparameter`.
+3. Finally, a hyperparameter. This refers to any fixed value that can be given. The constructor of the base class is implemented such that fixed values (of any python type) will always be converted to a probabilistic model.
 
 
-If we would like to implement our own constructor of a new model, we should in the end call the constructor of :py:class:`abcpy.probabilisticmodels.ProbabilisticModel`.
+If we would like to implement our own constructor of a new model, we should in the end call the constructor of the probabilistic model class.
 
 Consequently, we would implement a simple version of a Gaussian model as follows:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_normal_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/normal_extended_model.py
     :language: python
-    :lines: 6-8
+    :lines: 7-9
 
-Note that this implementation slightly differs from the actual ABCpy implementation. This is due to the fact that we wanted to provide the user with the opportunity to give each parameter of the Normal model as a list, in order to keep a uniform interface for all distributions. Since the probabilistic model class does not expect your parameters to be lists of probabilistic models, but just probabilistic models, we would have to rewrite the user input in order to provide this feature.
 
-Also, observe that we defined an additional attribute **self.dimension**. This attribute has to be defined for any probabilistic model you implement. It defines the dimension a sample of your probabilistic model will have. Since a normal distribution will give one value per sample, its dimension is one.
+Observe that we defined an additional attribute **self.dimension**. This attribute has to be defined for any probabilistic model you implement. It defines the dimension (length) a sample of your probabilistic model will have. Since a normal distribution will give one value per sample, its dimension is one. If we were to implement an n-dimensional multivariate normal distribution, the dimension would be n.
 
 If you have a look at the definition of the constructor of the probabilistic model class, you might notice the following statement:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_normal_model_simple.py
+.. literalinclude:: ../../abcpy/probabilisticmodels.py
     :language: python
-    :lines: 37
+    :lines: 38
 
 Before this, all parameters given to the model are rewritten in the following way:
 
-As we said before, each entry in the parameters list can be of type :py:class:`abcpy.probabilisticmodels.ProbabilisticModel`, a fixed value, or a tupel.
+As we said before, each entry in the parameters list can be a probabilistic model, a fixed value or a tupel
 
-However, to easily check parent nodes, as well as the correct output index for these parents, it is best to save all these parameters as a tupel. If an n dimensional probabilistic model is given, the list you see denoted as *parents_temp* will contain n tupels, where the first entry is each time said probabilistic model and the second entry is numbered from 0 to n-1, the indices of a sampled value from the probabilistic model.
+However, for abcpy to work, all these different formats are rewritten to tupels during construction. If an n dimensional probabilistic model is given, the list you see denoted as *parents_temp* will contain n tupels, where the first entry is each time said probabilistic model and the second entry is numbered from 0 to n-1, the indices of a sampled value from the probabilistic model.
 
-If a user provided a fixed value, this value is converted to an object of type :py:class:`abcpy.probabilisticmodels.Hyperparameter` and the tupel contains this object as the first entry and 0 as the second entry.
+If a user provided a fixed value, this value is converted to an object of type :py:class:`abcpy.probabilisticmodels.Hyperparameter`, which derives from the probabilisic model class, and the tupel contains this object as the first entry and 0 as the second entry.
 
 Finally, if a user used the access operator, the tupel will contain the probabilistic model as well as the index which was given in the access operator.
 
 
 Now, we need to check whether the parameters that were given to our new probabilistic model are valid parameters:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_normal_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/normal_extended_model.py
     :language: python
-    :lines: 10-15
+    :lines: 11-16
 
 This ensures that we give exactly two values to a the model and that the variance will not be smaller than 0.
 
@@ -610,74 +608,76 @@ Note that this method is not expected to have a return value. It is simply there
 
 Next, we need the following method:
 
-.. literalinclude:: ../../abcpy/probabilisticmodels.py
-    :language: python
-    :lines: 140
+.. automethod:: abcpy.probabilisticmodels.ProbabilisticModel._check_parameters_before_sampling
+    :noindex:
 
 
-You might wonder what this method is for. We can imagine that our normal model might have a variance that is not a fixed value, but rather comes from some other probabilistic modelt. This so called parent might be able to sample negative values. Due to the graph structure in ABCpy, it would, therefore, be possible that our model would receive a negative value for its variance and for example would try to sample using that variance. This should not be possible.
+You might wonder what this method is for. We can imagine that our normal model might have a variance that is not a fixed value, but rather comes from some other probabilistic model. This so called parent might be able to sample negative values. Due to the graph structure in ABCpy, it would, therefore, be possible that our model would receive a negative value for its variance and for example would try to sample using that variance. This should not be possible.
 
 So, we have the following implementation:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_normal_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/normal_extended_model.py
     :language: python
-    :lines: 17-20
+    :lines: 18-21
 
 This method returns a boolean. It returns **True** if the parameters are accepted for sampling, and **False** otherwise.
 
 Next, we need the method:
 
-.. literalinclude:: ../../abcpy/probabilisticmodels.py
-    :language: python
-    :lines: 152
+.. automethod:: abcpy.probabilisticmodels.ProbabilisticModel._check_parameters_fixed
+    :noindex:
 
 Again, let us explain the use of this method. A lot of the implemented ABC algorithms involve perturbing previously selected parameters using a perturbation kernel. Then, we try to fix the values for the parameters to these perturbed values. However, it could of course be possible that for some probabilistic model, the perturbed value is not acceptable. For example because the node can only return positive values, but the perturbation changed the parameter to some negative value. In this case, the parameters should be rejected.
 
 However, for the normal model we are trying to implement, all values are acceptable. This is due to the fact that the range of a normal distribution is the real numbers.
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_normal_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/normal_extended_model.py
     :language: python
-    :lines: 22-23
+    :lines: 23-24
 
 When implementing this method, keep in mind that it should decide whether the provided value or values can be sampled from this distribution.
 
 Next, we get to the sampling method:
 
-.. literalinclude:: ../../abcpy/probabilisticmodels.py
-    :language: python
-    :lines: 164
+.. automethod:: abcpy.probabilisticmodels.ProbabilisticModel.sample_from_distribution
+    :noindex:
 
 Even if your model does not strictly implement a distribution, it is still named this way to avoid confusion. This method should simply sample from the distribution associated with the probabilistic model or simulate from a model.
 
-There are two input parameters, *k* and *rng*. *k* corresponds to the number of parameters that should be sampled. *rng* defines a random number generator. Keep in mind that other methods will try to send their random number generator to this method during sampling. It is, therefore, recommended that you use a numpy random number generator.
+Keep in mind that other methods will try to send their random number generator to this method during sampling. It is, therefore, recommended that you use a numpy random number generator, if you require one.
 
 Also, even if you do not have any behavior implemented that requires a random number generator, it still needs to be passed to this function (due to the fact that other probabilistic models are based on random number generators). Hence, even if you do not need it, please specify the random number generator as a parameter.
 
 Now, let's look at the implementation of the method for our model:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_normal_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/normal_extended_model.py
     :language: python
-    :lines: 25-36
+    :lines: 26-37
 
-First, we need to obtain the values that correspond to each parameter of our model. Since the parents of our object can be probabilistic models, the values might not always be the same, and need to be obtained each time we want to sample. You do not need to implement the method used to to this, as long as you have derived your class from the :py:class:`abcpy.probabilisticmodel.ProbabilisticModel` class.
+First, we need to obtain the values that correspond to each parameter of our model. Since the parents of our object can be probabilistic models, the values might not always be the same, and need to be obtained each time we want to sample. You do not need to implement the method used to to this, as long as you have derived your class from the probabilistic model class.
 
 Now, we check whether the the values we obtained are okay to be used by our model. Whether this is the case forms the first entry in the list that we will return. Note that this is a necessary requirement. Other methods expect the first entry in this list to be a boolean corresponding to whether or not we could (and did) sample for this model.
 
-Then, if the values are fine to be used, we simply sample using the random number generator, append this to the list that will be returned, and return the list.
+Then, if the values are fine to be used, we sample using the random number generator, append this to the list that will be returned, and return the list.
 
 
-Finally, we need to implement the probability density function. Again, this is not a must, but if there is no probability density function, it will only be possible to use the model as one of the hierarchical models (i.e. it cannot be part of the prior).
+Finally, we need to implement the probability density function.
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_normal_model_simple.py
+.. automethod:: abcpy.probabilisticmodels.ProbabilisticModel.pdf
+    :noindex:
+
+**Again, this is not a must, but if there is no probability density function, it will only be possible to use the model as one of the hierarchical models (i.e. it cannot be part of the prior)**.
+
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/normal_extended_model.py
     :language: python
-    :lines: 38-42
+    :lines: 39-43
 
 Again, we first need to obtain the values associated with all parents of the current model. However, we do not need to check these values, since pdfs will only be calculated after it is made sure that all values are allowed within the graph structure. We then calculate the pdf accordingly.
 
 Our model now conforms to ABCpy and we can start inferring parameters in the
 same way (see `Getting Started`_) as we would do with shipped models. The
 complete example code can be found `here
-<https://github.com/eth-cscs/abcpy/blob/master/examples/gaussian_extended_with_model.py>`_
+<https://github.com/eth-cscs/abcpy/blob/master/examples/extensions/models/gaussian_python/normal_extended_model.py>`_
 
 
 Wrap a Model Written in C++
@@ -749,7 +749,7 @@ can write a Python model which uses our C++ code:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_cpp/pmcabc-gaussian_model_simple.py
    :language: python
-   :lines: 3 - 32
+   :lines: 3 - 44
 
 The important lines are where we import the wrapper code as a module (line 2) and call
 the respective model function (line -2).
@@ -777,7 +777,7 @@ within ABCpy we include the following code at the beginning of our Python file:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
     :language: python
-    :lines: 5 - 14
+    :lines: 6 - 14
 
 This imports the R function `simple_gaussian` into the Python environment. We
 need to build our own model to incorporate this R function as in the previous
@@ -788,14 +788,14 @@ section. The only difference is the `sample_from_distribution` method of the cla
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
     :language: python
-    :lines: 40 - 42
+    :lines: 65
 
 The default output for R functions in Python is a float vector. This must be
 converted into a Python numpy array for the purposes of ABCpy.
 
 
-Implementing a new distance
-============================
+Implementing a new Distance
+===========================
 
 As discussed in the `Using multiple hierarchical models`_ section, our distance functions can, in general, act on multiple hierarchical models. We provide a :py:class:`abcpy.distances.DefaultJointDistance` object to give a basic implementation of a distance acting on multiple data sets.
 
@@ -803,34 +803,33 @@ We will now explain how you can implement your own distance measure.
 
 A distance needs to provide the following three methods:
 
-.. literalinclude:: ../../examples/extensions/distances/default_distance.py
+.. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 16, 20, 27
-    :dedent: 4
+    :lines: 8, 14,29,66
 
 Let us first look at the constructor. Distances in ABCpy should act on summary statistics. Therefore, a statistics calculator should be provided in the constructor. Also, since we want to implement a distance for multiple data sets, we need to provide a distance calculator that will act on a single data set. Note that you could also omit this and define the distance for one data set directly within your distance class. However, since we have already defined distances for single sets, we will use this here.
 
 .. literalinclude:: ../../examples/extensions/distances/default_distance.py
     :language: python
     :lines: 16-18
-    :dedent: 4
 
 Then, we need to define how the total distance is calculated. In our case, we decide that we will iterate over each observed and simulated data set, calculate the individual distance between those, add all these individual distances, and in the end divide the result by the number of data sets that we calculated the distance of in this way.
 
 .. literalinclude:: ../../examples/extensions/distances/default_distance.py
     :language: python
     :lines: 20-25
-    :dedent: 4
 
 Finally, we need to define the maximal distance that can be obtained from this distance measure. Since logistic regression is bound by one, and we divide the sum of LogRegs by the number of data sets compared, this new distance will still be bound by one:
 
 .. literalinclude:: ../../examples/extensions/distances/default_distance.py
     :language: python
     :lines: 27-28
-    :dedent: 4
+
+The complete example for this tutorial can be found `here
+<https://github.com/eth-cscs/abcpy/blob/master/examples/extensions/distances/default_distance.py>`_.
 
 
-Implementing a new perturbation kernel
+Implementing a new Perturbation Kernel
 ======================================
 
 Kernels in ABCpy can be of two types. They can either be derived from the class :py:class:`abcpy.perturbationkernel.ContinuousKernel` or from :py:class:`abcpy.perturbationkernel.DiscreteKernel`. Whether it is a discrete or continuous kernel defines whether this kernel will act on discrete or continuous parameters. The only difference between the two is that a continous kernel has a probability density function, while a discrete kernel has a probability mass function.
@@ -889,6 +888,9 @@ This method requires an accepted parameters manager, a kernel index and a row in
 We simply obtain the parameter values and covariance matrix for this kernel and calculate the probability density function using scipy.
 
 Note that after defining your own kernel, you will need to collect all your kernels in a :py:class:`abcpy.perturbationkernel.JointPerturbationKernel` object in order for inference to work. For an example on how to do this, check the `Advanced`_ section.
+
+The complete example used in this tutorial can be found `here
+<https://github.com/eth-cscs/abcpy/blob/master/examples/extensions/perturbationkernels/multivariate_normal_kernel.py>`_.
 
 
 Bayesian networks - an introduction

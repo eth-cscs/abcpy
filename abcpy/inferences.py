@@ -300,7 +300,7 @@ class RejectionABC(InferenceMethod):
                 distance = self.distance.dist_max()
         return self.get_parameters(self.model)
 
-# NOTE seems to be fine
+
 class PMCABC(BasePMC, InferenceMethod):
     """
     This base class implements a modified version of Population Monte Carlo based inference scheme
@@ -457,14 +457,12 @@ class PMCABC(BasePMC, InferenceMethod):
             new_parameters, distances = [list(t) for t in zip(*params_and_dists_and_ysim)]
             new_parameters = np.array(new_parameters)
 
-            #NOTE here we did not change anything about the three values, even though we might have accepted new ones ---> what should actually happen, this doesnt do anything?
-            # NOTE WE SHOULD NOT AND CANNOT UPDATE THE ACCEPTED PARAMETERS HERE, SINCE THEN CALCULATE WEIGHT WILL NOT WORK -> everything is okay, but I think we dont need this broadcast statement?
+            #NOTE I dont think this statement is needed
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters, accepted_weights,
                                                               accepted_cov_mats)
 
             # Compute epsilon for next step
             # print("INFO: Calculating acceptance threshold (epsilon).")
-            # TODO before we used distances here, but distances is now a list of lists -> which value should be used?
             if aStep < steps - 1:
                 if epsilon_arr[aStep + 1] == None:
                     epsilon_arr[aStep + 1] = np.percentile(distances, epsilon_percentile)
@@ -537,24 +535,29 @@ class PMCABC(BasePMC, InferenceMethod):
         distance = self.distance.dist_max()
         while distance > self.epsilon:
             # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
+
             if self.accepted_parameters_manager.accepted_parameters_bds == None:
                 self.sample_from_prior(rng=rng)
                 theta = self.get_parameters()
                 y_sim = self.simulate(rng=rng)
+
             else:
                 index = rng.choice(self.n_samples, size=1, p=self.accepted_parameters_manager.accepted_weights_bds.value().reshape(-1))
                 # truncate the normal to the bounds of parameter space of the model
                 # truncating the normal like this is fine: https://arxiv.org/pdf/0907.4010v1.pdf
+
                 while True:
                     perturbation_output = self.perturb(index[0], rng=rng)
                     if(perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1])!=0):
                         theta = perturbation_output[1]
                         break
                 y_sim = self.simulate(rng=rng)
+
             if(y_sim is not None):
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),y_sim)
             else:
                 distance = self.distance.dist_max()
+
         return (theta, distance)
 
     def _calculate_weight(self, theta):
@@ -588,7 +591,6 @@ class PMCABC(BasePMC, InferenceMethod):
             return 1.0 * prior_prob / denominator
 
 
-# NOTE seems to work
 class PMC(BasePMC, InferenceMethod):
     """
     Population Monte Carlo based inference scheme of Cappé et. al. [1].
@@ -867,7 +869,7 @@ class PMC(BasePMC, InferenceMethod):
 
         total_pdf_at_theta = 1.
 
-        for ind, obs, y_sim in enumerate(zip(all_obs, all_y_sim)):
+        for ind, (obs, y_sim) in enumerate(zip(all_obs, all_y_sim)):
             lhd = self.likfun.likelihood(obs, y_sim, ind)
 
             # print("DEBUG: Likelihood is :" + str(lhd))
@@ -1134,7 +1136,6 @@ class SABC(BaseAnnealing, InferenceMethod):
                 U = np.mean(smooth_distances)
             epsilon = self._schedule(U, v)
 
-            # NOTE before we had here transposes everywhere... therefore, input and output were not of same shape, and everything got messed up... do we really need to transpose, it sounds wrong too...
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
 
             kernel_parameters = []
@@ -1300,6 +1301,7 @@ class SABC(BaseAnnealing, InferenceMethod):
         acceptance = 0
 
         if self.accepted_parameters_manager.accepted_cov_mats_bds == None:
+
             while acceptance == 0:
                 self.sample_from_prior(rng=rng)
                 new_theta = self.get_parameters()
@@ -1308,21 +1310,20 @@ class SABC(BaseAnnealing, InferenceMethod):
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
                 all_distances.append(distance)
                 acceptance = rng.binomial(1, np.exp(-distance / self.epsilon), 1)
+
             acceptance = 1
         else:
             ## Select one arbitrary particle:
             index = rng.choice(self.n_samples, size=1)[0]
             ## Sample proposal parameter and calculate new distance:
             theta = self.accepted_parameters_manager.accepted_parameters_bds.value()[index,:]
+
             while True:
-                #TODO not sure what difference is??
-                if len(theta) > 1:
-                    perturbation_output = self.perturb(index, rng=rng)
-                else:
-                    perturbation_output = self.perturb(index, rng=rng)
+                perturbation_output = self.perturb(index, rng=rng)
                 if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
                     new_theta = perturbation_output[1]
                     break
+
             y_sim = self.simulate(rng=rng)
             distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
 
@@ -1342,7 +1343,7 @@ class SABC(BaseAnnealing, InferenceMethod):
 
         return (new_theta, distance, all_parameters, all_distances, index, acceptance)
 
-# NOTE terminates, seems to work
+
 class ABCsubsim(BaseAnnealing, InferenceMethod):
     """This base class implements Approximate Bayesian Computation by subset simulation (ABCsubsim) algorithm of [1].
 
@@ -1576,7 +1577,6 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
         index = rng_and_index[1]
         rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
-        # NOTE CAN WE SOMEHOW PUT THIS INTO OUR ARRAY THAT WE SEND?
         mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(
             self.accepted_parameters_manager.model)
 
@@ -1652,13 +1652,11 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
 
         self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats_transformed)
 
-        # NOTE CAN WE SOMEHOW PUT THIS INTO OUR ARRAY THAT WE SEND?
         mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(
             self.accepted_parameters_manager.model)
 
         for ind in range(0, self.chain_length):
             while True:
-                # NOTE is 0 correct here, since that is what we take for theta?
                 perturbation_output = self.perturb(0, rng=rng)
                 if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
                     break
@@ -1681,7 +1679,7 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
         else:
             return (accepted_cov_mats_transformed, t, 0)
 
-# NOTE terminates, seems to work
+
 class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
     """This base class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
     Drovandi and Pettitt [1].
@@ -1969,7 +1967,7 @@ class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
 
         return (self.get_parameters(self.model), distance, index_accept)
 
-# NOTE seems fine
+
 class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
     """This base class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
     M. Lenormand et al. [1].
@@ -2108,7 +2106,6 @@ class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights)
 
-                # NOTE not sure whether correct
                 alpha_accepted_parameters=accepted_parameters
                 alpha_accepted_weights=accepted_weights
 
@@ -2246,7 +2243,7 @@ class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
 
         return (self.get_parameters(self.model), dist, weight)
 
-# note seems to work
+
 class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
     """This base class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
     Del Moral et al. [1].
@@ -2420,7 +2417,7 @@ class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
                         new_weights[ind1] = accepted_weights[ind1] * (numerator / denominator)
                     else:
                         new_weights[ind1] = 0
-                #NOTE again new_weights can be 0
+
                 new_weights = new_weights / sum(new_weights)
             else:
                 new_weights = np.ones(shape=(n_samples), ) * (1.0 / n_samples)
@@ -2518,7 +2515,6 @@ class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
             numerator = 0.0
             denominator = 0.0
             for ind2 in range(n_samples_per_param):
-                # NOTE NOT SURE WHAT IS HAPPENING HERE YET...
                 numerator += (self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]]) < epsilon_new)
                 denominator += (self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]]) < epsilon[-1])
             LHS[ind1] = accepted_weights[ind1] * (numerator / denominator)

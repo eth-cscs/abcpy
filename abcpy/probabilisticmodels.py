@@ -7,6 +7,8 @@ class ProbabilisticModel(metaclass = ABCMeta):
     """
     def __init__(self, parameters):
         """
+        This constructor should be called from any derived class.
+
         Parameters
         ----------
         parameters: list, each element is either a tupel containing the parent of type abcpy.ProbabilisticModel as well as the output index to which this parameter corresponds, a ProbabilisticModel or a hyperparameter.
@@ -479,11 +481,14 @@ class SummationModel(ModelResultingFromOperation):
             The first entry is True, it is always possible to sample, given two parent values. The second entry is the sum of the parents values.
         """
         return_value = []
-        sample_value = []
 
+        # we need to obtain new samples of the parents for each sample (if we just use get_parameter_values, we will have k identical samples)
         for i in range(k):
+            # make sure each parent is only sampled once (for use of access operator or similar)
             visited_parents = [False for i in range(len(self.parents))]
             parameter_values = [0 for i in range(len(self.parents))]
+
+            # sample from each parent and associate the sampled values with the correct positions in parameter_vaulues
             for parent_loc, parent in enumerate(self.parents):
                 parent = parent[0]
                 if(not(visited_parents[parent_loc])):
@@ -495,6 +500,8 @@ class SummationModel(ModelResultingFromOperation):
                                 parameter_values[parent_loc_tmp]=sample_of_parent[1][parent_tmp[1]]
                     else:
                         return [False]
+
+            # add the corresponding parameter_values
             sample_value = []
             for j in range(self.dimension):
                 sample_value.append(parameter_values[j]+parameter_values[j+self.dimension])
@@ -526,9 +533,13 @@ class SubtractionModel(ModelResultingFromOperation):
         return_value = []
         sample_value = []
 
+        # we need to obtain new samples of the parents for each sample (if we just use get_parameter_values, we will have k identical samples)
         for i in range(k):
+            # make sure each parent is only sampled once (for use of access operator or similar)
             visited_parents = [False for i in range(len(self.parents))]
             parameter_values = [0 for i in range(len(self.parents))]
+
+            # sample from each parent and associate the sampled values with the correct positions in parameter_vaulues
             for parent_loc, parent in enumerate(self.parents):
                 parent = parent[0]
                 if (not (visited_parents[parent_loc])):
@@ -541,6 +552,7 @@ class SubtractionModel(ModelResultingFromOperation):
                     else:
                         return [False]
 
+            # subtract the corresponding parameter_values
             sample_value = []
             for j in range(self.dimension):
                 sample_value.append(parameter_values[j] - parameter_values[j + self.dimension])
@@ -570,9 +582,13 @@ class MultiplicationModel(ModelResultingFromOperation):
             """
         return_value = []
 
+        # we need to obtain new samples of the parents for each sample (if we just use get_parameter_values, we will have k identical samples)
         for i in range(k):
+            # make sure each parent is only sampled once (for use of access operator or similar)
             visited_parents = [False for i in range(len(self.parents))]
             parameter_values = [0 for i in range(len(self.parents))]
+
+            # sample from each parent and associate the sampled values with the correct positions in parameter_vaulues
             for parent_loc, parent in enumerate(self.parents):
                 parent = parent[0]
                 if (not (visited_parents[parent_loc])):
@@ -585,6 +601,7 @@ class MultiplicationModel(ModelResultingFromOperation):
                     else:
                         return [False]
 
+            # multiply the corresponding parameter_values
             sample_value = []
 
             for j in range(self.dimension):
@@ -615,9 +632,13 @@ class DivisionModel(ModelResultingFromOperation):
         """
         return_value = []
 
+        # we need to obtain new samples of the parents for each sample (if we just use get_parameter_values, we will have k identical samples)
         for i in range(k):
+            # make sure each parent is only sampled once (for use of access operator or similar)
             visited_parents = [False for i in range(len(self.parents))]
             parameter_values = [0 for i in range(len(self.parents))]
+
+            # sample from each parent and associate the sampled values with the correct positions in parameter_vaulues
             for parent_loc, parent in enumerate(self.parents):
                 parent = parent[0]
                 if (not (visited_parents[parent_loc])):
@@ -629,10 +650,12 @@ class DivisionModel(ModelResultingFromOperation):
                                 parameter_values[parent_loc_tmp] = sample_of_parent[1][parent_tmp[1]]
                     else:
                         return [False]
+
+            # divide the corresponding parameter_values
             sample_value = []
 
             for j in range(self.dimension):
-                sample_value.append(parameter_values[j] * parameter_values[j + self.dimension])
+                sample_value.append(parameter_values[j]/parameter_values[j + self.dimension])
             return_value.append(sample_value)
 
         return [True, np.array(return_value)]
@@ -655,7 +678,6 @@ class ExponentialModel(ModelResultingFromOperation):
 
         self.dimension = len(parameters[:-1])
 
-    # NOTE I THINK THIS IS STILL WRONG, SEE ABOVE FOR SAMPLING
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """Raises the sampled values of the base by the exponent.
 
@@ -671,16 +693,33 @@ class ExponentialModel(ModelResultingFromOperation):
         list:
             The first entry is True, it is always possible to sample, given two parent values. The second entry is the exponential of the parents values.
         """
-        parameter_values = self.get_parameter_values()
-        power = parameter_values[-1]
-
         result = []
-        for i in range(k):
-            result_values = [1. for j in range(len(parameter_values[:-1]))]
 
-            for current_value, parameter in enumerate(parameter_values[:-1]):
-                result_values[current_value]=parameter**power
-            result.append(np.array(result_values))
+        for i in range(k):
+            # make sure each parent is only sampled once (for use of access operator or similar)
+            visited_parents = [False for i in range(len(self.parents))]
+            parameter_values = [1. for j in range(len(self.parents))]
+
+            # sample from each parent and associate the sampled values with the correct positions in parameter_vaulues
+            for parent_loc, parent in enumerate(self.parents):
+                parent = parent[0]
+                if (not (visited_parents[parent_loc])):
+                    sample_of_parent = parent.sample_from_distribution(1, rng=rng)
+                    if (sample_of_parent[0]):
+                        for parent_loc_tmp, parent_tmp in enumerate(self.parents):
+                            if (parent == parent_tmp[0]):
+                                visited_parents[parent_loc_tmp] = True
+                                parameter_values[parent_loc_tmp] = sample_of_parent[1][parent_tmp[1]]
+                    else:
+                        return [False]
+
+            power = parameter_values[-1]
+
+            sample_value = []
+
+            for j in range(self.dimension):
+                sample_value.append(parameter_values[j]**power)
+            result.append(sample_value)
 
         return [True, np.array(result)]
 
@@ -718,17 +757,33 @@ class RExponentialModel(ModelResultingFromOperation):
         list:
             The first entry is True, it is always possible to sample, given two parent values. The second entry is the exponential of the parents values.
         """
-        parameter_values = self.get_parameter_values()
-        power = parameter_values[0]
-
         result = []
+
         for i in range(k):
-            result_values = [1. for j in range(len(parameter_values[1:]))]
+            # make sure each parent is only sampled once (for use of access operator or similar)
+            visited_parents = [False for i in range(len(self.parents))]
+            parameter_values = [1. for j in range(len(self.parents))]
 
-            for current_value, parameter in enumerate(parameter_values[1:]):
-                result_values[current_value]=parameter**power
+            # sample from each parent and associate the sampled values with the correct positions in parameter_vaulues
+            for parent_loc, parent in enumerate(self.parents):
+                parent = parent[0]
+                if (not (visited_parents[parent_loc])):
+                    sample_of_parent = parent.sample_from_distribution(1, rng=rng)
+                    if (sample_of_parent[0]):
+                        for parent_loc_tmp, parent_tmp in enumerate(self.parents):
+                            if (parent == parent_tmp[0]):
+                                visited_parents[parent_loc_tmp] = True
+                                parameter_values[parent_loc_tmp] = sample_of_parent[1][parent_tmp[1]]
+                    else:
+                        return [False]
 
-            result.append(np.array(result_values))
+            power = parameter_values[0]
+
+            sample_value = []
+
+            for j in range(self.dimension):
+                sample_value.append(parameter_values[j] ** power)
+            result.append(sample_value)
 
         return [True, np.array(result)]
 

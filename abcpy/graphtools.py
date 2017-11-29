@@ -1,6 +1,7 @@
 import numpy as np
 from abcpy.probabilisticmodels import Hyperparameter, ModelResultingFromOperation
 
+
 class GraphTools():
     """This class implements all methods that will be called recursively on the graph structure."""
     def sample_from_prior(self, rng=np.random.RandomState()):

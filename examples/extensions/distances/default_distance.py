@@ -1,5 +1,5 @@
 import numpy as np
-from abcpy.distances import Distance, LogReg
+from abcpy.distances import Distance, Euclidean
 
 
 class DefaultJointDistance(Distance):
@@ -15,7 +15,7 @@ class DefaultJointDistance(Distance):
 
     def __init__(self, statistics):
         self.statistics_calc = statistics
-        self.distance_calc = LogReg(self.statistics_calc)
+        self.distance_calc = Euclidean(self.statistics_calc)
 
     def distance(self, d1, d2):
         total_distance = 0
@@ -25,4 +25,4 @@ class DefaultJointDistance(Distance):
         return total_distance
 
     def dist_max(self):
-        return 1.0
+        return np.inf

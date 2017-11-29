@@ -67,7 +67,7 @@ class SynLiklihood(Approx_likelihood):
         self.statistics_calc = statistics_calc
 
 
-    def likelihood(self, y_obs, y_sim):
+    def likelihood(self, y_obs, y_sim, ind):
         # print("DEBUG: SynLiklihood.likelihood().")
         if not isinstance(y_obs, list):
             raise TypeError('Observed data is not of allowed types')
