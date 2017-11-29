@@ -29,7 +29,9 @@ class Summaryselections(metaclass=ABCMeta):
             Backend object that conforms to the Backend class.
         n_samples: int, optional
             The number of (parameter, simulated data) tuple generated to learn the summary statistics in pilot step. 
-            The default value is 1000. 
+            The default value is 1000.
+        n_samples_per_param: int, optional
+            Number of data points in each simulated data set.
         seed: integer, optional
             Optional initial seed for the random number generator. The default value is generated randomly.    
         """
@@ -52,25 +54,14 @@ class Semiautomatic(Summaryselections, GraphTools):
     Bayesian computation: semi-automatic approximate Bayesian computation. J. Roy. Stat. Soc. B 74:419–474.    
     """
 
-    def __init__(self, model, statistics_calc, backend, n_samples=1000, seed=None):
+    def __init__(self, model, statistics_calc, backend, n_samples=1000, n_samples_per_param = 1, seed=None):
         self.model = model
         self.statistics_calc = statistics_calc
         self.backend = backend
         self.rng = np.random.RandomState(seed)
-        self.n_samples_per_param = 1
+        self.n_samples_per_param = n_samples_per_param
 
-        #Test part, after y_sim is not None, we remove
-        rng = np.random.RandomState(seed)
-        self.sample_from_prior(rng=rng)
-        print('checkedparam')
-        print(self.get_parameters())
-        print('checkeddata')
-        y_sim = None
-        while y_sim is None:
-            y_sim = self.simulate(rng=rng)
-            print(y_sim)
-
-            # An object managing the bds objects
+        # An object managing the bds objects
         self.accepted_parameters_manager = AcceptedParametersManager(self.model)
         self.accepted_parameters_manager.broadcast(self.backend, [])
 
@@ -114,10 +105,7 @@ class Semiautomatic(Summaryselections, GraphTools):
         """
 
         self.sample_from_prior(rng=rng)
-        print('checked')
-        print(self.get_parameters())
         parameter = self.get_parameters()
-        print('checked')
         y_sim = self.simulate(rng=rng)
         if y_sim is not None:
             statistics = self.statistics_calc.statistics(y_sim)
