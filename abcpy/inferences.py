@@ -271,6 +271,9 @@ class RejectionABC(InferenceMethod):
         journal.add_parameters(accepted_parameters)
         journal.add_weights(np.ones((n_samples, 1)))
 
+        names_and_parameters = self._get_names_and_parameters()
+        journal.add_user_parameters(names_and_parameters)
+
         return journal
 
     def _sample_parameter(self, rng):
@@ -507,6 +510,9 @@ class PMCABC(BasePMC, InferenceMethod):
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
                 journal.add_parameters(accepted_parameters)
                 journal.add_weights(accepted_weights)
+
+                names_and_parameters = self._get_names_and_parameters()
+                journal.add_user_parameters(names_and_parameters)
 
         # Add epsilon_arr to the journal
         journal.configuration["epsilon_arr"] = epsilon_arr
@@ -842,6 +848,9 @@ class PMC(BasePMC, InferenceMethod):
                 journal.add_weights(accepted_weights)
                 journal.add_opt_values(approx_likelihood_new_parameters)
 
+                names_and_parameters = self._get_names_and_parameters()
+                journal.add_user_parameters(names_and_parameters)
+
         return journal
 
     # define helper functions for map step
@@ -1164,6 +1173,9 @@ class SABC(BaseAnnealing, InferenceMethod):
                 journal.add_parameters(accepted_parameters)
                 journal.add_weights(accepted_weights)
 
+                names_and_parameters = self._get_names_and_parameters()
+                journal.add_user_parameters(names_and_parameters)
+
             if aStep > 0:
                 accept = accept + np.sum(acceptance)
                 samples_until = samples_until + sample_array[aStep]
@@ -1198,6 +1210,10 @@ class SABC(BaseAnnealing, InferenceMethod):
         if full_output == 0:
             journal.add_parameters(accepted_parameters)
             journal.add_weights(accepted_weights)
+
+            names_and_parameters = self._get_names_and_parameters()
+            journal.add_user_parameters(names_and_parameters)
+
         journal.configuration["steps"] = aStep + 1
         journal.configuration["epsilon"] = epsilon
 
@@ -1549,6 +1565,10 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
             journal.add_parameters(accepted_parameters)
             journal.add_weights(accepted_weights)
             journal.add_opt_values(accepted_cov_mats)
+
+            names_and_parameters = self._get_names_and_parameters()
+            journal.add_user_parameters(names_and_parameters)
+
         journal.configuration["steps"] = aStep + 1
         journal.configuration["anneal_parameter"] = anneal_parameter
 
@@ -1899,6 +1919,9 @@ class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
                 journal.add_parameters(accepted_parameters)
                 journal.add_weights(np.ones(shape=(n_samples, 1)) * (1 / n_samples))
 
+                names_and_parameters = self._get_names_and_parameters()
+                journal.add_user_parameters(names_and_parameters)
+
         # Add epsilon_arr to the journal
         journal.configuration["epsilon_arr"] = epsilon
 
@@ -2177,6 +2200,9 @@ class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
                 journal.add_parameters(accepted_parameters)
                 journal.add_weights(accepted_weights)
+
+                names_and_parameters = self._get_names_and_parameters()
+                journal.add_user_parameters(names_and_parameters)
 
             # 4: Check probability of acceptance lower than acceptance_cutoff
             if prob_acceptance < acceptance_cutoff:
@@ -2477,6 +2503,10 @@ class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
                 journal.add_parameters(accepted_parameters)
                 journal.add_weights(accepted_weights)
                 journal.add_opt_values(accepted_y_sim)
+
+                names_and_parameters = self._get_names_and_parameters()
+                journal.add_user_parameters(names_and_parameters)
+
         # Add epsilon_arr to the journal
         journal.configuration["epsilon_arr"] = epsilon
 

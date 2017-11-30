@@ -6,7 +6,7 @@ from scipy.stats import poisson, bernoulli
 
 
 class Bernoulli(Discrete, ProbabilisticModel):
-    def __init__(self, parameters):
+    def __init__(self, parameters, name='Bernoulli'):
         """This class implements a probabilistic model following a bernoulli distribution.
 
         Parameters
@@ -16,6 +16,8 @@ class Bernoulli(Discrete, ProbabilisticModel):
         """
         super(Bernoulli, self).__init__(parameters)
         self.dimension = 1
+
+        self.name = name
 
     def _check_parameters_at_initialization(self, parameters):
         """Raises an error if more than one parameters are given, or if the probability is not in the interval (0,1)."""
@@ -69,7 +71,7 @@ class Bernoulli(Discrete, ProbabilisticModel):
 
 
 class Binomial(Discrete, ProbabilisticModel):
-    def __init__(self, parameters):
+    def __init__(self, parameters, name='Binomial'):
         """
         This class implements a probabilistic model following a binomial distribution.
 
@@ -89,6 +91,8 @@ class Binomial(Discrete, ProbabilisticModel):
 
         super(Binomial, self).__init__(input_parameters)
         self.dimension = 1
+
+        self.name = name
 
     def _check_parameters_at_initialization(self, parameters):
         """Raises an Error iff:
@@ -171,7 +175,7 @@ class Binomial(Discrete, ProbabilisticModel):
 
 
 class Poisson(Discrete, ProbabilisticModel):
-    def __init__(self, parameters):
+    def __init__(self, parameters, name='Poisson'):
         """This class implements a probabilistic model following a poisson distribution.
 
         Parameters
@@ -181,6 +185,8 @@ class Poisson(Discrete, ProbabilisticModel):
         """
         super(Poisson, self).__init__(parameters)
         self.dimension = 1
+
+        self.name = name
 
     def _check_parameters_at_initialization(self, parameters):
         """Raises an error iff more than one parameter are given or the parameter given is smaller than 0."""

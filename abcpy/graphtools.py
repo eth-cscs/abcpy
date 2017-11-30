@@ -194,6 +194,25 @@ class GraphTools():
             self._reset_flags()
 
         return [mapping, index]
+    # NOTE for some reason this gives an error -> do a test with like pmcabc or something
+    def _get_names_and_parameters(self):
+        """
+        A function returning the name of each model and the corresponding parameters to this model
+
+        Returns
+        -------
+        list:
+            Each entry is a tupel, the first entry of which is the name of the model and the second entry is the parameter values associated with it
+        """
+        mapping = self._get_mapping()[0]
+
+        return_value = []
+
+        for model, index in mapping:
+            print(self.accepted_parameters_namager.accepted_parameters_bds.value())
+            return_value.append((model.name, self.accepted_parameters_manager.get_accepted_parameters_bds_values([model])))
+
+        return return_value
 
     def get_parameters(self, models=None, is_root=True):
         """

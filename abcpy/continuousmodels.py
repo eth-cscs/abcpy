@@ -7,7 +7,7 @@ from scipy.special import gamma
 
 
 class Normal(ProbabilisticModel, Continuous):
-    def __init__(self, parameters):
+    def __init__(self, parameters, name='Normal'):
         """
         This class implements a probabilistic model following a normal distribution with mean mu and variance sigma.
 
@@ -28,6 +28,8 @@ class Normal(ProbabilisticModel, Continuous):
         super(Normal, self).__init__(input_parameters)
         # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = 1
+
+        self.name = name
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """
@@ -102,7 +104,7 @@ class Normal(ProbabilisticModel, Continuous):
 
 
 class MultivariateNormal(ProbabilisticModel, Continuous):
-    def __init__(self,parameters):
+    def __init__(self,parameters, name='Multivariate Normal'):
         """
         This class implements a probabilistic model following a multivariate normal distribution with mean and covariance matrix.
 
@@ -122,6 +124,8 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
 
         # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = len(self.parents)-1
+
+        self.name = name
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """
@@ -219,7 +223,7 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
 
 
 class MixtureNormal(ProbabilisticModel, Continuous):
-    def __init__(self, parameters):
+    def __init__(self, parameters, name='Mixture normal'):
         """
         This class implements a probabilistic model following a mixture normal distribution.
 
@@ -231,6 +235,8 @@ class MixtureNormal(ProbabilisticModel, Continuous):
         super(MixtureNormal, self).__init__(parameters)
         # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = len(self.parents)
+
+        self.name = name
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """
@@ -300,7 +306,7 @@ class MixtureNormal(ProbabilisticModel, Continuous):
 
 
 class StudentT(ProbabilisticModel, Continuous):
-    def __init__(self, parameters):
+    def __init__(self, parameters, name='Student T'):
         """
         This class implements a probabilistic model following the Student's T-distribution.
 
@@ -321,6 +327,8 @@ class StudentT(ProbabilisticModel, Continuous):
         super(StudentT, self).__init__(input_parameters)
         # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = 1
+
+        self.name = name
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """
@@ -395,7 +403,7 @@ class StudentT(ProbabilisticModel, Continuous):
 
 
 class MultiStudentT(ProbabilisticModel, Continuous):
-    def __init__(self, parameters):
+    def __init__(self, parameters, name='Multivariate Student T'):
         """
         This class implements a probabilistic model following the multivariate Student-T distribution.
 
@@ -530,7 +538,7 @@ class MultiStudentT(ProbabilisticModel, Continuous):
 
 
 class Uniform(ProbabilisticModel, Continuous):
-    def __init__(self, parameters):
+    def __init__(self, parameters, name='Uniform'):
         """
         This class implements a probabilistic model following a uniform distribution.
 
@@ -567,6 +575,8 @@ class Uniform(ProbabilisticModel, Continuous):
 
         super(Uniform, self).__init__(joint_parameters)
         self.visited = False
+
+        self.name = name
 
 
     def num_parameters(self):
