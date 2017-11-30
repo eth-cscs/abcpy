@@ -1,5 +1,4 @@
 from abc import ABCMeta, abstractmethod
-from scipy.integrate import quad
 import numpy as np
 
 class ProbabilisticModel(metaclass = ABCMeta):
@@ -11,7 +10,8 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
         Parameters
         ----------
-        parameters: list, each element is either a tupel containing the parent of type abcpy.ProbabilisticModel as well as the output index to which this parameter corresponds, a ProbabilisticModel or a hyperparameter.
+        parameters: list
+            Each element of the list is either a tupel containing the parent of type abcpy.ProbabilisticModel as well as the output index to which this parameter corresponds, an abcpy.ProbabilisticModel or a hyperparameter.
         """
 
         # Save all probabilistic models and hyperparameters from which the model derives
@@ -134,7 +134,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         Parameters
         ----------
         parameters: list
-            Contains the probabilistic models and hyperparameters which define the probabilistic model.
+            Contains the probabilistic models and hyperparameters which define the probabilistic model as tupels.
         """
         raise NotImplementedError
 
@@ -147,6 +147,11 @@ class ProbabilisticModel(metaclass = ABCMeta):
         ----------
         parameters: list
             Contains the current sampled values for all parents of the current probabilistic model.
+
+        Returns
+        -------
+        boolean
+            Whether it is possible to sample from the distribution, given the parent parameters.
         """
         raise NotImplementedError
 
@@ -159,11 +164,16 @@ class ProbabilisticModel(metaclass = ABCMeta):
         ----------
         parameters: list
             Contains the values to which the free parameters should be fixed.
+
+        Returns
+        -------
+        boolean:
+            Whether the given parameters could have been sampled from this distribution.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+    def sample_from_distribution(self, k, rng):
         """
         Samples from the distribution associated with the probabilistic model by using the current values for each              probabilistic model from which the model derives.
 
@@ -173,6 +183,11 @@ class ProbabilisticModel(metaclass = ABCMeta):
             The number of samples that should be drawn.
         rng: Random number generator
             Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+
+        Returns
+        -------
+        list:
+            The first entry is a boolean, specifying whether it was possible to sample from the distribution. The second entry is a numpy array, containing k elements, each of length self.dimension, the k samples from the distribution.
         """
         raise NotImplementedError
 
@@ -185,6 +200,11 @@ class ProbabilisticModel(metaclass = ABCMeta):
         ----------
         x: list
             The point at which the pdf should be evaluated.
+
+        Returns
+        -------
+        float:
+            The pdf evaluated at point x.
         """
         # If the probabilistic model is discrete, there is no probability density function, but a probability mass function. This check ensures that calling the pdf of such a model still works.
         if(isinstance(self, Discrete)):

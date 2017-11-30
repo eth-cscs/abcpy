@@ -9,19 +9,77 @@ class PerturbationKernel(metaclass = ABCMeta):
     """This abstract base class represents all perturbation kernels"""
     @abstractmethod
     def __init__(self, models):
+        """
+        Parameters
+        ----------
+        models: list
+            The list of abcpy.probabilisticmodel objects that should be perturbed by this kernel.
+        """
         raise NotImplementedError
 
     @abstractmethod
     def calculate_cov(self, accepted_parameters_manager, kernel_index):
+        """
+        Calculates the covariance matrix for the kernel.
+
+        Parameters
+        ----------
+        accepted_parameters_manager: abcpy.acceptedparametersmanager object
+            The accepted parameters manager that manages all bds objects.
+        kernel_index: integer
+            The index of the kernel in the list of kernels of the joint perturbation kernel.
+
+        Returns
+        -------
+        numpy.ndarray:
+            The covariance matrix for the kernel.
+        """
         raise NotImplementedError
 
     @abstractmethod
-    def update(self, accepted_parameters_manager, index, rng):
+    def update(self, accepted_parameters_manager, row_index, rng):
+        """
+        Perturbs the parameters for this kernel.
+
+        Parameters
+        ----------
+        accepted_parameters_manager: abcpy.acceptedparametersmanager object
+            The accepted parameters manager that manages all bds objects.
+        row_index: integer
+            The index of the accepted parameters bds that should be perturbed.
+        rng: random number generator
+            The random number generator to be used.
+
+        Returns
+        -------
+        numpy.ndarray:
+            The perturbed parameters.
+        """
         raise NotImplementedError
 
-    def pdf(self, accepted_parameters_manager, kernel_index, index, x):
+    def pdf(self, accepted_parameters_manager, kernel_index, row_index, x):
+        """
+        Calculates the pdf of the kernel at point x.
+
+        Parameters
+        ----------
+        accepted_parameters_manager: abcpy.acceptedparametersmanager object
+            The accepted parameters manager that manages all bds objects.
+        kernel_index: integer
+            The index of the kernel in the list of kernels of the joint perturbation kernel.
+        row_index: integer
+            The index of the accepted parameters bds for which the pdf should be evaluated.
+        x: list or float
+            The point at which the pdf should be evaluated.
+
+        Returns
+        -------
+        float:
+            The pdf evaluated at point x.
+
+        """
         if(isinstance(self, DiscreteKernel)):
-            return self.pmf(accepted_parameters_manager, kernel_index, index, x)
+            return self.pmf(accepted_parameters_manager, kernel_index, row_index, x)
         else:
             raise NotImplementedError
 

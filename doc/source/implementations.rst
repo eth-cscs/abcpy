@@ -15,7 +15,7 @@ Every model has to conform to the API specified by the base class
 
 .. literalinclude:: ../../abcpy/probabilisticmodels.py
     :language: python
-    :lines: 5, 8, 130, 142, 154, 166, 179
+    :lines: 4, 7, 130, 142, 159, 176, 194
 
 Of course, **if your model does not have a easily implemented probability density function, this method does not have to be provided**. But keep in mind that in this case, your model can only be used as one of the hierarhical models of the network, and not for any nodes contained in the prior. **The prior can only contain random variables that have a defined probability density function**. Of course, it is possible to use an approximative technique to approximate the probability density function, and provide this instead.
 
@@ -43,7 +43,7 @@ Consequently, we would implement a simple version of a Gaussian model as follows
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/normal_extended_model.py
     :language: python
-    :lines: 7-9
+    :lines: 6-9
 
 
 Observe that we defined an additional attribute **self.dimension**. This attribute has to be defined for any probabilistic model you implement. It defines the dimension (length) a sample of your probabilistic model will have. Since a normal distribution will give one value per sample, its dimension is one. If we were to implement an n-dimensional multivariate normal distribution, the dimension would be n.
@@ -53,7 +53,7 @@ If you have a look at the definition of the constructor of the probabilistic mod
 .. literalinclude:: ../../abcpy/probabilisticmodels.py
     :language: python
     :lines: 38
-    :dedent: 4
+    :dedent: 8
 
 Before this, all parameters given to the model are rewritten in the following way:
 
@@ -71,12 +71,17 @@ In pseudo-code, this list might look something like this:
 
     [(prob_model_1, 0), (prob_model_1, 1), (prob_model_2, 2), (hyperparameter, 0)]
 
+Within the constructor of :py:class:`abcpy.probablisticmodels.ProbabilisticModel`, the following method is called:
 
-Now, we need to check whether the parameters that were given to our new probabilistic model are valid parameters:
+.. automethod:: abcpy.probabilisticmodels.ProbabilisticModel._check_parameters_at_initialization
+    :noindex:
+
+This method checks whether the parameters given at initialization are valid.
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/normal_extended_model.py
     :language: python
     :lines: 11-16
+    :dedent: 4
 
 This ensures that we give exactly two values to a the model and that the variance will not be smaller than 0.
 
@@ -95,6 +100,7 @@ So, we have the following implementation:
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/normal_extended_model.py
     :language: python
     :lines: 18-21
+    :dedent: 4
 
 This method returns a boolean. It returns **True** if the parameters are accepted for sampling, and **False** otherwise.
 
@@ -110,6 +116,7 @@ However, for the normal model we are trying to implement, all values are accepta
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/normal_extended_model.py
     :language: python
     :lines: 23-24
+    :dedent: 4
 
 When implementing this method, keep in mind that it should decide whether the provided value or values can be sampled from this distribution.
 
@@ -129,6 +136,7 @@ Now, let's look at the implementation of the method for our model:
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/normal_extended_model.py
     :language: python
     :lines: 26-37
+    :dedent: 4
 
 First, we need to obtain the values that correspond to each parameter of our model. Since the parents of our object can be probabilistic models, the values might not always be the same, and need to be obtained each time we want to sample. You do not need to implement the method used to to this, as long as you have derived your class from the probabilistic model class.
 
@@ -289,18 +297,21 @@ Let us first look at the constructor. Distances in ABCpy should act on summary s
 .. literalinclude:: ../../examples/extensions/distances/default_distance.py
     :language: python
     :lines: 16-18
+    :dedent: 4
 
 Then, we need to define how the total distance is calculated. In our case, we decide that we will iterate over each observed and simulated data set, calculate the individual distance between those, add all these individual distances, and in the end divide the result by the number of data sets that we calculated the distance of in this way.
 
 .. literalinclude:: ../../examples/extensions/distances/default_distance.py
     :language: python
     :lines: 20-25
+    :dedent: 4
 
 Finally, we need to define the maximal distance that can be obtained from this distance measure. We then normalize the distance by dividing by the number of data sets.
 
 .. literalinclude:: ../../examples/extensions/distances/default_distance.py
     :language: python
     :lines: 27-28
+    :dedent: 4
 
 The complete example for this tutorial can be found `here
 <https://github.com/eth-cscs/abcpy/blob/master/examples/extensions/distances/default_distance.py>`_.
@@ -317,9 +328,15 @@ A kernel always needs the following methods to be a valid object of type :py:cla
 
 .. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 8,11,15,19,22
+    :lines: 8,11,21,40,60
 
-First, we need to define a constructor. We expect that the arguments passed to the constructor should be of type :py:class:`abcpy.probabilisticmodels.ProbabilisticModel`, the random variables that should be perturbed using this kernel. All these models should be saved on the kernel for future reference.
+First, we need to define a constructor.
+
+.. automethod:: abcpy.perturbationkernel.PerturbationKernel.__init__
+    :noindex:
+
+
+We expect that the arguments passed to the constructor should be of type :py:class:`abcpy.probabilisticmodels.ProbabilisticModel`, the random variables that should be perturbed using this kernel. All these models should be saved on the kernel for future reference.
 
 .. literalinclude:: ../../examples/extensions/perturbationkernels/multivariate_normal_kernel.py
     :language: python
@@ -341,6 +358,7 @@ Let us now look at the implementation of the method:
 .. literalinclude:: ../../examples/extensions/perturbationkernels/multivariate_normal_kernel.py
     :language: python
     :lines: 10, 25-30
+    :dedent" 4
 
 Some of the implemented inference algorithms weigh different sets of parameters differently. Therefore, if such weights are provided, we would like to weight the covariance matrix accordingly. We, therefore, check whether the accepted parameters manager contains any weights. If it does, we retrieve these weights, and calculate the covariance matrix using numpy, the parameters relevant to this kernel and the weights. If there are no weights, we simply calculate an unweighted covariance matrix.
 
@@ -359,9 +377,12 @@ In addition to this, a row index is required, as well as a random number generat
 
 The random number generator should be a random number generator compatible with numpy. This is due to the fact that other methods will pass their random number generator to this method, and all random number generators used within ABCpy are provided by numpy. Also, note that even if your kernel does not require a random number generator, you still need to pass this argument.
 
+Here the implementation for our kernel:
+
 .. literalinclude:: ../../examples/extensions/perturbationkernels/multivariate_normal_kernel.py
     :language: python
     :lines: 32, 53, 56-60
+    :dedent: 4
 
 The first line shows how you obtain the values of the parameters that your kernel should perturb. These values are converted to a numpy array. Then, the covariance matrix is retrieved from the accepted parameters manager using a similar function call. Finally, the parameters are perturbed and returned.
 
@@ -375,6 +396,7 @@ This method is implemented as follows for the multivariate normal:
 .. literalinclude:: ../../examples/extensions/perturbationkernels/multivariate_normal_kernel.py
     :language: python
     :lines: 62, 83-87
+    :dedent: 4
 
 We simply obtain the parameter values and covariance matrix for this kernel and calculate the probability density function using scipy.
 
