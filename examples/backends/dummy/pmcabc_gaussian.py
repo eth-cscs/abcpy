@@ -6,11 +6,11 @@ def infer_parameters():
 
     # define prior
     from abcpy.continuousmodels import Uniform
-    prior = Uniform([[150, 5],[200, 25]])
+    prior = Uniform([[150, 5],[200, 25]], name='prior')
     
     # define the model
     from abcpy.continuousmodels import Normal
-    model = Normal([prior])
+    model = Normal([prior], name='model')
     
     # define statistics
     from abcpy.statistics import Identity
@@ -44,7 +44,7 @@ def infer_parameters():
 
 def analyse_journal(journal):
     # output parameters and weights
-    print(journal.parameters)
+    print(journal.get_parameters())
     print(journal.weights)
     
     # do post analysis

@@ -13,6 +13,9 @@ class Bernoulli(Discrete, ProbabilisticModel):
         ----------
         parameters: list
              A list containing one entry, the probability of the distribution.
+
+        name: string
+            The name that should be given to the probabilistic model in the journal file.
         """
         super(Bernoulli, self).__init__(parameters)
         self.dimension = 1
@@ -79,6 +82,9 @@ class Binomial(Discrete, ProbabilisticModel):
         ----------
         parameters: list
             Contains the probabilistic models and hyperparameters from which the model derives. Note that the first entry of the list, n, has to be larger than or equal to 0, while the second entry, p, has to be in the interval [0,1].
+
+        name: string
+            The name that should be given to the probabilistic model in the journal file.
         """
 
         # Rewrite user input
@@ -182,6 +188,9 @@ class Poisson(Discrete, ProbabilisticModel):
         ----------
         parameters: list
             A list containing one entry, the mean of the distribution.
+
+        name: string
+            The name that should be given to the probabilistic model in the journal file.
         """
         super(Poisson, self).__init__(parameters)
         self.dimension = 1

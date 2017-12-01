@@ -15,6 +15,9 @@ class Normal(ProbabilisticModel, Continuous):
         ----------
         parameters: list
             Contains the probabilistic models and hyperparameters from which the model derives. Note that the second value of the list is not allowed to be smaller than 0.
+
+        name: string
+            The name that should be given to the probabilistic model in the journal file.
         """
 
         # Rewrite user input
@@ -112,6 +115,9 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         ----------
         parameters: list of at least length 2
             Contains the probabilistic models and hyperparameters from which the model derives. The last entry defines the         covariance matrix, while all other entries define the mean. Note that if the mean is n dimensional, the                covariance matrix is required to be of dimension nxn. The covariance matrix is required to be positive-definite.
+
+        name: string
+            The name that should be given to the probabilistic model in the journal file.
         """
 
         # The user input will contain two lists, a list for the mean, and a list for the covariance matrix. Put this into the appropriate format used by the super constructor.
@@ -231,6 +237,9 @@ class MixtureNormal(ProbabilisticModel, Continuous):
         ----------
         parameters: list
             Contains all the probabilistic models and hyperparameters from which the model derives.
+
+        name: string
+            The name that should be given to the probabilistic model in the journal file.
         """
         super(MixtureNormal, self).__init__(parameters)
         # Parameter specifying the dimension of the return values of the distribution.
@@ -314,6 +323,9 @@ class StudentT(ProbabilisticModel, Continuous):
         ----------
         parameters: list
             If the list has two entries, the first entry contains the mean of the distribution, while the second entry             contains the degrees of freedom.
+
+        name: string
+            The name that should be given to the probabilistic model in the journal file.
         """
 
         # Rewrite user input
@@ -411,6 +423,9 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         ----------
         parameters: list
             All but the last two entries contain the probabilistic models and hyperparameters from which the model derives.        The second to last entry contains the covariance matrix. If the mean is of dimension n, the covariance matrix          is required to be nxn dimensional. The last entry contains the degrees of freedom.
+
+        name: string
+            The name that should be given to the probabilistic model in the journal file.
         """
 
         # The user input contains a list for the mean. Change this to be compatible with the format required by the super constructor.
@@ -546,6 +561,9 @@ class Uniform(ProbabilisticModel, Continuous):
         ----------
         parameters: list
             Contains two lists. The first list specifies the probabilistic models and hyperparameters from which the lower         bound of the uniform distribution derive. The second list specifies the probabilistic models and hyperparameters from which the upper bound derives.
+
+        name: string
+            The name that should be given to the probabilistic model in the journal file.
         """
 
         # The user input is checked, since the input has to be rewritten internally before sending it to the constructor of the probabilistic model
