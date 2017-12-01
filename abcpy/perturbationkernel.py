@@ -246,7 +246,10 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
             weights = accepted_parameters_manager.accepted_weights_bds.value()
             cov = np.cov(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], aweights=weights.reshape(-1), rowvar=False)
         else:
-            cov = np.cov(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], rowvar=False)
+            if(not(accepted_parameters_manager.accepted_parameters_bds.value().shape[1]>1)):
+                cov = np.var(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index])
+            else:
+                cov = np.cov(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], rowvar=False)
         return cov
 
     def update(self, accepted_parameters_manager, kernel_index, row_index, rng=np.random.RandomState()):
@@ -342,7 +345,10 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
                 accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], aweights=weights.reshape(-1),
                 rowvar=False)
         else:
-            cov = np.cov(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], rowvar=False)
+            if(not(accepted_parameters_manager.accepted_parameters_bds.value().shape[1]>1)):
+                cov = np.var(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index])
+            else:
+                cov = np.cov(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], rowvar=False)
         return cov
 
     def update(self, accepted_parameters_manager, kernel_index, row_index, rng=np.random.RandomState()):
