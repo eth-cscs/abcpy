@@ -191,7 +191,6 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         """
         Returns True iff the covariance matrix provided is symmetric and positive definite.
         """
-
         cov = np.array(parameters[-1])
         # Check whether the covariance matrix is symmetric
         if(not(np.allclose(cov, cov.T, atol=1e-3))):

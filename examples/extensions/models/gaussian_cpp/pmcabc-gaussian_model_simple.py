@@ -4,9 +4,10 @@ from abcpy.probabilisticmodels import ProbabilisticModel, Hyperparameter
 from gaussian_model_simple import gaussian_model
 
 class Gaussian(ProbabilisticModel):
-    def __init__(self, parameters):
+    def __init__(self, parameters, name='Gaussian'):
         super(Gaussian, self).__init__(parameters)
         self.dimension = 1
+        self.name=name
 
     def _check_parameters_at_initialization(self, parameters):
         if(len(parameters)!=2):

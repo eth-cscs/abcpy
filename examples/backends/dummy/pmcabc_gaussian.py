@@ -10,7 +10,7 @@ def infer_parameters():
     
     # define the model
     from abcpy.continuousmodels import Normal
-    model = Normal([prior], name='model')
+    model = Normal([prior])
     
     # define statistics
     from abcpy.statistics import Identity
@@ -45,7 +45,7 @@ def infer_parameters():
 def analyse_journal(journal):
     # output parameters and weights
     print(journal.get_parameters())
-    print(journal.weights)
+    print(journal.get_weights())
     
     # do post analysis
     print(journal.posterior_mean())

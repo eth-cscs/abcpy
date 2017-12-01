@@ -43,10 +43,11 @@ Consequently, we would implement a simple version of a Gaussian model as follows
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/normal_extended_model.py
     :language: python
-    :lines: 6-9
+    :lines: 6-10
 
+First, note that we provided an additional parameter that is not required by the base class. It is **necessary** to provide this parameter and save the name as **self.name**. This is due to the fact that in the journal the final values for the random variables should be saved together with their name. However, since Python does not allow for easy retrieval of names given by the user, the name needs to be saved manually. We provide a default value such that the user does not need to specify such a name in case he wants to use this probabilistic model as a hierarchical model, which will not have its end value saved in the journal.
 
-Observe that we defined an additional attribute **self.dimension**. This attribute has to be defined for any probabilistic model you implement. It defines the dimension (length) a sample of your probabilistic model will have. Since a normal distribution will give one value per sample, its dimension is one. If we were to implement an n-dimensional multivariate normal distribution, the dimension would be n.
+Also, observe that we defined an additional attribute **self.dimension**. This attribute has to be defined for any probabilistic model you implement. It defines the dimension (length) a sample of your probabilistic model will have. Since a normal distribution will give one value per sample, its dimension is one. If we were to implement an n-dimensional multivariate normal distribution, the dimension would be n.
 
 If you have a look at the definition of the constructor of the probabilistic model class, you might notice the following statement:
 
@@ -67,7 +68,7 @@ Finally, if a user used the access operator, the tupel will contain the probabil
 
 In pseudo-code, this list might look something like this:
 
-::
+.. code-block:: python
 
     [(prob_model_1, 0), (prob_model_1, 1), (prob_model_2, 2), (hyperparameter, 0)]
 
@@ -80,7 +81,7 @@ This method checks whether the parameters given at initialization are valid.
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/normal_extended_model.py
     :language: python
-    :lines: 11-16
+    :lines: 12-17
     :dedent: 4
 
 This ensures that we give exactly two values to a the model and that the variance will not be smaller than 0.
@@ -99,7 +100,7 @@ So, we have the following implementation:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/normal_extended_model.py
     :language: python
-    :lines: 18-21
+    :lines: 19-22
     :dedent: 4
 
 This method returns a boolean. It returns **True** if the parameters are accepted for sampling, and **False** otherwise.
@@ -115,7 +116,7 @@ However, for the normal model we are trying to implement, all values are accepta
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/normal_extended_model.py
     :language: python
-    :lines: 23-24
+    :lines: 24-25
     :dedent: 4
 
 When implementing this method, keep in mind that it should decide whether the provided value or values can be sampled from this distribution.
@@ -135,7 +136,7 @@ Now, let's look at the implementation of the method for our model:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/normal_extended_model.py
     :language: python
-    :lines: 26-37
+    :lines: 27-38
     :dedent: 4
 
 First, we need to obtain the values that correspond to each parameter of our model. Since the parents of our object can be probabilistic models, the values might not always be the same, and need to be obtained each time we want to sample. You do not need to implement the method used to to this, as long as you have derived your class from the probabilistic model class.
@@ -154,7 +155,7 @@ Finally, we need to implement the probability density function.
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/normal_extended_model.py
     :language: python
-    :lines: 39-43
+    :lines: 40-44
 
 Again, we first need to obtain the values associated with all parents of the current model. However, we do not need to check these values, since pdfs will only be calculated after it is made sure that all values are allowed within the graph structure. We then calculate the pdf accordingly.
 
@@ -233,7 +234,7 @@ can write a Python model which uses our C++ code:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_cpp/pmcabc-gaussian_model_simple.py
    :language: python
-   :lines: 3 - 44
+   :lines: 3 - 45
 
 The important lines are where we import the wrapper code as a module (line 2) and call
 the respective model function (line -2).
@@ -273,7 +274,7 @@ section. The only difference is the `sample_from_distribution` method of the cla
 .. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
     :language: python
     :lines: 65
-    :dedent: 4
+    :dedent: 8
 
 The default output for R functions in Python is a float vector. This must be
 converted into a Python numpy array for the purposes of ABCpy.
