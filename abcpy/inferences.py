@@ -1723,8 +1723,6 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
 
         theta = self.accepted_parameters_manager.accepted_parameters_bds.value()[0]
 
-        self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats_transformed)
-
         mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(
             self.accepted_parameters_manager.model)
 
