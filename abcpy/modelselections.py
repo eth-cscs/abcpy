@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 import numpy as np
 from sklearn import ensemble
+from abcpy.graphtools import *
 
 
 
@@ -90,7 +91,7 @@ class ModelSelections(metaclass = ABCMeta):
         
         raise NotImplementedError
         
-class RandomForest(ModelSelections):
+class RandomForest(ModelSelections, GraphTools):
     """
     This class implements the model selection procedure based on the Random Forest ensemble learner
     as described in Pudlo et. al. [1].
@@ -191,12 +192,11 @@ class RandomForest(ModelSelections):
         len_model_array = len(self.model_array)
         model = self.model_array[int(sum(np.linspace(0, len_model_array - 1, len_model_array) \
                                          * rng.multinomial(1, (1 / len_model_array) * np.ones(len_model_array))))]
-        # reseed prior
-        model.prior.reseed(seed)
-        # sample from prior
-        model.sample_from_prior()
-        # sample data set, extract statistics and compute distance from y_obs
-        y_sim = model.simulate(self.n_samples_per_param)
+        self.sample_from_prior(model, rng=rng)
+        y_sim = model.sample_from_distribution(self.n_samples_per_param, rng=rng)
+        while(y_sim[0] is False):
+            y_sim = model.sample_from_distribution(self.n_samples_per_param, rng=rng)
+        y_sim = y_sim[1].tolist()
         statistics = self.statistics_calc.statistics(y_sim)
 
         return (model, y_sim, statistics)

@@ -4,19 +4,22 @@ from abcpy.probabilisticmodels import Hyperparameter, ModelResultingFromOperatio
 
 class GraphTools():
     """This class implements all methods that will be called recursively on the graph structure."""
-    def sample_from_prior(self, rng=np.random.RandomState()):
+    def sample_from_prior(self, model=None, rng=np.random.RandomState()):
         """
        Samples values for all random variables of the model.
         Commonly used to sample new parameter values on the whole graph.
 
         Parameters
         ----------
+        model: abcpy.ProbabilisticModel object
+            The root model for which sample_from_prior should be called.
         rng: Random number generator
             Defines the random number generator to be used
         """
-
+        if(model is None):
+            model = self.model
         # If it was at some point not possible to sample (due to incompatible parameter values provided by the parents), we start from scratch
-        while(not(self._sample_from_prior(self.model, rng=rng))):
+        while(not(self._sample_from_prior(model, rng=rng))):
             self._reset_flags()
 
         # At the end of the algorithm, are flags are reset such that new methods can act on the graph freely

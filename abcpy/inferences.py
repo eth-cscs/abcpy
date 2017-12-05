@@ -27,6 +27,53 @@ class InferenceMethod(GraphTools, metaclass = ABCMeta):
         del state['backend']
         return state
 
+    @abstractmethod
+    def sample(self):
+        """To be overwritten by any sub-class:
+        Samples from the posterior distribution of the model parameter given the observed
+        data observations.
+        """
+        raise NotImplementedError
+
+    @abstractproperty
+    def model(self):
+        """To be overwritten by any sub-class: an attribute specifying the model to be used
+        """
+        raise NotImplementedError
+
+    @abstractproperty
+    def rng(self):
+        """To be overwritten by any sub-class: an attribute specifying the random number generator to be used
+        """
+        raise NotImplementedError
+
+    @abstractproperty
+    def backend(self):
+        """To be overwritten by any sub-class: an attribute specifying the backend to be used."""
+        raise NotImplementedError
+
+    @abstractproperty
+    def n_samples(self):
+        """To be overwritten by any sub-class: an attribute specifying the number of samples to be generated
+        """
+        raise NotImplementedError
+
+    @abstractproperty
+    def n_samples_per_param(self):
+        """To be overwritten by any sub-class: an attribute specifying the number of data points in each simulated         data set."""
+        raise NotImplementedError
+
+
+class BaseMethodsWithKernel(InferenceMethod, metaclass = ABCMeta):
+    """
+    This abstract base class represents inference methods that have a kernel.
+    """
+
+    @abstractproperty
+    def kernel(self):
+        """To be overwritten by any sub-class: an attribute specifying the transition or perturbation kernel."""
+        raise NotImplementedError
+
     def perturb(self, column_index, epochs = 10, rng=np.random.RandomState()):
         """
         Perturbs all free parameters, given the current weights.
@@ -67,123 +114,24 @@ class InferenceMethod(GraphTools, metaclass = ABCMeta):
 
         return [True, correctly_ordered_parameters]
 
-
-    @abstractmethod
-    def sample(self):
-        """To be overwritten by any sub-class:
-        Samples from the posterior distribution of the model parameter given the observed
-        data observations.
-        """
-        raise NotImplementedError
-
-    @abstractproperty
-    def model(self):
-        """To be overwritten by any sub-class: an attribute specifying the model to be used
-        """
-        raise NotImplementedError
-
-    @abstractproperty
-    def rng(self):
-        """To be overwritten by any sub-class: an attribute specifying the random number generator to be used
-        """
-        raise NotImplementedError
-
-    @abstractproperty
-    def n_samples(self):
-        """To be overwritten by any sub-class: an attribute specifying the number of samples to be generated
-        """
-        raise NotImplementedError
-
-    @abstractproperty
-    def n_samples_per_param(self):
-        """To be overwritten by any sub-class: an attribute specifying the number of data points in each simulated         data set."""
-        raise NotImplementedError
-
-
-class BasePMC(InferenceMethod, metaclass = ABCMeta):
+# TODO check the spelling!!!
+class BaseLikelihood(InferenceMethod, BaseMethodsWithKernel, metaclass = ABCMeta):
     """
-            This abstract base class represents inference methods that use Population Monte Carlo.
-
+    This abstract base class represents inference methods that use the likelihood.
     """
-
-    @abstractmethod
-    def _calculate_weight(self, theta):
-        """
-        To be overwritten by any sub-class:
-        Calculates the weight for the given parameter using
-        accepted_parameters, accepted_cov_mat
-
-        Parameters
-        ----------
-        theta: np.array
-            1xp matrix containing the model parameters, where p is the dimension of parameters
-
-        Returns
-        -------
-        float
-            the new weight for theta
-        """
-        raise NotImplementedError
-
     @abstractproperty
-    def kernel(self):
-        """To be overwritten by any sub-class: an attribute specifying the kernel to be used
-        """
+    def likelihood:
         raise NotImplementedError
 
 
-
-class BaseAnnealing(InferenceMethod, metaclass = ABCMeta):
+class BaseDiscrepency(InferenceMethod, BaseMethodsWithKernel, metaclass = ABCMeta):
     """
-            This abstract base class represents inference methods that use annealing.
-
+    This abstract base class represents inference methods using descrepancy.
     """
-
-    @abstractmethod
-    def _accept_parameter(self):
-        raise NotImplementedError
 
     @abstractproperty
     def distance(self):
-        """To be overwritten by any sub-class: an attribute specifying the distance measure to be used
-        """
-        raise NotImplementedError
-
-    @abstractproperty
-    def kernel(self):
-        """To be overwritten by any sub-class: an attribute specifying the kernel to be used
-        """
-        raise NotImplementedError
-
-
-
-class BaseAdaptivePopulationMC(InferenceMethod, metaclass = ABCMeta):
-    """
-            This abstract base class represents inference methods that use Adaptive Population Monte Carlo.
-
-    """
-
-
-    @abstractmethod
-    def _accept_parameter(self):
-        """
-        To be overwritten by any sub-class:
-        Samples a single model parameter and simulate from it until
-        accepted with some probability.
-
-        """
-        raise NotImplementedError
-
-    @abstractproperty
-    def distance(self):
-        """To be overwritten by any sub-class: an attribute specifying the distance measure to be used
-        """
-        raise NotImplementedError
-
-    @abstractproperty
-    def kernel(self):
-        """To be overwritten by any sub-class: an attribute specifying the kernel to be used
-        """
+        """To be overwritten by any sub-class: an attribute specifying the distance function."""
         raise NotImplementedError
 
 
@@ -1600,7 +1548,7 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
                 journal.number_of_simulations = self.simulation_counter
 
             # Show progress
-            anneal_parameter_change_percentage = 100 * abs(anneal_parameter_old - anneal_parameter) / anneal_parameter
+            anneal_parameter_change_percentage = 100 * abs(anneal_parameter_old - anneal_parameter) / abs(anneal_parameter)
             print('Steps: ', aStep, 'annealing parameter: ', anneal_parameter, 'change (%) in annealing parameter: ',
                   anneal_parameter_change_percentage)
             if anneal_parameter_change_percentage < ap_change_cutoff:
@@ -2119,7 +2067,7 @@ class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
         self.simulation_counter = 0
 
 
-    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, alpha = 0.9, acceptance_cutoff = 0.2, covFactor = 2.0, full_output=0, journal_file = None):
+    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, alpha = 0.9, acceptance_cutoff = 0.03, covFactor = 2.0, full_output=0, journal_file = None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -2136,7 +2084,7 @@ class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
         alpha : float, optional
             A parameter taking values between [0,1], the default value is 0.1.
         acceptance_cutoff : float, optional
-            Acceptance ratio cutoff, The default value is 0.2
+            Acceptance ratio cutoff, should be chosen between 0.01 and 0.05
         covFactor : float, optional
             scaling parameter of the covariance matrix. The default value is 2.
         full_output: integer, optional
@@ -2629,7 +2577,10 @@ class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
             for ind2 in range(n_samples_per_param):
                 numerator += (self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]]) < epsilon_new)
                 denominator += (self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]]) < epsilon[-1])
-            LHS[ind1] = accepted_weights[ind1] * (numerator / denominator)
+            if(denominator==0):
+                LHS[ind1]=0
+            else:
+                LHS[ind1] = accepted_weights[ind1] * (numerator / denominator)
         if sum(LHS) == 0:
             result = RHS
         else:
