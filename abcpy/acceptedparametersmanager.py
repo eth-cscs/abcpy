@@ -24,11 +24,27 @@ class AcceptedParametersManager:
         self.kernel_parameters_bds = None
 
     def broadcast(self, backend, observations):
-        """Broadcasts the observations to observations_bds using the specified backend."""
+        """Broadcasts the observations to observations_bds using the specified backend.
+
+        Parameters
+        ----------
+        backend: abcpy.backends object
+            The backend used by the inference algorithm
+        observations: list
+            A list containing all observed data
+        """
         self.observations_bds = backend.broadcast(observations)
 
     def update_kernel_values(self, backend, kernel_parameters):
-        """Broadcasts new parameters for each kernel"""
+        """Broadcasts new parameters for each kernel
+
+        Parameters
+        ----------
+        backend: abcpy.backends object
+            The backend used by the inference algorithm
+        kernel_parameters: list
+            A list, in which each entry contains the values of the parameters associated with the corresponding kernel in the joint perturbation kernel
+        """
         self.kernel_parameters_bds = backend.broadcast(kernel_parameters)
 
     def update_broadcast(self, backend, accepted_parameters=None, accepted_weights=None, accepted_cov_mats=None):

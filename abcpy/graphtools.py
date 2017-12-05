@@ -28,7 +28,7 @@ class GraphTools():
 
         Parameters
         ----------
-        models: list of probabilistc models
+        models: list of abcpy.ProbabilisticModel objects
             Defines the models for which, together with their parents, new parameters will be sampled
         is_root: boolean
             Whether the probabilistic models provided in models are root models.
@@ -68,7 +68,7 @@ class GraphTools():
 
         Parameters
         ----------
-        models: list of probabilistic models
+        models: list of abcpy.ProbabilisticModel objects
             The models for which, together with their parents, the flags should be reset. If no value is provided, the root models are assumed to be the model of the inference method.
         """
         if(not(models)):
@@ -97,9 +97,10 @@ class GraphTools():
         is_root: boolean
             A flag specifying whether the provided models are the root models. This is to ensure that the pdf is calculated correctly.
 
-        Returns:
+        Returns
+        -------
         list
-            The resulting pdf, given as a list, as well as the next index to be considered in the parameters list.
+            The resulting pdf,as well as the next index to be considered in the parameters list.
         """
         # At the beginning of calculation, obtain the mapping
         if(is_root):
@@ -194,7 +195,7 @@ class GraphTools():
             self._reset_flags()
 
         return [mapping, index]
-    # NOTE for some reason this gives an error -> do a test with like pmcabc or something
+
     def _get_names_and_parameters(self):
         """
         A function returning the name of each model and the corresponding parameters to this model
@@ -220,7 +221,7 @@ class GraphTools():
 
         Parameters
         ----------
-        models: list of probabilistic models
+        models: list of abcpy.ProbabilisticModel objects
             The models for which, together with their parents, the parameter values should be returned. If no value is provided, the root models are assumed to be the model of the inference method.
         is_root: boolean
             Specifies whether the current models are at the root. This ensures that the values corresponding to simulated observations will not be returned.
@@ -267,7 +268,7 @@ class GraphTools():
         ----------
         parameters: list
             Defines the values to which the respective parameter values of the models should be set
-        model: list of probabilistic models
+        model: list of abcpy.ProbabilisticModel objects
              Defines all models for which, together with their parents, new values should be set. If no value is provided, the root models are assumed to be the model of the inference method.
         index: integer
             The current index to be considered in the parameters list

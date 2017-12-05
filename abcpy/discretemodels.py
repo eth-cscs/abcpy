@@ -20,6 +20,7 @@ class Bernoulli(Discrete, ProbabilisticModel):
         super(Bernoulli, self).__init__(parameters)
         self.dimension = 1
 
+        # Save the name given by the user for the journal output
         self.name = name
 
     def _check_parameters_at_initialization(self, parameters):
@@ -98,6 +99,7 @@ class Binomial(Discrete, ProbabilisticModel):
         super(Binomial, self).__init__(input_parameters)
         self.dimension = 1
 
+        # Save the name given by the user for the journal output
         self.name = name
 
     def _check_parameters_at_initialization(self, parameters):
@@ -195,6 +197,7 @@ class Poisson(Discrete, ProbabilisticModel):
         super(Poisson, self).__init__(parameters)
         self.dimension = 1
 
+        # Save the name given by the user for the journal output
         self.name = name
 
     def _check_parameters_at_initialization(self, parameters):

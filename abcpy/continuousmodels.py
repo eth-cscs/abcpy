@@ -32,6 +32,7 @@ class Normal(ProbabilisticModel, Continuous):
         # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = 1
 
+        # Save the name given by the user for the journal output
         self.name = name
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
@@ -131,6 +132,7 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = len(self.parents)-1
 
+        # Save the name given by the user for the journal output
         self.name = name
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
@@ -244,6 +246,7 @@ class MixtureNormal(ProbabilisticModel, Continuous):
         # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = len(self.parents)
 
+        # Save the name given by the user for the journal output
         self.name = name
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
@@ -339,6 +342,7 @@ class StudentT(ProbabilisticModel, Continuous):
         # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = 1
 
+        # Save the name given by the user for the journal output
         self.name = name
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
@@ -438,6 +442,9 @@ class MultiStudentT(ProbabilisticModel, Continuous):
 
         # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = len(self.parents)-2
+
+        # Save the name given by the user for the journal output
+        self.name = name
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """
@@ -593,6 +600,7 @@ class Uniform(ProbabilisticModel, Continuous):
         super(Uniform, self).__init__(joint_parameters)
         self.visited = False
 
+        # Save the name given by the user for the journal output
         self.name = name
 
 
