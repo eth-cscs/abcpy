@@ -149,6 +149,7 @@ class GraphTools():
                 else:
                     result[i]*=model.calculated_pdf
 
+        # Multiply the pdfs of all roots together to give an overall pdf.
         temporary_result = result
         result = 1.
         for individual_result in temporary_result:

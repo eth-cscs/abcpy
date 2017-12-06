@@ -2456,7 +2456,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
 
             # Break if epsilon in previous step is less than epsilon_final
-            if epsilon[-1] == epsilon_final:
+            if epsilon[-1] <= epsilon_final:
                 break
 
             # 0: Compute the Epsilon
