@@ -1779,7 +1779,7 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
 
-    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, alpha = 0.1, epsilon_init = 100, epsilon_final = 0.1, const = 1, covFactor = 2.0, full_output=0, journal_file = None):
+    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, alpha = 0.1, epsilon_init = 100, epsilon_final = 0.1, const = 0.01, covFactor = 2.0, full_output=0, journal_file = None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
