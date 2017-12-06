@@ -26,7 +26,7 @@ class SampleFromPriorTests(unittest.TestCase):
 
         rng = np.random.RandomState(1)
 
-        sampler.sample_from_prior(rng)
+        sampler.sample_from_prior(rng=rng)
         self.assertIsNotNone(B1.fixed_values)
         self.assertIsNotNone(N1.fixed_values)
         self.assertIsNotNone(N2.fixed_values)
@@ -68,7 +68,7 @@ class GetParametersTests(unittest.TestCase):
 
         self.rng = np.random.RandomState(1)
 
-        self.sampler.sample_from_prior(self.rng)
+        self.sampler.sample_from_prior(rng=self.rng)
 
     def test(self):
         free_parameters = self.sampler.get_parameters()
@@ -91,7 +91,7 @@ class SetParametersTests(unittest.TestCase):
 
         self.rng = np.random.RandomState(1)
 
-        self.sampler.sample_from_prior(self.rng)
+        self.sampler.sample_from_prior(rng=self.rng)
 
     def test(self):
         is_accepted, index = self.sampler.set_parameters([3, 0.12, 0.029])
@@ -118,7 +118,7 @@ class GetCorrectOrderingTests(unittest.TestCase):
 
         self.rng = np.random.RandomState(1)
 
-        self.sampler.sample_from_prior(self.rng)
+        self.sampler.sample_from_prior(rng=self.rng)
 
     def test(self):
         parameters_and_models = [(self.N1, [0.029]), (self.B1, [3]), (self.N2, [0.12])]
@@ -138,11 +138,11 @@ class PerturbTests(unittest.TestCase):
         distance_calculator = LogReg(statistics_calculator)
         backend = Backend()
 
-        self.sampler = RejectionABC([self.graph], distance_calculator, backend)
+        self.sampler = PMCABC([self.graph], distance_calculator, backend)
 
         self.rng = np.random.RandomState(1)
 
-        self.sampler.sample_from_prior(self.rng)
+        self.sampler.sample_from_prior(rng=self.rng)
 
         kernel = DefaultKernel([self.N1, self.N2, self.B1])
         self.sampler.kernel = kernel

@@ -20,10 +20,10 @@ class GraphTools():
             model = self.model
         # If it was at some point not possible to sample (due to incompatible parameter values provided by the parents), we start from scratch
         while(not(self._sample_from_prior(model, rng=rng))):
-            self._reset_flags()
+            self._reset_flags(model)
 
         # At the end of the algorithm, are flags are reset such that new methods can act on the graph freely
-        self._reset_flags()
+        self._reset_flags(model)
 
     def _sample_from_prior(self, models, is_not_root=False, was_accepted=True, rng=np.random.RandomState()):
         """

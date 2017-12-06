@@ -64,7 +64,7 @@ class InferenceMethod(GraphTools, metaclass = ABCMeta):
         raise NotImplementedError
 
 
-class BaseMethodsWithKernel(InferenceMethod, metaclass = ABCMeta):
+class BaseMethodsWithKernel(metaclass = ABCMeta):
     """
     This abstract base class represents inference methods that have a kernel.
     """
@@ -114,17 +114,18 @@ class BaseMethodsWithKernel(InferenceMethod, metaclass = ABCMeta):
 
         return [True, correctly_ordered_parameters]
 
-# TODO check the spelling!!!
+
 class BaseLikelihood(InferenceMethod, BaseMethodsWithKernel, metaclass = ABCMeta):
     """
     This abstract base class represents inference methods that use the likelihood.
     """
     @abstractproperty
-    def likelihood:
+    def likfun(self):
+        """To be overwritten by any sub-class: an attribute specifying the likelihood function to be used."""
         raise NotImplementedError
 
 
-class BaseDiscrepency(InferenceMethod, BaseMethodsWithKernel, metaclass = ABCMeta):
+class BaseDiscrepancy(InferenceMethod, BaseMethodsWithKernel, metaclass = ABCMeta):
     """
     This abstract base class represents inference methods using descrepancy.
     """
@@ -161,6 +162,8 @@ class RejectionABC(InferenceMethod):
     n_samples = None
     n_samples_per_param = None
     epsilon = None
+
+    backend = None
 
     def __init__(self, root_models, distance, backend, seed=None):
         self.model = root_models
@@ -267,7 +270,7 @@ class RejectionABC(InferenceMethod):
         return (self.get_parameters(self.model), counter)
 
 
-class PMCABC(BasePMC, InferenceMethod):
+class PMCABC(BaseDiscrepancy, InferenceMethod):
     """
     This base class implements a modified version of Population Monte Carlo based inference scheme
     for Approximate Bayesian computation of Beaumont et. al. [1]. Here the threshold value at `t`-th generation are adaptively chosen
@@ -301,6 +304,8 @@ class PMCABC(BasePMC, InferenceMethod):
     #default value, set so that testing works
     n_samples = 2
     n_samples_per_param = None
+
+    backend = None
 
 
     def __init__(self, root_models, distance, backend, kernel=None,seed=None):
@@ -566,7 +571,7 @@ class PMCABC(BasePMC, InferenceMethod):
             return 1.0 * prior_prob / denominator
 
 
-class PMC(BasePMC, InferenceMethod):
+class PMC(BaseLikelihood, InferenceMethod):
     """
     Population Monte Carlo based inference scheme of Cappé et. al. [1].
 
@@ -605,6 +610,8 @@ class PMC(BasePMC, InferenceMethod):
 
     n_samples = None
     n_samples_per_param = None
+
+    backend = None
 
 
     def __init__(self, root_models, likfun, backend, kernel=None, seed=None):
@@ -899,7 +906,7 @@ class PMC(BasePMC, InferenceMethod):
             return 1.0 * prior_prob / denominator
 
 
-class SABC(BaseAnnealing, InferenceMethod):
+class SABC(BaseDiscrepancy, InferenceMethod):
     """
     This base class implements a modified version of Simulated Annealing Approximate Bayesian Computation (SABC) of [1] when the prior is non-informative.
 
@@ -931,6 +938,8 @@ class SABC(BaseAnnealing, InferenceMethod):
 
     smooth_distances_bds = None
     all_distances_bds = None
+
+    backend = None
 
     def __init__(self, root_models, distance, backend, kernel=None, seed=None):
         self.model = root_models
@@ -999,7 +1008,7 @@ class SABC(BaseAnnealing, InferenceMethod):
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
-        self.sample_from_prior(self.rng)
+        self.sample_from_prior(rng=self.rng)
 
         self.accepted_parameters_manager.broadcast(self.backend, observations)
         self.epsilon = epsilon
@@ -1344,7 +1353,7 @@ class SABC(BaseAnnealing, InferenceMethod):
         return (new_theta, distance, all_parameters, all_distances, index, acceptance, counter)
 
 
-class ABCsubsim(BaseAnnealing, InferenceMethod):
+class ABCsubsim(BaseDiscrepancy, InferenceMethod):
     """This base class implements Approximate Bayesian Computation by subset simulation (ABCsubsim) algorithm of [1].
 
     [1] M. Chiachio, J. L. Beck, J. Chiachio, and G. Rus., Approximate Bayesian computation by subset
@@ -1373,6 +1382,8 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
     n_samples = None
     n_samples_per_param = None
     chain_length = None
+
+    backend = None
 
     def __init__(self, root_models, distance, backend, kernel=None,seed=None):
         self.model = root_models
@@ -1702,7 +1713,7 @@ class ABCsubsim(BaseAnnealing, InferenceMethod):
             return (accepted_cov_mats_transformed, t, 0, counter)
 
 
-class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
+class RSMCABC(BaseDiscrepancy, InferenceMethod):
     """This base class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
     Drovandi and Pettitt [1].
 
@@ -1735,6 +1746,8 @@ class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
     alpha = None
 
     accepted_dist_bds = None
+
+    backend = None
 
 
     def __init__(self, root_models, distance, backend, kernel=None,seed=None):
@@ -2004,7 +2017,7 @@ class RSMCABC(BaseAdaptivePopulationMC, InferenceMethod):
         return (self.get_parameters(self.model), distance, index_accept, counter)
 
 
-class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
+class APMCABC(BaseDiscrepancy, InferenceMethod):
     """This base class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
     M. Lenormand et al. [1].
 
@@ -2037,6 +2050,8 @@ class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
     alpha = None
 
     accepted_dist = None
+
+    backend = None
 
     def __init__(self,  root_models, distance, backend, kernel = None,seed=None):
         self.model = root_models
@@ -2096,7 +2111,7 @@ class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
-        self.sample_from_prior(self.rng)
+        self.sample_from_prior(rng=self.rng)
 
         self.accepted_parameters_manager.broadcast(self.backend, observations)
         self.alpha = alpha
@@ -2293,7 +2308,7 @@ class APMCABC(BaseAdaptivePopulationMC, InferenceMethod):
         return (self.get_parameters(self.model), dist, weight, counter)
 
 
-class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
+class SMCABC(BaseDiscrepancy, InferenceMethod):
     """This base class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
     Del Moral et al. [1].
 
@@ -2325,6 +2340,8 @@ class SMCABC(BaseAdaptivePopulationMC, InferenceMethod):
     n_samples_per_param = None
 
     accepted_y_sim_bds = None
+
+    backend = None
 
     def __init__(self, root_models, distance, backend, kernel = None,seed=None):
         self.model = root_models

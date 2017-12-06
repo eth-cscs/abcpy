@@ -50,7 +50,7 @@ class SynLiklihoodTests(unittest.TestCase):
         self.prior.fixed_values = [1.1,1.0]
         y_sim = self.model.sample_from_distribution(100, rng=np.random.RandomState(1))[1].tolist()
         # calculate the statistics of the observed data
-        comp_likelihood = self.likfun.likelihood(y_obs, y_sim)
+        comp_likelihood = self.likfun.likelihood(y_obs, y_sim, 0)
         expected_likelihood = 0.00924953470649
         # This checks whether it computes a correct value and dimension is right
         self.assertLess(comp_likelihood - expected_likelihood, 10e-2)

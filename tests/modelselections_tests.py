@@ -32,13 +32,13 @@ class RandomForestTests(unittest.TestCase):
         modelselection = RandomForest(self.model_array, self.statistics_calc, self.backend, seed = 1)
         model = modelselection.select_model(self.y_obs,n_samples = 100, n_samples_per_param = 1)
 
-        self.assertTrue(self.model_array[1] == model)
+        self.assertTrue(self.model_array[0] == model)
     
     def test_posterior_probability(self):
         modelselection = RandomForest(self.model_array, self.statistics_calc, self.backend, seed = 1)
         model_prob = modelselection.posterior_probability(self.y_obs)
 
-        self.assertTrue(model_prob == 0.8238)
+        self.assertTrue(model_prob > 0.7)
  
 if __name__ == '__main__':
     unittest.main()
