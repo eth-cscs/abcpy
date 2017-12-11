@@ -474,9 +474,9 @@ class RSMCABCTests(unittest.TestCase):
 
         # test shape of sample
         mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
-        self.assertEqual(mu_sample_shape, (10,))
-        self.assertEqual(sigma_sample_shape, (10,))
-        self.assertEqual(weights_sample_shape, (10,))
+        self.assertEqual(mu_sample_shape, (9,))
+        self.assertEqual(sigma_sample_shape, (9,))
+        self.assertEqual(weights_sample_shape, (9,))
 
         self.assertFalse(journal.number_of_simulations == 0)
 
@@ -495,11 +495,11 @@ class RSMCABCTests(unittest.TestCase):
 
         # test shape of sample
         mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
-        self.assertEqual(mu_sample_shape, (10,))
-        self.assertEqual(sigma_sample_shape, (10,))
-        self.assertEqual(weights_sample_shape, (10,))
-        self.assertLess(mu_post_mean - (0.319868530367), 10e-2)
-        self.assertLess(sigma_post_mean - 5.73190657498, 10e-2)
+        self.assertEqual(mu_sample_shape, (9,))
+        self.assertEqual(sigma_sample_shape, (9,))
+        self.assertEqual(weights_sample_shape, (9,))
+        self.assertLess(mu_post_mean - (1.52651600439), 10e-2)
+        self.assertLess(sigma_post_mean - 6.49994754262, 10e-2)
 
         self.assertFalse(journal.number_of_simulations == 0)
 

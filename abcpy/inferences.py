@@ -1866,19 +1866,10 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
                 if(journal_file is None):
                     accepted_cov_mats=None
             else:
-                n_replenish = round(n_samples * alpha)
-                # Throw away N_alpha particles with largest dist
-                accepted_parameters = np.delete(accepted_parameters, np.arange(round(n_samples * alpha)) + (
-                self.n_samples - round(n_samples * alpha)), 0)
-                accepted_dist = np.delete(accepted_dist,
-                                          np.arange(round(n_samples * alpha)) + (n_samples - round(n_samples * alpha)),
-                                          0)
                 # Compute epsilon
                 epsilon.append(accepted_dist[-1])
                 # Calculate covariance
                 # print("INFO: Calculating covariance matrix.")
-                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
-
                 kernel_parameters = []
                 for kernel in self.kernel.kernels:
                     kernel_parameters.append(
@@ -1902,7 +1893,7 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
             self.epsilon = epsilon
             self.R = R
             # Broadcast updated variable
-            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_cov_mats=accepted_cov_mats)
+            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
             self._update_broadcasts(accepted_dist)
 
             # calculate resample parameters
@@ -1934,11 +1925,22 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
             else:
                 R = int(np.log(const) / np.log(1 - prob_acceptance))
 
+            n_replenish = round(n_samples * alpha)
+            accepted_params_and_dist = zip(accepted_dist, accepted_parameters)
+            accepted_params_and_dist = sorted(accepted_params_and_dist, key = lambda x: x[0])
+            accepted_dist, accepted_parameters = [list(t) for t in zip(*accepted_params_and_dist)]
+            # Throw away N_alpha particles with largest dist
+            accepted_parameters = np.delete(accepted_parameters, np.arange(round(n_samples * alpha)) + (
+                self.n_samples - round(n_samples * alpha)), 0)
+            accepted_dist = np.delete(accepted_dist,
+                                      np.arange(round(n_samples * alpha)) + (n_samples - round(n_samples * alpha)),
+                                      0)
+            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
+
             # print("INFO: Saving configuration to output journal.")
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
-                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
                 journal.add_parameters(accepted_parameters)
-                journal.add_weights(np.ones(shape=(n_samples, 1)) * (1 / n_samples))
+                journal.add_weights(np.ones(shape=(len(accepted_parameters), 1)) * (1 / len(accepted_parameters)))
 
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)
