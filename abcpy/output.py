@@ -44,7 +44,7 @@ class Journal:
         else:
             self._type = type
 
-        self.number_of_simulations = 0
+        self.number_of_simulations =[]
 
 
 

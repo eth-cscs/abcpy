@@ -235,7 +235,7 @@ class RejectionABC(InferenceMethod):
         names_and_parameters = self._get_names_and_parameters()
         journal.add_user_parameters(names_and_parameters)
 
-        journal.number_of_simulations = self.simulation_counter
+        journal.number_of_simulations.append(self.simulation_counter)
 
         return journal
 
@@ -483,7 +483,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)
 
-                journal.number_of_simulations = self.simulation_counter
+                journal.number_of_simulations.append(self.simulation_counter)
 
         # Add epsilon_arr to the journal
         journal.configuration["epsilon_arr"] = epsilon_arr
@@ -833,7 +833,7 @@ class PMC(BaseLikelihood, InferenceMethod):
 
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)
-                journal.number_of_simulations = self.simulation_counter
+                journal.number_of_simulations.append(self.simulation_counter)
 
         return journal
 
@@ -1162,7 +1162,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)
-                journal.number_of_simulations = self.simulation_counter
+                journal.number_of_simulations.append(self.simulation_counter)
 
             if aStep > 0:
                 accept = accept + np.sum(acceptance)
@@ -1201,7 +1201,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
             names_and_parameters = self._get_names_and_parameters()
             journal.add_user_parameters(names_and_parameters)
-            journal.number_of_simulations = self.simulation_counter
+            journal.number_of_simulations.append(self.simulation_counter)
 
         journal.configuration["steps"] = aStep + 1
         journal.configuration["epsilon"] = epsilon
@@ -1556,7 +1556,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
                 journal.add_opt_values(accepted_cov_mats)
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)
-                journal.number_of_simulations = self.simulation_counter
+                journal.number_of_simulations.append(self.simulation_counter)
 
             # Show progress
             anneal_parameter_change_percentage = 100 * abs(anneal_parameter_old - anneal_parameter) / abs(anneal_parameter)
@@ -1574,7 +1574,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
             names_and_parameters = self._get_names_and_parameters()
             journal.add_user_parameters(names_and_parameters)
-            journal.number_of_simulations = self.simulation_counter
+            journal.number_of_simulations.append(self.simulation_counter)
 
         journal.configuration["steps"] = aStep + 1
         journal.configuration["anneal_parameter"] = anneal_parameter
@@ -1944,7 +1944,7 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
 
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)
-                journal.number_of_simulations = self.simulation_counter
+                journal.number_of_simulations.append(self.simulation_counter)
 
         # Add epsilon_arr to the journal
         journal.configuration["epsilon_arr"] = epsilon
@@ -2238,7 +2238,7 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
 
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)
-                journal.number_of_simulations = self.simulation_counter
+                journal.number_of_simulations.append(self.simulation_counter)
 
             # 4: Check probability of acceptance lower than acceptance_cutoff
             if prob_acceptance < acceptance_cutoff:
@@ -2554,7 +2554,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)
-                journal.number_of_simulations = self.simulation_counter
+                journal.number_of_simulations.append(self.simulation_counter)
 
         # Add epsilon_arr to the journal
         journal.configuration["epsilon_arr"] = epsilon
