@@ -3,7 +3,7 @@
 2. What's new?
 ==============
 
-It is now possible to implement bayesian networks in ABCpy. If you are new to bayesian networks, check the section :ref:`Bayesian networks - an introduction <bayes_nets>`.
+It is now possible to implement Bayesian networks defining complex dependency structure between random variables in ABCpy. If you are new to Bayesian networks, check the section :ref:`Bayesian networks - an introduction <bayes_nets>`.
 
 In this section, we will introduce the various new features for this version of ABCpy.
 
@@ -23,12 +23,14 @@ In ABCpy, a :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object repr
 
 Since there are many properties associated with these objects, we did not simply call them random variable or distribution. For you to perform inference on some data, it is not necessary to understand these properties. If you are interested in implementing your own random variable, please check the :ref:`Implementing a new Model <implementations>` section  below.
 
-The way a bayesian network is now built within ABCpy is the following: each :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object has some input parameters. Each of these parameters can either be a 'fixed' and known to the user, for bayesian networks often called hyperparameter, or another random variable. Behind the scene, ABCpy will ensure that the graph structure is implemented and that inference will be performed on the whole construct.
+The way a Bayesian network is now built within ABCpy is following: each :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object has some input parameters. Each of these parameters can either be a 'fixed' and known to the user (called hyperparameter) or another random variable. Behind the scene, ABCpy will ensure that the graph structure is implemented and the inference will be performed on the whole construct.
 
 
-Random variables do usually not have a fixed value. However, to perform inference, we of course need to sample values from the random variables and use those to simulate data. These sampled values we will usually call parameter values. These values are what you will get as an end result of the inference.
+For uncertainty quantification of the random variables, we will draw independent and identical sample values from their posterior distribution. These sampled values are usually called posterior samples and they are used to approximate the posterior distribution or for Monte Carlo integration w.r.t the posterior distribution. These values are what you will get as an end result of the inference.
 
+--- following paragraph need to rewrite
 An important thing to keep in mind: **random variables are initialized without sampling values from them immediately.** This works for inference algorithms, since these algorithms will contain a statement that samples from the prior first. However, if you want to implement a graph and then sample from a random variable within the graph structure, the necessary parameter values will not yet be defined. Therefore, if you want to have a 'stand-alone' distribution or model, you will need to call the method `sample_parameters()` for any parameter in the graph, which is best done right after initializing the relevant parameters. Only after this step is performed can you call the `sample_from_distribution()` method to obtain samples from the distribution.
+---
 
 Some words on performance: all operations on this graph structure are performed using recursion. This will, in general, slow down your code compared to previous versions of ABCpy, even if the prior information you give is the exact same as before. However, this will not affect the time inference needs to complete for most use cases, where you define your own hierarchical model. This is due to the fact that simulation is usually a lot slower than traversing the graph. Even if you do not specify such a complicated model, your run time should still be acceptable, given that you do not implement large graphs. Due to the limitations of ABC regarding low dimensionality of your problem, this should, however, not be an issue.
 
