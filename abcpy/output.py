@@ -37,10 +37,14 @@ class Journal:
         self.opt_values = []
         self.configuration = {}
 
+        self.names_and_parameters = []
+
         if type not in [0, 1]:
             raise ValueError("Parameter type has not valid value.")
         else:
             self._type = type
+
+        self.number_of_simulations =[]
 
 
 
@@ -92,6 +96,20 @@ class Journal:
             self.parameters.append(params)
 
 
+    def add_user_parameters(self, names_and_params):
+        """
+        Saves the provided parameters and names of the probabilistic models corresponding to them. If type==0, old parameters get overwritten.
+
+        Parameters
+        ----------
+        names_and_params: list
+            Each entry is a tupel, where the first entry is the name of the probabilistic model, and the second entry is the parameters associated with this model.
+        """
+        if(self._type == 0):
+            self.names_and_parameters = [dict(names_and_params)]
+        else:
+            self.names_and_parameters.append(dict(names_and_params))
+
 
     def get_parameters(self, iteration=None):
         """
@@ -107,10 +125,25 @@ class Journal:
 
         if iteration is None:
             endp = len(self.parameters) - 1
-            params = self.parameters[endp]
+            params = self.names_and_parameters[endp]
             return params
         else:
-            return self.parameters[iteration]
+            return self.names_and_parameters[iteration]
+
+
+    def _get_parameter_values(self):
+        """
+        Returns the parameters in the order dictated by the graph structure.
+
+        Returns
+        -------
+        numpy.array:
+            The parameters of the model
+        """
+
+        endp = len(self.parameters)-1
+        params = self.parameters[endp]
+        return params
         
 
 

@@ -9,13 +9,42 @@ Welcome to ABCpy's documentation!
 :Release: |version|
 :Date: |today|
 
-
 .. toctree::
    :maxdepth: 2
    :caption: User Documentation
 
-   README
+   installation
 
+.. toctree::
+   :maxdepth: 2
+
+   whatsnew
+
+.. toctree::
+   :maxdepth: 2
+
+   getting_started
+
+.. toctree::
+   :maxdepth: 2
+
+   postanalysis
+
+.. toctree::
+   :maxdepth: 2
+
+   parallelization
+
+.. toctree::
+   :maxdepth: 2
+
+   implementations
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Bayesian networks
+
+   bayes_nets
 
 .. toctree::
    :maxdepth: 2

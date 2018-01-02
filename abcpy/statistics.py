@@ -31,7 +31,7 @@ class Statistics(metaclass = ABCMeta):
         
         
     @abstractmethod
-    def statistics(self, data):
+    def statistics(self, data: object) -> object:
         """To be overwritten by any sub-class: should extract statistics from the 
         data set data. It is assumed that data is a  list of n same type 
         elements(eg., The data can be a list containing n timeseries, n graphs or n np.ndarray).
