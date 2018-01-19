@@ -268,9 +268,6 @@ This imports the R function `simple_gaussian` into the Python environment. We
 need to build our own model to incorporate this R function as in the previous
 section. The only difference is the `sample_from_distribution` method of the class `Gaussian'.
 
-.. automethod:: abcpy.models.Model.simulate
-   :noindex:
-
 .. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
     :language: python
     :lines: 65
@@ -359,7 +356,7 @@ Let us now look at the implementation of the method:
 .. literalinclude:: ../../examples/extensions/perturbationkernels/multivariate_normal_kernel.py
     :language: python
     :lines: 10, 25-30
-    :dedent" 4
+    :dedent: 4
 
 Some of the implemented inference algorithms weigh different sets of parameters differently. Therefore, if such weights are provided, we would like to weight the covariance matrix accordingly. We, therefore, check whether the accepted parameters manager contains any weights. If it does, we retrieve these weights, and calculate the covariance matrix using numpy, the parameters relevant to this kernel and the weights. If there are no weights, we simply calculate an unweighted covariance matrix.
 
