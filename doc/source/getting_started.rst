@@ -3,53 +3,48 @@
 3. Getting Started
 ==================
 
-Here, we explain how to use ABCpy to infer parameters of models, given some observed data sets.
+Here, we explain how to use ABCpy to quntify uncertainty of parameters of a model for some observed dataset.
 
-If you are new to inference, either Approximate Bayesian Computation (ABC) or Bayesian networks, we recommend you to start with the `Using random variables`_ section. If you would like to see all features in action together, check out `Using perturbation kernels`_.
+If you are new to uncertainty quantification using Approximate Bayesian Computation (ABC), we recommend you to start with the `Random variables`_ section. If you would like to see all features in action together, check out `Complex perturbation kernels`_.
 
-Using random variables
+Random variables
 ~~~~~~~~~~~~~~~~~~~~~~
 
-As an example, let us consider a Gaussian model. We want to model the height of a grown up human, given the following set of measurements, which we call observation or observed data.
+As an example, if we have measurements of the height of a group of grown up human and it is also known that a Gaussian distribution is appropriate to model these kind of observations, then our observed dataset would be measurement of heights and the model would be Gaussian.
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
     :lines: 5
     :dedent: 4
 
-We want to model the height of humans by a Gaussian or Normal model, which has two parameters: the mean, denoted by :math:`\mu`, and the standard deviation, denoted by :math:`\sigma`. We consider these parameters as random variables. The goal of ABC is to quantify uncertainty of these unknwon parameters from the information contained in the observed data.
+Gaussian or Normal model has two parameters: the mean, denoted by :math:`\mu`, and the standard deviation, denoted by :math:`\sigma`. We consider these parameters as random variables. The goal of ABC is to quantify uncertainty of these parameters from the information contained in the observed data.
 
-In ABC, we can utilize *prior* knowledge about these random variables. In this examples, it is quite simple. We know from experience that the average height should be somewhere between 150cm and 200cm, while the standard deviation is around 5 to 25. In the absence of prior knowledge, we still need to provide *prior* and which should be a non-informative prior.
-
+In ABC, we can utilize *prior* knowledge about these random variables. In this example, it is quite simple. We know from experience that the average height should be somewhere between 150cm and 200cm, while the standard deviation is around 5 to 25. 
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
     :lines: 8-10, 12-13
     :dedent: 4
 
-Notice that we also provide *name* of the parameters to the prior. You are required to pass such a string for any parameters that is part of the prior. In the final output, you will see these names, together with the values that were infered for this parameter.
+While that we also provide *name* of the parameters to the prior. You are required to pass such a string for any parameters that is part of the prior. In the final output, you will see these names, together with the values that were infered for this parameter. (In the absence of prior knowledge, we still need to provide *prior* and which should be a non-informative prior.)
 
-For ABC, the inference is done by a comparison between the observed data and the synthetic
-data (simulated from the model). Often, the observed and synthetic data cannot be
-compared directly in a reasonable or efficient way (eg. high dimensionality etc.). We extract relevant
-*summary statistics* from the data, as it is easier to compare between them (eg. discrepancy measure 
-in lower dimensional space is easier to construct).
+For ABC, the inference is done by a measure of discrepancy between the observed dataset and the synthetic dataset (simulated from the model). Often, computation of discrepancy measure between the observed and synthetic dataset is not feasible (e.g., high dimensionality of dataset) and the discrepancy measure is defined by computing a distance between relevant *summary statistics* extracted from the datasets. Here we first define a way to extract *summary statistics* from the dataset.
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
     :lines: 16-17
     :dedent: 4
 
-A distance function between the extracted summary statistics from observed and synthetic data is to be chosen: the LogReg distance is chosen here. Note that in ABCpy distance functions operate not on the observations, but on summary statistics.
-If you want to compare between the data directly, you can use Identity summary statistics. 
-
+Next we define the discrepancy measure between the datasets, by defining a distance function (LogReg distance is chosen here) between the extracted summary statistics. If we want to define the discrepancy measure through a distance function between the datasets directly, we choose Identity as summary statistics which gives the original dataset as the extracted summary statistics. 
+ 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
     :lines: 20-21
     :dedent: 4
 
-Now we can set up an inference scheme. Let us choose PMCABC as our inference algorithm of choice. 
-As a pre-requisit, it requires a perturbation kernel. Here, we use the default kernel provided in ABCpy, which perturbs continuous and discrete random variables using a multivariate Gaussian distribution and random walk correspondingly. Please refere to `Using perturbation kernels`_ to see a more involved example.
+Let us choose PMCABC algorithm for inference of the parameters here. 
+
+Algorithms in ABCpy requires a perturbation kernel, a tool to explore the parameter space. Here, we use the default kernel provided, which explores the parameter space of random variables, by perturbing it using a multivariate Gaussian distribution or performing a random walk if the  corresponding random variable is continuous or discrete. For a more involved example, please consult `Complex perturbation kernels`_.
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
@@ -70,18 +65,16 @@ Now we are ready to instantiate a PMCABC object and pass the kernel and backend 
     :lines: 33-34
     :dedent: 4
 
-Finally, we can parametrize the sampler and start sampling from the posterior distribution of the parameters of interest:
+Finally, we can parametrize the sampler and start sampling of the highly probable values of the parameters (proportional to their probability of occurance) given the observed dataset:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
     :lines: 37-40
     :dedent: 4
 
-The above inference scheme gives us samples from the posterior distribution of the parameters of interest 
-which are stored in the journal object. See :ref:`Post Analysis <postanalysis>` for further
-information on extracting results.
+The above inference scheme gives us samples from the distribution of the parameter of interest quantifying the uncertainty of the inferred parameter, which are stored in the journal object. See :ref:`Post Analysis <postanalysis>` for further information on extracting results.
 
-Note that the model and the observations are given as a list. This is due to the fact that in ABCpy, it is possible to have multiple hierarchical models associated with an overall prior, for separate data sets. To learn more, see the `Using multiple hierarchical models`_ section.
+Note that the model and the observations are given as a list. This is due to the fact that in ABCpy, it is possible to have Multi-view models, building relationships between co-occuring groups of datasets. To learn more, see the `Multi-view models`_ section.
 
 The full source can be found in `examples/backends/dummy/pmcabc_gaussian.py`.
 
@@ -92,27 +85,28 @@ To execute the code you only need to run
    python3 pmcabc_gaussian.py
 
 
-Using operations
+Multi-level Models
 ~~~~~~~~~~~~~~~~
 
-Since release XX.XX, ABCpy allows us to handle complicated dependency structure between random variables. This includes having operations between random variables to produce new random variables.
+Since release XX.XX of ABCpy, we can have complex dependency structures (e.g., a Bayesian network) between random variables. Further we can also define new random variables through operations between existing random variables. In the following we describe an inference problem illustrating both of these ideas. 
 
-For this tutorial, we will consider the following network:
-
-.. image:: network_1_model.png
-
-We are considering a school with different classes. Each class has some number of students. All students of the school take an exam and receive some grade. These grades are our observed data set:
+For this tutorial, we consider a school with different classes. Each class has some number of students. All students of the school take an exam and receive some grade. Lets consider the grades of the students as our observed dataset:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_operations.py
     :language: python
     :lines: 6
     :dedent: 4
 
-These grades depend on several variables: if there were bias, the size of the class a student is in, as well as the social background of the student. The last two variables are assumed to be normally distributed with some mean and variance. However, they also both depend on the location of the school. In certain neighbourhoods, the class size might be larger, or the social background might differ.
+The grades of the students depend on several variables: if there were bias, the size of the class a student is in, as well as the social background of the student. The dependency structure between these variables can be defined using the following Bayesian network: 
+
+.. image:: network_1_model.png
+
+
+Here we assume the size of a class the student belongs to and his/her social background are normally distributed with some mean and variance. However, they also both depend on the location of the school. In certain neighbourhoods, the class size might be larger, or the social background might differ. 
 
 We, therefore, have additional parameters, specifying the mean of these normal distributions will vary uniformly between some lower and upper bounds. Finally, we can assume that the grade without any bias would be a normally distributed parameter around an average grade.
 
-Let us define these quantities and dependencies in ABCpy:
+We can define these random variables and the dependencies between them (in a nutshell, a Bayesian network) in ABCpy:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_operations.py
     :language: python
@@ -126,7 +120,7 @@ So, each student will receive some grade which is normally distributed, but this
     :lines: 22
     :dedent: 4
 
-As in the `Using random variables`_ section, we now need to define a summary statistics to extract relevant properties of our data.
+As in the `Random variables`_ section, we now need to define a summary statistics to extract relevant properties of our data.
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_operations.py
     :language: python
@@ -150,16 +144,16 @@ Now, again, we can parametrize the sampler and start sampling:
 The source code can be found in `examples/backends/dummy/pmcabc_operations.py`.
 
 
-Using multiple hierarchical models
+Multi-view models
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-As mentioned above, ABCpy supports inference on multiple hierarchical models at once. These hierarchical models can share some of the parameters of interest. To illustrate how this is implemented, we will extend the model given in `Using operations`_.
+As mentioned above, ABCpy supports inference on multiple hierarchical models at once. These hierarchical models can share some of the parameters of interest. To illustrate how this is implemented, we will extend the model given in `Multi-level Models`_.
 
 .. image:: network.png
 
 As in the last section, our first model consists of the final grades students receive in an exam. This final grade depends on an average grade, the size of the class of each student and the students social background. The latter two variables also depend on the location of the school.
 
-For an explanation of the code, please see `Using operations`_.
+For an explanation of the code, please see `Multi-level Models`_.
 
 We now consider the second hierarchical model. First, we again need to define our observed data set:
 
@@ -204,10 +198,10 @@ Observe that the lists given to the sampler and the sampling method now contain 
 The source code can be found in `examples/backends/dummy/pmcabc_multiple_models.py`.
 
 
-Using perturbation kernels
+Complex perturbation kernels
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We will consider the same example as in the `Using multiple hierarchical models`_ section.
+We will consider the same example as in the `Multi-view models`_ section.
 
 As pointed out earlier, it is possible to define complex perturbation kernels, perturbing random variables in different ways. Let us assume that we want to perturb the schools location, as well as the scholarship score, using a multivariate normal kernel. However, the remaining parameters we would like to perturb using a multivariate Student's-T kernel.
 
