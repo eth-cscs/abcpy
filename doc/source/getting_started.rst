@@ -90,14 +90,10 @@ To execute the code you only need to run
 
    python3 pmcabc_gaussian.py
 
---- following paragraph need to rewrite
-An important thing to keep in mind: **random variables are initialized without sampling values from them immediately.** This works for inference algorithms, since these algorithms will contain a statement that samples from the prior first. However, if you want to implement a graph and then sample from a random variable within the graph structure, the necessary parameter values will not yet be defined. Therefore, if you want to have a 'stand-alone' distribution or model, you will need to call the method `sample_parameters()` for any parameter in the graph, which is best done right after initializing the relevant parameters. Only after this step is performed can you call the `sample_from_distribution()` method to obtain samples from the distribution.
----
-
 Multi-level Models
 ~~~~~~~~~~~~~~~~
 
-Since release XX.XX of ABCpy, we can have complex dependency structures (e.g., a Bayesian network) between random variables. Behind the scene, ABCpy will ensure that this dependency structure is implemented and the inference will be performed on them. Further we can also define new random variables through operations between existing random variables. In the following we describe an inference problem illustrating both of these ideas. 
+Since release 0.4.0 of ABCpy, we can have complex dependency structures (e.g., a Bayesian network) between random variables. Behind the scene, ABCpy will ensure that this dependency structure is implemented and the inference will be performed on them. Further we can also define new random variables through operations between existing random variables. In the following we describe an inference problem illustrating both of these ideas. 
 
 For this tutorial, we consider a school with different classes. Each class has some number of students. All students of the school take an exam and receive some grade. Lets consider the grades of the students as our observed dataset:
 
@@ -129,7 +125,7 @@ So, each student will receive some grade which is normally distributed, but this
     :lines: 22
     :dedent: 4
 
-Explain that here we created random variables by operation. In short, this means that you can now perform the operations "+", "-", "*", "/" and "**" (the power operator in Python) on any two nodes of your graph, giving a new node. It is possible to perform these operations between two random variables or between random variables and general data types of Python (integer, float, and so on).
+Notice here we created  a new random variable `final_grade`, by subtracting random variables `class_size` and `background` from ranodm variable `grade`. In short, this illustrates that you can perform operations "+", "-", "*", "/" and "**" (the power operator in Python) on any two random variables, to get a new random variable. It is possible to perform these operations between two random variables additionally to the general data types of Python (integer, float, and so on).
 
 Please keep in mind that **parameters defined via operations will not be included in your list of parameters in the journal file**. However, all parameters that are part of the operation, and are not fixed, will be included, so you can easily perform the required operations on the final result to get these parameters, if necessary.
 
@@ -158,6 +154,8 @@ Now, again, we can parametrize the sampler and start sampling:
     :dedent: 4
 
 The source code can be found in `examples/backends/dummy/pmcabc_operations.py`.
+
+An important thing to keep in mind: **random variables are initialized without sampling values from them immediately.** This works for inference algorithms, since these algorithms will contain a statement that samples from the prior first. However, if you want to implement a hierarchical model and then sample from a random variable within the tree structure, the necessary parameter values will not yet be defined. Therefore, if you want to have a 'stand-alone' distribution or model, you will need to call the method `sample_parameters()` for any parameter in the graph, which is best done right after initializing the relevant parameters. Only after this step is performed you can call the `sample_from_distribution()` method to obtain samples from the distribution.
 
 
 Multi-view models
@@ -239,4 +237,4 @@ This is all that needs to be changed. The rest of the implementation works the e
 
 The source code to this section can be found in `examples/backends/dummy/pmcabc_perturbation_kernels.py`
 
-Some words on performance: all operations on this graph structure are performed using recursion. This will, in general, slow down your code compared to previous versions of ABCpy, even if the prior information you give is the exact same as before. However, this will not affect the time inference needs to complete for most use cases, where you define your own hierarchical model. This is due to the fact that simulation is usually a lot slower than traversing the graph. Even if you do not specify such a complicated model, your run time should still be acceptable, given that you do not implement large graphs. Due to the limitations of ABC regarding low dimensionality of your problem, this should, however, not be an issue.
+*Some words on performance:* all operations on the hierarchical structure of dependency between random variables are performed using recursion. This will, in general, slow down your code compared to versions of ABCpy < 0.4.0, even if the prior information you give is the exact same as before. However, this will not affect the time inference needs to complete for most use cases, where you define your own hierarchical model. This is due to the fact that simulation is usually a lot slower than traversing the graph. Even if you do not specify such a complicated model, your run time should still be acceptable, given that you do not implement large graphs. Due to the limitations of ABC regarding low dimensionality of your problem, this should, however, not be an issue.
