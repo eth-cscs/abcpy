@@ -1,6 +1,6 @@
 .. _parallelization:
 
-5. Parallelization Backends and Clusters
+4. Parallelization Backends and Clusters
 ========================================
 
 Using Parallelization Backends

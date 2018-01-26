@@ -1,6 +1,6 @@
 .. _postanalysis:
 
-4. Post Analysis
+5. Post Analysis
 ================
 
 The output when sampling from an inference scheme is a Journal

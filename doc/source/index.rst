@@ -18,17 +18,12 @@ Welcome to ABCpy's documentation!
 .. toctree::
    :maxdepth: 2
 
-   whatsnew
-
-.. toctree::
-   :maxdepth: 2
-
    getting_started
 
 .. toctree::
    :maxdepth: 2
 
-   postanalysis
+   implementations
 
 .. toctree::
    :maxdepth: 2
@@ -38,13 +33,7 @@ Welcome to ABCpy's documentation!
 .. toctree::
    :maxdepth: 2
 
-   implementations
-
-.. toctree::
-   :maxdepth: 2
-   :caption: Bayesian networks
-
-   bayes_nets
+   postanalysis
 
 .. toctree::
    :maxdepth: 2

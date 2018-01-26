@@ -1,6 +1,6 @@
 .. _implementations:
 
-6. New implementations
+3. User customization
 ======================
 
 Implementing a new Model
