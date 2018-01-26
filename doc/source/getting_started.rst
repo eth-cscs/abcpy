@@ -237,4 +237,31 @@ This is all that needs to be changed. The rest of the implementation works the e
 
 The source code to this section can be found in `examples/backends/dummy/pmcabc_perturbation_kernels.py`
 
+Inference schemes
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In ABCpy, we implement widely used and advanced
+variants of ABC inferential schemes: Rejection ABC [:py:class:`abcpy.inferences.RejectionABC`], population Monte Carlo ABC
+[:py:class:`abcpy.inferences.PMCABC`], sequential Monte Carlo ABC [:py:class:`abcpy.inferences.SMCABC`], replenishment sequential Monte Carlo ABC
+(RSMC-ABC) [:py:class:`abcpy.inferences.RSMCABC`], adaptive population Monte Carlo ABC (APMC-ABC) [:py:class:`abcpy.inferences.APMCABC`], ABC with subset
+simulation (ABCsubsim) [:py:class:`abcpy.inferences.ABCsubsim`], and simulated annealing ABC (SABC) [:py:class:`abcpy.inferences.SABC`]. To perform ABC algorithms, 
+we provide different distance functions between datasets, e.g., a discrepancy measured by achievable classification accuracy between two datasets [:py:class:`abcpy.distances.PenLogReg`] 
+
+We also have population Monte Carlo [:py:class:`abcpy.inferences.PMC`] algorithm to infer parameters when the likelihood or apprxomaite likelihood function is available. 
+For approximation of the likelihood function we provide two methods: synthetic likelihood approximation [:py:class:`abcpy.approx_lhd.SynLiklihood`] and another approximation using penalized logistic regression [:py:class:`abcpy.approx_lhd.PenLogReg`]
+
+Model selection
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A further extension of the inferential problem is the selection of a model (M), given an observed
+dataset, from a set of possible models. The package also includes a parallelized version of a random 
+forest ensemble model selection algorithm [:py:class:`abcpy.modelselections.RandomForest`].
+
+Summary selection
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+We have noticed in the `Parameters as Random variables`_ section, the discrepancy measure between two datasets are define by a distance function between extracted summary statistics from the datasets. Hence the ABC algorithms are subjective to the summary statistics choice. This subjectivity can be avoided by a data-driven summary statistics choice from the available summary statistics of the dataset. In ABCpy we provide semiautomatic summry selection procedure [:py:class:`abcpy.summaryselections.Semiautomatic`]
+
+
+
 *Some words on performance:* all operations on the hierarchical structure of dependency between random variables are performed using recursion. This will, in general, slow down your code compared to versions of ABCpy < 0.4.0, even if the prior information you give is the exact same as before. However, this will not affect the time inference needs to complete for most use cases, where you define your own hierarchical model. This is due to the fact that simulation is usually a lot slower than traversing the graph. Even if you do not specify such a complicated model, your run time should still be acceptable, given that you do not implement large graphs. Due to the limitations of ABC regarding low dimensionality of your problem, this should, however, not be an issue.
