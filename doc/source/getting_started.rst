@@ -66,14 +66,14 @@ Here we choose PMCABC algorithm to draw posterior samples of the parameters. Now
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
-    :lines: 33-34
+    :lines: 33-35
     :dedent: 4
 
 Finally, we can parametrize the sampler and start sampling from the posterior distribution of the parameters given the observed dataset:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
-    :lines: 37-40
+    :lines: 37-42
     :dedent: 4
 
 The above inference scheme gives us samples from the distribution of the parameter of interest quantifying the uncertainty of the inferred parameter, which are stored in the journal object. See :ref:`Post Analysis <postanalysis>` for further information on extracting results. 

@@ -18,7 +18,7 @@ Every model has to conform to the API specified by the base class
     :language: python
     :lines: 4, 7, 130, 142, 159, 176, 194
 
-Of course, **if your model does not have an easily implementable probability density/mass function, this method does not have to be provided**. But keep in mind that in this case, your model can only be used to define probabilistic dependency between observed dataset and parameters considered as random variables, and not between random variables. Alternatively, you can use an approximative technique to approximate the probability density function, and provide this instead.
+**If your model does not have an easily implementable probability density/mass function, this method does not have to be provided**. But keep in mind that in this case, your model can only be used to define probabilistic dependency between observed dataset and parameters considered as random variables, and not between random variables. Alternatively, you can use an approximative technique to approximate the probability density function, and provide this instead.
 
 In the following we go through the required methods, explain what is expected, and show how it would be implemented for the Gaussian model.
 
@@ -282,11 +282,9 @@ converted into a Python numpy array for the purposes of ABCpy.
 Implementing a new Distance
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-As discussed in the :ref:`Using multiple hierarchical models <gettingstarted>` section, our distance functions can, in general, act on multiple hierarchical models. We provide a :py:class:`abcpy.distances.DefaultJointDistance` object to give a basic implementation of a distance acting on multiple data sets.
+As discussed in the :ref:`Hierarchical model <gettingstarted>` section, our distance functions can, in general, act on multiple data sets. We provide a :py:class:`abcpy.distances.DefaultJointDistance` object to give a basic implementation of a distance acting on multiple data sets.
 
-We will now explain how you can implement your own distance measure.
-
-A distance needs to provide the following three methods:
+We will now explain how you can implement your own distance measure. A distance needs to provide the following three methods:
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
