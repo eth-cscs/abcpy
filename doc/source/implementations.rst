@@ -1,50 +1,77 @@
 .. _implementations:
 
-3. User customization
-======================
+3. User Customization
+=====================
 
 Implementing a new Model
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Often, one wants to use one of the provided inference schemes on parameters of a new probabilistic model,
-which is not part of ABCpy. We now go through the details of such a scenario
-using the already implemented probabilistic model corresponding to normal or Gaussian distribution to explain how to implement a new 
-probabilistic model from scratch.
+Often, one wants to use one of the provided inference schemes on a new
+probabilistic model that is not part of ABCpy. We now go through the details of
+such a scenario using the already implemented probabilistic model corresponding
+to a Normal or Gaussian distribution to explain how to implement such a model
+from scratch.
 
 Every model has to conform to the API specified by the base class
-:py:class:`abcpy.probabilisticmodels.ProbabilisticModel`. Thus, making a new model compatible with ABCpy essentially boils down to implementing the following methods:
+:py:class:`abcpy.probabilisticmodels.ProbabilisticModel`. Thus, making a new
+model compatible with ABCpy essentially boils down to implementing the following
+methods:
 
 .. literalinclude:: ../../abcpy/probabilisticmodels.py
     :language: python
-    :lines: 4, 7, 130, 142, 159, 176, 194
+    :lines: 4, 7, 130, 142, 175
 
-**If your model does not have an easily implementable probability density/mass function, this method does not have to be provided**. But keep in mind that in this case, your model can only be used to define probabilistic dependency between observed dataset and parameters considered as random variables, and not between random variables. Alternatively, you can use an approximative technique to approximate the probability density function, and provide this instead.
+However, these methods are the minimum that needs to be implemented in your
+models builds a relationship between random variables and observed data. This is
+for example the case when you want to do inference on mechanistic models that do
+not have a PDF.
 
-In the following we go through the required methods, explain what is expected, and show how it would be implemented for the Gaussian model.
+In case you want to use the model to create a relationship also between random
+variables, two additional methods need to be implemented.
 
-As a general note, one can say that it is always a good  idea to consult the reference for implementation details. For the constructor, the reference of the base class states:
+.. literalinclude:: ../../abcpy/probabilisticmodels.py
+    :language: python
+    :lines: 158, 193
+
+To understand better the difference of both cases, please have a look at the
+:ref:`Parameters as Random variables <implementations>` section.
+
+Details of the Methods
+----------------------
+
+In the following we go through the required methods, explain what is expected,
+and show how it would be implemented for the Gaussian model. It is always worth
+consulting the reference for implementation details. For the constructor we
+have:
 
 .. automethod:: abcpy.probabilisticmodels.ProbabilisticModel.__init__
     :noindex:
 
-The constructor expects to receive a list, containing all parameters of the new model. These can be given in three ways:
+The constructor expects to receive a list, containing all parameters of the new
+model. These can be given in three ways:
 
-1. A tupel, containing the parent, a :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object, as well as the output index. The output index refers to the index within a sample of the parent model which should be used for a parameter.
+1. A tupel, containing the parent, a
+   :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object, as well as
+   the output index. The output index refers to the index within a sample of the
+   parent model which should be used for a parameter.
 
-2. A probabilistic model object. This ensures, like the first point, that a graphical structure can be implemented.
+2. A probabilistic model object. This ensures, like the first point, that a
+   graphical structure can be implemented.
 
-3. Finally, a hyperparameter. This refers to any fixed value that can be given. The constructor of the base class is implemented such that fixed values (of any python type) will always be converted to a probabilistic model.
+3. A hyperparameter, which refers to any fixed value that can be given. The
+   constructor of the base class is implemented such that fixed values (of any
+   python type) will always be converted to a probabilistic model.
 
-
-If we would like to implement our own constructor of a new model, we should in the end call the constructor of the probabilistic model class.
-
-Consequently, we would implement a simple version of a Gaussian model as follows:
+If we would like to implement our own constructor of a new model, we should in
+the end call the constructor of the probabilistic model class. Consequently, we
+would implement a simple version of a Gaussian model as follows:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/normal_extended_model.py
     :language: python
     :lines: 6-10
 
-Note that we need to provide two **necessary** additional parameters that is not required by the base class: 
+Note that we need to provide two **necessary** additional parameters that is not
+required by the base class:
 
 
 **self.name**. This is to provide the parameters with a name.  This is due to the fact that in the journal the final values for the random variables should be saved together with their name. However, since Python does not allow for easy retrieval of names given by the user, the name needs to be saved manually. We provide a default value such that the user does not need to specify such a name in case he wants to use this probabilistic model as a hierarchical model, which will not have its end value saved in the journal.

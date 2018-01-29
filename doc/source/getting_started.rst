@@ -8,7 +8,7 @@ Here, we explain how to use ABCpy to quntify parameter uncertainty of a probabbi
 If you are new to uncertainty quantification using Approximate Bayesian Computation (ABC), we recommend you to start with the `Parameters as Random variables`_ section. If you would like to see all features in action together, check out `Complex perturbation kernels`_.
 
 Parameters as Random variables
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 As an example, if we have measurements of the height of a group of grown up human and it is also known that a Gaussian distribution is an appropriate probabbilistic model for these kind of observations, then our observed dataset would be measurement of heights and the probabbilistic model would be Gaussian.
 

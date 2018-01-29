@@ -1,7 +1,7 @@
 .. _parallelization:
 
-4. Parallelization Backends and Clusters
-========================================
+4. Parallelization Backends
+===========================
 
 Using Parallelization Backends
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -52,7 +52,7 @@ be properly installed on the cluster, such that it is available to the Python
 interpreters on the master and the worker nodes.
 
 Using the MPI Backend
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
 
 To run ABCpy in parallel using MPI, one only needs to use the provided MPI
 backend. Using the same example as above, the statements for the backend have to
