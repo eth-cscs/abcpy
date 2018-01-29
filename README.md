@@ -17,6 +17,10 @@ scientists by providing
 * [User Documentation](http://abcpy.readthedocs.io/en/latest/README.html)
 * [Reference](http://abcpy.readthedocs.io/en/latest/abcpy.html)
 
+Further, we provide a
+[collection of models](https://github.com/eth-cscs/abcpy-models) for which ABCpy
+has been applied successfully. This is a good place to look at more complicated inference setups.
+
 ## License
 ABCpy is published under the BSD 3-clause license, see [here](LICENSE).
 
@@ -58,6 +62,19 @@ There is a paper in the proceedings of the 2017 PASC conference. We would apprec
  address = {New York, NY, USA},
  keywords = {ABC, Library, Parallel, Spark},
 } 
+```
+
+## Other Refernces
+
+Other publications related to the ABCpy package:
+
+```
+@article{Dutta2017arXivABCpy,
+  title={ABCpy: A High-Performance Computing Perspective to Approximate Bayesian Computation},
+  author={Dutta, Ritabrata and Schoengens, Marcel and Ummadisingu, Avinash and Onnela, Jukka-Pekka and Mira, Antonietta},
+  journal={arXiv preprint arXiv:1711.04694},
+  year={2017}
+}
 ```
 
 ## Status
