@@ -155,7 +155,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
         raise NotImplementedError
 
-    @abstractmethod
     def _check_parameters_fixed(self, parameters):
         """
         Checks parameters in the set_parameters method. Should return False iff the parameters cannot come from the distribution of the probabilistic model.
@@ -170,7 +169,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         boolean:
             Whether the given parameters could have been sampled from this distribution.
         """
-        raise NotImplementedError
+        return True
 
     @abstractmethod
     def sample_from_distribution(self, k, rng):

@@ -6,9 +6,10 @@
 Implementing a new Model
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Often, one wants to use one of the provided inference schemes on a new random variable or model,
+Often, one wants to use one of the provided inference schemes on parameters of a new probabilistic model,
 which is not part of ABCpy. We now go through the details of such a scenario
-using the normal distribution to exemplify the mechanics.
+using the already implemented probabilistic model corresponding to normal or Gaussian distribution to explain how to implement a new 
+probabilistic model from scratch.
 
 Every model has to conform to the API specified by the base class
 :py:class:`abcpy.probabilisticmodels.ProbabilisticModel`. Thus, making a new model compatible with ABCpy essentially boils down to implementing the following methods:
@@ -17,13 +18,11 @@ Every model has to conform to the API specified by the base class
     :language: python
     :lines: 4, 7, 130, 142, 159, 176, 194
 
-Of course, **if your model does not have a easily implemented probability density function, this method does not have to be provided**. But keep in mind that in this case, your model can only be used as one of the hierarhical models of the network, and not for any nodes contained in the prior. **The prior can only contain random variables that have a defined probability density function**. Of course, it is possible to use an approximative technique to approximate the probability density function, and provide this instead.
+**If your model does not have an easily implementable probability density/mass function, this method does not have to be provided**. But keep in mind that in this case, your model can only be used to define probabilistic dependency between observed dataset and parameters considered as random variables, and not between random variables. Alternatively, you can use an approximative technique to approximate the probability density function, and provide this instead.
 
-In the following we go through the required methods, explain what is expected, and
-show how it would be implemented for the Gaussian model.
+In the following we go through the required methods, explain what is expected, and show how it would be implemented for the Gaussian model.
 
-As a general note, one can say that it is always a good  idea to
-consult the reference for implementation details. For the constructor, the reference of the base class states:
+As a general note, one can say that it is always a good  idea to consult the reference for implementation details. For the constructor, the reference of the base class states:
 
 .. automethod:: abcpy.probabilisticmodels.ProbabilisticModel.__init__
     :noindex:
@@ -45,9 +44,12 @@ Consequently, we would implement a simple version of a Gaussian model as follows
     :language: python
     :lines: 6-10
 
-First, note that we provided an additional parameter that is not required by the base class. It is **necessary** to provide this parameter and save the name as **self.name**. This is due to the fact that in the journal the final values for the random variables should be saved together with their name. However, since Python does not allow for easy retrieval of names given by the user, the name needs to be saved manually. We provide a default value such that the user does not need to specify such a name in case he wants to use this probabilistic model as a hierarchical model, which will not have its end value saved in the journal.
+Note that we need to provide two **necessary** additional parameters that is not required by the base class: 
 
-Also, observe that we defined an additional attribute **self.dimension**. This attribute has to be defined for any probabilistic model you implement. It defines the dimension (length) a sample of your probabilistic model will have. Since a normal distribution will give one value per sample, its dimension is one. If we were to implement an n-dimensional multivariate normal distribution, the dimension would be n.
+
+**self.name**. This is to provide the parameters with a name.  This is due to the fact that in the journal the final values for the random variables should be saved together with their name. However, since Python does not allow for easy retrieval of names given by the user, the name needs to be saved manually. We provide a default value such that the user does not need to specify such a name in case he wants to use this probabilistic model as a hierarchical model, which will not have its end value saved in the journal.
+
+**self.dimension**: This attribute has to be defined for any probabilistic model you implement. It defines the dimension (length) a sample of your probabilistic model will have. Since a normal distribution will give one value per sample, its dimension is one. If we were to implement an n-dimensional multivariate normal distribution, the dimension would be n.
 
 If you have a look at the definition of the constructor of the probabilistic model class, you might notice the following statement:
 
@@ -280,11 +282,9 @@ converted into a Python numpy array for the purposes of ABCpy.
 Implementing a new Distance
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-As discussed in the :ref:`Using multiple hierarchical models <gettingstarted>` section, our distance functions can, in general, act on multiple hierarchical models. We provide a :py:class:`abcpy.distances.DefaultJointDistance` object to give a basic implementation of a distance acting on multiple data sets.
+As discussed in the :ref:`Hierarchical model <gettingstarted>` section, our distance functions can, in general, act on multiple data sets. We provide a :py:class:`abcpy.distances.DefaultJointDistance` object to give a basic implementation of a distance acting on multiple data sets.
 
-We will now explain how you can implement your own distance measure.
-
-A distance needs to provide the following three methods:
+We will now explain how you can implement your own distance measure. A distance needs to provide the following three methods:
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
