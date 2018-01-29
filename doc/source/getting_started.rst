@@ -10,7 +10,7 @@ If you are new to uncertainty quantification using Approximate Bayesian Computat
 Parameters as Random variables
 ~~~~~~~~~~~~~~~~~~~~~~
 
-As an example, if we have measurements of the height of a group of grown up human and it is also known that a Gaussian distribution is an appropriate probabbilistic model to model these kind of observations, then our observed dataset would be measurement of heights and the probabbilistic model would be Gaussian.
+As an example, if we have measurements of the height of a group of grown up human and it is also known that a Gaussian distribution is an appropriate probabbilistic model for these kind of observations, then our observed dataset would be measurement of heights and the probabbilistic model would be Gaussian.
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
@@ -19,9 +19,9 @@ As an example, if we have measurements of the height of a group of grown up huma
 
 Gaussian or Normal model has two parameters: the mean, denoted by :math:`\mu`, and the standard deviation, denoted by :math:`\sigma`. We consider these parameters as random variables. The goal of ABC is to quantify uncertainty of these parameters from the information contained in the observed data.
 
-In ABCpy, a :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object represents probabilistic relationship between random variables or between random variables and observed data. Each of the :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object has some input parameters: they are random variables (:py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object) or constant valued and considered known to the user ('hyperparameter'). If you are interested in implementing your own probabilistic model, please check the :ref:`Implementing a new Model <implementations>` section. 
+In ABCpy, a :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object represents probabilistic relationship between random variables or between random variables and observed data. Each of the :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object has some input parameters: they are either random variables (output of another :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object) or constant valued and considered known to the user ('hyperparameter'). If you are interested in implementing your own probabilistic model, please check the :ref:`Implementing a new Model <implementations>` section. 
 
-To define a parameter of a model as a random variable, you start by assigning a *prior* distribution on them. We can utilize *prior* knowledge about these parameters as *prior* distribution. In the absence of prior knowledge, we still need to provide *prior* and a non-informative flat disribution on the parameter space can be use. The prior distribution on the random variables are assigned by a probablistic model which can take other random variables or hyper parameters as input. 
+To define a parameter of a model as a random variable, you start by assigning a *prior* distribution on them. We can utilize *prior* knowledge about these parameters as *prior* distribution. In the absence of prior knowledge, we still need to provide *prior* and a non-informative flat disribution on the parameter space can be used. The prior distribution on the random variables are assigned by a probablistic model which can take other random variables or hyper parameters as input. 
 
 In this example, it is quite simple. We know from experience that the average height should be somewhere between 150cm and 200cm, while the standard deviation is around 5 to 25. 
 
@@ -55,14 +55,14 @@ Algorithms in ABCpy requires a perturbation kernel, a tool to explore the parame
     :lines: 24-25
     :dedent: 4
 
-Finally, we need to define a backend declaring the type of parallelization. The example code here uses the dummy backend `BackendDummy` which does not parallelize the execution of the inference schemes. But this is handy for prototyping and testing.
+Finally, we need to define a backend declaring the type of parallelization. The example code here uses the dummy backend `BackendDummy` which does not parallelize the execution of the inference schemes. But this is handy for prototyping and testing. For more advanced parallelization backends avialable through ABCpy, please consult :ref:`Using Parallelization Backends <parallelization>` section. 
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
     :lines: 29-30
     :dedent: 4
 
-Here we choose PMCABC algorithm to draw posterior samples of the parameters. Now we are ready to instantiate a PMCABC object and pass the distance function, kernel and backend objects to the constructor:
+Here we choose PMCABC algorithm to draw posterior samples of the parameters and instantiate a PMCABC object by passing the random variable corresponding to the observed data set, the distance function,  backend object and perturbation kernel to the constructor:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
@@ -76,13 +76,11 @@ Finally, we can parametrize the sampler and start sampling from the posterior di
     :lines: 37-42
     :dedent: 4
 
-The above inference scheme gives us samples from the distribution of the parameter of interest quantifying the uncertainty of the inferred parameter, which are stored in the journal object. See :ref:`Post Analysis <postanalysis>` for further information on extracting results. 
+The above inference scheme gives us samples from the posterior distribution of the parameter of interest quantifying the uncertainty of the inferred parameter, which are stored in the journal object. See :ref:`Post Analysis <postanalysis>` for further information on extracting results. 
 
 Note that the model and the observations are given as a list. This is due to the fact that in ABCpy, it is possible to have hierarchical models, building relationships between co-occuring groups of datasets. To learn more, see the `Hierarchical models`_ section.
 
-The full source can be found in `examples/backends/dummy/pmcabc_gaussian.py`.
-
-To execute the code you only need to run
+The full source can be found in `examples/backends/dummy/pmcabc_gaussian.py`. To execute the code you only need to run
 
 ::
 
@@ -116,7 +114,7 @@ We can define these random variables and the dependencies between them (in a nut
     :lines: 9-10, 13, 16, 19
     :dedent: 4
 
-So, each student will receive some grade which is normally distributed, but this grade is determined by the other random variables defined. The model for the grade of the students now can be written as:
+So, each student will receive some grade without additional effects which is normally distributed, but then the final grade recieved will be a function of grade without additional effects and the other random variables defined beforehand (e.g., school location, class size and back ground). The model for the final grade of the students now can be written as:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_operations.py
     :language: python
