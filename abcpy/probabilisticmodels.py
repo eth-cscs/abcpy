@@ -169,7 +169,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         boolean:
             Whether the given parameters could have been sampled from this distribution.
         """
-        return True
+        raise NotImplementedError
 
     @abstractmethod
     def sample_from_distribution(self, k, rng):
