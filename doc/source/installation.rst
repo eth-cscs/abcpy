@@ -3,6 +3,17 @@
 1. Installation
 ===============
 
+Installation from PyPI
+~~~~~~~~~~~~~~~~~~~~~~
+
+Simplest way to install 
+::
+   pip3 install abcpy
+
+
+Installation from Souce
+~~~~~~~~~~~~~~~~~~~~~~~
+
 If you prefer to work on the source, clone the repository
 ::
 
@@ -21,3 +32,6 @@ To create a package and install it do
    pip3 install build/dist/abcpy-0.4.0-py3-none-any.whl
 
 Note that ABCpy requires Python3.
+
+
+

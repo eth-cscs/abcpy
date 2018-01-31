@@ -29,11 +29,12 @@ class Normal(ProbabilisticModel, Continuous):
                 input_parameters.append(parameter)
 
         super(Normal, self).__init__(input_parameters)
+        # Save the name given by the user for the journal output
+        self.name = name
+
         # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = 1
 
-        # Save the name given by the user for the journal output
-        self.name = name
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """

@@ -23,7 +23,7 @@ Welcome to ABCpy's documentation!
 .. toctree::
    :maxdepth: 2
 
-   implementations
+   user_customization
 
 .. toctree::
    :maxdepth: 2

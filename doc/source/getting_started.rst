@@ -236,7 +236,7 @@ we provide different distance functions between datasets, e.g., a discrepancy me
 We also have population Monte Carlo [:py:class:`abcpy.inferences.PMC`] algorithm to infer parameters when the likelihood or apprxomaite likelihood function is available. 
 For approximation of the likelihood function we provide two methods: synthetic likelihood approximation [:py:class:`abcpy.approx_lhd.SynLiklihood`] and another approximation using penalized logistic regression [:py:class:`abcpy.approx_lhd.PenLogReg`]
 
-Mode Selection
+Model Selection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 A further extension of the inferential problem is the selection of a model (M), given an observed
