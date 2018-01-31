@@ -23,7 +23,7 @@ def infer_parameters():
     
     # define kernel
     from abcpy.perturbationkernel import DefaultKernel
-    kernel = DefaultKernel([prior])
+    kernel = DefaultKernel([mu, sigma])
 
     # define backend
     # Note, the dummy backend does not parallelize the code!
