@@ -70,11 +70,10 @@ class Statistics(metaclass = ABCMeta):
         # Check summary_statistics is a np.ndarry
         if not isinstance(summary_statistics, (np.ndarray)):
             raise TypeError('Summary statisticss is not of allowed types')
-            
         # Include the polynomial expansion
         result = summary_statistics    
         for ind in range(2,self.degree+1):
-            result = np.column_stack((result,pow(summary_statistics,ind)))
+            result = np.column_stack((result,np.power(summary_statistics,ind)))
             
         # Include the cross-product term
         if self.cross == True and summary_statistics.shape[1]>1:          
