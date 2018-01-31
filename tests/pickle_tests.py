@@ -31,4 +31,7 @@ class PickleTests(unittest.TestCase):
         """Tests whether after pickling and unpickling the object, the attribute which should not be included exists"""
         pickled_object = cloudpickle.dumps(ToBePickled(), pickle.HIGHEST_PROTOCOL)
         unpickled_object = cloudpickle.loads(pickled_object)
-        assert(not(hasattr(pickled_object,'notIncluded')))
+        self.assertTrue(not(hasattr(pickled_object,'notIncluded')))
+
+if __name__ == '__main__':
+    unittest.main()
