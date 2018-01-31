@@ -36,28 +36,28 @@ The heart of the ABC inferential algorithm is a measure of discrepancy between t
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
-    :lines: 16-18
+    :lines: 17-18
     :dedent: 4
 
 Next we define the discrepancy measure between the datasets, by defining a distance function (LogReg distance is chosen here) between the extracted summary statistics. If we want to define the discrepancy measure through a distance function between the datasets directly, we choose Identity as summary statistics which gives the original dataset as the extracted summary statistics. 
  
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
-    :lines: 20-22
+    :lines: 21-22
     :dedent: 4
 
 Algorithms in ABCpy requires a perturbation kernel, a tool to explore the parameter space. Here, we use the default kernel provided, which explores the parameter space of random variables, by perturbing it using a multivariate Gaussian distribution or performing a random walk if the  corresponding random variable is continuous or discrete. For a more involved example, please consult `Complex Perturbation Kernels`_.
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
-    :lines: 24-26
+    :lines: 25-26
     :dedent: 4
 
 Finally, we need to define a backend declaring the type of parallelization. The example code here uses the dummy backend `BackendDummy` which does not parallelize the execution of the inference schemes. But this is handy for prototyping and testing. For more advanced parallelization backends avialable through ABCpy, please consult :ref:`Using Parallelization Backends <parallelization>` section. 
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
-    :lines: 29-30
+    :lines: 30-31
     :dedent: 4
 
 Here we choose PMCABC algorithm to draw posterior samples of the parameters and instantiate a PMCABC object by passing the random variable corresponding to the observed data set, the distance function,  backend object, perturbation kernel and seed for random number generator to the constructor:
