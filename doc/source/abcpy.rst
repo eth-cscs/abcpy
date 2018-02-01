@@ -33,7 +33,7 @@ abcpy.backends module
     :undoc-members:
     :show-inheritance:
 
-abcpy.continuousmodels module
+
 -----------------------------
 
 .. automodule:: abcpy.continuousmodels
@@ -66,15 +66,6 @@ abcpy.graphtools module
 .. automodule:: abcpy.graphtools
     :members:
     :special-members: __init__, _sample_from_prior, _reset_flags, _get_mapping, _get_names_and_parameters
-    :undoc-members:
-    :show-inheritance:
-
-abcpy.models module
--------------------
-
-.. automodule:: abcpy.models
-    :members:
-    :special-members: __init__, _check_parameters_at_initialization, _check_parameters_before_sampling, _check_parameters_fixed
     :undoc-members:
     :show-inheritance:
 

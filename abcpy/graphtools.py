@@ -6,7 +6,7 @@ class GraphTools():
     """This class implements all methods that will be called recursively on the graph structure."""
     def sample_from_prior(self, model=None, rng=np.random.RandomState()):
         """
-       Samples values for all random variables of the model.
+        Samples values for all random variables of the model.
         Commonly used to sample new parameter values on the whole graph.
 
         Parameters

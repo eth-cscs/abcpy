@@ -181,6 +181,7 @@ class RejectionABC(InferenceMethod):
         """
         Samples from the posterior distribution of the model parameter given the observed
         data observations.
+
         Parameters
         ----------
         observations: numpy.ndarray
@@ -194,6 +195,7 @@ class RejectionABC(InferenceMethod):
         full_output: integer, optional
             If full_output==1, intermediate results are included in output journal.
             The default value is 0, meaning the intermediate results are not saved.
+
         Returns
         -------
         abcpy.output.Journal
