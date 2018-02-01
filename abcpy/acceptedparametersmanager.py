@@ -121,7 +121,7 @@ class AcceptedParametersManager:
         Returns the accepted bds values for the specified models.
 
         Parameters
-        ----------.
+        ----------
         models: list
             Contains the probabilistic models for which the accepted bds values should be returned
 
