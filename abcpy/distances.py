@@ -127,8 +127,7 @@ class Euclidean(Distance):
         """
         d1 = d1[0]
         d2 = d2[0]
-        if len(d1) != len(d2):
-            raise BaseException("Input data sets have different sizes: {} vs {}".format(len(d1), len(d2)))
+        # Extract summary statistics from the dataset
         if(self.s1 is None or self.data_set!=d1):
             self.s1 = self.statistics_calc.statistics(d1)
             self.data_set = d1
@@ -139,7 +138,7 @@ class Euclidean(Distance):
         for ind1 in range(0, self.s1.shape[0]):
             for ind2 in range(0, s2.shape[0]):
                 dist[ind1,ind2] = np.sqrt(np.sum(pow(self.s1[ind1,:]-s2[ind2,:],2)))
-                
+
         return dist.mean()
 
     
@@ -183,6 +182,8 @@ class PenLogReg(Distance):
         d1, d2: list
             A list, containing a list describing the data set
         """
+        d1 = d1[0]
+        d2 = d2[0]
         # Extract summary statistics from the dataset
         if(self.s1 is None or self.data_set!=d1):
             self.s1 = self.statistics_calc.statistics(d1)

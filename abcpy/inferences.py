@@ -1151,7 +1151,8 @@ class SABC(BaseDiscrepancy, InferenceMethod):
             if accepted_parameters.shape[1] > 1:
                 accepted_cov_mats = [beta*new_cov_mat+0.0001*np.trace(new_cov_mat)*np.eye(len(new_cov_mat)) for new_cov_mat in new_cov_mats]
             else:
-                accepted_cov_mats = [beta*new_cov_mat+0.0001*(new_cov_mat)*np.eye(accepted_parameters.shape[1])]
+                accepted_cov_mats = [beta * new_cov_mat + 0.0001 * (new_cov_mat) * np.eye(accepted_parameters.shape[1])
+                                     for new_cov_mat in new_cov_mats]
 
             # 4: Show progress and if acceptance rate smaller than a value break the iteration
 
