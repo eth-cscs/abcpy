@@ -982,7 +982,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         steps : integer
             Number of maximum iterations in the sequential algoritm ("generations")
         epsilon : numpy.float
-            An array of proposed values of epsilon to be used at each steps.
+            A proposed value of threshold to start with.
         n_samples : integer, optional
             Number of samples to generate. The default value is 10000.
         n_samples_per_param : integer, optional
@@ -1011,7 +1011,6 @@ class SABC(BaseDiscrepancy, InferenceMethod):
             A journal containing simulation results, metadata and optionally intermediate results.
         """
         self.sample_from_prior(rng=self.rng)
-
         self.accepted_parameters_manager.broadcast(self.backend, observations)
         self.epsilon = epsilon
         self.n_samples = n_samples
@@ -1081,8 +1080,6 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
 
-
-
             # main SABC algorithm
             # print("INFO: Initialization of SABC")
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=int(sample_array[aStep]), dtype=np.uint32)
@@ -1121,7 +1118,6 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 accept = 0
                 all_distances = new_all_distances
 
-            # print(index[acceptance == 1])
             # Initialize/Update the accepted parameters and their corresponding distances
             accepted_parameters[index[acceptance == 1], :] = new_parameters[acceptance == 1, :]
             distances[index[acceptance == 1]] = new_distances[acceptance == 1]
