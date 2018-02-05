@@ -5,13 +5,27 @@ class ProbabilisticModel(metaclass = ABCMeta):
     """This abstract class represents all probabilistic models.
     """
     def __init__(self, parameters):
-        """
-        This constructor should be called from any derived class.
+        """This constructor should be called from any derived class. 
+
+        It requires as input all parameters (random variables) on which the current
+        model depends. These input parameters can be specified in different ways:
+
+        1. as a tuple (ProbabilisticModel | Hyperparameter, int) to use specific output parameters of a model
+        2. as ProbabilisticModel to use all output parameters of a model
+        3. as int | float for hyperparameters
+
+        In the first case the current model depends on a single output parameter
+        (second tuple element) of a probabilistic model (first tuple
+        element). In the second case on all output parameters of a probabilistic
+        model, and, in the third case, on a fixed valued hyperparameter. Note
+        that internally, the constructor will rewrite all input parameters to
+        the first case.
 
         Parameters
         ----------
         parameters: list
-            Each element of the list is either a tupel containing the parent of type abcpy.ProbabilisticModel as well as the output index to which this parameter corresponds, an abcpy.ProbabilisticModel or a hyperparameter.
+            A list of input parameters.
+
         """
 
         # Save all probabilistic models and hyperparameters from which the model derives
@@ -155,6 +169,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
         raise NotImplementedError
 
+    @abstractmethod
     def _check_parameters_fixed(self, parameters):
         """
         Checks parameters in the set_parameters method. Should return False iff the parameters cannot come from the distribution of the probabilistic model.

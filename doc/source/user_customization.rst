@@ -2,94 +2,88 @@
 
 3. User Customization
 =====================
+
 Implementing a new Model
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 Often, one wants to use one of the provided inference schemes with a new
 probabilistic model that is not part of ABCpy. We now go through the details of
-such a scenario using the already implemented probabilistic model corresponding
-to a Normal or Gaussian distribution to explain how to implement such a model
-from scratch.
+such a scenario using the (already implemented) Gaussian distribution to explain
+how to implement such a model from scratch.
 
-Every model has to conform to the API specified by the base class
-:py:class:`abcpy.probabilisticmodels.ProbabilisticModel`. Thus, making a new
-model compatible with ABCpy essentially boils down to implementing the following
-methods:
+Every model has at least to conform to the API specified by the base class
+:py:class:`abcpy.probabilisticmodels.ProbabilisticModel`. Thus, a new model must
+derive from :py:class:`ProbabilisticModel` and implement the following methods:
 
-.. literalinclude:: ../../abcpy/probabilisticmodels.py
-    :language: python
-    :lines: 4, 7, 130, 142, 175
+.. autoclass::  abcpy.probabilisticmodels.ProbabilisticModel
+   :members: _check_parameters_at_initialization, _check_parameters_before_sampling, _check_parameters_fixed, sample_from_distribution
+   :noindex:
+      
+However, these methods are the sufficient only when you want to use your
+probabilistc model to explain a relationship between *parameters* (considered
+random variables for inference) and *observed data*.  This is for example the case
+when you want to do inference on mechanistic models that do not have a PDF.
 
-However, these methods are the sufficient ones only when you want to use your probabiistc 
-model to explain a relationship between parameters (considered random variables for inference) and observed data. 
-This is for example the case when you want to do inference on mechanistic models that do not have a PDF.
+In case you want to use the model also to build a relationship between
+*different parameters* (between different random variables for inference), the
+model is restricted to either output continuous or descrete
+parameters. Consequently, the model must derive from either from
+:py:class:`abcpy.probabilisticmodels.Continuous` or
+:py:class:`abcpy.probabilisticmodels.Discrete` and implement the required methods.
 
-In case you want to use the model also to build a relationship between different parameters (considered random 
-variables for inference), two additional methods need to be implemented.
-
-.. literalinclude:: ../../abcpy/probabilisticmodels.py
-    :language: python
-    :lines: 158, 193
+.. autoclass::  abcpy.probabilisticmodels.Continuous
+   :members: pdf
+   :noindex:
+      
+.. autoclass::  abcpy.probabilisticmodels.Discrete
+   :members: pmf
+   :noindex:
 
 To understand better the difference of both cases, please have a look at the
-:ref:`Parameters as Random variables <implementations>` section.
+:ref:`Parameters as Random variables<Implementations>` section.
 
-Details of the Methods
+     
+Implementation details
 ----------------------
 
-In the following we go through the required methods, explain what is expected,
-and show how it would be implemented for the Gaussian model. It is always worth
-consulting the reference for implementation details. For the constructor we
-have:
+In the following we go through the implementation of a Gaussian generative model
+to explain the API in greater detail. Since a Gaussian model generates continous
+numbers, the newly implement class derives from
+:py:class:`abcpy.probabilisticmodels.Continuous` and the header look as follows:
+
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
+   :language: python
+   :lines: 5
+
+When we implement a new model, a good start is to implement a constructor. We
+have to follow the subsequent convention:
 
 .. automethod:: abcpy.probabilisticmodels.ProbabilisticModel.__init__
     :noindex:
 
-To implement a constructor of a new model, we should start by calling the constructor 
-of the probabilistic model class. The constructor expects to receive a list, each entry corresponding to one of the 
-parameters of the model. Each of these entries are tuples containing:
- 
-1. A probabilistic model, 
-   :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object, defining the prior 
-   distribution of the parameter, its dependence on other parameters or defining itself as an hyperparameter.  
-2. The output index. The output index refers to the index within a sample of the
-   parent model which corresponds to this parameter.
-
-In pseudo-code, this list might look something like this:
+In pseudo-code, the required input list might look similar to the following:
 
 .. code-block:: python
 
-    [(prob_model_1, 0), (prob_model_1, 1), (prob_model_2, 2), (hyperparameter, 0)]
+    [(prob_model_1, 0), (prob_model_1, 2), prob_model_2, (hyperparameter, 0), 3.2]
 
-Each entry in the parameters list can be provided by an user as a tupel of the above type, a probabilistic model or a fixed value. However, 
-for ABCpy to work, all these different formats are rewritten to tupels during construction. If an user provides a fixed value, 
-this value is converted to an object of type :py:class:`abcpy.probabilisticmodels.Hyperparameter`, which derives from the
-probabilisic model class, and the tupel contains this object as the first entry and 0 as the second entry.
-Finally, if a user used the access operator, the tupel will contain the probabilistic model as well as the index which 
-was given in the access operator.
-
-.. The constructor expects to receive a list, containing all parameters of the new
-.. model. These can be given in three ways:
-
-.. 1. A tupel, containing the parent, a
-   :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object, as well as
-   the output index. The output index refers to the index within a sample of the
-   parent model which should be used for a parameter.
-
-.. 2. A probabilistic model object. This ensures, like the first point, that a
-   graphical structure can be implemented.
-
-.. 3. A hyperparameter, which refers to any fixed value that can be given. The
-   constructor of the base class is implemented such that fixed values (of any
-   python type) will always be converted to a probabilistic model.
+So calling the constructor of the
+:py:class:`abcpy.probabilisticmodels.ProbabilisticModel` essentially supports us
+in parsing various possible user inputs. All these different formats are
+rewritten internally to tupels. Most importantly, if an user provides a fixed
+value, this value is converted to an object of type
+:py:class:`abcpy.probabilisticmodels.Hyperparameter`, which derives from the
+probabilisic model class.
 
 The constructur of the already implemented Gaussian model looks as following:
 
-.. literalinclude:: ../../abcpy/continuousmodels.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 10, 23-36
+    :lines: 10-24
     :dedent: 4
 
+.. UP TO HERE ..
+	     
 **Note 1.** We did not need to think about converting different types of inputs to tuples, as that is automatically done inside 
 the constructor of :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object.
 
