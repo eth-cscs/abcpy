@@ -7,16 +7,16 @@ def infer_parameters():
 
     # The prior information changing the class size and social background, depending on school location
     from abcpy.continuousmodels import Uniform, Normal
-    school_location = Uniform([[0.2],[0.3]], name='school_location')
+    school_location = Uniform([[0.2], [0.3]], )
 
     # The average class size of a certain school
-    class_size = Normal([[school_location], [0.1]], name='class_size')
+    class_size = Normal([[school_location], [0.1]], )
 
     # The social background from which a student originates
-    background = Normal([[school_location],[0.1]], name='background')
+    background = Normal([[school_location], [0.1]], )
 
     # The grade a student would receive without any bias
-    grade_without_additional_effects = Normal([[4.5],[0.25]], name='grade_without_additional_effects')
+    grade_without_additional_effects = Normal([[4.5], [0.25]], )
 
     # The grade a student of a certain school receives
     final_grade = grade_without_additional_effects-class_size-background

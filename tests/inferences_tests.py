@@ -21,7 +21,7 @@ class RejectionABCTest(unittest.TestCase):
         dummy = BackendDummy()
 
         # define a uniform prior distribution
-        prior = Uniform([[-5,0],[5,10]])
+        prior = Uniform([[-5, 0], [5, 10]])
         prior.sample_parameters(np.random.RandomState(1))
         # define a Gaussian model
         model = Normal([prior])
@@ -60,7 +60,7 @@ class PMCTests(unittest.TestCase):
         backend = BackendDummy()
         
         # define a uniform prior distribution
-        prior = Uniform([[-5,0],[5,10]])
+        prior = Uniform([[-5, 0], [5, 10]])
         prior.sample_parameters(np.random.RandomState(1))
 
         # define a Gaussian model
@@ -124,7 +124,7 @@ class PMCABCTests(unittest.TestCase):
         self.backend = BackendDummy()
 
         # define a uniform prior distribution
-        prior = Uniform([[-5,0],[5,10]])
+        prior = Uniform([[-5, 0], [5, 10]])
         prior.sample_parameters(np.random.RandomState(1))
 
         # define a Gaussian model
@@ -210,7 +210,7 @@ class SABCTests(unittest.TestCase):
         self.backend = BackendDummy()
 
         # define a uniform prior distribution
-        prior = Uniform([[-5,0],[5,10]])
+        prior = Uniform([[-5, 0], [5, 10]])
         prior.sample_parameters(np.random.RandomState(1))
         # define a Gaussian model
         self.model = Normal([prior])
@@ -267,7 +267,7 @@ class ABCsubsimTests(unittest.TestCase):
         self.backend = BackendDummy()
 
         # define a uniform prior distribution
-        prior = Uniform([[-5,0],[5,10]])
+        prior = Uniform([[-5, 0], [5, 10]])
         prior.sample_parameters(np.random.RandomState(1))
 
         # define a Gaussian model
@@ -328,7 +328,7 @@ class SMCABCTests(unittest.TestCase):
         self.backend = BackendDummy()
 
         # define a uniform prior distribution
-        prior = Uniform([[-5,0],[5,10]])
+        prior = Uniform([[-5, 0], [5, 10]])
         prior.sample_parameters(np.random.RandomState(1))
         # define a Gaussian model
         self.model = Normal([prior])
@@ -386,7 +386,7 @@ class APMCABCTests(unittest.TestCase):
         self.backend = BackendDummy()
 
         # define a uniform prior distribution
-        prior = Uniform([[-5,0],[5,10]])
+        prior = Uniform([[-5, 0], [5, 10]])
         prior.sample_parameters(np.random.RandomState(1))
 
         # define a Gaussian model
@@ -447,7 +447,7 @@ class RSMCABCTests(unittest.TestCase):
         self.backend = BackendDummy()
 
         # define a uniform prior distribution
-        prior = Uniform([[-5,0],[5,10]])
+        prior = Uniform([[-5, 0], [5, 10]])
         prior.sample_parameters(np.random.RandomState(1))
 
         # define a Gaussian model

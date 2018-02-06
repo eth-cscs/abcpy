@@ -13,10 +13,10 @@ from abcpy.perturbationkernel import *
 class SampleFromPriorTests(unittest.TestCase):
     """Tests whether sample_from_prior assigns new values to all nodes corresponding to free parameters in the graph."""
     def test(self):
-        B1 = Binomial([10,0.2])
-        N1 = Normal([0.03,0.01])
-        N2 = Normal([0.1,N1])
-        graph = Normal([B1,N2])
+        B1 = Binomial([10, 0.2])
+        N1 = Normal([0.03, 0.01])
+        N2 = Normal([0.1, N1])
+        graph = Normal([B1, N2])
 
         statistics_calculator = Identity(degree = 2, cross = False)
         distance_calculator = LogReg(statistics_calculator)
@@ -35,8 +35,8 @@ class SampleFromPriorTests(unittest.TestCase):
 class ResetFlagsTests(unittest.TestCase):
     """Tests whether it is possible to reset all visited flags in the graph."""
     def test(self):
-        N1 = Normal([1,0.1])
-        N2 = Normal([N1,0.1])
+        N1 = Normal([1, 0.1])
+        N2 = Normal([N1, 0.1])
         N2.visited = True
         N1.visited = True
 
@@ -176,7 +176,7 @@ class SimulateTests(unittest.TestCase):
         N1 = Normal([0.03, 0.01])
         N2 = Normal([0.1, N1])
         graph1 = Normal([B1, N2])
-        graph2 = Normal([1,N2])
+        graph2 = Normal([1, N2])
 
         statistics_calculator = Identity(degree=2, cross=False)
         distance_calculator = LogReg(statistics_calculator)
@@ -229,11 +229,11 @@ class PdfOfPriorTests(unittest.TestCase):
             def pdf(self, x):
                 return x
 
-        self.N1 = Mockobject([1,0.1])
+        self.N1 = Mockobject([1, 0.1])
         self.N2 = Mockobject([self.N1, 0.1])
-        self.N3 = Mockobject([0.1,0.01])
+        self.N3 = Mockobject([0.1, 0.01])
         self.graph1 = Mockobject([self.N2, self.N3])
-        self.graph2 = Mockobject([2,self.N3])
+        self.graph2 = Mockobject([2, self.N3])
 
         self.graph = [self.graph1, self.graph2]
 

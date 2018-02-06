@@ -4,7 +4,7 @@ import numpy as np
 class ProbabilisticModel(metaclass = ABCMeta):
     """This abstract class represents all probabilistic models.
     """
-    def __init__(self, parameters):
+    def __init__(self, parameters, name=''):
         """This constructor should be called from any derived class. 
 
         It requires as input all parameters (random variables) on which the current
@@ -26,7 +26,12 @@ class ProbabilisticModel(metaclass = ABCMeta):
         parameters: list
             A list of input parameters.
 
+        name: string
+            A human readible name for the model. Can be the variable name for example.
         """
+
+        # set name
+        self.name = name
 
         # Save all probabilistic models and hyperparameters from which the model derives
         self.parents = []
@@ -45,7 +50,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
                         parents_temp.append((parameter, i))
                 #if an entry is not of type ProbabilisticModel or a tupel, it is a hyperparameter
                 else:
-                    parents_temp.append((Hyperparameter([parameter]),0))
+                    parents_temp.append((Hyperparameter([parameter]), 0))
             else:
                 parents_temp.append(parameter)
         # Check whether the suggested parameters are allowed for this probabilistic model
@@ -392,7 +397,7 @@ class Hyperparameter(ProbabilisticModel):
     This class represents all hyperparameters (i.e. fixed parameters).
 
     """
-    def __init__(self, parameters):
+    def __init__(self, parameters, name='Hyperparameter'):
         """
 
         Parameters
@@ -402,6 +407,7 @@ class Hyperparameter(ProbabilisticModel):
         """
         # A hyperparameter is defined by the fact that it does not have any parents
         self.parents = []
+        self.name = name
         self.fixed_values = parameters
         self.visited = False
         self.dimension = 0
@@ -437,15 +443,16 @@ class ModelResultingFromOperation(ProbabilisticModel):
     """This class implements probabilistic models returned after performing an operation on two probabilistic models
         """
 
-    def __init__(self, parameters):
+    def __init__(self, parameters, name=''):
         """
 
         Parameters
         ----------
         parameters: list
             List of probabilistic models that should be added together.
+
         """
-        super(ModelResultingFromOperation, self).__init__(parameters)
+        super(ModelResultingFromOperation, self).__init__(parameters, name)
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         raise NotImplementedError

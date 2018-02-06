@@ -6,12 +6,12 @@ def infer_parameters():
 
     # define prior
     from abcpy.continuousmodels import Uniform
-    mu = Uniform([[150], [200]], name='mu')
-    sigma = Uniform([[5], [25]], name='sigma')
+    mu = Uniform([[150], [200]], )
+    sigma = Uniform([[5], [25]], )
     
     # define the model
     from abcpy.continuousmodels import Normal
-    height = Normal([mu, sigma])
+    height = Normal([mu, sigma], )
     
     # define statistics
     from abcpy.statistics import Identity

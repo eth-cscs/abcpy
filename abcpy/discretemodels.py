@@ -16,12 +16,11 @@ class Bernoulli(Discrete, ProbabilisticModel):
 
         name: string
             The name that should be given to the probabilistic model in the journal file.
+            :param name:
         """
-        super(Bernoulli, self).__init__(parameters)
+        super(Bernoulli, self).__init__(parameters, name)
         self.dimension = 1
 
-        # Save the name given by the user for the journal output
-        self.name = name
 
     def _check_parameters_at_initialization(self, parameters):
         """Raises an error if more than one parameters are given, or if the probability is not in the interval (0,1)."""
@@ -86,6 +85,7 @@ class Binomial(Discrete, ProbabilisticModel):
 
         name: string
             The name that should be given to the probabilistic model in the journal file.
+            :param name:
         """
 
         # Rewrite user input
@@ -96,11 +96,9 @@ class Binomial(Discrete, ProbabilisticModel):
             else:
                 input_parameters.append(parameter)
 
-        super(Binomial, self).__init__(input_parameters)
+        super(Binomial, self).__init__(input_parameters, name)
         self.dimension = 1
 
-        # Save the name given by the user for the journal output
-        self.name = name
 
     def _check_parameters_at_initialization(self, parameters):
         """Raises an Error iff:
@@ -193,12 +191,11 @@ class Poisson(Discrete, ProbabilisticModel):
 
         name: string
             The name that should be given to the probabilistic model in the journal file.
+            :param name:
         """
-        super(Poisson, self).__init__(parameters)
+        super(Poisson, self).__init__(parameters, name)
         self.dimension = 1
 
-        # Save the name given by the user for the journal output
-        self.name = name
 
     def _check_parameters_at_initialization(self, parameters):
         """Raises an error iff more than one parameter are given or the parameter given is smaller than 0."""

@@ -75,7 +75,9 @@ value, this value is converted to an object of type
 :py:class:`abcpy.probabilisticmodels.Hyperparameter`, which derives from the
 probabilisic model class.
 
-The constructur of the already implemented Gaussian model looks as following:
+Additionally, every model instance should have a preferrably unique name, which
+is also set by the constructor of the super class. We end up with a constructor
+that look as following:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python

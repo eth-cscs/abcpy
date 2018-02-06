@@ -28,9 +28,7 @@ class Normal(ProbabilisticModel, Continuous):
             else:
                 input_parameters.append(parameter)
 
-        super(Normal, self).__init__(input_parameters)
-        # Save the name given by the user for the journal output
-        self.name = name
+        super(Normal, self).__init__(input_parameters, name)
 
         # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = 1
@@ -109,7 +107,7 @@ class Normal(ProbabilisticModel, Continuous):
 
 
 class MultivariateNormal(ProbabilisticModel, Continuous):
-    def __init__(self,parameters, name='Multivariate Normal'):
+    def __init__(self, parameters, name='Multivariate Normal'):
         """
         This class implements a probabilistic model following a multivariate normal distribution with mean and covariance matrix.
 
@@ -128,13 +126,10 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
             parameters_temp.append(parameter)
         parameters_temp.append(parameters[1])
 
-        super(MultivariateNormal, self).__init__(parameters_temp)
+        super(MultivariateNormal, self).__init__(parameters_temp, name)
 
         # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = len(self.parents)-1
-
-        # Save the name given by the user for the journal output
-        self.name = name
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """
@@ -231,7 +226,7 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
 
 
 class MixtureNormal(ProbabilisticModel, Continuous):
-    def __init__(self, parameters, name='Mixture normal'):
+    def __init__(self, parameters, name='Mixture Normal'):
         """
         This class implements a probabilistic model following a mixture normal distribution.
 
@@ -243,12 +238,10 @@ class MixtureNormal(ProbabilisticModel, Continuous):
         name: string
             The name that should be given to the probabilistic model in the journal file.
         """
-        super(MixtureNormal, self).__init__(parameters)
+        super(MixtureNormal, self).__init__(parameters, name)
         # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = len(self.parents)
 
-        # Save the name given by the user for the journal output
-        self.name = name
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """
@@ -318,7 +311,7 @@ class MixtureNormal(ProbabilisticModel, Continuous):
 
 
 class StudentT(ProbabilisticModel, Continuous):
-    def __init__(self, parameters, name='Student T'):
+    def __init__(self, parameters, name='StudentT'):
         """
         This class implements a probabilistic model following the Student's T-distribution.
 
@@ -339,12 +332,10 @@ class StudentT(ProbabilisticModel, Continuous):
             else:
                 input_parameters.append(parameter)
 
-        super(StudentT, self).__init__(input_parameters)
+        super(StudentT, self).__init__(input_parameters, name)
         # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = 1
 
-        # Save the name given by the user for the journal output
-        self.name = name
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """
@@ -419,7 +410,7 @@ class StudentT(ProbabilisticModel, Continuous):
 
 
 class MultiStudentT(ProbabilisticModel, Continuous):
-    def __init__(self, parameters, name='Multivariate Student T'):
+    def __init__(self, parameters, name='MultiStudentT'):
         """
         This class implements a probabilistic model following the multivariate Student-T distribution.
 
@@ -439,13 +430,11 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         parameters_temp.append(parameters[1])
         parameters_temp.append(parameters[2])
 
-        super(MultiStudentT, self).__init__(parameters_temp)
+        super(MultiStudentT, self).__init__(parameters_temp, name)
 
         # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = len(self.parents)-2
 
-        # Save the name given by the user for the journal output
-        self.name = name
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """
@@ -569,7 +558,7 @@ class Uniform(ProbabilisticModel, Continuous):
         parameters: list
             Contains two lists. The first list specifies the probabilistic models and hyperparameters from which the lower         bound of the uniform distribution derive. The second list specifies the probabilistic models and hyperparameters from which the upper bound derives.
 
-        name: string
+        name: string, optional
             The name that should be given to the probabilistic model in the journal file.
         """
 
@@ -598,11 +587,8 @@ class Uniform(ProbabilisticModel, Continuous):
         # Parameter specifying the dimension of the return values of the distribution.
         self.dimension = int(self._num_parameters/2)
 
-        super(Uniform, self).__init__(joint_parameters)
+        super(Uniform, self).__init__(joint_parameters, name)
         self.visited = False
-
-        # Save the name given by the user for the journal output
-        self.name = name
 
 
     def num_parameters(self):

@@ -13,12 +13,12 @@ class RandomForestTests(unittest.TestCase):
         self.model_array = [None]*2
         #Model 1: Gaussian
         # define prior
-        prior = Uniform([[150, 5],[200, 25]])
+        prior = Uniform([[150, 5], [200, 25]])
         # define the model
         self.model_array[0] = Normal([prior])
         #Model 2: Student t
         # define prior
-        prior = Uniform([[150, 1],[200, 30]])
+        prior = Uniform([[150, 1], [200, 30]])
         # define the model
         self.model_array[1] = StudentT([prior])
 

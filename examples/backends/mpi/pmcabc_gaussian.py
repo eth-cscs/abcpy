@@ -13,11 +13,11 @@ def infer_parameters():
 
     # define prior
     from abcpy.continuousmodels import Uniform
-    prior = Uniform([[150, 5],[200, 25]])
+    prior = Uniform([[150, 5], [200, 25]], )
 
     # define the model
     from abcpy.continuousmodels import Normal
-    model = Normal([prior])
+    model = Normal([prior], )
 
     # define statistics
     from abcpy.statistics import Identity

@@ -10,7 +10,7 @@ from abcpy.backends import BackendDummy as Backend
 class BroadcastTests(unittest.TestCase):
     """Tests whether observations can be broadcasted using broadcast."""
     def test(self):
-        model = Normal([1,0.1])
+        model = Normal([1, 0.1])
         Manager = AcceptedParametersManager([model])
         backend = Backend()
         Manager.broadcast(backend, [1,2,3])
@@ -30,7 +30,7 @@ class UpdateKernelValuesTests(unittest.TestCase):
 class UpdateBroadcastTests(unittest.TestCase):
     """Tests whether it is possible to update accepted_parameters_bds, accepted_weights_bds and accepted_cov_mats_bds through update_broadcast."""
     def setUp(self):
-        self.model = Normal([1,0.1])
+        self.model = Normal([1, 0.1])
         self.backend = Backend()
         self.Manager = AcceptedParametersManager([self.model])
 
@@ -50,9 +50,9 @@ class UpdateBroadcastTests(unittest.TestCase):
 class GetMappingTests(unittest.TestCase):
     """Tests whether the dfs mapping returned from get_mapping is in the correct order."""
     def test(self):
-        B1 = Binomial([10,0.2])
-        N1 = Normal([0.1,0.01])
-        N2 = Normal([0.3,N1])
+        B1 = Binomial([10, 0.2])
+        N1 = Normal([0.1, 0.01])
+        N2 = Normal([0.3, N1])
         graph = Normal([B1, N2])
 
         Manager = AcceptedParametersManager([graph])
@@ -64,10 +64,10 @@ class GetMappingTests(unittest.TestCase):
 class GetAcceptedParametersBdsValuesTests(unittest.TestCase):
     """Tests whether get_accepted_parameters_bds_values returns the correct values."""
     def test(self):
-        B1 = Binomial([10,0.2])
-        N1 = Normal([0.1,0.01])
-        N2 = Normal([0.3,N1])
-        graph = Normal([B1,N2])
+        B1 = Binomial([10, 0.2])
+        N1 = Normal([0.1, 0.01])
+        N2 = Normal([0.3, N1])
+        graph = Normal([B1, N2])
 
         Manager = AcceptedParametersManager([graph])
         backend = Backend()

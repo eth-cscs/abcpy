@@ -4,8 +4,8 @@ from abcpy.probabilisticmodels import ProbabilisticModel, Hyperparameter
 from gaussian_model_simple import gaussian_model
 
 class Gaussian(ProbabilisticModel):
-    def __init__(self, parameters, name='Gaussian'):
-        super(Gaussian, self).__init__(parameters)
+    def __init__(self, parameters, name):
+        super(Gaussian, self).__init__(parameters, )
         self.dimension = 1
         self.name=name
 
@@ -51,10 +51,10 @@ def infer_parameters():
 
     # define prior
     from abcpy.continuousmodels import Uniform
-    prior = Uniform([[150, 5],[200, 25]])
+    prior = Uniform([[150, 5], [200, 25]], )
     
     # define the model
-    model = Gaussian([prior])
+    model = Gaussian([prior], )
     
     # define statistics
     from abcpy.statistics import Identity
