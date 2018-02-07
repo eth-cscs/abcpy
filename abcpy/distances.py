@@ -125,10 +125,12 @@ class Euclidean(Distance):
         d1, d2: list
             A list, containing a list describing the data set
         """
-        print(d1.shape)
+        if not isinstance(d1, list):
+            raise TypeError('Data is not of allowed types')
+        if not isinstance(d2, list):
+            raise TypeError('Data is not of allowed types')
         d1 = d1[0]
         d2 = d2[0]
-
         # Extract summary statistics from the dataset
         if(self.s1 is None or self.data_set!=d1):
             self.s1 = self.statistics_calc.statistics(d1)
@@ -184,10 +186,12 @@ class PenLogReg(Distance):
         d1, d2: list
             A list, containing a list describing the data set
         """
-        print(d1[0].shape)
+        if not isinstance(d1, list):
+            raise TypeError('Data is not of allowed types')
+        if not isinstance(d2, list):
+            raise TypeError('Data is not of allowed types')
         d1 = d1[0]
         d2 = d2[0]
-        print('check')
 
         # Extract summary statistics from the dataset
         if(self.s1 is None or self.data_set!=d1):
@@ -237,6 +241,10 @@ class LogReg(Distance):
         d1, d2: list
             A list, containing a list describing the data set
         """
+        if not isinstance(d1, list):
+            raise TypeError('Data is not of allowed types')
+        if not isinstance(d2, list):
+            raise TypeError('Data is not of allowed types')
         d1 = d1[0]
         d2 = d2[0]
         # Extract summary statistics from the dataset

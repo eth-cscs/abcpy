@@ -42,11 +42,10 @@ class PenLogRegTests(unittest.TestCase):
         d1=d1.tolist()
         d2=d2.tolist()
         #Checks whether wrong input type produces error message
-        #self.assertRaises(TypeError, self.distancefunc.distance, 3.4, d2)
-        #self.assertRaises(TypeError, self.distancefunc.distance, d1, 3.4)
-        print('check')
+        self.assertRaises(TypeError, self.distancefunc.distance, 3.4, d2)
+        self.assertRaises(TypeError, self.distancefunc.distance, d1, 3.4)
+
         # completely separable datasets should have a distance of 1.0
-        print(self.distancefunc.distance([d1],[d2]))
         self.assertEqual(self.distancefunc.distance([d1],[d2]), 1.0)
 
         # equal data sets should have a distance of 0.0
@@ -74,10 +73,10 @@ class LogRegTests(unittest.TestCase):
         self.assertRaises(TypeError, self.distancefunc.distance, d1, 3.4)
         
         # completely separable datasets should have a distance of 1.0
-        self.assertEqual(self.distancefunc.distance(d1,d2), 1.0)
+        self.assertEqual(self.distancefunc.distance([d1],[d2]), 1.0)
 
         # equal data sets should have a distance of 0.0
-        self.assertEqual(self.distancefunc.distance(d1,d1), 0.0)
+        self.assertEqual(self.distancefunc.distance([d1],[d1]), 0.0)
         
     def test_dist_max(self):
         self.assertTrue(self.distancefunc.dist_max() == 1.0)        
