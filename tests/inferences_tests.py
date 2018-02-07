@@ -37,7 +37,7 @@ class RejectionABCTest(unittest.TestCase):
 
         # use the rejection sampling scheme
         sampler = RejectionABC([model], dist_calc, dummy, seed = 1)
-        journal = sampler.sample([y_obs], 10, 1, 0.1)
+        journal = sampler.sample([y_obs], 10, 1, 10)
         samples = journal.parameters[len(journal.parameters)-1]
 
         # test shape of samples
@@ -45,8 +45,8 @@ class RejectionABCTest(unittest.TestCase):
         self.assertEqual(samples_shape, (10,2))
 
         # Compute posterior mean
-        self.assertAlmostEqual(np.average(np.asarray(samples[:,0])),1.981031422)
-        self.assertAlmostEqual(np.average(np.asarray(samples[:,1])),7.029206462)
+        self.assertAlmostEqual(np.average(np.asarray(samples[:,0])),2.0778110512750962)
+        self.assertAlmostEqual(np.average(np.asarray(samples[:,1])),6.809330710501054)
 
         self.assertFalse(journal.number_of_simulations==0)
 
@@ -165,7 +165,7 @@ class PMCABCTests(unittest.TestCase):
         
     def test_sample(self):
         # use the PMCABC scheme for T = 1
-        T, n_sample, n_simulate, eps_arr, eps_percentile = 1, 10, 1, [.1], 10
+        T, n_sample, n_simulate, eps_arr, eps_percentile = 1, 10, 1, [10], 10
         sampler = PMCABC([self.model], self.dist_calc, self.backend, seed = 1)
         journal = sampler.sample([self.observation], T, eps_arr, n_sample, n_simulate, eps_percentile)
         samples = (journal.parameters[len(journal.parameters)-1], journal.get_weights())
@@ -183,7 +183,7 @@ class PMCABCTests(unittest.TestCase):
         #self.assertEqual((mu_post_mean, sigma_post_mean), (,))
         
         # use the PMCABC scheme for T = 2
-        T, n_sample, n_simulate, eps_arr, eps_percentile = 2, 10, 1, [.1,.05], 10
+        T, n_sample, n_simulate, eps_arr, eps_percentile = 2, 10, 1, [10,5], 10
         sampler = PMCABC([self.model], self.dist_calc, self.backend, seed = 1)
         sampler.sample_from_prior(rng=np.random.RandomState(1))
         journal = sampler.sample([self.observation], T, eps_arr, n_sample, n_simulate, eps_percentile)
@@ -198,8 +198,8 @@ class PMCABCTests(unittest.TestCase):
         self.assertEqual(mu_sample_shape, (10,))
         self.assertEqual(sigma_sample_shape, (10,))
         self.assertEqual(weights_sample_shape, (10,))
-        self.assertLess(mu_post_mean - 2.764805681, 10e-2)
-        self.assertLess(sigma_post_mean - 8.0092032071, 10e-2)
+        self.assertLess(mu_post_mean - 2.8253837292780815, 10e-2)
+        self.assertLess(sigma_post_mean - 8.452716877482352, 10e-2)
 
         self.assertFalse(journal.number_of_simulations == 0)
 
@@ -225,14 +225,13 @@ class SABCTests(unittest.TestCase):
        
     def test_sample(self):
         # use the SABC scheme for T = 1
-        steps, epsilon, n_samples, n_samples_per_param = 1, .1, 10, 1
+        steps, epsilon, n_samples, n_samples_per_param = 1, 10, 10, 1
         sampler = SABC([self.model], self.dist_calc, self.backend, seed = 1)
         journal = sampler.sample([self.observation], steps, epsilon, n_samples, n_samples_per_param)
         samples = (journal.parameters[len(journal.parameters)-1], journal.get_weights())
           
         # Compute posterior mean
         mu_post_sample, sigma_post_sample, post_weights = np.asarray(samples[0][:,0]), np.asarray(samples[0][:,1]), np.asarray(samples[1][:,0])
-        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights = post_weights), np.average(sigma_post_sample, weights = post_weights)
 
         # test shape of sample
         mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
@@ -242,7 +241,7 @@ class SABCTests(unittest.TestCase):
 
 
         # use the SABC scheme for T = 2
-        steps, epsilon, n_samples, n_samples_per_param = 2, .1, 10, 1
+        steps, epsilon, n_samples, n_samples_per_param = 2, 10, 10, 1
         sampler = SABC([self.model], self.dist_calc, self.backend, seed = 1)
         journal = sampler.sample([self.observation], steps, epsilon, n_samples, n_samples_per_param)
         samples = (journal.parameters[len(journal.parameters)-1], journal.get_weights())
@@ -256,8 +255,8 @@ class SABCTests(unittest.TestCase):
         self.assertEqual(mu_sample_shape, (10,))
         self.assertEqual(sigma_sample_shape, (10,))
         self.assertEqual(weights_sample_shape, (10,))
-        self.assertLess(mu_post_mean - 1.23885607112, 10e-2)
-        self.assertLess(sigma_post_mean - 7.60598318182, 10e-2)
+        self.assertLess(mu_post_mean - 2.120856674879079, 10e-2)
+        self.assertLess(sigma_post_mean - 6.711723792285109, 10e-2)
 
         self.assertFalse(journal.number_of_simulations == 0)
 

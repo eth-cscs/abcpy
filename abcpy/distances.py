@@ -125,8 +125,10 @@ class Euclidean(Distance):
         d1, d2: list
             A list, containing a list describing the data set
         """
+        print(d1.shape)
         d1 = d1[0]
         d2 = d2[0]
+
         # Extract summary statistics from the dataset
         if(self.s1 is None or self.data_set!=d1):
             self.s1 = self.statistics_calc.statistics(d1)
@@ -182,14 +184,17 @@ class PenLogReg(Distance):
         d1, d2: list
             A list, containing a list describing the data set
         """
+        print(d1[0].shape)
         d1 = d1[0]
         d2 = d2[0]
+        print('check')
+
         # Extract summary statistics from the dataset
         if(self.s1 is None or self.data_set!=d1):
             self.s1 = self.statistics_calc.statistics(d1)
             self.data_set = d1
         s2 = self.statistics_calc.statistics(d2)
-         
+
         # compute distnace between the statistics 
         training_set_features = np.concatenate((self.s1, s2), axis=0)
         label_s1 = np.zeros(shape=(len(self.s1), 1))
