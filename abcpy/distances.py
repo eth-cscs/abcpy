@@ -138,7 +138,7 @@ class Euclidean(Distance):
         s2 = self.statistics_calc.statistics(d2)
 
         # compute distance between the statistics
-        dist = np.zeros(shape=(self.s1.shape[0],self.s1.shape[0]))
+        dist = np.zeros(shape=(self.s1.shape[0],s2.shape[0]))
         for ind1 in range(0, self.s1.shape[0]):
             for ind2 in range(0, s2.shape[0]):
                 dist[ind1,ind2] = np.sqrt(np.sum(pow(self.s1[ind1,:]-s2[ind2,:],2)))

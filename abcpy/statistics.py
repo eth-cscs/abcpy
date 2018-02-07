@@ -105,7 +105,7 @@ class Identity(Statistics):
                 data = np.concatenate(data).reshape(len(data),-1)
         else:
             raise TypeError('Input data should be of type list, but found type {}'.format(type(data)))
-        
+
         # Expand the data with polynomial expansion            
         result = self._polynomial_expansion(data)  
         

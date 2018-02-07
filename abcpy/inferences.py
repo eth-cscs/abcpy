@@ -145,8 +145,8 @@ class RejectionABC(InferenceMethod):
 
         Parameters
         ----------
-        model: abcpy.models.Model
-            Model object defining the model to be used.
+        model: list
+        A list of the Probabilistic models corresponding to the observed datasets
         distance: abcpy.distances.Distance
             Distance object defining the distance measure to compare simulated and observed data sets.
         backend: abcpy.backends.Backend
@@ -184,8 +184,8 @@ class RejectionABC(InferenceMethod):
 
         Parameters
         ----------
-        observations: numpy.ndarray
-            Observed data.
+        observations: list
+            A list, containing lists describing the observed data sets
         n_samples: integer
             Number of samples to generate
         n_samples_per_param: integer
@@ -286,8 +286,8 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
 
     Parameters
     ----------
-    model : abcpy.models.Model
-        Model object defining the model to be used.
+    model : list
+        A list of the Probabilistic models corresponding to the observed datasets
     distance : abcpy.distances.Distance
         Distance object defining the distance measure to compare simulated and observed data sets.
     kernel : abcpy.distributions.Distribution
@@ -338,8 +338,8 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
 
         Parameters
         ----------
-        observations : numpy.ndarray
-            Observed data.
+        observations : list
+            A list, containing lists describing the observed data sets
         steps : integer
             Number of iterations in the sequential algoritm ("generations")
         epsilon_init : numpy.ndarray
@@ -592,8 +592,8 @@ class PMC(BaseLikelihood, InferenceMethod):
 
     Parameters
     ----------
-    model : abcpy.models.Model
-        Model object defining the model to be used.
+    model : list
+        A list of the Probabilistic models corresponding to the observed datasets
     likfun : abcpy.approx_lhd.Approx_likelihood
         Approx_likelihood object defining the approximated likelihood to be used.
     kernel : abcpy.distributions.Distribution
@@ -648,8 +648,8 @@ class PMC(BaseLikelihood, InferenceMethod):
 
         Parameters
         ----------
-        observations : python list
-            Observed data
+        observations : list
+            A list, containing lists describing the observed data sets
         steps : integer
             number of iterations in the sequential algoritm ("generations")
         n_samples : integer, optional
@@ -917,8 +917,8 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
     Parameters
     ----------
-    model : abcpy.models.Model
-        Model object defining the model to be used.
+    model : list
+        A list of the Probabilistic models corresponding to the observed datasets
     distance : abcpy.distances.Distance
         Distance object defining the distance measure used to compare simulated and observed data sets.
     kernel : abcpy.distributions.Distribution
@@ -977,8 +977,8 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
         Parameters
         ----------
-        observations : numpy.ndarray
-            Observed data.
+        observations : list
+            A list, containing lists describing the observed data sets
         steps : integer
             Number of maximum iterations in the sequential algoritm ("generations")
         epsilon : numpy.float
@@ -1360,8 +1360,8 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
     Parameters
     ----------
-    model : abcpy.models.Model
-        Model object defining the model to be used.
+    model : list
+        A list of the Probabilistic models corresponding to the observed datasets
     distance : abcpy.distances.Distance
         Distance object defining the distance used to compare the simulated and observed data sets.
     kernel : abcpy.distributions.Distribution
@@ -1418,8 +1418,8 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
         Parameters
         ----------
-        observations : numpy.ndarray
-            Observed data.
+        observations : list
+            A list, containing lists describing the observed data sets
         steps : integer
             Number of iterations in the sequential algoritm ("generations")
         ap_change_cutoff : float, optional
@@ -1721,8 +1721,8 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
 
     Parameters
     ----------
-    model : abcpy.models.Model
-        Model object defining the model to be used.
+    model : list
+        A list of the Probabilistic models corresponding to the observed datasets
     distance : abcpy.distances.Distance
         Distance object defining the distance measure used to compare simulated and observed data sets.
     kernel : abcpy.distributions.Distribution
@@ -1784,8 +1784,8 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
 
         Parameters
         ----------
-        observations : numpy.ndarray
-            Observed data.
+        observations : list
+            A list, containing lists describing the observed data sets
         steps : integer
             Number of iterations in the sequential algoritm ("generations")
         n_samples : integer, optional
@@ -2027,8 +2027,8 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
 
     Parameters
     ----------
-    model : abcpy.models.Model
-        Model object defining the model to be used.
+    model : list
+        A list of the Probabilistic models corresponding to the observed datasets
     distance : abcpy.distances.Distance
         Distance object defining the distance measure used to compare simulated and observed data sets.
     kernel : abcpy.distributions.Distribution
@@ -2089,8 +2089,8 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
 
         Parameters
         ----------
-        observations : numpy.ndarray
-            Observed data.
+        observations : list
+            A list, containing lists describing the observed data sets
         steps : integer
             Number of iterations in the sequential algoritm ("generations")
         n_samples : integer, optional
@@ -2318,8 +2318,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
     Parameters
     ----------
-    model : abcpy.models.Model
-        Model object defining the model to be used.
+    model : list
+        A list of the Probabilistic models corresponding to the observed datasets
     distance : abcpy.distances.Distance
         Distance object defining the distance measure used to compare simulated and observed data sets.
     kernel : abcpy.distributions.Distribution
@@ -2379,8 +2379,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
         Parameters
         ----------
-        observations : numpy.ndarray
-            Observed data.
+        observations : list
+            A list, containing lists describing the observed data sets
         steps : integer
             Number of iterations in the sequential algoritm ("generations")
         epsilon_final : float, optional
