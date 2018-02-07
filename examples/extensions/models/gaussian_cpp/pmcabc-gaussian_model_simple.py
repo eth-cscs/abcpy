@@ -6,7 +6,6 @@ from gaussian_model_simple import gaussian_model
 class Gaussian(ProbabilisticModel):
     def __init__(self, parameters, name):
         super(Gaussian, self).__init__(parameters, )
-        self.dimension = 1
         self.name=name
 
     def _check_parameters_at_initialization(self, parameters):
@@ -29,6 +28,9 @@ class Gaussian(ProbabilisticModel):
         mu = parameter_values[0]
         sigma = parameter_values[1]
         return norm(mu, sigma).pdf(x)
+
+    def get_output_dimension(self):
+        return 1
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         parameter_values = self.get_parameter_values()

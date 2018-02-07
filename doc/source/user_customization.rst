@@ -93,7 +93,7 @@ the constructor of :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` obje
 
 **self.name**: (**necessary** for all probabilistic models) This is to provide the output of this probabilistic class with a name.  This is due to the fact that in the journal the final values for the random variables should be saved together with their name. However, since Python does not allow for easy retrieval of names given by the user, the name needs to be saved manually. We provide a default value such that the user does not need to specify such a name in case he wants to use this probabilistic model as a hierarchical model, which will not have its end value saved in the journal.
 
-**self.dimension**: (**necessary** only for the probabilistic models building relationships between random variables) It defines the dimension (length) an output of your probabilistic model assuming outputs are squeezed into a vector. Since a normal distribution will give one value per sample, its dimension is one. If we were to implement an n-dimensional multivariate normal distribution, the dimension would be n.
+**self.get_output_dimension()**: (**necessary** only for the probabilistic models building relationships between random variables) It defines the dimension (length) an output of your probabilistic model assuming outputs are squeezed into a vector. Since a normal distribution will give one value per sample, its dimension is one. If we were to implement an n-dimensional multivariate normal distribution, the dimension would be n.
 
 .. If you have a look at the definition of the constructor of the probabilistic model class, you might notice the following statement:
 

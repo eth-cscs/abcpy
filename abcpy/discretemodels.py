@@ -19,7 +19,6 @@ class Bernoulli(Discrete, ProbabilisticModel):
             :param name:
         """
         super(Bernoulli, self).__init__(parameters, name)
-        self.dimension = 1
 
 
     def _check_parameters_at_initialization(self, parameters):
@@ -55,6 +54,9 @@ class Bernoulli(Discrete, ProbabilisticModel):
         if(return_values[0]):
             return_values.append(rng.binomial(1, parameter_values[0], k))
         return return_values
+
+    def get_output_dimension(self):
+        return 1
 
     def pmf(self, x):
         """Evaluates the probability mass function at point x.
@@ -97,7 +99,6 @@ class Binomial(Discrete, ProbabilisticModel):
                 input_parameters.append(parameter)
 
         super(Binomial, self).__init__(input_parameters, name)
-        self.dimension = 1
 
 
     def _check_parameters_at_initialization(self, parameters):
@@ -159,6 +160,9 @@ class Binomial(Discrete, ProbabilisticModel):
 
         return return_value
 
+    def get_output_dimension(self):
+        return 1
+
     def pmf(self, x):
         """
         Calculates the probability mass function at point x.
@@ -194,7 +198,6 @@ class Poisson(Discrete, ProbabilisticModel):
             :param name:
         """
         super(Poisson, self).__init__(parameters, name)
-        self.dimension = 1
 
 
     def _check_parameters_at_initialization(self, parameters):
@@ -235,6 +238,9 @@ class Poisson(Discrete, ProbabilisticModel):
             return_values.append(rng.poisson(parameter_values[0], k))
 
         return return_values
+
+    def get_output_dimension(self):
+        return 1
 
     def pmf(self, x):
         """Calculates the probability mass function of the distribution at point x.

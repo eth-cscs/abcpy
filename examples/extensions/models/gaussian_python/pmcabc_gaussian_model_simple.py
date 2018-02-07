@@ -18,9 +18,6 @@ class Gaussian(ProbabilisticModel, Continuous):
 
         super(Gaussian, self).__init__(parameters, )
 
-        # Parameter specifying the dimension of the return values of the distribution.
-        self.dimension = 1
-
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         parameter_values = self.get_parameter_values()
@@ -51,6 +48,9 @@ class Gaussian(ProbabilisticModel, Continuous):
 
     def _check_parameters_fixed(self, parameters):
         return True
+
+    def get_output_dimension(self):
+        return 1
 
     def pdf(self, x):
         parameter_values = self.get_parameter_values()

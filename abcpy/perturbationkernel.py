@@ -180,7 +180,7 @@ class JointPerturbationKernel(PerturbationKernel):
             index=0
             for model in kernel.models:
                 model_values = []
-                for j in range(model.dimension):
+                for j in range(model.get_output_dimension()):
                     model_values.append(perturbed_values[kernel_index][index])
                     index+=1
                 perturbed_values_including_models.append((model, model_values))

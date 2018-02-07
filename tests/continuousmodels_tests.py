@@ -42,27 +42,27 @@ class DimensionTests(unittest.TestCase):
     """Tests whether the dimensions of all continuous models are defined in the correct way."""
     def test_Normal(self):
         N = Normal([1, 0.1])
-        self.assertTrue(N.dimension==1)
+        self.assertTrue(N.get_output_dimension()==1)
 
     def test_MultivariateNormal(self):
         M = MultivariateNormal([[1, 0], [[1, 0], [0, 1]]])
-        self.assertTrue(M.dimension==2)
+        self.assertTrue(M.get_output_dimension()==2)
 
     def test_MixtureNormal(self):
         M = MixtureNormal([1, 0])
-        self.assertTrue(M.dimension==2)
+        self.assertTrue(M.get_output_dimension()==2)
 
     def test_StudentT(self):
         S = StudentT([3, 1])
-        self.assertTrue(S.dimension==1)
+        self.assertTrue(S.get_output_dimension()==1)
 
     def test_MultiStudentT(self):
         M = MultiStudentT([[1, 0], [[0.1, 0], [0, 0.1]], 1])
-        self.assertTrue(M.dimension==2)
+        self.assertTrue(M.get_output_dimension()==2)
 
     def test_Uniform(self):
         U = Uniform([[0, 1], [1, 2]])
-        self.assertTrue(U.dimension==2)
+        self.assertTrue(U.get_output_dimension()==2)
 
 
 class SampleFromDistributionTests(unittest.TestCase):

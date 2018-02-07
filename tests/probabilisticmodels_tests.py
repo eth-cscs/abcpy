@@ -70,7 +70,7 @@ class ModelResultingFromOperationTests(unittest.TestCase):
             M1 = MultivariateNormal([[1, 1], [[1, 0], [0, 1]]])
             M2 = MultivariateNormal([[1, 1], [[1, 0], [0, 1]]])
             M3 = M1 + M2
-            self.assertTrue(M3.dimension == 2)
+            self.assertTrue(M3.get_output_dimension() == 2)
 
 
 class SummationModelTests(unittest.TestCase):

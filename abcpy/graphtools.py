@@ -120,7 +120,7 @@ class GraphTools():
                 for mapped_model, model_index in mapping:
                     if(mapped_model==model):
                         parameter_index = model_index
-                        for j in range(model.dimension):
+                        for j in range(model.get_output_dimension()):
                             relevant_parameters.append(parameters[parameter_index])
                             parameter_index+=1
                         break
@@ -184,7 +184,7 @@ class GraphTools():
             # If this model corresponds to an unvisited free parameter, add it to the mapping
             if(is_not_root and not(model.visited) and not(isinstance(model, Hyperparameter)) and not(isinstance(model, ModelResultingFromOperation))):
                 mapping.append((model, index))
-                index+=model.dimension
+                index+=model.get_output_dimension()
             # Add all parents to the mapping, if applicable
             for parent, parent_index in model.parents:
                 parent_mapping, index = self._get_mapping([parent], index=index, is_not_root=True)
@@ -291,9 +291,9 @@ class GraphTools():
         for model in models:
             # New parameters should only be set in case we are not at the root
             if(not(is_root) and not(isinstance(model, ModelResultingFromOperation))):
-                if(not(model.set_parameters(parameters[index:index+model.dimension]))):
+                if(not(model.set_parameters(parameters[index:index+model.get_output_dimension()]))):
                     return [False, index]
-                index+=model.dimension
+                index+=model.get_output_dimension()
                 model.visited = True
 
             # New parameters for all parents are set using a depth-first search

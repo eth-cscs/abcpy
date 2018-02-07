@@ -17,7 +17,6 @@ r_simple_gaussian = robjects.globalenv['simple_gaussian']
 class Gaussian(Model):
     def __init__(self, parameters):
         super(Gaussian, self).__init__(parameters)
-        self.dimension = 1
 
     def _check_parameters_at_initialization(self, parameters):
         if(len(parameters)!=2):
@@ -46,6 +45,9 @@ class Gaussian(Model):
             return_value.append(np.array(rng.normal(mu, sigma, k)).reshape(-1))
 
         return return_value
+
+    def get_output_dimension(self):
+        return 1
 
     def pdf(self, x):
         parameter_values = self.get_parameter_values()

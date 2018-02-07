@@ -101,7 +101,7 @@ class AcceptedParametersManager:
 
                 # Only parameters that are neither root nor Hyperparameters are included in the mapping
                 if(not(is_root) and not(isinstance(model, ModelResultingFromOperation))):
-                    for i in range(model.dimension):
+                    for i in range(model.get_output_dimension()):
                         mapping.append((model, index))
                         index+=1
 

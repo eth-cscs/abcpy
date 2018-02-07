@@ -46,7 +46,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
             if(not(isinstance(parameter, tuple))):
                 #if an entry is a ProbabilisticModel, all the output values are saved in order in self.parents
                 if(isinstance(parameter, ProbabilisticModel)):
-                    for i in range(parameter.dimension):
+                    for i in range(parameter.get_output_dimension()):
                         parents_temp.append((parameter, i))
                 #if an entry is not of type ProbabilisticModel or a tupel, it is a hyperparameter
                 else:
@@ -73,7 +73,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
             The index in the output of the parent model which should be linked to the parameter being defined.
         """
         # Ensure the specified index does not lie outside the range of the return value of the model
-        if(item>=self.dimension):
+        if(item>=self.get_output_dimension()):
             raise IndexError('The specified index lies out of range for probabilistic model %s.'%(self.__class__.__name__))
         return self, item
 
@@ -194,21 +194,40 @@ class ProbabilisticModel(metaclass = ABCMeta):
     @abstractmethod
     def sample_from_distribution(self, k, rng):
         """
-        Samples from the distribution associated with the probabilistic model by using the current values for each              probabilistic model from which the model derives.
+        Samples from the distribution associated with the probabilistic model by using the current values for each
+        probabilistic model from which the model derives.
 
         Parameters
         ----------
         k: integer
             The number of samples that should be drawn.
         rng: Random number generator
-            Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+            Defines the random number generator to be used. The default value uses a random seed to initialize the
+            generator.
 
         Returns
         -------
         list:
-            The first entry is a boolean, specifying whether it was possible to sample from the distribution. The second entry is a numpy array, containing k elements, each of length self.dimension, the k samples from the distribution.
+            The first entry is a boolean, specifying whether it was possible to sample from the distribution. The second
+            entry is a numpy array, containing k elements, each of length get_output_dimension, the k samples from the
+            distribution.
         """
         raise NotImplementedError
+
+    @abstractmethod
+    def get_output_dimension(self):
+        """
+        Returns the output dimension of the current model.
+
+        This function is in particular important if the current model is used as an input for other models. In such a
+        case it is assumed that the output is always a vector of int or float. The length of the vector is the dimension
+        that should be returned here.
+
+        Returns
+        -------
+        int:
+            The dimension of the output vector of the forward simulation.
+        """
 
     def pdf(self, x):
         """
@@ -410,7 +429,6 @@ class Hyperparameter(ProbabilisticModel):
         self.name = name
         self.fixed_values = parameters
         self.visited = False
-        self.dimension = 0
 
     def sample_parameters(self, rng=np.random.RandomState()):
         self.visited = True
@@ -430,6 +448,9 @@ class Hyperparameter(ProbabilisticModel):
 
     def _check_parameters_fixed(self, parameters):
         return True
+
+    def get_output_dimension(self):
+        return 0;
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         return [True, self.fixed_values*k]
@@ -452,6 +473,7 @@ class ModelResultingFromOperation(ProbabilisticModel):
             List of probabilistic models that should be added together.
 
         """
+        self._dimension = 0
         super(ModelResultingFromOperation, self).__init__(parameters, name)
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
@@ -474,7 +496,7 @@ class ModelResultingFromOperation(ProbabilisticModel):
             else:
                 length_parent_2 += 1
         if (length_parent_1 == length_parent_2):
-            self.dimension = length_parent_1
+            self._dimension = length_parent_1
             return
         raise ValueError('The provided models are not of equal dimension.')
 
@@ -485,6 +507,9 @@ class ModelResultingFromOperation(ProbabilisticModel):
     def _check_parameters_fixed(self, parameters):
         """Checks parameters while setting them. Provided due to inheritance."""
         return True
+
+    def get_output_dimension(self):
+        return self._dimension
 
     def pdf(self, x):
         """Calculates the probability density function at point x.
@@ -544,8 +569,8 @@ class SummationModel(ModelResultingFromOperation):
 
             # add the corresponding parameter_values
             sample_value = []
-            for j in range(self.dimension):
-                sample_value.append(parameter_values[j]+parameter_values[j+self.dimension])
+            for j in range(self.get_output_dimension()):
+                sample_value.append(parameter_values[j]+parameter_values[j+self.get_output_dimension()])
             if(len(sample_value)==1):
                 sample_value=sample_value[0]
             return_value.append(sample_value)
@@ -595,8 +620,8 @@ class SubtractionModel(ModelResultingFromOperation):
 
             # subtract the corresponding parameter_values
             sample_value = []
-            for j in range(self.dimension):
-                sample_value.append(parameter_values[j] - parameter_values[j + self.dimension])
+            for j in range(self.get_output_dimension()):
+                sample_value.append(parameter_values[j] - parameter_values[j + self.get_output_dimension()])
             if(len(sample_value)==1):
                 sample_value=sample_value[0]
             return_value.append(sample_value)
@@ -645,8 +670,8 @@ class MultiplicationModel(ModelResultingFromOperation):
             # multiply the corresponding parameter_values
             sample_value = []
 
-            for j in range(self.dimension):
-                sample_value.append(parameter_values[j]*parameter_values[j+self.dimension])
+            for j in range(self.get_output_dimension()):
+                sample_value.append(parameter_values[j]*parameter_values[j+self.get_output_dimension()])
             if (len(sample_value) == 1):
                 sample_value = sample_value[0]
             return_value.append(sample_value)
@@ -695,8 +720,8 @@ class DivisionModel(ModelResultingFromOperation):
             # divide the corresponding parameter_values
             sample_value = []
 
-            for j in range(self.dimension):
-                sample_value.append(parameter_values[j]/parameter_values[j + self.dimension])
+            for j in range(self.get_output_dimension()):
+                sample_value.append(parameter_values[j]/parameter_values[j + self.get_output_dimension()])
             return_value.append(sample_value)
 
         return [True, np.array(return_value)]
@@ -717,7 +742,7 @@ class ExponentialModel(ModelResultingFromOperation):
         if(number_of_parent_power>1):
             raise ValueError('The exponent can only be 1 dimensional.')
 
-        self.dimension = len(parameters[:-1])
+        self._dimension = len(parameters[:-1])
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """Raises the sampled values of the base by the exponent.
@@ -758,7 +783,7 @@ class ExponentialModel(ModelResultingFromOperation):
 
             sample_value = []
 
-            for j in range(self.dimension):
+            for j in range(self.get_output_dimension()):
                 sample_value.append(parameter_values[j]**power)
             result.append(sample_value)
 
@@ -781,7 +806,7 @@ class RExponentialModel(ModelResultingFromOperation):
         if(number_of_parent_power>1):
             raise ValueError('The exponent can only be 1 dimensional.')
 
-        self.dimension = len(parameters[1:])
+        self._dimension = len(parameters[1:])
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """Raises the base by the sampled value of the exponent.
@@ -822,7 +847,7 @@ class RExponentialModel(ModelResultingFromOperation):
 
             sample_value = []
 
-            for j in range(self.dimension):
+            for j in range(self.get_output_dimension()):
                 sample_value.append(parameter_values[j] ** power)
             result.append(sample_value)
 
