@@ -16,7 +16,7 @@ Every model has at least to conform to the API specified by the base class
 derive from :py:class:`ProbabilisticModel` and implement the following methods:
 
 .. autoclass::  abcpy.probabilisticmodels.ProbabilisticModel
-   :members: _check_parameters_at_initialization, _check_parameters_before_sampling, _check_parameters_fixed, sample_from_distribution
+   :members: _check_parameters_at_initialization, _check_parameters_before_sampling, _check_parameters_fixed, sample_from_distribution, get_output_dimension
    :noindex:
       
 However, these methods are the sufficient only when you want to use your
@@ -81,17 +81,15 @@ that look as following:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 10-24
+    :lines: 10-11
     :dedent: 4
 
-.. UP TO HERE ..
-	     
-**Note 1.** We did not need to think about converting different types of inputs to tuples, as that is automatically done inside 
-the constructor of :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object.
+Note that we do not need to think about converting different types of inputs to
+tuples, as that is automatically done inside the constructor of
+:py:class:`abcpy.probabilisticmodels.ProbabilisticModel` object.
 
-**Note 2.** We need to provide two additional parameters that is not required by the base class:
-
-**self.name**: (**necessary** for all probabilistic models) This is to provide the output of this probabilistic class with a name.  This is due to the fact that in the journal the final values for the random variables should be saved together with their name. However, since Python does not allow for easy retrieval of names given by the user, the name needs to be saved manually. We provide a default value such that the user does not need to specify such a name in case he wants to use this probabilistic model as a hierarchical model, which will not have its end value saved in the journal.
+Now let us go through the required implementations of the abstract methods
+defined in :py:class:`abcpy.probabilisticmodels.ProbabilisticModel`.
 
 **self.get_output_dimension()**: (**necessary** only for the probabilistic models building relationships between random variables) It defines the dimension (length) an output of your probabilistic model assuming outputs are squeezed into a vector. Since a normal distribution will give one value per sample, its dimension is one. If we were to implement an n-dimensional multivariate normal distribution, the dimension would be n.
 

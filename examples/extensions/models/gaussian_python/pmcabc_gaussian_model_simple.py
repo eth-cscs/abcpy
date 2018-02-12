@@ -8,15 +8,7 @@ class Gaussian(ProbabilisticModel, Continuous):
     """
     
     def __init__(self, parameters, name):
-        # Rewrite user input
-        #input_parameters = []
-        #for parameter in parameters:
-        #    if(isinstance(parameter, list)):
-        #        input_parameters.append(parameter[0])
-        #    else:
-        #        input_parameters.append(parameter)#
-
-        super(Gaussian, self).__init__(parameters, )
+        super(Gaussian, self).__init__(parameters, name)
 
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
