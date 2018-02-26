@@ -33,10 +33,10 @@ class ProbabilisticModel(metaclass = ABCMeta):
         # set name
         self.name = name
 
-        # Save all probabilistic models and hyperparameters from which the model derives
+        # Save all probabilistic models and hyperparameters upon which this model depends.
         self.parents = []
 
-        # Initialize a list that will later contain the current sampled values for this distribution
+        # Initialize a list that will later contain the latest sampled values relevant for this model.
         self.fixed_values = [None]
 
         parents_temp = []
@@ -57,7 +57,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         self._check_parameters_at_initialization(parents_temp)
         self.parents = parents_temp
 
-        # A flag containing whether the probabilistic model has been touched during a recursive operation
+        # A flag indicating whether the model has been touched during a recursive operation
         self.visited = False
 
         self.calculated_pdf = None
@@ -148,7 +148,8 @@ class ProbabilisticModel(metaclass = ABCMeta):
     @abstractmethod
     def _check_parameters_at_initialization(self, parameters):
         """
-        Checks parameters at initialization.
+        Checks parameters at initialization. If parameters are not suitable for the underlying model, this function
+        should throw an exception.
 
         Parameters
         ----------
