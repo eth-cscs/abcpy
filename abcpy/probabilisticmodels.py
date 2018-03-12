@@ -1,5 +1,240 @@
 from abc import ABCMeta, abstractmethod
+from numbers import Number
 import numpy as np
+
+
+class InputParameters():
+    def __init__(self, dimension):
+        """
+        Creates input parameters of given dimensionality. Each dimension needs to be specified using the set method.
+
+        Parameters
+        ----------
+        dimension: int
+            Dimensionality of the input parameters.
+        """
+        self._all_indices_specified = False
+        self._dimension = dimension
+        self._models = [None]*dimension
+        self._model_indices = [None]*dimension
+
+
+    def from_number(number):
+        """
+        Convenient initializer that converts a number to a hyperparameter input parameter.
+
+        Parameters
+        ----------
+        number
+
+        Returns
+        -------
+        InputParameters
+        """
+
+        if isinstance(number, Number):
+            input_parameters = InputParameters(1)
+            input_parameters.set(0, Hyperparameter(number), 0)
+            return input_parameters
+        else:
+            raise TypeError('Unsupported type.')
+
+
+    def from_model(model):
+        """
+        Convenient initializer that converts the full output of a model to input parameters.
+
+        Parameters
+        ----------
+        ProbabilisticModel
+
+        Returns
+        -------
+        InputParameters
+        """
+
+        if isinstance(model, ProbabilisticModel):
+            input_parameters = InputParameters(model.get_output_dimension())
+            for i in range(model.get_output_dimension()):
+                input_parameters.set(i, model, i)
+            return input_parameters
+        else:
+            raise TypeError('Unsupported type.')
+
+
+    def from_list(parameters):
+        """
+        Creates an InputParameters object from a list of ProbabilisticModels.
+
+        In this case, number of input parameters equals the sum of output dimensions of all models in the parameter
+        list. Further, the output and models are connected to the input parameters in the order they appear in the
+        parameter list.
+
+        For convenience,
+        - the parameter list can contain nested lists
+        - the method also accepts numbers instead of models, which are automatically converted to hyper parameters.
+
+        Parameters
+        ----------
+        parameters: list
+            A list of ProbabilisticModels
+
+        Returns
+        -------
+        InputParameters
+        """
+
+        if isinstance(parameters, list):
+            unnested_parameters = []
+            parameters_count = 0
+            for item in parameters:
+                input_parameters_from_item = item
+                if isinstance(item, list):
+                    input_parameters_from_item = InputParameters.from_list(item)
+                elif isinstance(item, (Hyperparameter, ProbabilisticModel)):
+                    input_parameters_from_item = InputParameters.from_model(item)
+                elif isinstance(item, Number):
+                    input_parameters_from_item = InputParameters.from_number(item)
+                elif not isinstance(item, InputParameters):
+                    raise TypeError('Unsupported type.')
+
+                unnested_parameters.append(input_parameters_from_item)
+                parameters_count += input_parameters_from_item.get_parameter_count()
+
+            # here, unnested_parameters is a list of InputParameters and parameters_count hold the total number of
+            # parameters in this list
+            input_parameters = InputParameters(parameters_count)
+            index = 0
+            for param in unnested_parameters:
+                for pi in range(0, param.get_parameter_count()):
+                    input_parameters.set(index, param._models[pi], param._model_indices[pi])
+                    index += 1
+            return input_parameters
+        else:
+            raise TypeError('Input is not a list')
+
+
+
+    def __getitem__(self, index):
+        """
+        For the input models, return those fixed value(s) that are specified by index.
+
+        In case a value of an input model is not fixed, None is returned.
+
+        When input models are interpreted as random variables, this  method returns a realization of the input
+        random variable used for input parameter 'index'.
+
+        Parameters
+        ----------
+        index: int, slice
+
+        Returns
+        -------
+        int, float, list, None
+        """
+
+        # index is a single number
+        if isinstance (index, Number):
+            model = self._models[index]
+            model_index = self._model_indices[index]
+            if model.fixed_values == None:
+                return None
+            else:
+                return model.fixed_values[model_index]
+
+        # index is a slice
+        elif isinstance(index, slice):
+            result = []
+            for i in range(index.start, index.stop):
+                val = self[i]
+                if val != None:
+                    result.append(val)
+                else:
+                    return None
+            return result
+
+
+    def get_fixed_values(self):
+        """
+        Returns the fixed values of all input models.
+
+        Returns
+        -------
+        np.array
+        """
+
+        result = np.zeros(self._dimension)
+        for i in range(0,self._dimension):
+            result[i] = self.__getitem__(i)
+        return result
+
+
+    def get_model(self, index):
+        """
+        Returns the model at index.
+
+        Returns
+        -------
+        ProbabilisticModel
+        """
+
+        return self._models[index]
+
+
+    def get_parameter_count(self):
+        """
+        Returns the number of parameters.
+
+        Returns
+        -------
+        int
+        """
+
+        return self._dimension
+
+
+    def set(self, index, model, model_index):
+        """
+        Sets for an input parameter index the input model and the model index to use.
+
+        For convenience, model can also be a number, which is automatically casted to a hyper parameter.
+
+        Parameters
+        ----------
+        index: int
+            Index of the input parameter to be set.
+        model: ProbabilisticModel, Number
+            The model to be set for the input parameter.
+        model_index: int
+            Index of model's output to be used as input parameter.
+        """
+
+        if isinstance(model, Number):
+            model = Hyperparameter(model)
+
+        self._models[index] = model
+        self._model_indices[index] = model_index
+        if (self._models != None):
+            self._all_indices_specified = True
+
+
+    def all_models_sampled_fixed_output(self):
+        """
+        Checks whether all input models have fixed an output value (pseudo data).
+
+        In order get a fixed output value (a realization of the random variable described by the model) a model has to
+        run a forward simulation, which is not done automatically upon initialization.
+
+        Returns
+        -------
+        boolean
+        """
+
+        for model in self._models:
+            if model.get_parameters() == None:
+                return False
+        return True
+
 
 class ProbabilisticModel(metaclass = ABCMeta):
     """This abstract class represents all probabilistic models.
@@ -27,71 +262,63 @@ class ProbabilisticModel(metaclass = ABCMeta):
             A list of input parameters.
 
         name: string
-            A human readible name for the model. Can be the variable name for example.
+            A human readable name for the model. Can be the variable name for example.
         """
+        # TODO: rewrite the docstring above.
 
         # set name
         self.name = name
 
-        # Save all probabilistic models and hyperparameters upon which this model depends.
-        self.parents = []
+        # parameters is of type InputParameters
+        if isinstance(parameters, InputParameters):
+            if parameters.all_models_sampled_fixed_output() and self._check_parameters(parameters) == False:
+                raise ValueError('Input parameters are not compatible with current model.')
+            self._parameters = parameters
+        else:
+            raise TypeError('Input parameters are of wrong type.')
 
-        # Initialize a list that will later contain the latest sampled values relevant for this model.
-        self.fixed_values = [None]
-
-        parents_temp = []
-
-        # Initialize the parents
-        for parameter in parameters:
-            if(not(isinstance(parameter, tuple))):
-                #if an entry is a ProbabilisticModel, all the output values are saved in order in self.parents
-                if(isinstance(parameter, ProbabilisticModel)):
-                    for i in range(parameter.get_output_dimension()):
-                        parents_temp.append((parameter, i))
-                #if an entry is not of type ProbabilisticModel or a tupel, it is a hyperparameter
-                else:
-                    parents_temp.append((Hyperparameter([parameter]), 0))
-            else:
-                parents_temp.append(parameter)
-        # Check whether the suggested parameters are allowed for this probabilistic model
-        self._check_parameters_at_initialization(parents_temp)
-        self.parents = parents_temp
+        self.fixed_values = None
 
         # A flag indicating whether the model has been touched during a recursive operation
         self.visited = False
-
         self.calculated_pdf = None
+
 
     def __getitem__(self, item):
         """
-        Overloads the access operator. If the access operator is called, a tupel of the ProbablisticModel that called the operator and the index at which it was called is returned.
-        Commonly used at initialization of new probabilistic models to specify a mapping between model outputs and parameters.
+        Overloads the access operator. If the access operator is called, a tupel of the ProbablisticModel that called
+        the operator and the index at which it was called is returned. Commonly used at initialization of new
+        probabilistic models to specify a mapping between model outputs and parameters.
 
         Parameters
         ----------
         item: integer
             The index in the output of the parent model which should be linked to the parameter being defined.
         """
-        # Ensure the specified index does not lie outside the range of the return value of the model
-        if(item>=self.get_output_dimension()):
-            raise IndexError('The specified index lies out of range for probabilistic model %s.'%(self.__class__.__name__))
-        return self, item
+
+        if isinstance(item, Number):
+            if(item>=self.get_output_dimension()):
+                raise IndexError('The specified index lies out of range for probabilistic model %s.'%(self.__class__.__name__))
+            input_parameters = InputParameters(1)
+            input_parameters.set(0, self, item)
+            return input_parameters
+        else:
+            raise TypeError('Input of unsupported type')
+
 
     def get_parameter_values(self):
         """
-        Returns the values to be used by the model as parameters.
+        Returns the fixed values used by the current model as input parameters.
         Commonly used when sampling from the distribution.
         """
-        return_value = []
-        # Saves the parameter values provided by the parents in the desired order specified in self.parents
-        for parameter, index in self.parents:
-            return_value.append(parameter.fixed_values[index])
-        return return_value
+
+        return self._parameters.get_fixed_values().tolist()
+
 
     def sample_parameters(self, rng=np.random.RandomState()):
         """
-        Samples from the distribution associated with the probabilistic model and assigns the result to fixed_values, if applicable.
-        Commonly used when sampling from the prior.
+        Samples from the distribution associated with the probabilistic model and assigns the result to fixed_values, if
+        applicable. Commonly used when sampling from the prior.
 
         Parameters
         ----------
@@ -104,15 +331,18 @@ class ProbabilisticModel(metaclass = ABCMeta):
             whether it was possible to set the parameters to sampled values
         """
 
-        sample_result = self.sample_from_distribution(1, rng=rng)
-        # Sample_result will contain two entries, the first being True, iff the fixed_values from the parent models are an allowed input to the current model
-        if(sample_result[0]):
-            fixed_values_temp=sample_result[1]
+        parameters_are_valid = self._check_parameters(self._parameters)
+        # Sample_result will contain two entries, the first being True, iff the fixed_values from the parent models are
+        # an allowed input to the current model
+        if(parameters_are_valid):
+            sample_result = self.sample_from_distribution(1, rng=rng)
+            fixed_values_temp=sample_result
             if(isinstance(fixed_values_temp[0], (list, np.ndarray))):
                 fixed_values_temp = fixed_values_temp[0]
             self.fixed_values = fixed_values_temp
             return True
         return False
+
 
     def set_parameters(self, parameters):
         """
@@ -134,6 +364,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
             return True
         return False
 
+
     def get_parameters(self):
         """
         Returns the current sampled value of the probabilistic model.
@@ -143,37 +374,52 @@ class ProbabilisticModel(metaclass = ABCMeta):
         return_values: list
             The current values of the model.
         """
+        # TODO: name of the function not ideal (everything is now a parameter); maybe: get_fixed|sampled_output().
+
         return self.fixed_values
 
-    @abstractmethod
-    def _check_parameters_at_initialization(self, parameters):
+
+    def get_input_parameters(self):
         """
-        Checks parameters at initialization. If parameters are not suitable for the underlying model, this function
-        should throw an exception.
+        Returns the input parameters of the current model.
+
+        Returns
+        -------
+        InputParameters
+        """
+
+        return self._parameters
+
+
+    @abstractmethod
+    def _check_parameters(self, parameters):
+        """
+        Check whether the input parameters are compatible with the underlying model.
+
+        There are two expected behaviors:
+        1. If the input models themselves are not compatible with the current model, this method should *throw an
+        exception*. This is, e.g., the case if the number of parameters does not match what the model expects.
+        2. If the realization of the input models (the fixed values) are not compatible, this method should return False.
+        Otherwise the method should return True.
+
+        Notes
+        -----
+        It is very important that in particular the realizations of the input models (fixed values) are thoroughly
+        checked. Many inference schemes modify the input slightly by applying a small perturbation during sampling. This
+        method is called to check whether the perturbation yielded a reasonable input to the current model. If the check
+        is not done properly, the inference computation might *crash*, *not terminate* and *give wrong results*.
 
         Parameters
         ----------
-        parameters: list
-            Contains the probabilistic models and hyperparameters which define the probabilistic model as tupels.
-        """
-        raise NotImplementedError
-
-    @abstractmethod
-    def _check_parameters_before_sampling(self, parameters):
-        """
-        Checks parameters before sampling from the distribution.
-
-        Parameters
-        ----------
-        parameters: list
-            Contains the current sampled values for all parents of the current probabilistic model.
+        parameters: InputParameters
 
         Returns
         -------
         boolean
-            Whether it is possible to sample from the distribution, given the parent parameters.
+            True if the fixed value of the parameters can be used as input for the current model. False otherwise.
         """
         raise NotImplementedError
+
 
     @abstractmethod
     def _check_parameters_fixed(self, parameters):
@@ -191,6 +437,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
             Whether the given parameters could have been sampled from this distribution.
         """
         raise NotImplementedError
+
 
     @abstractmethod
     def sample_from_distribution(self, k, rng):
@@ -215,6 +462,20 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
         raise NotImplementedError
 
+
+    def get_input_dimension(self):
+        """
+        Returns the input dimension of the current model.
+
+        Returns
+        -------
+        int
+
+        """
+
+        return self._parameters._dimension
+
+
     @abstractmethod
     def get_output_dimension(self):
         """
@@ -229,6 +490,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         int:
             The dimension of the output vector of the forward simulation.
         """
+
 
     def pdf(self, x):
         """
@@ -251,6 +513,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         else:
             raise NotImplementedError
 
+
     def __add__(self, other):
         """Overload the + operator for probabilistic models.
 
@@ -266,6 +529,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
         return SummationModel([self,other])
 
+
     def __radd__(self, other):
         """Overload the + operator from the righthand side to support addition of Hyperparameters from the left.
 
@@ -277,9 +541,10 @@ class ProbabilisticModel(metaclass = ABCMeta):
         Returns
         -------
         SummationModel
-            A probabilistic model describgin a model coming from summation.
+            A probabilistic model describing a model coming from summation.
         """
         return SummationModel([other, self])
+
 
     def __sub__(self, other):
         """Overload the - operator for probabilistic models.
@@ -294,7 +559,8 @@ class ProbabilisticModel(metaclass = ABCMeta):
         SubtractionModel
             A probabilistic model describing a model coming from subtraction.
         """
-        return SubtractionModel([self,other])
+        return SubtractionModel([self, other])
+
 
     def __rsub__(self, other):
         """Overload the - operator from the righthand side to support subtraction of Hyperparameters from the left.
@@ -311,6 +577,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
         return SubtractionModel([other,self])
 
+
     def __mul__(self, other):
         """Overload the * operator for probabilistic models.
 
@@ -325,6 +592,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
             A probabilistic model describing a model coming from multiplication.
         """
         return MultiplicationModel([self,other])
+
 
     def __rmul__(self, other):
         """Overload the * operator from the righthand side to support subtraction of Hyperparameters from the left.
@@ -341,6 +609,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
                 """
         return MultiplicationModel([other,self])
 
+
     def __truediv__(self, other):
         """Overload the / operator for probabilistic models.
 
@@ -355,6 +624,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
             A probabilistic model describing a model coming from division.
         """
         return DivisionModel([self, other])
+
 
     def __rtruediv__(self, other):
         """Overload the / operator from the righthand side to support subtraction of Hyperparameters from the left.
@@ -371,11 +641,14 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
         return DivisionModel([other, self])
 
+
     def __pow__(self, power, modulo=None):
         return ExponentialModel([self, power])
 
+
     def __rpow__(self, other):
         return RExponentialModel([other, self])
+
 
 
 class Continuous(metaclass = ABCMeta):
@@ -426,9 +699,8 @@ class Hyperparameter(ProbabilisticModel):
             The values to which the hyperparameter should be set
         """
         # A hyperparameter is defined by the fact that it does not have any parents
-        self.parents = []
         self.name = name
-        self.fixed_values = parameters
+        self.fixed_values = [parameters]
         self.visited = False
 
     def sample_parameters(self, rng=np.random.RandomState()):
@@ -441,23 +713,26 @@ class Hyperparameter(ProbabilisticModel):
     def get_parameters(self):
         return []
 
-    def _check_parameters_at_initialization(self, parameters):
-        return True
-
-    def _check_parameters_before_sampling(self, parameters):
+    def _check_parameters(self, parameters):
         return True
 
     def _check_parameters_fixed(self, parameters):
         return True
 
     def get_output_dimension(self):
-        return 0;
+        return 1;
+
+    def get_input_parameters(self):
+        return None
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
-        return [True, self.fixed_values*k]
+        return self.fixed_values*k
 
     def pdf(self, x):
-        # Mathematically, the expression for the pdf of a hyperparameter should be: if(x==self.fixed_parameters) return 1; else return 0; However, since the pdf is called recursively for the whole model structure, and pdfs multiply, this would mean that all pdfs become 0. Setting the return value to 1 ensures proper calulation of the overall pdf.
+        # Mathematically, the expression for the pdf of a hyperparameter should be: if(x==self.fixed_parameters) return
+        # 1; else return 0; However, since the pdf is called recursively for the whole model structure, and pdfs
+        # multiply, this would mean that all pdfs become 0. Setting the return value to 1 ensures proper calulation of
+        # the overall pdf.
         return 1.
 
 
@@ -467,50 +742,50 @@ class ModelResultingFromOperation(ProbabilisticModel):
 
     def __init__(self, parameters, name=''):
         """
-
         Parameters
         ----------
         parameters: list
-            List of probabilistic models that should be added together.
-
+            List containing two probabilistic models that should be added together.
         """
-        self._dimension = 0
-        super(ModelResultingFromOperation, self).__init__(parameters, name)
+
+        if len(parameters) != 2:
+            raise TypeError('Input list does not contain two models.')
+
+        # here, parameters contains exactly two elements
+        model_output_dim = [0, 0]
+        for i, model in enumerate(parameters):
+            if isinstance(model, ProbabilisticModel):
+                model_output_dim[i] = model.get_output_dimension()
+            elif isinstance(model, Number):
+                model_output_dim[i] = 1
+            else:
+                raise TypeError('Unsupported type.')
+
+        # here, model_output_dim contains the dim of both input models
+        if model_output_dim[0] != model_output_dim[1]:
+            raise ValueError('The provided models are not of equal dimension.')
+
+        self._dimension = 1
+        input_parameters = InputParameters.from_list(parameters)
+        super(ModelResultingFromOperation, self).__init__(input_parameters, name)
+
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         raise NotImplementedError
 
-    def _check_parameters_at_initialization(self, parameters):
-        """Checks whether the parameters are valid at initialization.
 
-        Parameters
-        ----------
-        parameters: list of tupels
-            """
-        parent_1 = parameters[0][0]
-        parent_2 = parameters[-1][0]
-        length_parent_1 = 0
-        length_parent_2 = 0
-        for parent, parent_index in parameters:
-            if (parent == parent_1):
-                length_parent_1 += 1
-            else:
-                length_parent_2 += 1
-        if (length_parent_1 == length_parent_2):
-            self._dimension = length_parent_1
-            return
-        raise ValueError('The provided models are not of equal dimension.')
-
-    def _check_parameters_before_sampling(self, parameters):
-        """Checks parameters before sampling. Provided due to inheritance."""
+    def _check_parameters(self, parameters):
         return True
+
 
     def _check_parameters_fixed(self, parameters):
         """Checks parameters while setting them. Provided due to inheritance."""
         return True
 
+
     def get_output_dimension(self):
         return self._dimension
+
 
     def pdf(self, x):
         """Calculates the probability density function at point x.
@@ -527,6 +802,49 @@ class ModelResultingFromOperation(ProbabilisticModel):
         """
         # Since the nodes provided as input have to be independent, the resulting pdf will be pdf(parent 1)*pfd(parent 2). During the recursive graph action, this is calculated automatically, so the pdf at this node is expected to be 1
         return 1.
+
+    def sample_from_input_models(self, k, rng=np.random.RandomState()):
+        """
+        Return for each input model k samples.
+
+        Parameters
+        ----------
+        k: int
+            Specifies the number of samples to generate from each input model.
+
+        Returns
+        -------
+        dict
+            A dictionary of type ProbabilisticModel:[], where the list contains k samples of the corresponding model.
+        """
+
+        model_samples = {}
+
+        # Store the visited state of all input models
+        visited_state = [False] * self.get_input_dimension()
+        for i in range(0, self.get_input_dimension()):
+            visited_state[i] = self.get_input_parameters().get_model(i).visited
+
+        # Set visited flag of all input models to False
+        for i in range(0, self.get_input_dimension()):
+            self.get_input_parameters().get_model(i).visited = False
+
+        # forward simulate each input model to get fixed input for the current model
+        for i in range(0, self.get_input_dimension()):
+            model = self.get_input_parameters().get_model(i)
+            if not model.visited:
+                model_has_valid_parameters = model._check_parameters(model.get_input_parameters())
+                if (model_has_valid_parameters):
+                    model_samples[model] = model.sample_from_distribution(k, rng=rng)
+                    model.visited = True
+                else:
+                    raise ValueError('Model %s has invalid input parameters.' % parent.name)
+
+        # Restore the visited state of all input models
+        for i in range(0, self.get_input_dimension()):
+            self.get_input_parameters().get_model(i).visited = visited_state[i]
+
+        return model_samples
 
 
 class SummationModel(ModelResultingFromOperation):
@@ -545,28 +863,20 @@ class SummationModel(ModelResultingFromOperation):
         Returns
         -------
         list:
-            The first entry is True, it is always possible to sample, given two parent values. The second entry is the sum of the parents values.
+            The first entry is True, it is always possible to sample, given two parent values. The second entry is the
+            sum of the parents values.
         """
         return_value = []
 
-        # we need to obtain new samples of the parents for each sample (if we just use get_parameter_values, we will have k identical samples)
-        for i in range(k):
-            # make sure each parent is only sampled once (for use of access operator or similar)
-            visited_parents = [False for i in range(len(self.parents))]
-            parameter_values = [0 for i in range(len(self.parents))]
+        # we need to obtain new samples of the parents for each sample (if we just use get_parameter_values, we will
+        # have k identical samples)
+        model_samples = self.sample_from_input_models(k, rng)
 
-            # sample from each parent and associate the sampled values with the correct positions in parameter_vaulues
-            for parent_loc, parent in enumerate(self.parents):
-                parent = parent[0]
-                if(not(visited_parents[parent_loc])):
-                    sample_of_parent = parent.sample_from_distribution(1, rng=rng)
-                    if(sample_of_parent[0]):
-                        for parent_loc_tmp, parent_tmp in enumerate(self.parents):
-                            if(parent==parent_tmp[0]):
-                                visited_parents[parent_loc_tmp]=True
-                                parameter_values[parent_loc_tmp]=sample_of_parent[1][parent_tmp[1]]
-                    else:
-                        return [False]
+        for i in range(k):
+            parameter_values = [0 for i in range(self.get_input_dimension())]
+            for j in range(0, self.get_input_dimension()):
+                model = self.get_input_parameters().get_model(j)
+                parameter_values[j] = model_samples[model][i]
 
             # add the corresponding parameter_values
             sample_value = []
@@ -576,7 +886,7 @@ class SummationModel(ModelResultingFromOperation):
                 sample_value=sample_value[0]
             return_value.append(sample_value)
 
-        return [True, np.array(return_value)]
+        return np.array(return_value)
 
 
 class SubtractionModel(ModelResultingFromOperation):
@@ -595,29 +905,19 @@ class SubtractionModel(ModelResultingFromOperation):
         Returns
         -------
         list:
-            The first entry is True, it is always possible to sample, given two parent values. The second entry is the difference of the parents values.
+            The first entry is True, it is always possible to sample, given two parent values. The second entry is the
+            difference of the parents values.
         """
         return_value = []
         sample_value = []
 
-        # we need to obtain new samples of the parents for each sample (if we just use get_parameter_values, we will have k identical samples)
-        for i in range(k):
-            # make sure each parent is only sampled once (for use of access operator or similar)
-            visited_parents = [False for i in range(len(self.parents))]
-            parameter_values = [0 for i in range(len(self.parents))]
+        model_samples = self.sample_from_input_models(k, rng)
 
-            # sample from each parent and associate the sampled values with the correct positions in parameter_vaulues
-            for parent_loc, parent in enumerate(self.parents):
-                parent = parent[0]
-                if (not (visited_parents[parent_loc])):
-                    sample_of_parent = parent.sample_from_distribution(1, rng=rng)
-                    if (sample_of_parent[0]):
-                        for parent_loc_tmp, parent_tmp in enumerate(self.parents):
-                            if (parent == parent_tmp[0]):
-                                visited_parents[parent_loc_tmp] = True
-                                parameter_values[parent_loc_tmp] = sample_of_parent[1][parent_tmp[1]]
-                    else:
-                        return [False]
+        for i in range(k):
+            parameter_values = [0 for i in range(self.get_input_dimension())]
+            for j in range(0, self.get_input_dimension()):
+                model = self.get_input_parameters().get_model(j)
+                parameter_values[j] = model_samples[model][i]
 
             # subtract the corresponding parameter_values
             sample_value = []
@@ -627,7 +927,7 @@ class SubtractionModel(ModelResultingFromOperation):
                 sample_value=sample_value[0]
             return_value.append(sample_value)
 
-        return [True, np.array(return_value)]
+        return np.array(return_value)
 
 
 class MultiplicationModel(ModelResultingFromOperation):
@@ -649,35 +949,24 @@ class MultiplicationModel(ModelResultingFromOperation):
             """
         return_value = []
 
-        # we need to obtain new samples of the parents for each sample (if we just use get_parameter_values, we will have k identical samples)
-        for i in range(k):
-            # make sure each parent is only sampled once (for use of access operator or similar)
-            visited_parents = [False for i in range(len(self.parents))]
-            parameter_values = [0 for i in range(len(self.parents))]
+        model_samples = self.sample_from_input_models(k, rng)
 
-            # sample from each parent and associate the sampled values with the correct positions in parameter_vaulues
-            for parent_loc, parent in enumerate(self.parents):
-                parent = parent[0]
-                if (not (visited_parents[parent_loc])):
-                    sample_of_parent = parent.sample_from_distribution(1, rng=rng)
-                    if (sample_of_parent[0]):
-                        for parent_loc_tmp, parent_tmp in enumerate(self.parents):
-                            if (parent == parent_tmp[0]):
-                                visited_parents[parent_loc_tmp] = True
-                                parameter_values[parent_loc_tmp] = sample_of_parent[1][parent_tmp[1]]
-                    else:
-                        return [False]
+        for i in range(k):
+            parameter_values = [0 for i in range(self.get_input_dimension())]
+            for j in range(0, self.get_input_dimension()):
+                model = self.get_input_parameters().get_model(j)
+                parameter_values[j] = model_samples[model][i]
 
             # multiply the corresponding parameter_values
             sample_value = []
 
             for j in range(self.get_output_dimension()):
-                sample_value.append(parameter_values[j]*parameter_values[j+self.get_output_dimension()])
+                sample_value.append(parameter_values[j] * parameter_values[j+self.get_output_dimension()])
             if (len(sample_value) == 1):
                 sample_value = sample_value[0]
             return_value.append(sample_value)
 
-        return [True, np.array(return_value)]
+        return np.array(return_value)
 
 
 class DivisionModel(ModelResultingFromOperation):
@@ -699,24 +988,13 @@ class DivisionModel(ModelResultingFromOperation):
         """
         return_value = []
 
-        # we need to obtain new samples of the parents for each sample (if we just use get_parameter_values, we will have k identical samples)
-        for i in range(k):
-            # make sure each parent is only sampled once (for use of access operator or similar)
-            visited_parents = [False for i in range(len(self.parents))]
-            parameter_values = [0 for i in range(len(self.parents))]
+        model_samples = self.sample_from_input_models(k, rng)
 
-            # sample from each parent and associate the sampled values with the correct positions in parameter_vaulues
-            for parent_loc, parent in enumerate(self.parents):
-                parent = parent[0]
-                if (not (visited_parents[parent_loc])):
-                    sample_of_parent = parent.sample_from_distribution(1, rng=rng)
-                    if (sample_of_parent[0]):
-                        for parent_loc_tmp, parent_tmp in enumerate(self.parents):
-                            if (parent == parent_tmp[0]):
-                                visited_parents[parent_loc_tmp] = True
-                                parameter_values[parent_loc_tmp] = sample_of_parent[1][parent_tmp[1]]
-                    else:
-                        return [False]
+        for i in range(k):
+            parameter_values = [0 for i in range(self.get_input_dimension())]
+            for j in range(0, self.get_input_dimension()):
+                model = self.get_input_parameters().get_model(j)
+                parameter_values[j] = model_samples[model][i]
 
             # divide the corresponding parameter_values
             sample_value = []
@@ -725,25 +1003,32 @@ class DivisionModel(ModelResultingFromOperation):
                 sample_value.append(parameter_values[j]/parameter_values[j + self.get_output_dimension()])
             return_value.append(sample_value)
 
-        return [True, np.array(return_value)]
+        return np.array(return_value)
 
 
 class ExponentialModel(ModelResultingFromOperation):
     """This class represents all probabilistic models resulting from an exponentiation of two probabilistic models"""
 
-    def _check_parameters_at_initialization(self, parameters):
-        """Raises an error iff the exponent has more than 1 dimension."""
-        parent_power = parameters[-1][0]
-        number_of_parent_power = 0
+    def __init__(self, parameters, name=''):
+        """
+        Specific initializer for exponential models that does additional checks.
 
-        for parent_parameters, parent_parameters_index in parameters:
-            if(parent_parameters==parent_power):
-                number_of_parent_power+=1
+        Parameters
+        ----------
+        parameters: list
+            List of probabilistic models that should be added together.
+        """
 
-        if(number_of_parent_power>1):
-            raise ValueError('The exponent can only be 1 dimensional.')
+        exp = parameters[1]
+        if isinstance(exp, ProbabilisticModel):
+            if exp.get_output_dimension() != 1:
+                raise ValueError('The exponent can only be 1 dimensional.')
 
-        self._dimension = len(parameters[:-1])
+        super(ExponentialModel, self).__init__(parameters, name)
+
+
+    def _check_parameters(self, parameters):
+        return True
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """Raises the sampled values of the base by the exponent.
@@ -762,23 +1047,13 @@ class ExponentialModel(ModelResultingFromOperation):
         """
         result = []
 
-        for i in range(k):
-            # make sure each parent is only sampled once (for use of access operator or similar)
-            visited_parents = [False for i in range(len(self.parents))]
-            parameter_values = [1. for j in range(len(self.parents))]
+        model_samples = self.sample_from_input_models(k, rng)
 
-            # sample from each parent and associate the sampled values with the correct positions in parameter_vaulues
-            for parent_loc, parent in enumerate(self.parents):
-                parent = parent[0]
-                if (not (visited_parents[parent_loc])):
-                    sample_of_parent = parent.sample_from_distribution(1, rng=rng)
-                    if (sample_of_parent[0]):
-                        for parent_loc_tmp, parent_tmp in enumerate(self.parents):
-                            if (parent == parent_tmp[0]):
-                                visited_parents[parent_loc_tmp] = True
-                                parameter_values[parent_loc_tmp] = sample_of_parent[1][parent_tmp[1]]
-                    else:
-                        return [False]
+        for i in range(k):
+            parameter_values = [0 for i in range(self.get_input_dimension())]
+            for j in range(0, self.get_input_dimension()):
+                model = self.get_input_parameters().get_model(j)
+                parameter_values[j] = model_samples[model][i]
 
             power = parameter_values[-1]
 
@@ -788,26 +1063,31 @@ class ExponentialModel(ModelResultingFromOperation):
                 sample_value.append(parameter_values[j]**power)
             result.append(sample_value)
 
-        return [True, np.array(result)]
+        return np.array(result)
 
 
 class RExponentialModel(ModelResultingFromOperation):
     """This class represents all probabilistic models resulting from an exponentiation of a Hyperparameter by another probabilistic model."""
 
-    def _check_parameters_at_initialization(self, parameters):
-        """Raises an error iff the exponent has more than 1 dimension."""
+    def __init__(self, parameters, name=''):
+        """
+        Specific initializer for exponential models that does additional checks.
 
-        parent_power = parameters[0][0]
-        number_of_parent_power = 0
+        Parameters
+        ----------
+        parameters: list
+            List of probabilistic models that should be added together.
+        """
 
-        for parent_parameteres, parent_parameters_index in parameters:
-            if(parent_parameteres==parent_power):
-                number_of_parent_power+=1
+        exp = parameters[1]
+        if isinstance(exp, ProbabilisticModel):
+            if exp.get_output_dimension() != 1:
+                raise ValueError('The exponent can only be 1 dimensional.')
+        super(RExponentialModel, self).__init__(parameters, name)
 
-        if(number_of_parent_power>1):
-            raise ValueError('The exponent can only be 1 dimensional.')
 
-        self._dimension = len(parameters[1:])
+    def _check_parameters(self, parameters):
+        return True
 
     def sample_from_distribution(self, k, rng=np.random.RandomState()):
         """Raises the base by the sampled value of the exponent.
@@ -826,23 +1106,13 @@ class RExponentialModel(ModelResultingFromOperation):
         """
         result = []
 
-        for i in range(k):
-            # make sure each parent is only sampled once (for use of access operator or similar)
-            visited_parents = [False for i in range(len(self.parents))]
-            parameter_values = [1. for j in range(len(self.parents))]
+        model_samples = self.sample_from_input_models(k, rng)
 
-            # sample from each parent and associate the sampled values with the correct positions in parameter_vaulues
-            for parent_loc, parent in enumerate(self.parents):
-                parent = parent[0]
-                if (not (visited_parents[parent_loc])):
-                    sample_of_parent = parent.sample_from_distribution(1, rng=rng)
-                    if (sample_of_parent[0]):
-                        for parent_loc_tmp, parent_tmp in enumerate(self.parents):
-                            if (parent == parent_tmp[0]):
-                                visited_parents[parent_loc_tmp] = True
-                                parameter_values[parent_loc_tmp] = sample_of_parent[1][parent_tmp[1]]
-                    else:
-                        return [False]
+        for i in range(k):
+            parameter_values = [0 for i in range(self.get_input_dimension())]
+            for j in range(0, self.get_input_dimension()):
+                model = self.get_input_parameters().get_model(j)
+                parameter_values[j] = model_samples[model][i]
 
             power = parameter_values[0]
 

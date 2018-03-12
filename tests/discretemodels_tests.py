@@ -20,9 +20,9 @@ class CheckParametersBeforeSamplingTests(unittest.TestCase):
     """Tests whether False will be returned if the input parameters of _check_parameters_before_sampling are not accepted."""
     def test_binomial(self):
         B = Binomial([1, 0.1])
-        self.assertFalse(B._check_parameters_before_sampling([-1,0.1]))
-        self.assertFalse(B._check_parameters_before_sampling([1,-0.1]))
-        self.assertFalse(B._check_parameters_before_sampling([1,3]))
+        self.assertFalse(B._check_parameters(InputParameters.from_list([-1,0.1])))
+        self.assertFalse(B._check_parameters(InputParameters.from_list([1,-0.1])))
+        self.assertFalse(B._check_parameters(InputParameters.from_list([1,3])))
 
 
 class SampleFromDistributionTests(unittest.TestCase):
@@ -30,9 +30,8 @@ class SampleFromDistributionTests(unittest.TestCase):
     def test_binomial(self):
         B = Binomial([1, 0.1])
         samples = B.sample_from_distribution(3)
-        self.assertTrue(isinstance(samples, list))
-        self.assertTrue(isinstance(samples[1],np.ndarray))
-        self.assertTrue(len(samples[1])==3)
+        self.assertTrue(isinstance(samples, np.ndarray))
+        self.assertTrue(len(samples)==3)
 
 
 if __name__ == '__main__':

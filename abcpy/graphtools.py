@@ -375,9 +375,10 @@ class GraphTools():
         """
         result = []
         for model in self.model:
-            simulation_result = model.sample_from_distribution(self.n_samples_per_param, rng=rng)
-            if(simulation_result[0]):
-                result.append(simulation_result[1].tolist())
+            parameters_compatible = model._check_parameters(model.parents)
+            if parameters_compatible:
+                simulation_result = model.sample_from_distribution(self.n_samples_per_param, rng=rng)
+                result.append(simulation_result.tolist())
             else:
                 return None
         return result

@@ -30,24 +30,27 @@ class MappingTest(unittest.TestCase):
         self.M = MultivariateNormal([[self.U[1], self.U[0]], [[1, 0], [0, 1]]])
 
     def test(self):
-        self.assertTrue(self.M.parents[0]==(self.U, 1))
-        self.assertTrue(self.M.parents[1]==(self.U,0))
+        self.assertTrue(self.M.get_input_parameters().get_model(0) == self.U)
+        self.assertTrue(self.M.get_input_parameters().get_model(1) == self.U)
 
 
 class GetParameterValuesTest(unittest.TestCase):
     """Tests whether get_parameter_values returns the correct values."""
     def test(self):
         U = Uniform([[0, 2], [1, 3]])
-        self.assertTrue(U.get_parameter_values()==[0,2,1,3])
+        self.assertTrue(U.get_parameter_values() == [0,2,1,3])
+
 
 
 class SampleParametersTest(unittest.TestCase):
-    """Tests whether sample_parameters returns False if the value of an input parameter is not an allowed value for the distribution."""
+    """Tests whether sample_parameters returns False if the value of an input parameter is not an allowed value for the
+    distribution."""
+
     def test(self):
-        N1= Normal([0.1, 0.01])
-        N2= Normal([1, N1])
+        N1 = Normal([0.1, 0.01])
+        N2 = Normal([1, N1])
         N1.fixed_values=[-0.1]
-        self.assertFalse(N2.sample_parameters())
+        self.assertFalse(N2._check_parameters(N2.get_input_parameters()))
 
 
 class GetParametersTest(unittest.TestCase):
@@ -85,8 +88,7 @@ class SummationModelTests(unittest.TestCase):
 
         sample = N2.sample_from_distribution(1, rng)
 
-        self.assertTrue(sample[0])
-        self.assertTrue(isinstance(sample[1], np.ndarray))
+        self.assertTrue(isinstance(sample, np.ndarray))
 
 
 class SubtractionModelTests(unittest.TestCase):
@@ -100,8 +102,7 @@ class SubtractionModelTests(unittest.TestCase):
 
         sample = N2.sample_from_distribution(1, rng)
 
-        self.assertTrue(sample[0])
-        self.assertTrue(isinstance(sample[1], np.ndarray))
+        self.assertTrue(isinstance(sample, np.ndarray))
 
 
 class MultiplicationModelTests(unittest.TestCase):
@@ -114,17 +115,14 @@ class MultiplicationModelTests(unittest.TestCase):
         N1.sample_parameters(rng=rng)
 
         sample = N2.sample_from_distribution(1,rng)
-
-        self.assertTrue(sample[0])
-        self.assertTrue(isinstance(sample[1], np.ndarray))
+        self.assertTrue(isinstance(sample, np.ndarray))
 
     def test_multiplication_from_right(self):
         N1 = Normal([1, 0.1])
         N2 = 2*N1
 
-        self.assertTrue(len(N2.parents)==2)
-
-        self.assertTrue(isinstance(N2.parents[0][0], Hyperparameter))
+        self.assertTrue(N2.get_input_dimension()==2)
+        self.assertTrue(isinstance(N2.get_input_parameters().get_model(0), Hyperparameter))
 
 
 class DivisionModelTests(unittest.TestCase):
@@ -138,20 +136,16 @@ class DivisionModelTests(unittest.TestCase):
 
         N1.sample_parameters(rng=rng)
         N2.sample_parameters(rng=rng)
-
         sample = N3.sample_from_distribution(1)
 
-        self.assertTrue(sample[0])
-
-        self.assertTrue(isinstance(sample[1], np.ndarray))
+        self.assertTrue(isinstance(sample, np.ndarray))
 
     def test_division_from_right(self):
         N1 = Normal([1, 0.1])
         N2 = 2/N1
 
-        self.assertTrue(len(N2.parents)==2)
-
-        self.assertTrue(isinstance(N2.parents[0][0], Hyperparameter))
+        self.assertEqual(N2.get_input_dimension(), 2)
+        self.assertTrue(isinstance(N2.get_input_parameters().get_model(0), Hyperparameter))
 
 
 class ExponentialModelTests(unittest.TestCase):
@@ -179,13 +173,9 @@ class ExponentialModelTests(unittest.TestCase):
         """Tests whether sample_from_distribution gives the desired output."""
         N1 = Normal([1, 0.1])
         N2 = N1**2
-
         rng = np.random.RandomState(1)
-
         N1.sample_parameters(rng=rng)
-
-        sample = N2.sample_from_distribution(1, rng=rng)[1]
-
+        sample = N2.sample_from_distribution(1, rng=rng)
         self.assertTrue(isinstance(sample, np.ndarray))
 
 
