@@ -20,9 +20,9 @@ class CheckParametersBeforeSamplingTests(unittest.TestCase):
     """Tests whether False will be returned if the input parameters of _check_parameters_before_sampling are not accepted."""
     def test_binomial(self):
         B = Binomial([1, 0.1])
-        self.assertFalse(B._check_parameters(InputConnector.from_list([-1, 0.1])))
-        self.assertFalse(B._check_parameters(InputConnector.from_list([1, -0.1])))
-        self.assertFalse(B._check_parameters(InputConnector.from_list([1, 3])))
+        self.assertFalse(B._check_input(InputConnector.from_list([-1, 0.1])))
+        self.assertFalse(B._check_input(InputConnector.from_list([1, -0.1])))
+        self.assertFalse(B._check_input(InputConnector.from_list([1, 3])))
 
 
 class SampleFromDistributionTests(unittest.TestCase):

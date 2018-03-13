@@ -38,7 +38,7 @@ abcpy.backends module
 
 .. automodule:: abcpy.continuousmodels
     :members:
-    :special-members: __init__, _check_parameters_at_initialization, _check_parameters_before_sampling, _check_parameters_fixed
+    :special-members: __init__, _check_parameters_at_initialization, _check_parameters_before_sampling, _check_output
     :undoc-members:
     :show-inheritance:
 
@@ -47,7 +47,7 @@ abcpy.discretemodels module
 
 .. automodule:: abcpy.discretemodels
     :members:
-    :special-members: __init__, _check_parameters_at_initialization, _check_parameters_before_sampling, _check_parameters_fixed
+    :special-members: __init__, _check_parameters_at_initialization, _check_parameters_before_sampling, _check_output
     :undoc-members:
     :show-inheritance:
 
@@ -101,7 +101,7 @@ abcpy.probabilisticmodels module
 
 .. automodule:: abcpy.probabilisticmodels
     :members:
-    :special-members: __init__, _check_parameters_at_initialization, _check_parameters_before_sampling, _check_parameters_fixed, __get_item__, __add__, __sub__, __mul__, __truediv__, __pow__
+    :special-members: __init__, _check_parameters_at_initialization, _check_parameters_before_sampling, _check_output, __get_item__, __add__, __sub__, __mul__, __truediv__, __pow__
     :undoc-members:
     :show-inheritance:
 

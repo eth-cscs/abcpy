@@ -22,7 +22,7 @@ class Bernoulli(Discrete, ProbabilisticModel):
         super(Bernoulli, self).__init__(parameters, name)
 
 
-    def _check_parameters(self, parameters):
+    def _check_input(self, parameters):
         """Raises an error if more than one parameters are given, or if the probability is not in the interval (0,1)."""
         if(len(parameters)>1):
             raise IndexError('The probabilistic model of the bernoulli distribution only takes one parameter.')
@@ -31,7 +31,7 @@ class Bernoulli(Discrete, ProbabilisticModel):
                 raise ValueError('The probability has to be in the interval (0,1).')
 
 
-    def _check_parameters_fixed(self, parameters):
+    def _check_output(self, parameters):
         return True
 
 
@@ -95,7 +95,7 @@ class Binomial(Discrete, ProbabilisticModel):
         super(Binomial, self).__init__(input_parameters, name)
 
 
-    def _check_parameters(self, parameters):
+    def _check_input(self, parameters):
         """Raises an Error iff:
         - The number of trials is smaller than 0
         - The number of trials is not an integer
@@ -117,7 +117,7 @@ class Binomial(Discrete, ProbabilisticModel):
         return True
 
 
-    def _check_parameters_fixed(self, parameters):
+    def _check_output(self, parameters):
         return True
 
 
@@ -186,7 +186,7 @@ class Poisson(Discrete, ProbabilisticModel):
         super(Poisson, self).__init__(parameters, name)
 
 
-    def _check_parameters(self, parameters):
+    def _check_input(self, parameters):
         """Raises an error iff more than one parameter are given or the parameter given is smaller than 0."""
         if(len(parameters)>1):
             raise IndexError('The probabilistic model associated with the poisson distribution only takes 1 parameter as input.')
@@ -197,7 +197,7 @@ class Poisson(Discrete, ProbabilisticModel):
                 raise ValueError('The mean has to be of type integer.')
 
 
-    def _check_parameters_fixed(self, parameters):
+    def _check_output(self, parameters):
         return True
 
 

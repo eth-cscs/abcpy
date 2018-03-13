@@ -16,7 +16,7 @@ Every model has at least to conform to the API specified by the base class
 derive from :py:class:`ProbabilisticModel` and implement the following methods:
 
 .. autoclass::  abcpy.probabilisticmodels.ProbabilisticModel
-   :members: _check_parameters_at_initialization, _check_parameters_before_sampling, _check_parameters_fixed, forward_simulate, get_output_dimension
+   :members: _check_parameters_at_initialization, _check_parameters_before_sampling, _check_output, forward_simulate, get_output_dimension
    :noindex:
       
 However, these methods are the sufficient only when you want to use your
@@ -161,7 +161,7 @@ Then, if the values are fine to be used, we sample using the random number gener
 
 First one:
 
-.. automethod:: abcpy.probabilisticmodels.ProbabilisticModel._check_parameters_fixed
+.. automethod:: abcpy.probabilisticmodels.ProbabilisticModel._check_output
     :noindex:
 
 Again, let us explain the use of this method. A lot of the implemented ABC algorithms involve perturbing previously selected parameters using a perturbation kernel. Then, we try to fix the values for the parameters to these perturbed values. However, it could of course be possible that for some probabilistic model, the perturbed value is not acceptable. For example because the node can only return positive values, but the perturbation changed the parameter to some negative value. In this case, the parameters should be rejected.

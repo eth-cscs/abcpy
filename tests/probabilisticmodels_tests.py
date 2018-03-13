@@ -50,7 +50,7 @@ class SampleParametersTest(unittest.TestCase):
         N1 = Normal([0.1, 0.01])
         N2 = Normal([1, N1])
         N1.fixed_values=[-0.1]
-        self.assertFalse(N2._check_parameters(N2.get_input_connector()))
+        self.assertFalse(N2._check_input(N2.get_input_connector()))
 
 
 class GetOutputValuesTest(unittest.TestCase):

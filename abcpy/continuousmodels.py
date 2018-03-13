@@ -51,7 +51,7 @@ class Normal(ProbabilisticModel, Continuous):
         return np.array(rng.normal(mu, sigma, k)).reshape((k)).tolist()
 
 
-    def _check_parameters(self, parameters):
+    def _check_input(self, parameters):
         """
         Returns True if the standard deviation is negative.
         """
@@ -63,7 +63,7 @@ class Normal(ProbabilisticModel, Continuous):
         return True
 
 
-    def _check_parameters_fixed(self, parameters):
+    def _check_output(self, parameters):
         """
         Checks parameter values that are given as fixed values.
         """
@@ -148,7 +148,7 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         return rng.multivariate_normal(mean, cov, k).reshape(k,-1).tolist()
 
 
-    def _check_parameters(self, parameters):
+    def _check_input(self, parameters):
         """
         Checks parameter values sampled from the parents at initialization. Returns False iff the covariance matrix is
         not symmetric or not positive definite.
@@ -174,7 +174,7 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         return True
 
 
-    def _check_parameters_fixed(self, parameters):
+    def _check_output(self, parameters):
         """
         Checks parameter values that are given as fixed values.
         """
@@ -256,13 +256,13 @@ class MixtureNormal(ProbabilisticModel, Continuous):
             Data_array[i] = Data
         return np.array(Data_array).tolist()
 
-    def _check_parameters(self, parameters):
+    def _check_input(self, parameters):
         """
         Checks the values for the parameters sampled from the parents of the probabilistic model at initialization.
         """
         return True
 
-    def _check_parameters_fixed(self, parameters):
+    def _check_output(self, parameters):
         """
         Checks parameter values given as fixed values.
         """
@@ -330,7 +330,7 @@ class StudentT(ProbabilisticModel, Continuous):
         return np.array((rng.standard_t(df,k)+mean).reshape(k,-1)).tolist()
 
 
-    def _check_parameters(self, parameters):
+    def _check_input(self, parameters):
         """
         Checks parameter values sampled from the parents of the probabilistic model. Returns False iff the degrees of freedom are smaller than or equal to 0.
         """
@@ -351,7 +351,7 @@ class StudentT(ProbabilisticModel, Continuous):
             return False
         return True
 
-    def _check_parameters_fixed(self, parameters):
+    def _check_output(self, parameters):
         """
         Checks parameter values given as fixed values.
         """
@@ -444,7 +444,7 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         return result.tolist()
 
 
-    def _check_parameters(self, parameters):
+    def _check_input(self, parameters):
         """
         Returns False iff the degrees of freedom are less than or equal to 0, the covariance matrix is not symmetric or
         the covariance matrix is not positive definite.
@@ -478,7 +478,7 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         return True
 
 
-    def _check_parameters_fixed(self, parameters):
+    def _check_output(self, parameters):
         """
         Checks parameter values given as fixed values.
         """
@@ -576,7 +576,7 @@ class Uniform(ProbabilisticModel, Continuous):
         return samples.tolist()
 
 
-    def _check_parameters(self, parameters):
+    def _check_input(self, parameters):
         """
         Checks parameter values sampled from the parents.
         """
@@ -590,7 +590,7 @@ class Uniform(ProbabilisticModel, Continuous):
         return True
 
 
-    def _check_parameters_fixed(self, parameters):
+    def _check_output(self, parameters):
         """
         Checks parameter values given as fixed values. Returns False iff a lower bound value is larger than a corresponding upper bound value.
         """

@@ -112,12 +112,12 @@ class CheckParametersBeforeSamplingTests(unittest.TestCase):
     """Tests whether False will be returned if the input parameters of _check_parameters_before_sampling are not accepted."""
     def test_Normal(self):
         N = Normal([1, 0.1])
-        self.assertFalse(N._check_parameters(InputConnector.from_list([1, -0.1])))
+        self.assertFalse(N._check_input(InputConnector.from_list([1, -0.1])))
 
     def test_MultivariateNormal(self):
         M = MultivariateNormal([[1, 0], [[0.1, 0], [0, 0.1]]])
-        self.assertFalse(M._check_parameters(InputConnector.from_list([[1, 0], [[1, 1], [0, 1]]])))
-        self.assertFalse((M._check_parameters(InputConnector.from_list([[1, 0], [[-1, 0], [0, -1]]]))))
+        self.assertFalse(M._check_input(InputConnector.from_list([[1, 0], [[1, 1], [0, 1]]])))
+        self.assertFalse((M._check_input(InputConnector.from_list([[1, 0], [[-1, 0], [0, -1]]]))))
 
     def test_StudentT(self):
         S = StudentT([3, 1])
@@ -125,14 +125,14 @@ class CheckParametersBeforeSamplingTests(unittest.TestCase):
 
     def test_MultiStudentT(self):
         M = MultiStudentT([[1, 0], [[1, 0], [0, 1]], 1])
-        self.assertFalse(M._check_parameters(InputConnector.from_list([[1, 0], [[1, 1], [1, 0]], 1])))
-        self.assertFalse(M._check_parameters(InputConnector.from_list([[1, 0], [[-1, 0], [0, -1]], 1])))
-        self.assertFalse(M._check_parameters(InputConnector.from_list([[1, 0], [[1, 0], [0, 1]], -1])))
+        self.assertFalse(M._check_input(InputConnector.from_list([[1, 0], [[1, 1], [1, 0]], 1])))
+        self.assertFalse(M._check_input(InputConnector.from_list([[1, 0], [[-1, 0], [0, -1]], 1])))
+        self.assertFalse(M._check_input(InputConnector.from_list([[1, 0], [[1, 0], [0, 1]], -1])))
 
     def test_Uniform(self):
         U = Uniform([[0, 1], [1, 2]])
-        self.assertFalse(U._check_parameters(InputConnector.from_list([1, 1, 0, 2])))
-        self.assertFalse(U._check_parameters(InputConnector.from_list([1, 1, 2, 0])))
+        self.assertFalse(U._check_input(InputConnector.from_list([1, 1, 0, 2])))
+        self.assertFalse(U._check_input(InputConnector.from_list([1, 1, 2, 0])))
 
 
 

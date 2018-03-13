@@ -237,43 +237,34 @@ class InputConnector():
 
 
 class ProbabilisticModel(metaclass = ABCMeta):
-    """This abstract class represents all probabilistic models.
     """
-    def __init__(self, parameters, name=''):
+    This abstract class represents all probabilistic models.
+    """
+
+    def __init__(self, input_connector, name=''):
         """This constructor should be called from any derived class. 
 
-        It requires as input all parameters (random variables) on which the current
-        model depends. These input parameters can be specified in different ways:
-
-        1. as a tuple (ProbabilisticModel | Hyperparameter, int) to use specific output parameters of a model
-        2. as ProbabilisticModel to use all output parameters of a model
-        3. as int | float for hyperparameters
-
-        In the first case the current model depends on a single output parameter
-        (second tuple element) of a probabilistic model (first tuple
-        element). In the second case on all output parameters of a probabilistic
-        model, and, in the third case, on a fixed valued hyperparameter. Note
-        that internally, the constructor will rewrite all input parameters to
-        the first case.
+        It accepts as input an InputConnector object that fully specifies how to connect all parent models to the
+        current model.
 
         Parameters
         ----------
-        parameters: list
+        input_connector: list
             A list of input parameters.
 
         name: string
             A human readable name for the model. Can be the variable name for example.
         """
-        # TODO: rewrite the docstring above.
+
 
         # set name
         self.name = name
 
         # parameters is of type InputConnector
-        if isinstance(parameters, InputConnector):
-            if parameters.all_models_fixed_values() and self._check_parameters(parameters) == False:
+        if isinstance(input_connector, InputConnector):
+            if input_connector.all_models_fixed_values() and self._check_input(input_connector) == False:
                 raise ValueError('Input parameters are not compatible with current model.')
-            self._parameters = parameters
+            self._parameters = input_connector
         else:
             raise TypeError('Input parameters are of wrong type.')
 
@@ -368,7 +359,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         boolean
             Returns True if it was possible to set the values using the provided list
         """
-        if(self._check_parameters_fixed(parameters)):
+        if(self._check_output(parameters)):
             self.fixed_values = parameters
             return True
         return False
@@ -526,7 +517,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
             Check whether it was possible to set the parameters to sampled values.
         """
 
-        parameters_are_valid = self._check_parameters(self._parameters)
+        parameters_are_valid = self._check_input(self._parameters)
         if(parameters_are_valid):
             sample_result = self.forward_simulate(1, rng=rng)
             if sample_result != None:
@@ -558,50 +549,53 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
 
     @abstractmethod
-    def _check_parameters(self, parameters):
+    def _check_input(self, input_connector):
         """
         Check whether the input parameters are compatible with the underlying model.
 
-        There are two expected behaviors:
-        1. If the input models themselves are not compatible with the current model, this method should *throw an
-        exception*. This is, e.g., the case if the number of parameters does not match what the model expects.
-        2. If the realization of the input models (the fixed values) are not compatible, this method should return False.
-        Otherwise the method should return True.
+        The following behavior is expected:
+        1. If the input is of wrong type or has the wrong format, this method should *raise an exception*. For example,
+        if the number of parameters does not match what the model expects.
+        2. If the values of the input models are not compatible, this method should return False. For example, if the an
+        input value is not from the expected domain.
 
         Notes
         -----
         It is very important that in particular the realizations of the input models (fixed values) are thoroughly
         checked. Many inference schemes modify the input slightly by applying a small perturbation during sampling. This
-        method is called to check whether the perturbation yielded a reasonable input to the current model. If the check
-        is not done properly, the inference computation might *crash*, *not terminate* and *give wrong results*.
+        method is called to check whether the perturbation yields a reasonable input to the current model. In case this
+        function returns False, the inference schemes re-perturb the input and try again. If the check is not done
+        properly, the inference computation might *crash* or *not terminate*.
 
         Parameters
         ----------
-        parameters: InputConnector
+        input_connector: InputConnector
 
         Returns
         -------
         boolean
             True if the fixed value of the parameters can be used as input for the current model. False otherwise.
         """
+
         raise NotImplementedError
 
 
     @abstractmethod
-    def _check_parameters_fixed(self, parameters):
+    def _check_output(self, values):
         """
-        Checks parameters in the set_parameters method. Should return False iff the parameters cannot come from the distribution of the probabilistic model.
+        Checks whether values is a reasonable output of the current model.
+
+        Consequently, this method should return false if values cannot possibly be generated from the current model.
 
         Parameters
         ----------
-        parameters: list
-            Contains the values to which the free parameters should be fixed.
+        values: type used store the output of the model
 
         Returns
         -------
-        boolean:
-            Whether the given parameters could have been sampled from this distribution.
+        boolean
         """
+
         raise NotImplementedError
 
 
@@ -708,10 +702,10 @@ class Hyperparameter(ProbabilisticModel):
     def get_output_values(self):
         return []
 
-    def _check_parameters(self, parameters):
+    def _check_input(self, parameters):
         return True
 
-    def _check_parameters_fixed(self, parameters):
+    def _check_output(self, parameters):
         return True
 
     def get_output_dimension(self):
@@ -769,11 +763,11 @@ class ModelResultingFromOperation(ProbabilisticModel):
         raise NotImplementedError
 
 
-    def _check_parameters(self, parameters):
+    def _check_input(self, parameters):
         return True
 
 
-    def _check_parameters_fixed(self, parameters):
+    def _check_output(self, parameters):
         """Checks parameters while setting them. Provided due to inheritance."""
         return True
 
@@ -828,7 +822,7 @@ class ModelResultingFromOperation(ProbabilisticModel):
         for i in range(0, self.get_input_dimension()):
             model = self.get_input_connector().get_model(i)
             if not model.visited:
-                model_has_valid_parameters = model._check_parameters(model.get_input_connector())
+                model_has_valid_parameters = model._check_input(model.get_input_connector())
                 if (model_has_valid_parameters):
                     model_samples[model] = model.forward_simulate(k, rng=rng)
                     model.visited = True
@@ -1022,7 +1016,7 @@ class ExponentialModel(ModelResultingFromOperation):
         super(ExponentialModel, self).__init__(parameters, name)
 
 
-    def _check_parameters(self, parameters):
+    def _check_input(self, parameters):
         return True
 
     def forward_simulate(self, k, rng=np.random.RandomState()):
@@ -1081,7 +1075,7 @@ class RExponentialModel(ModelResultingFromOperation):
         super(RExponentialModel, self).__init__(parameters, name)
 
 
-    def _check_parameters(self, parameters):
+    def _check_input(self, parameters):
         return True
 
     def forward_simulate(self, k, rng=np.random.RandomState()):

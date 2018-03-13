@@ -1,60 +1,74 @@
 import numpy as np
 
-from abcpy.probabilisticmodels import ProbabilisticModel, Continuous, Hyperparameter
+from numbers import Number
+
+from abcpy.probabilisticmodels import ProbabilisticModel, Continuous, Hyperparameter, InputConnector
 
 class Gaussian(ProbabilisticModel, Continuous):
-    """This class is an re-implementation of the `abcpy.continousmodels.Normal` for
-    documentation purposes.
+    """
+    This class is an re-implementation of the `abcpy.continousmodels.Normal` for documentation purposes.
     """
 
     def __init__(self, parameters, name):
-        super(Gaussian, self).__init__(parameters, name)
-
-
-    def forward_simulate(self, k, rng=np.random.RandomState()):
-        parameter_values = self.get_input_values()
-        mu = parameter_values[0]
-        sigma = parameter_values[1]
-        return np.array(rng.normal(mu, sigma, k)).reshape((k,1)).tolist()
-
-
-    def _check_parameters_at_initialization(self, parameters):
-        pass
-
-    def _check_parameters(self, parameters):
+        # We expect input of type parameters = [mu, sigma]
         if(not(isinstance(parameters, list))):
-            raise TypeError('Input for Normal has to be of type list.')
-        parameter, index = parameters[1]
+            raise TypeError('Input of Normal model is of type list')
 
-        # Check whether in case the second parameter is a hyperparameter, it is not smaller than 0
-        if(isinstance(parameter, Hyperparameter) and parameter.fixed_values[index]<0):
-            raise ValueError('The specified standard deviation is less than 0.')
-
-        parameter_mu, index = parameters[1]
-        parameter_mu_fixed = parameter_mu.get_output_values()
-        if parameter_mu_fixed != [None]:
-            if parameter_mu_fixed[index] < 0:
-                return False
-        return True
+        input_connector = InputConnector.from_list(parameters)
+        super(Gaussian, self).__init__(input_connector, name)
 
 
-    def _check_parameters_before_sampling(self, parameters):
-        if(parameters[1]<0):
+    def _check_input(self, input_connector):
+        # Check whether input has correct type or format
+        if input_connector.get_parameter_count() != 2:
+            raise ValueError('Number of parameters of Normal model must be 2.')
+
+        mu = input_connector[0]
+        sigma = input_connector[1]
+
+        if not isinstance(mu, Number) or not isinstance(sigma, Number):
+            return TypeError('Parent models produce output that is not compatible with Normal model.')
+
+        # Check whether input is from correct domain
+        if sigma < 0:
             return False
+
         return True
 
-    def _check_parameters_fixed(self, parameters):
+
+    def _check_output(self, values):
+        if not isinstance(values, Number):
+            raise ValueError('Output of the normal distribution is always a number.')
+
+        # At this point values is a number (int, float); full domain for Normal is allowed
         return True
+
 
     def get_output_dimension(self):
         return 1
 
+
+    def forward_simulate(self, k, rng=np.random.RandomState()):
+        # Extract the input parameters
+        input_values = self.get_input_values()
+        mu = input_values[0]
+        sigma = input_values[1]
+
+        # Do the actual forward simulation
+        vector_of_k_samples = np.array(rng.normal(mu, sigma, k))
+
+        # Format the output to obey API
+        matrix_kx1 = vector_of_k_samples.reshape((k, 1))
+        result = matrix_kx1.tolist()
+        return result
+
+
     def pdf(self, x):
-        parameter_values = self.get_input_values()
-        mu = parameter_values[0]
-        sigma = parameter_values[1]
-        pdf = norm(mu,sigma).pdf(x)
-        self.calculated_pdf = pdf
+        input_values = self.get_input_values()
+        mu = input_values[0]
+        sigma = input_values[1]
+
+        pdf = np.norm(mu,sigma).pdf(x)
         return pdf
 
 

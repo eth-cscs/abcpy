@@ -375,7 +375,7 @@ class GraphTools():
         """
         result = []
         for model in self.model:
-            parameters_compatible = model._check_parameters(model.parents)
+            parameters_compatible = model._check_input(model.parents)
             if parameters_compatible:
                 simulation_result = model.forward_simulate(self.n_samples_per_param, rng=rng)
                 result.append(simulation_result.tolist())

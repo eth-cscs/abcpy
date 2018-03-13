@@ -20,7 +20,7 @@ class Gaussian(ProbabilisticModel):
             return False
         return True
 
-    def _check_parameters_fixed(self, parameters):
+    def _check_output(self, parameters):
         return True
 
     def pdf(self, x):
