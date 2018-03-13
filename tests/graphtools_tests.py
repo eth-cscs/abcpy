@@ -53,7 +53,7 @@ class ResetFlagsTests(unittest.TestCase):
 
 
 class GetParametersTests(unittest.TestCase):
-    """Tests whether get_parameters returns only the free parameters of the graph."""
+    """Tests whether get_output_values returns only the free parameters of the graph."""
     def setUp(self):
         self.B1 = Binomial([10, 0.2])
         self.N1 = Normal([0.03, 0.01])

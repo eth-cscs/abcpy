@@ -193,9 +193,9 @@ class RandomForest(ModelSelections, GraphTools):
         model = self.model_array[int(sum(np.linspace(0, len_model_array - 1, len_model_array) \
                                          * rng.multinomial(1, (1 / len_model_array) * np.ones(len_model_array))))]
         self.sample_from_prior([model], rng=rng)
-        y_sim = model.sample_from_distribution(self.n_samples_per_param, rng=rng)
+        y_sim = model.forward_simulate(self.n_samples_per_param, rng=rng)
         while(y_sim[0] is False):
-            y_sim = model.sample_from_distribution(self.n_samples_per_param, rng=rng)
+            y_sim = model.forward_simulate(self.n_samples_per_param, rng=rng)
         y_sim = y_sim[1].tolist()
         statistics = self.statistics_calc.statistics(y_sim)
 

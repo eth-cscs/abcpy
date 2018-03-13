@@ -57,7 +57,7 @@ class GraphTools():
                         if(not(was_accepted)):
                             return False
 
-                if(is_not_root and not(model.sample_parameters(rng=rng))):
+                if(is_not_root and not(model._forward_simulate_and_store_output(rng=rng))):
                     return False
 
                 model.visited = True
@@ -244,7 +244,7 @@ class GraphTools():
         for model in models:
             # If we are not at the root, the sampled values for the current node should be returned
             if(not(is_root) and not(isinstance(model, ModelResultingFromOperation))):
-                model_parameters = model.get_parameters()
+                model_parameters = model.get_output_values()
                 for parameter in model_parameters:
                     parameters.append(parameter)
                 model.visited = True
@@ -290,8 +290,8 @@ class GraphTools():
 
         for model in models:
             # New parameters should only be set in case we are not at the root
-            if(not(is_root) and not(isinstance(model, ModelResultingFromOperation))):
-                if(not(model.set_parameters(parameters[index:index+model.get_output_dimension()]))):
+            if (not(is_root) and not(isinstance(model, ModelResultingFromOperation))):
+                if (not(model.set_parameters(parameters[index:index+model.get_output_dimension()]))):
                     return [False, index]
                 index+=model.get_output_dimension()
                 model.visited = True
@@ -377,7 +377,7 @@ class GraphTools():
         for model in self.model:
             parameters_compatible = model._check_parameters(model.parents)
             if parameters_compatible:
-                simulation_result = model.sample_from_distribution(self.n_samples_per_param, rng=rng)
+                simulation_result = model.forward_simulate(self.n_samples_per_param, rng=rng)
                 result.append(simulation_result.tolist())
             else:
                 return None

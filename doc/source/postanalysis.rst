@@ -15,7 +15,7 @@ weights using:
     :lines: 47-48
     :dedent: 4
 
-Note the output format of `get_parameters()`: this will return a list. Depending on whether you specified that you would like full output during sampling or not, this list will have multiple entries or just one.
+Note the output format of `get_output_values()`: this will return a list. Depending on whether you specified that you would like full output during sampling or not, this list will have multiple entries or just one.
 
 Each entry contains a Python dictionary. The keys for this dictionary are the names you specified for the parameters. The corresponding values are the inferred values for that parameter. Here is a short example of what you would specify, and what would be the output in the end:
 
@@ -24,7 +24,7 @@ Each entry contains a Python dictionary. The keys for this dictionary are the na
     a = Normal([[1],[0.1]], name='parameter_1')
     b = MultivariateNormal([[1,1],[[0.1,0],[0,0.1]]], name='parameter_2')
 
-If one defined a model with these two parameters as inputs, a number of samples per parameters of 2, and let the algorithm run for two steps, the following would be the output of `journal.get_parameters()` if one specified full output to be 1:
+If one defined a model with these two parameters as inputs, a number of samples per parameters of 2, and let the algorithm run for two steps, the following would be the output of `journal.get_output_values()` if one specified full output to be 1:
 
 .. code-block:: python
 
@@ -34,7 +34,7 @@ Since this is a dictionary, you can also access the values for each step as:
 
 .. code-block:: python
 
-    journal.get_parameters()[step_number]["name"]
+    journal.get_output_values()[step_number]["name"]
 
 
 For the post analysis basic functions are provided:

@@ -1,4 +1,4 @@
-from abcpy.probabilisticmodels import ProbabilisticModel, Discrete, Hyperparameter, InputParameters
+from abcpy.probabilisticmodels import ProbabilisticModel, Discrete, Hyperparameter, InputConnector
 
 import numpy as np
 from scipy.special import comb
@@ -35,7 +35,7 @@ class Bernoulli(Discrete, ProbabilisticModel):
         return True
 
 
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, k, rng=np.random.RandomState()):
         """Samples from the bernoulli distribution associtated with the probabilistic model.
 
         Parameters
@@ -45,7 +45,7 @@ class Bernoulli(Discrete, ProbabilisticModel):
         rng: random number generator
             The random number generator to be used.
         """
-        parameter_values = self.get_parameter_values()
+        parameter_values = self.get_input_values()
         return_values = []
         return_values.append(self._check_parameters_before_sampling(parameter_values))
         if(return_values[0]):
@@ -70,7 +70,7 @@ class Bernoulli(Discrete, ProbabilisticModel):
         float:
             The pmf evaluated at point x.
         """
-        parameter_values = self.get_parameter_values()
+        parameter_values = self.get_input_values()
         return bernoulli(parameter_values[0]).pmf(x)
 
 
@@ -91,7 +91,7 @@ class Binomial(Discrete, ProbabilisticModel):
         """
 
         # Rewrite user input
-        input_parameters = InputParameters.from_list(parameters)
+        input_parameters = InputConnector.from_list(parameters)
         super(Binomial, self).__init__(input_parameters, name)
 
 
@@ -121,7 +121,7 @@ class Binomial(Discrete, ProbabilisticModel):
         return True
 
 
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, k, rng=np.random.RandomState()):
         """
         Samples from a binomial distribution using the current values for each probabilistic model from which the model derives.
 
@@ -138,7 +138,7 @@ class Binomial(Discrete, ProbabilisticModel):
             A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
         """
 
-        parameter_values = self.get_parameter_values()
+        parameter_values = self.get_input_values()
         n = parameter_values[0]
         p = parameter_values[1]
         return rng.binomial(n, p, k)
@@ -158,7 +158,7 @@ class Binomial(Discrete, ProbabilisticModel):
         x: list
             The point at which the pmf should be evaluated.
         """
-        parameter_values = self.get_parameter_values()
+        parameter_values = self.get_input_values()
 
         # If the provided point is not an integer, it is converted to one
         x = int(x)
@@ -201,7 +201,7 @@ class Poisson(Discrete, ProbabilisticModel):
         return True
 
 
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, k, rng=np.random.RandomState()):
         """Samples k values from the defined possion distribution.
 
         Parameters
@@ -211,7 +211,7 @@ class Poisson(Discrete, ProbabilisticModel):
         rng: random number generator
             The random number generator to be used.
         """
-        parameter_values = self.get_parameter_values()
+        parameter_values = self.get_input_values()
         parameter_values[0] = int(parameter_values[0])
         return_values = []
         return_values.append(self._check_parameters_before_sampling(parameter_values))
@@ -239,6 +239,6 @@ class Poisson(Discrete, ProbabilisticModel):
         Float
             The evaluated pmf at point x.
         """
-        parameter_values = self.get_parameter_values()
+        parameter_values = self.get_input_values()
         parameter_values[0] = int(parameter_values[0])
         return poisson(parameter_values[0]).pmf(x)

@@ -3,7 +3,7 @@ from numbers import Number
 import numpy as np
 
 
-class InputParameters():
+class InputConnector():
     def __init__(self, dimension):
         """
         Creates input parameters of given dimensionality. Each dimension needs to be specified using the set method.
@@ -29,11 +29,11 @@ class InputParameters():
 
         Returns
         -------
-        InputParameters
+        InputConnector
         """
 
         if isinstance(number, Number):
-            input_parameters = InputParameters(1)
+            input_parameters = InputConnector(1)
             input_parameters.set(0, Hyperparameter(number), 0)
             return input_parameters
         else:
@@ -50,11 +50,11 @@ class InputParameters():
 
         Returns
         -------
-        InputParameters
+        InputConnector
         """
 
         if isinstance(model, ProbabilisticModel):
-            input_parameters = InputParameters(model.get_output_dimension())
+            input_parameters = InputConnector(model.get_output_dimension())
             for i in range(model.get_output_dimension()):
                 input_parameters.set(i, model, i)
             return input_parameters
@@ -81,7 +81,7 @@ class InputParameters():
 
         Returns
         -------
-        InputParameters
+        InputConnector
         """
 
         if isinstance(parameters, list):
@@ -90,20 +90,20 @@ class InputParameters():
             for item in parameters:
                 input_parameters_from_item = item
                 if isinstance(item, list):
-                    input_parameters_from_item = InputParameters.from_list(item)
+                    input_parameters_from_item = InputConnector.from_list(item)
                 elif isinstance(item, (Hyperparameter, ProbabilisticModel)):
-                    input_parameters_from_item = InputParameters.from_model(item)
+                    input_parameters_from_item = InputConnector.from_model(item)
                 elif isinstance(item, Number):
-                    input_parameters_from_item = InputParameters.from_number(item)
-                elif not isinstance(item, InputParameters):
+                    input_parameters_from_item = InputConnector.from_number(item)
+                elif not isinstance(item, InputConnector):
                     raise TypeError('Unsupported type.')
 
                 unnested_parameters.append(input_parameters_from_item)
                 parameters_count += input_parameters_from_item.get_parameter_count()
 
-            # here, unnested_parameters is a list of InputParameters and parameters_count hold the total number of
+            # here, unnested_parameters is a list of InputConnector and parameters_count hold the total number of
             # parameters in this list
-            input_parameters = InputParameters(parameters_count)
+            input_parameters = InputConnector(parameters_count)
             index = 0
             for param in unnested_parameters:
                 for pi in range(0, param.get_parameter_count()):
@@ -154,7 +154,7 @@ class InputParameters():
             return result
 
 
-    def get_fixed_values(self):
+    def get_values(self):
         """
         Returns the fixed values of all input models.
 
@@ -218,7 +218,7 @@ class InputParameters():
             self._all_indices_specified = True
 
 
-    def all_models_sampled_fixed_output(self):
+    def all_models_fixed_values(self):
         """
         Checks whether all input models have fixed an output value (pseudo data).
 
@@ -231,7 +231,7 @@ class InputParameters():
         """
 
         for model in self._models:
-            if model.get_parameters() == None:
+            if model.get_output_values() == None:
                 return False
         return True
 
@@ -269,9 +269,9 @@ class ProbabilisticModel(metaclass = ABCMeta):
         # set name
         self.name = name
 
-        # parameters is of type InputParameters
-        if isinstance(parameters, InputParameters):
-            if parameters.all_models_sampled_fixed_output() and self._check_parameters(parameters) == False:
+        # parameters is of type InputConnector
+        if isinstance(parameters, InputConnector):
+            if parameters.all_models_fixed_values() and self._check_parameters(parameters) == False:
                 raise ValueError('Input parameters are not compatible with current model.')
             self._parameters = parameters
         else:
@@ -299,49 +299,58 @@ class ProbabilisticModel(metaclass = ABCMeta):
         if isinstance(item, Number):
             if(item>=self.get_output_dimension()):
                 raise IndexError('The specified index lies out of range for probabilistic model %s.'%(self.__class__.__name__))
-            input_parameters = InputParameters(1)
+            input_parameters = InputConnector(1)
             input_parameters.set(0, self, item)
             return input_parameters
         else:
-            raise TypeError('Input of unsupported type')
+            raise TypeError('Input of unsupported type.')
 
 
-    def get_parameter_values(self):
+    def get_input_values(self):
         """
         Returns the fixed values used by the current model as input parameters.
         Commonly used when sampling from the distribution.
         """
 
-        return self._parameters.get_fixed_values().tolist()
+        return self._parameters.get_values().tolist()
 
 
-    def sample_parameters(self, rng=np.random.RandomState()):
+    def get_output_values(self):
         """
-        Samples from the distribution associated with the probabilistic model and assigns the result to fixed_values, if
-        applicable. Commonly used when sampling from the prior.
-
-        Parameters
-        ----------
-        rng: Random number generator
-            Defines the random number generator to be used by the sampling function.
+        Returns the current sampled value of the probabilistic model.
 
         Returns
         -------
-        boolean
-            whether it was possible to set the parameters to sampled values
+        return_values: list
+            The current values of the model.
         """
 
-        parameters_are_valid = self._check_parameters(self._parameters)
-        # Sample_result will contain two entries, the first being True, iff the fixed_values from the parent models are
-        # an allowed input to the current model
-        if(parameters_are_valid):
-            sample_result = self.sample_from_distribution(1, rng=rng)
-            fixed_values_temp=sample_result
-            if(isinstance(fixed_values_temp[0], (list, np.ndarray))):
-                fixed_values_temp = fixed_values_temp[0]
-            self.fixed_values = fixed_values_temp
-            return True
-        return False
+        return self.fixed_values
+
+
+    def get_input_connector(self):
+        """
+        Returns the input parameters of the current model.
+
+        Returns
+        -------
+        InputConnector
+        """
+
+        return self._parameters
+
+
+    def get_input_dimension(self):
+        """
+        Returns the input dimension of the current model.
+
+        Returns
+        -------
+        int
+
+        """
+
+        return self._parameters._dimension
 
 
     def set_parameters(self, parameters):
@@ -363,155 +372,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
             self.fixed_values = parameters
             return True
         return False
-
-
-    def get_parameters(self):
-        """
-        Returns the current sampled value of the probabilistic model.
-
-        Returns
-        -------
-        return_values: list
-            The current values of the model.
-        """
-        # TODO: name of the function not ideal (everything is now a parameter); maybe: get_fixed|sampled_output().
-
-        return self.fixed_values
-
-
-    def get_input_parameters(self):
-        """
-        Returns the input parameters of the current model.
-
-        Returns
-        -------
-        InputParameters
-        """
-
-        return self._parameters
-
-
-    @abstractmethod
-    def _check_parameters(self, parameters):
-        """
-        Check whether the input parameters are compatible with the underlying model.
-
-        There are two expected behaviors:
-        1. If the input models themselves are not compatible with the current model, this method should *throw an
-        exception*. This is, e.g., the case if the number of parameters does not match what the model expects.
-        2. If the realization of the input models (the fixed values) are not compatible, this method should return False.
-        Otherwise the method should return True.
-
-        Notes
-        -----
-        It is very important that in particular the realizations of the input models (fixed values) are thoroughly
-        checked. Many inference schemes modify the input slightly by applying a small perturbation during sampling. This
-        method is called to check whether the perturbation yielded a reasonable input to the current model. If the check
-        is not done properly, the inference computation might *crash*, *not terminate* and *give wrong results*.
-
-        Parameters
-        ----------
-        parameters: InputParameters
-
-        Returns
-        -------
-        boolean
-            True if the fixed value of the parameters can be used as input for the current model. False otherwise.
-        """
-        raise NotImplementedError
-
-
-    @abstractmethod
-    def _check_parameters_fixed(self, parameters):
-        """
-        Checks parameters in the set_parameters method. Should return False iff the parameters cannot come from the distribution of the probabilistic model.
-
-        Parameters
-        ----------
-        parameters: list
-            Contains the values to which the free parameters should be fixed.
-
-        Returns
-        -------
-        boolean:
-            Whether the given parameters could have been sampled from this distribution.
-        """
-        raise NotImplementedError
-
-
-    @abstractmethod
-    def sample_from_distribution(self, k, rng):
-        """
-        Samples from the distribution associated with the probabilistic model by using the current values for each
-        probabilistic model from which the model derives.
-
-        Parameters
-        ----------
-        k: integer
-            The number of samples that should be drawn.
-        rng: Random number generator
-            Defines the random number generator to be used. The default value uses a random seed to initialize the
-            generator.
-
-        Returns
-        -------
-        list:
-            The first entry is a boolean, specifying whether it was possible to sample from the distribution. The second
-            entry is a numpy array, containing k elements, each of length get_output_dimension, the k samples from the
-            distribution.
-        """
-        raise NotImplementedError
-
-
-    def get_input_dimension(self):
-        """
-        Returns the input dimension of the current model.
-
-        Returns
-        -------
-        int
-
-        """
-
-        return self._parameters._dimension
-
-
-    @abstractmethod
-    def get_output_dimension(self):
-        """
-        Returns the output dimension of the current model.
-
-        This function is in particular important if the current model is used as an input for other models. In such a
-        case it is assumed that the output is always a vector of int or float. The length of the vector is the dimension
-        that should be returned here.
-
-        Returns
-        -------
-        int:
-            The dimension of the output vector of the forward simulation.
-        """
-
-
-    def pdf(self, x):
-        """
-        Calculates the probability density function at point x.
-        Commonly used to determine whether perturbed parameters are still valid according to the pdf.
-
-        Parameters
-        ----------
-        x: list
-            The point at which the pdf should be evaluated.
-
-        Returns
-        -------
-        float:
-            The pdf evaluated at point x.
-        """
-        # If the probabilistic model is discrete, there is no probability density function, but a probability mass function. This check ensures that calling the pdf of such a model still works.
-        if(isinstance(self, Discrete)):
-            return self.pmf(x)
-        else:
-            raise NotImplementedError
 
 
     def __add__(self, other):
@@ -650,6 +510,141 @@ class ProbabilisticModel(metaclass = ABCMeta):
         return RExponentialModel([other, self])
 
 
+    def _forward_simulate_and_store_output(self, rng=np.random.RandomState()):
+        """
+        Samples from the model associated and assigns the result to fixed_values, if applicable. Commonly used when
+        sampling from the prior.
+
+        Parameters
+        ----------
+        rng: Random number generator
+            Defines the random number generator to be used by the sampling function.
+
+        Returns
+        -------
+        boolean
+            Check whether it was possible to set the parameters to sampled values.
+        """
+
+        parameters_are_valid = self._check_parameters(self._parameters)
+        if(parameters_are_valid):
+            sample_result = self.forward_simulate(1, rng=rng)
+            if sample_result != None:
+                self.fixed_values = sample_result[0]
+                return True
+        return False
+
+
+    def pdf(self, x):
+        """
+        Calculates the probability density function at point x.
+        Commonly used to determine whether perturbed parameters are still valid according to the pdf.
+
+        Parameters
+        ----------
+        x: list
+            The point at which the pdf should be evaluated.
+
+        Returns
+        -------
+        float:
+            The pdf evaluated at point x.
+        """
+        # If the probabilistic model is discrete, there is no probability density function, but a probability mass function. This check ensures that calling the pdf of such a model still works.
+        if(isinstance(self, Discrete)):
+            return self.pmf(x)
+        else:
+            raise NotImplementedError
+
+
+    @abstractmethod
+    def _check_parameters(self, parameters):
+        """
+        Check whether the input parameters are compatible with the underlying model.
+
+        There are two expected behaviors:
+        1. If the input models themselves are not compatible with the current model, this method should *throw an
+        exception*. This is, e.g., the case if the number of parameters does not match what the model expects.
+        2. If the realization of the input models (the fixed values) are not compatible, this method should return False.
+        Otherwise the method should return True.
+
+        Notes
+        -----
+        It is very important that in particular the realizations of the input models (fixed values) are thoroughly
+        checked. Many inference schemes modify the input slightly by applying a small perturbation during sampling. This
+        method is called to check whether the perturbation yielded a reasonable input to the current model. If the check
+        is not done properly, the inference computation might *crash*, *not terminate* and *give wrong results*.
+
+        Parameters
+        ----------
+        parameters: InputConnector
+
+        Returns
+        -------
+        boolean
+            True if the fixed value of the parameters can be used as input for the current model. False otherwise.
+        """
+        raise NotImplementedError
+
+
+    @abstractmethod
+    def _check_parameters_fixed(self, parameters):
+        """
+        Checks parameters in the set_parameters method. Should return False iff the parameters cannot come from the distribution of the probabilistic model.
+
+        Parameters
+        ----------
+        parameters: list
+            Contains the values to which the free parameters should be fixed.
+
+        Returns
+        -------
+        boolean:
+            Whether the given parameters could have been sampled from this distribution.
+        """
+        raise NotImplementedError
+
+
+    @abstractmethod
+    def forward_simulate(self, k, rng):
+        """
+        Samples from the distribution associated with the probabilistic model by using the current values for each
+        probabilistic model from which the model derives.
+
+        Parameters
+        ----------
+        k: integer
+            The number of samples that should be drawn.
+        rng: Random number generator
+            Defines the random number generator to be used. The default value uses a random seed to initialize the
+            generator.
+
+        Returns
+        -------
+        list
+            The list should contain the k output from the model, each of length get_output_dimension(). In case of an
+            error, the result *must* be None.
+        """
+
+        raise NotImplementedError
+
+
+    @abstractmethod
+    def get_output_dimension(self):
+        """
+        Returns the output dimension of the current model.
+
+        This function is in particular important if the current model is used as an input for other models. In such a
+        case it is assumed that the output is always a vector of int or float. The length of the vector is the dimension
+        that should be returned here.
+
+        Returns
+        -------
+        int:
+            The dimension of the output vector of the forward simulation.
+        """
+
+
 
 class Continuous(metaclass = ABCMeta):
     """
@@ -703,14 +698,14 @@ class Hyperparameter(ProbabilisticModel):
         self.fixed_values = [parameters]
         self.visited = False
 
-    def sample_parameters(self, rng=np.random.RandomState()):
+    def _forward_simulate_and_store_output(self, rng=np.random.RandomState()):
         self.visited = True
         return True
 
     def set_parameters(self, parameters, rng=np.random.RandomState()):
         return True
 
-    def get_parameters(self):
+    def get_output_values(self):
         return []
 
     def _check_parameters(self, parameters):
@@ -722,10 +717,10 @@ class Hyperparameter(ProbabilisticModel):
     def get_output_dimension(self):
         return 1;
 
-    def get_input_parameters(self):
+    def get_input_connector(self):
         return None
 
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, k, rng=np.random.RandomState()):
         return self.fixed_values*k
 
     def pdf(self, x):
@@ -766,11 +761,11 @@ class ModelResultingFromOperation(ProbabilisticModel):
             raise ValueError('The provided models are not of equal dimension.')
 
         self._dimension = 1
-        input_parameters = InputParameters.from_list(parameters)
+        input_parameters = InputConnector.from_list(parameters)
         super(ModelResultingFromOperation, self).__init__(input_parameters, name)
 
 
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, k, rng=np.random.RandomState()):
         raise NotImplementedError
 
 
@@ -823,26 +818,26 @@ class ModelResultingFromOperation(ProbabilisticModel):
         # Store the visited state of all input models
         visited_state = [False] * self.get_input_dimension()
         for i in range(0, self.get_input_dimension()):
-            visited_state[i] = self.get_input_parameters().get_model(i).visited
+            visited_state[i] = self.get_input_connector().get_model(i).visited
 
         # Set visited flag of all input models to False
         for i in range(0, self.get_input_dimension()):
-            self.get_input_parameters().get_model(i).visited = False
+            self.get_input_connector().get_model(i).visited = False
 
         # forward simulate each input model to get fixed input for the current model
         for i in range(0, self.get_input_dimension()):
-            model = self.get_input_parameters().get_model(i)
+            model = self.get_input_connector().get_model(i)
             if not model.visited:
-                model_has_valid_parameters = model._check_parameters(model.get_input_parameters())
+                model_has_valid_parameters = model._check_parameters(model.get_input_connector())
                 if (model_has_valid_parameters):
-                    model_samples[model] = model.sample_from_distribution(k, rng=rng)
+                    model_samples[model] = model.forward_simulate(k, rng=rng)
                     model.visited = True
                 else:
                     raise ValueError('Model %s has invalid input parameters.' % parent.name)
 
         # Restore the visited state of all input models
         for i in range(0, self.get_input_dimension()):
-            self.get_input_parameters().get_model(i).visited = visited_state[i]
+            self.get_input_connector().get_model(i).visited = visited_state[i]
 
         return model_samples
 
@@ -850,7 +845,7 @@ class ModelResultingFromOperation(ProbabilisticModel):
 class SummationModel(ModelResultingFromOperation):
     """This class represents all probabilistic models resulting from an addition of two probabilistic models"""
 
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, k, rng=np.random.RandomState()):
         """Adds the sampled values of both parent distributions.
 
         Parameters
@@ -868,14 +863,14 @@ class SummationModel(ModelResultingFromOperation):
         """
         return_value = []
 
-        # we need to obtain new samples of the parents for each sample (if we just use get_parameter_values, we will
+        # we need to obtain new samples of the parents for each sample (if we just use get_input_values, we will
         # have k identical samples)
         model_samples = self.sample_from_input_models(k, rng)
 
         for i in range(k):
             parameter_values = [0 for i in range(self.get_input_dimension())]
             for j in range(0, self.get_input_dimension()):
-                model = self.get_input_parameters().get_model(j)
+                model = self.get_input_connector().get_model(j)
                 parameter_values[j] = model_samples[model][i]
 
             # add the corresponding parameter_values
@@ -892,7 +887,7 @@ class SummationModel(ModelResultingFromOperation):
 class SubtractionModel(ModelResultingFromOperation):
     """This class represents all probabilistic models resulting from an subtraction of two probabilistic models"""
 
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, k, rng=np.random.RandomState()):
         """Adds the sampled values of both parent distributions.
 
         Parameters
@@ -916,7 +911,7 @@ class SubtractionModel(ModelResultingFromOperation):
         for i in range(k):
             parameter_values = [0 for i in range(self.get_input_dimension())]
             for j in range(0, self.get_input_dimension()):
-                model = self.get_input_parameters().get_model(j)
+                model = self.get_input_connector().get_model(j)
                 parameter_values[j] = model_samples[model][i]
 
             # subtract the corresponding parameter_values
@@ -932,7 +927,7 @@ class SubtractionModel(ModelResultingFromOperation):
 
 class MultiplicationModel(ModelResultingFromOperation):
     """This class represents all probabilistic models resulting from a multiplication of two probabilistic models"""
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, k, rng=np.random.RandomState()):
         """Multiplies the sampled values of both parent distributions element wise.
 
         Parameters
@@ -954,7 +949,7 @@ class MultiplicationModel(ModelResultingFromOperation):
         for i in range(k):
             parameter_values = [0 for i in range(self.get_input_dimension())]
             for j in range(0, self.get_input_dimension()):
-                model = self.get_input_parameters().get_model(j)
+                model = self.get_input_connector().get_model(j)
                 parameter_values[j] = model_samples[model][i]
 
             # multiply the corresponding parameter_values
@@ -971,7 +966,7 @@ class MultiplicationModel(ModelResultingFromOperation):
 
 class DivisionModel(ModelResultingFromOperation):
     """This class represents all probabilistic models resulting from a division of two probabilistic models"""
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, k, rng=np.random.RandomState()):
         """Divides the sampled values of both parent distributions.
 
         Parameters
@@ -993,7 +988,7 @@ class DivisionModel(ModelResultingFromOperation):
         for i in range(k):
             parameter_values = [0 for i in range(self.get_input_dimension())]
             for j in range(0, self.get_input_dimension()):
-                model = self.get_input_parameters().get_model(j)
+                model = self.get_input_connector().get_model(j)
                 parameter_values[j] = model_samples[model][i]
 
             # divide the corresponding parameter_values
@@ -1030,7 +1025,7 @@ class ExponentialModel(ModelResultingFromOperation):
     def _check_parameters(self, parameters):
         return True
 
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, k, rng=np.random.RandomState()):
         """Raises the sampled values of the base by the exponent.
 
         Parameters
@@ -1052,7 +1047,7 @@ class ExponentialModel(ModelResultingFromOperation):
         for i in range(k):
             parameter_values = [0 for i in range(self.get_input_dimension())]
             for j in range(0, self.get_input_dimension()):
-                model = self.get_input_parameters().get_model(j)
+                model = self.get_input_connector().get_model(j)
                 parameter_values[j] = model_samples[model][i]
 
             power = parameter_values[-1]
@@ -1089,7 +1084,7 @@ class RExponentialModel(ModelResultingFromOperation):
     def _check_parameters(self, parameters):
         return True
 
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, k, rng=np.random.RandomState()):
         """Raises the base by the sampled value of the exponent.
 
         Parameters
@@ -1111,7 +1106,7 @@ class RExponentialModel(ModelResultingFromOperation):
         for i in range(k):
             parameter_values = [0 for i in range(self.get_input_dimension())]
             for j in range(0, self.get_input_dimension()):
-                model = self.get_input_parameters().get_model(j)
+                model = self.get_input_connector().get_model(j)
                 parameter_values[j] = model_samples[model][i]
 
             power = parameter_values[0]

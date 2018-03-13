@@ -22,7 +22,7 @@ class RejectionABCTest(unittest.TestCase):
 
         # define a uniform prior distribution
         prior = Uniform([[-5, 0], [5, 10]])
-        prior.sample_parameters(np.random.RandomState(1))
+        prior._forward_simulate_and_store_output(np.random.RandomState(1))
         # define a Gaussian model
         model = Normal([prior])
 
@@ -33,7 +33,7 @@ class RejectionABCTest(unittest.TestCase):
         dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
-        y_obs = model.sample_from_distribution(1, np.random.RandomState(1))[1].tolist()
+        y_obs = model.forward_simulate(1, np.random.RandomState(1))[1].tolist()
 
         # use the rejection sampling scheme
         sampler = RejectionABC([model], dist_calc, dummy, seed = 1)
@@ -61,7 +61,7 @@ class PMCTests(unittest.TestCase):
         
         # define a uniform prior distribution
         prior = Uniform([[-5, 0], [5, 10]])
-        prior.sample_parameters(np.random.RandomState(1))
+        prior._forward_simulate_and_store_output(np.random.RandomState(1))
 
         # define a Gaussian model
         model = Normal([prior])
@@ -70,7 +70,7 @@ class PMCTests(unittest.TestCase):
         stat_calc = Identity(degree = 2, cross = 0)
 
         # create fake observed data
-        y_obs = model.sample_from_distribution(1, np.random.RandomState(1))[1].tolist()
+        y_obs = model.forward_simulate(1, np.random.RandomState(1))[1].tolist()
       
         # Define the likelihood function
         likfun = SynLiklihood(stat_calc)
@@ -125,7 +125,7 @@ class PMCABCTests(unittest.TestCase):
 
         # define a uniform prior distribution
         prior = Uniform([[-5, 0], [5, 10]])
-        prior.sample_parameters(np.random.RandomState(1))
+        prior._forward_simulate_and_store_output(np.random.RandomState(1))
 
         # define a Gaussian model
         self.model = Normal([prior])
@@ -135,7 +135,7 @@ class PMCABCTests(unittest.TestCase):
         self.dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
-        self.observation = self.model.sample_from_distribution(1, np.random.RandomState(1))[1].tolist()
+        self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[1].tolist()
 
         
     def test_calculate_weight(self):
@@ -211,7 +211,7 @@ class SABCTests(unittest.TestCase):
 
         # define a uniform prior distribution
         prior = Uniform([[-5, 0], [5, 10]])
-        prior.sample_parameters(np.random.RandomState(1))
+        prior._forward_simulate_and_store_output(np.random.RandomState(1))
         # define a Gaussian model
         self.model = Normal([prior])
 
@@ -220,7 +220,7 @@ class SABCTests(unittest.TestCase):
         self.dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
-        self.observation = self.model.sample_from_distribution(1, np.random.RandomState(1))[1].tolist()
+        self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[1].tolist()
 
        
     def test_sample(self):
@@ -267,7 +267,7 @@ class ABCsubsimTests(unittest.TestCase):
 
         # define a uniform prior distribution
         prior = Uniform([[-5, 0], [5, 10]])
-        prior.sample_parameters(np.random.RandomState(1))
+        prior._forward_simulate_and_store_output(np.random.RandomState(1))
 
         # define a Gaussian model
         self.model = Normal([prior])
@@ -277,7 +277,7 @@ class ABCsubsimTests(unittest.TestCase):
         self.dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
-        self.observation = self.model.sample_from_distribution(1, np.random.RandomState(1))[1].tolist()
+        self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[1].tolist()
 
        
     def test_sample(self):
@@ -328,7 +328,7 @@ class SMCABCTests(unittest.TestCase):
 
         # define a uniform prior distribution
         prior = Uniform([[-5, 0], [5, 10]])
-        prior.sample_parameters(np.random.RandomState(1))
+        prior._forward_simulate_and_store_output(np.random.RandomState(1))
         # define a Gaussian model
         self.model = Normal([prior])
 
@@ -337,7 +337,7 @@ class SMCABCTests(unittest.TestCase):
         self.dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
-        self.observation = self.model.sample_from_distribution(1, np.random.RandomState(1))[1].tolist()
+        self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[1].tolist()
 
       
     def test_sample(self):
@@ -386,7 +386,7 @@ class APMCABCTests(unittest.TestCase):
 
         # define a uniform prior distribution
         prior = Uniform([[-5, 0], [5, 10]])
-        prior.sample_parameters(np.random.RandomState(1))
+        prior._forward_simulate_and_store_output(np.random.RandomState(1))
 
         # define a Gaussian model
         self.model = Normal([prior])
@@ -396,7 +396,7 @@ class APMCABCTests(unittest.TestCase):
         self.dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
-        self.observation = self.model.sample_from_distribution(1, np.random.RandomState(1))[1].tolist()
+        self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[1].tolist()
 
       
     def test_sample(self):
@@ -447,7 +447,7 @@ class RSMCABCTests(unittest.TestCase):
 
         # define a uniform prior distribution
         prior = Uniform([[-5, 0], [5, 10]])
-        prior.sample_parameters(np.random.RandomState(1))
+        prior._forward_simulate_and_store_output(np.random.RandomState(1))
 
         # define a Gaussian model
         self.model = Normal([prior])
@@ -457,7 +457,7 @@ class RSMCABCTests(unittest.TestCase):
         self.dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
-        self.observation = self.model.sample_from_distribution(1, np.random.RandomState(1))[1].tolist()
+        self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[1].tolist()
 
       
     def test_sample(self):

@@ -70,40 +70,40 @@ class DimensionTests(unittest.TestCase):
 
 
 class SampleFromDistributionTests(unittest.TestCase):
-    """Tests the return value of sample_from_distribution for all continuous distributions."""
+    """Tests the return value of forward_simulate for all continuous distributions."""
     def test_Normal(self):
         N = Normal([1, 0.1])
-        samples = N.sample_from_distribution(3)
+        samples = N.forward_simulate(3)
         self.assertTrue(isinstance(samples, list))
         self.assertTrue(len(samples)==3)
 
     def test_MultivariateNormal(self):
         M = MultivariateNormal([[1, 0], [[0.1, 0], [0, 0.1]]])
-        samples = M.sample_from_distribution(3)
+        samples = M.forward_simulate(3)
         self.assertTrue(isinstance(samples, list))
         self.assertTrue(len(samples) == 3)
 
     def test_MixtureNormal(self):
         M = MixtureNormal([1, 0])
-        samples = M.sample_from_distribution(3)
+        samples = M.forward_simulate(3)
         self.assertTrue(isinstance(samples, list))
         self.assertTrue(len(samples) == 3)
 
     def test_StudentT(self):
         S = StudentT([3, 1])
-        samples = S.sample_from_distribution(3)
+        samples = S.forward_simulate(3)
         self.assertTrue(isinstance(samples, list))
         self.assertTrue(len(samples) == 3)
 
     def test_MultiStudentT(self):
         S = MultiStudentT([[1, 0], [[0.1, 0], [0, 0.1]], 1])
-        samples = S.sample_from_distribution(3)
+        samples = S.forward_simulate(3)
         self.assertTrue(isinstance(samples, list))
         self.assertTrue(len(samples) == 3)
 
     def test_Uniform(self):
         U = Uniform([[0, 1], [1, 2]])
-        samples = U.sample_from_distribution(3)
+        samples = U.forward_simulate(3)
         self.assertTrue(isinstance(samples, list))
         self.assertTrue(len(samples) == 3)
 
@@ -112,27 +112,27 @@ class CheckParametersBeforeSamplingTests(unittest.TestCase):
     """Tests whether False will be returned if the input parameters of _check_parameters_before_sampling are not accepted."""
     def test_Normal(self):
         N = Normal([1, 0.1])
-        self.assertFalse(N._check_parameters(InputParameters.from_list([1,-0.1])))
+        self.assertFalse(N._check_parameters(InputConnector.from_list([1, -0.1])))
 
     def test_MultivariateNormal(self):
         M = MultivariateNormal([[1, 0], [[0.1, 0], [0, 0.1]]])
-        self.assertFalse(M._check_parameters(InputParameters.from_list([[1,0],[[1,1],[0,1]]])))
-        self.assertFalse((M._check_parameters(InputParameters.from_list([[1,0],[[-1,0],[0,-1]]]))))
+        self.assertFalse(M._check_parameters(InputConnector.from_list([[1, 0], [[1, 1], [0, 1]]])))
+        self.assertFalse((M._check_parameters(InputConnector.from_list([[1, 0], [[-1, 0], [0, -1]]]))))
 
     def test_StudentT(self):
         S = StudentT([3, 1])
-        self.assertFalse(S._check_parameters_before_sampling(InputParameters.from_list([3,-1])))
+        self.assertFalse(S._check_parameters_before_sampling(InputConnector.from_list([3, -1])))
 
     def test_MultiStudentT(self):
         M = MultiStudentT([[1, 0], [[1, 0], [0, 1]], 1])
-        self.assertFalse(M._check_parameters(InputParameters.from_list([[1,0],[[1,1],[1,0]],1])))
-        self.assertFalse(M._check_parameters(InputParameters.from_list([[1,0],[[-1,0],[0,-1]],1])))
-        self.assertFalse(M._check_parameters(InputParameters.from_list([[1,0],[[1,0],[0,1]],-1])))
+        self.assertFalse(M._check_parameters(InputConnector.from_list([[1, 0], [[1, 1], [1, 0]], 1])))
+        self.assertFalse(M._check_parameters(InputConnector.from_list([[1, 0], [[-1, 0], [0, -1]], 1])))
+        self.assertFalse(M._check_parameters(InputConnector.from_list([[1, 0], [[1, 0], [0, 1]], -1])))
 
     def test_Uniform(self):
         U = Uniform([[0, 1], [1, 2]])
-        self.assertFalse(U._check_parameters(InputParameters.from_list([1,1,0,2])))
-        self.assertFalse(U._check_parameters(InputParameters.from_list([1,1,2,0])))
+        self.assertFalse(U._check_parameters(InputConnector.from_list([1, 1, 0, 2])))
+        self.assertFalse(U._check_parameters(InputConnector.from_list([1, 1, 2, 0])))
 
 
 

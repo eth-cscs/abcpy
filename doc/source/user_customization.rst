@@ -16,7 +16,7 @@ Every model has at least to conform to the API specified by the base class
 derive from :py:class:`ProbabilisticModel` and implement the following methods:
 
 .. autoclass::  abcpy.probabilisticmodels.ProbabilisticModel
-   :members: _check_parameters_at_initialization, _check_parameters_before_sampling, _check_parameters_fixed, sample_from_distribution, get_output_dimension
+   :members: _check_parameters_at_initialization, _check_parameters_before_sampling, _check_parameters_fixed, forward_simulate, get_output_dimension
    :noindex:
       
 However, these methods are the sufficient only when you want to use your
@@ -135,7 +135,7 @@ This method returns a boolean. It returns **True** if the parameters are accepte
 
 Next, we get to the sampling method:
 
-.. automethod:: abcpy.probabilisticmodels.ProbabilisticModel.sample_from_distribution
+.. automethod:: abcpy.probabilisticmodels.ProbabilisticModel.forward_simulate
     :noindex:
 
 Even if your model does not strictly implement a distribution, it is still named this way to avoid confusion. This method should simply sample from the distribution associated with the probabilistic model or simulate from a model.
@@ -229,7 +229,7 @@ In the first line we define the module name we later have to import in your
 ABCpy Python code. Then, in curly brackets, we specify which libraries we want
 to include and which function we want to expose through the wrapper.
 
-Now comes the tricky part. The model class expects a method `sample_from_distribution` that
+Now comes the tricky part. The model class expects a method `forward_simulate` that
 forward-simulates our model and which returns an array of syntetic
 observations. However, C++/C does not know the concept of returning an array,
 instead in C++/C we would provide a memory position (pointer) where to write
@@ -296,7 +296,7 @@ within ABCpy we include the following code at the beginning of our Python file:
 
 This imports the R function `simple_gaussian` into the Python environment. We
 need to build our own model to incorporate this R function as in the previous
-section. The only difference is the `sample_from_distribution` method of the class `Gaussian'.
+section. The only difference is the `forward_simulate` method of the class `Gaussian'.
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
     :language: python

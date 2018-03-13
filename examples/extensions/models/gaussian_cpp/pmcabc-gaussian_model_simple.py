@@ -24,7 +24,7 @@ class Gaussian(ProbabilisticModel):
         return True
 
     def pdf(self, x):
-        parameter_values = self.get_parameter_values()
+        parameter_values = self.get_input_values()
         mu = parameter_values[0]
         sigma = parameter_values[1]
         return norm(mu, sigma).pdf(x)
@@ -32,8 +32,8 @@ class Gaussian(ProbabilisticModel):
     def get_output_dimension(self):
         return 1
 
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
-        parameter_values = self.get_parameter_values()
+    def forward_simulate(self, k, rng=np.random.RandomState()):
+        parameter_values = self.get_input_values()
         return_value = []
         return_value.append(self._check_parameters_before_sampling(parameter_values))
 

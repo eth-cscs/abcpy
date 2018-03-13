@@ -1,4 +1,4 @@
-from abcpy.probabilisticmodels import ProbabilisticModel, Continuous, Hyperparameter, InputParameters
+from abcpy.probabilisticmodels import ProbabilisticModel, Continuous, Hyperparameter, InputConnector
 import numpy as np
 
 from numbers import Number
@@ -22,14 +22,14 @@ class Normal(ProbabilisticModel, Continuous):
         """
 
         if isinstance(parameters, list):
-            input_parameters = InputParameters.from_list(parameters)
+            input_parameters = InputConnector.from_list(parameters)
             super(Normal, self).__init__(input_parameters, name)
         else:
             raise TypeError('Input type not supported')
 
 
 
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, k, rng=np.random.RandomState()):
         """
         Samples from a normal distribution using the current values for each probabilistic model from which the model derives.
 
@@ -45,7 +45,7 @@ class Normal(ProbabilisticModel, Continuous):
         list: [boolean, np.ndarray]
             A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
         """
-        parameter_values = self.get_parameter_values()
+        parameter_values = self.get_input_values()
         mu = parameter_values[0]
         sigma = parameter_values[1]
         return np.array(rng.normal(mu, sigma, k)).reshape((k)).tolist()
@@ -84,7 +84,7 @@ class Normal(ProbabilisticModel, Continuous):
         x: list
             The point at which the pdf should be evaluated.
         """
-        parameter_values = self.get_parameter_values()
+        parameter_values = self.get_input_values()
         mu = parameter_values[0]
         sigma = parameter_values[1]
         pdf = norm(mu,sigma).pdf(x)
@@ -111,11 +111,11 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
             The name that should be given to the probabilistic model in the journal file.
         """
 
-        # convert user input to InputParameters object
+        # convert user input to InputConnector object
         mean = parameters[0]
         if isinstance(mean, list):
             self._dimension = len(mean)
-            input_parameters = InputParameters.from_list(parameters)
+            input_parameters = InputConnector.from_list(parameters)
         elif isinstance(mean, ProbabilisticModel):
             self._dimension = mean.get_output_dimension()
             input_parameters = parameters
@@ -123,7 +123,7 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         super(MultivariateNormal, self).__init__(input_parameters, name)
 
 
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, k, rng=np.random.RandomState()):
         """
         Samples from a multivariate normal distribution using the current values for each probabilistic model from which the
         model derives.
@@ -142,7 +142,7 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         """
 
         dim = self._dimension
-        parameter_values = self.get_parameter_values()
+        parameter_values = self.get_input_values()
         mean = np.array(parameter_values[0:dim])
         cov = np.array(parameter_values[dim:dim+dim**2]).reshape((dim, dim))
         return rng.multivariate_normal(mean, cov, k).reshape(k,-1).tolist()
@@ -196,7 +196,7 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         x: list
            The point at which the pdf should be evaluated.
        """
-        parameter_values = self.get_parameter_values()
+        parameter_values = self.get_input_values()
         mean= parameter_values[:-1]
         cov = parameter_values[-1]
         pdf = multivariate_normal(mean, cov).pdf(x)
@@ -220,11 +220,11 @@ class MixtureNormal(ProbabilisticModel, Continuous):
         # TODO: docstring documentation needs to be improved.
 
         self._dimension = len(parameters)
-        input_parameters = InputParameters.from_list(parameters)
+        input_parameters = InputConnector.from_list(parameters)
         super(MixtureNormal, self).__init__(input_parameters, name)
 
 
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, k, rng=np.random.RandomState()):
         """
         Samples from a multivariate normal distribution using the current values for each probabilistic model from which the model derives.
 
@@ -240,7 +240,7 @@ class MixtureNormal(ProbabilisticModel, Continuous):
         list: [boolean, np.ndarray]
             A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
             """
-        parameter_values = self.get_parameter_values()
+        parameter_values = self.get_input_values()
         mean = parameter_values
         # There is no check of the parameter_values because the mixture normal will accept all parameters
 
@@ -282,7 +282,7 @@ class MixtureNormal(ProbabilisticModel, Continuous):
        x: list
            The point at which the pdf should be evaluated.
        """
-        mean = self.get_parameter_values()
+        mean = self.get_input_values()
         cov_1 = np.identity(self.get_output_dimension())
         cov_2 = 0.01*cov_1
         pdf = 0.5*(multivariate_normal(mean, cov_1).pdf(x))+0.5*(multivariate_normal(mean, cov_2).pdf(x))
@@ -304,11 +304,11 @@ class StudentT(ProbabilisticModel, Continuous):
             The name that should be given to the probabilistic model in the journal file.
         """
 
-        input_parameters = InputParameters.from_list(parameters)
+        input_parameters = InputConnector.from_list(parameters)
         super(StudentT, self).__init__(input_parameters, name)
 
 
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, k, rng=np.random.RandomState()):
         """
         Samples from a Student's T-distribution using the current values for each probabilistic model from which the model derives.
 
@@ -324,7 +324,7 @@ class StudentT(ProbabilisticModel, Continuous):
         list: [boolean, np.ndarray]
             A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
             """
-        parameter_values = self.get_parameter_values()
+        parameter_values = self.get_input_values()
         mean = parameter_values[0]
         df = parameter_values[1]
         return np.array((rng.standard_t(df,k)+mean).reshape(k,-1)).tolist()
@@ -371,7 +371,7 @@ class StudentT(ProbabilisticModel, Continuous):
        x: list
            The point at which the pdf should be evaluated.
        """
-        parameter_values = self.get_parameter_values()
+        parameter_values = self.get_input_values()
         df = parameter_values[1]
         x-=parameter_values[0] #divide by std dev if we include that
         pdf = gamma((df+1)/2)/(np.sqrt(df*np.pi)*gamma(df/2)*(1+x**2/df)**((df+1)/2))
@@ -398,7 +398,7 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         mean = parameters[0]
         if isinstance(mean, list):
             self._dimension = len(mean)
-            input_parameters = InputParameters.from_list(parameters)
+            input_parameters = InputConnector.from_list(parameters)
         elif isinstance(mean, ProbabilisticModel):
             self._dimension = mean.get_output_dimension()
             input_parameters = parameters
@@ -406,7 +406,7 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         super(MultiStudentT, self).__init__(input_parameters, name)
 
 
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, k, rng=np.random.RandomState()):
         """
         Samples from a multivariate Student's T-distribution using the current values for each probabilistic model from
         which the model derives.
@@ -427,7 +427,7 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         """
 
         # Extract parameters
-        parameters = self.get_parameter_values()
+        parameters = self.get_input_values()
         dim = self.get_output_dimension()
         mean = np.array(parameters[0:dim])
         cov = np.array(parameters[dim:dim+dim**2]).reshape((dim, dim))
@@ -498,7 +498,7 @@ class MultiStudentT(ProbabilisticModel, Continuous):
        x: list
            The point at which the pdf should be evaluated.
        """
-        parameter_values = self.get_parameter_values()
+        parameter_values = self.get_input_values()
         mean = parameter_values[:-2]
         cov = parameter_values[-2]
         v = parameter_values[-1]
@@ -542,7 +542,7 @@ class Uniform(ProbabilisticModel, Continuous):
             raise ValueError('Length of upper and lower bound have to be equal.')
 
         self._dimension = len(parameters[0])
-        input_parameters = InputParameters.from_list(parameters)
+        input_parameters = InputConnector.from_list(parameters)
         super(Uniform, self).__init__(input_parameters, name)
         self.visited = False
 
@@ -551,7 +551,7 @@ class Uniform(ProbabilisticModel, Continuous):
         return self._num_parameters
 
 
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, k, rng=np.random.RandomState()):
         """
         Samples from a uniform distribution using the current values for each probabilistic model from which the model derives.
 
@@ -567,7 +567,7 @@ class Uniform(ProbabilisticModel, Continuous):
         list: [boolean, np.ndarray]
             A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
             """
-        parameter_values = self.get_parameter_values()
+        parameter_values = self.get_input_values()
 
         samples = np.zeros(shape=(k, self.get_output_dimension()))
         for j in range(0, self.get_output_dimension()):
@@ -618,7 +618,7 @@ class Uniform(ProbabilisticModel, Continuous):
        x: list
            The point at which the pdf should be evaluated.
        """
-        parameter_values = self.get_parameter_values()
+        parameter_values = self.get_input_values()
         lower_bound = parameter_values[:self.get_output_dimension()]
         upper_bound = parameter_values[self.get_output_dimension():]
         if (np.product(np.greater_equal(x, np.array(lower_bound)) * np.less_equal(x, np.array(upper_bound)))):

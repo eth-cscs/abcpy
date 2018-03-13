@@ -185,7 +185,7 @@ class PenLogReg(Approx_likelihood, GraphTools):
         for model_index, model in enumerate(self.model):
             ind=0
             while(ref_data_stat[model_index][-1] is None):
-                data = model.sample_from_distribution(1, rng=rng)
+                data = model.forward_simulate(1, rng=rng)
                 if(data[0]):
                     data_stat = self.statistics_calc.statistics(data[1].tolist())
                     ref_data_stat[model_index][ind]= data_stat

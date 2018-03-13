@@ -11,8 +11,8 @@ class Gaussian(ProbabilisticModel, Continuous):
         super(Gaussian, self).__init__(parameters, name)
 
 
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
-        parameter_values = self.get_parameter_values()
+    def forward_simulate(self, k, rng=np.random.RandomState()):
+        parameter_values = self.get_input_values()
         mu = parameter_values[0]
         sigma = parameter_values[1]
         return np.array(rng.normal(mu, sigma, k)).reshape((k,1)).tolist()
@@ -31,7 +31,7 @@ class Gaussian(ProbabilisticModel, Continuous):
             raise ValueError('The specified standard deviation is less than 0.')
 
         parameter_mu, index = parameters[1]
-        parameter_mu_fixed = parameter_mu.get_parameters()
+        parameter_mu_fixed = parameter_mu.get_output_values()
         if parameter_mu_fixed != [None]:
             if parameter_mu_fixed[index] < 0:
                 return False
@@ -50,7 +50,7 @@ class Gaussian(ProbabilisticModel, Continuous):
         return 1
 
     def pdf(self, x):
-        parameter_values = self.get_parameter_values()
+        parameter_values = self.get_input_values()
         mu = parameter_values[0]
         sigma = parameter_values[1]
         pdf = norm(mu,sigma).pdf(x)

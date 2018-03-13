@@ -30,35 +30,35 @@ class MappingTest(unittest.TestCase):
         self.M = MultivariateNormal([[self.U[1], self.U[0]], [[1, 0], [0, 1]]])
 
     def test(self):
-        self.assertTrue(self.M.get_input_parameters().get_model(0) == self.U)
-        self.assertTrue(self.M.get_input_parameters().get_model(1) == self.U)
+        self.assertTrue(self.M.get_input_connector().get_model(0) == self.U)
+        self.assertTrue(self.M.get_input_connector().get_model(1) == self.U)
 
 
 class GetParameterValuesTest(unittest.TestCase):
-    """Tests whether get_parameter_values returns the correct values."""
+    """Tests whether get_input_values returns the correct values."""
     def test(self):
         U = Uniform([[0, 2], [1, 3]])
-        self.assertTrue(U.get_parameter_values() == [0,2,1,3])
+        self.assertTrue(U.get_input_values() == [0, 2, 1, 3])
 
 
 
 class SampleParametersTest(unittest.TestCase):
-    """Tests whether sample_parameters returns False if the value of an input parameter is not an allowed value for the
+    """Tests whether _forward_simulate_and_store_output returns False if the value of an input parameter is not an allowed value for the
     distribution."""
 
     def test(self):
         N1 = Normal([0.1, 0.01])
         N2 = Normal([1, N1])
         N1.fixed_values=[-0.1]
-        self.assertFalse(N2._check_parameters(N2.get_input_parameters()))
+        self.assertFalse(N2._check_parameters(N2.get_input_connector()))
 
 
-class GetParametersTest(unittest.TestCase):
-    """Tests whether get_parameters gives back values that can come from the distribution."""
+class GetOutputValuesTest(unittest.TestCase):
+    """Tests whether get_output_values gives back values that can come from the distribution."""
     def test(self):
         U = Uniform([[0], [1]])
-        U.sample_parameters()
-        self.assertTrue((U.fixed_values[0]>=0 and U.fixed_values[0]<=1))
+        U._forward_simulate_and_store_output()
+        self.assertTrue((U.get_output_values()[0]>=0 and U.get_output_values()[0]<=1))
 
 
 class ModelResultingFromOperationTests(unittest.TestCase):
@@ -80,13 +80,13 @@ class SummationModelTests(unittest.TestCase):
     """Tests whether all methods associated with the SummationModel are working as intended."""
 
 
-    def test_sample_from_distribution(self):
+    def test_forward_simulate(self):
         N1 = Normal([1, 0.1])
         N2 = 10+N1
         rng=np.random.RandomState(1)
-        N1.sample_parameters(rng=rng)
+        N1._forward_simulate_and_store_output(rng=rng)
 
-        sample = N2.sample_from_distribution(1, rng)
+        sample = N2.forward_simulate(1, rng)
 
         self.assertTrue(isinstance(sample, np.ndarray))
 
@@ -94,13 +94,13 @@ class SummationModelTests(unittest.TestCase):
 class SubtractionModelTests(unittest.TestCase):
     """Tests whether all methods associated with the SubtractionModel are working as intended."""
 
-    def test_sample_from_distribution(self):
+    def test_forward_simulate(self):
         N1 = Normal([1, 0.1])
         N2 = 10-N1
         rng=np.random.RandomState(1)
-        N1.sample_parameters(rng=rng)
+        N1._forward_simulate_and_store_output(rng=rng)
 
-        sample = N2.sample_from_distribution(1, rng)
+        sample = N2.forward_simulate(1, rng)
 
         self.assertTrue(isinstance(sample, np.ndarray))
 
@@ -108,13 +108,13 @@ class SubtractionModelTests(unittest.TestCase):
 class MultiplicationModelTests(unittest.TestCase):
     """Tests whether all methods associated with the MultiplicationModel are working as intended."""
 
-    def test_sample_from_distribution(self):
+    def test_forward_simulate(self):
         N1 = Normal([1, 0.1])
         N2 = N1*2
         rng=np.random.RandomState(1)
-        N1.sample_parameters(rng=rng)
+        N1._forward_simulate_and_store_output(rng=rng)
 
-        sample = N2.sample_from_distribution(1,rng)
+        sample = N2.forward_simulate(1, rng)
         self.assertTrue(isinstance(sample, np.ndarray))
 
     def test_multiplication_from_right(self):
@@ -122,7 +122,7 @@ class MultiplicationModelTests(unittest.TestCase):
         N2 = 2*N1
 
         self.assertTrue(N2.get_input_dimension()==2)
-        self.assertTrue(isinstance(N2.get_input_parameters().get_model(0), Hyperparameter))
+        self.assertTrue(isinstance(N2.get_input_connector().get_model(0), Hyperparameter))
 
 
 class DivisionModelTests(unittest.TestCase):
@@ -134,9 +134,9 @@ class DivisionModelTests(unittest.TestCase):
         N3 = N1/N2
         rng = np.random.RandomState(1)
 
-        N1.sample_parameters(rng=rng)
-        N2.sample_parameters(rng=rng)
-        sample = N3.sample_from_distribution(1)
+        N1._forward_simulate_and_store_output(rng=rng)
+        N2._forward_simulate_and_store_output(rng=rng)
+        sample = N3.forward_simulate(1)
 
         self.assertTrue(isinstance(sample, np.ndarray))
 
@@ -145,7 +145,7 @@ class DivisionModelTests(unittest.TestCase):
         N2 = 2/N1
 
         self.assertEqual(N2.get_input_dimension(), 2)
-        self.assertTrue(isinstance(N2.get_input_parameters().get_model(0), Hyperparameter))
+        self.assertTrue(isinstance(N2.get_input_connector().get_model(0), Hyperparameter))
 
 
 class ExponentialModelTests(unittest.TestCase):
@@ -169,13 +169,13 @@ class ExponentialModelTests(unittest.TestCase):
 
         N5 = 2**N1
 
-    def test_sample_from_distribution(self):
-        """Tests whether sample_from_distribution gives the desired output."""
+    def test_forward_simulate(self):
+        """Tests whether forward_simulate gives the desired output."""
         N1 = Normal([1, 0.1])
         N2 = N1**2
         rng = np.random.RandomState(1)
-        N1.sample_parameters(rng=rng)
-        sample = N2.sample_from_distribution(1, rng=rng)
+        N1._forward_simulate_and_store_output(rng=rng)
+        sample = N2.forward_simulate(1, rng=rng)
         self.assertTrue(isinstance(sample, np.ndarray))
 
 

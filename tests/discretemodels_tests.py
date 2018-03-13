@@ -20,16 +20,16 @@ class CheckParametersBeforeSamplingTests(unittest.TestCase):
     """Tests whether False will be returned if the input parameters of _check_parameters_before_sampling are not accepted."""
     def test_binomial(self):
         B = Binomial([1, 0.1])
-        self.assertFalse(B._check_parameters(InputParameters.from_list([-1,0.1])))
-        self.assertFalse(B._check_parameters(InputParameters.from_list([1,-0.1])))
-        self.assertFalse(B._check_parameters(InputParameters.from_list([1,3])))
+        self.assertFalse(B._check_parameters(InputConnector.from_list([-1, 0.1])))
+        self.assertFalse(B._check_parameters(InputConnector.from_list([1, -0.1])))
+        self.assertFalse(B._check_parameters(InputConnector.from_list([1, 3])))
 
 
 class SampleFromDistributionTests(unittest.TestCase):
-    """Tests the return value of sample_from_distribution for all discrete distributions."""
+    """Tests the return value of forward_simulate for all discrete distributions."""
     def test_binomial(self):
         B = Binomial([1, 0.1])
-        samples = B.sample_from_distribution(3)
+        samples = B.forward_simulate(3)
         self.assertTrue(isinstance(samples, np.ndarray))
         self.assertTrue(len(samples)==3)
 
