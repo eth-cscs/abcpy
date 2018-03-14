@@ -529,6 +529,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
     def pdf(self, x):
         """
         Calculates the probability density function at point x.
+
         Commonly used to determine whether perturbed parameters are still valid according to the pdf.
 
         Parameters
@@ -546,6 +547,42 @@ class ProbabilisticModel(metaclass = ABCMeta):
             return self.pmf(x)
         else:
             raise NotImplementedError
+
+
+    def calculate_and_store_pdf_if_needed(self, x):
+        """
+        Calculates the probability density function at point x and stores the result internally for later use.
+
+        This function is intended to be used within the inference computation.
+
+        Parameters
+        ----------
+        x: list
+            The point at which the pdf should be evaluated.
+        """
+
+        if self._calculated_pdf == None:
+            self._calculated_pdf = self.pdf(x)
+
+
+    def flush_stored_pdf(self):
+        """
+        This function flushes the internally stored value of a previously computed pdf.
+        """
+
+        self._calculated_pdf = None
+
+
+    def get_stored_pdf(self):
+        """
+        Retrieves the value of a previously calculated pdf.
+
+        Returns
+        -------
+        number
+        """
+
+        return self._calculated_pdf
 
 
     @abstractmethod
