@@ -28,7 +28,6 @@ class Normal(ProbabilisticModel, Continuous):
             raise TypeError('Input type not supported')
 
 
-
     def forward_simulate(self, k, rng=np.random.RandomState()):
         """
         Samples from a normal distribution using the current values for each probabilistic model from which the model derives.
@@ -45,10 +44,12 @@ class Normal(ProbabilisticModel, Continuous):
         list: [boolean, np.ndarray]
             A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
         """
+
         parameter_values = self.get_input_values()
         mu = parameter_values[0]
         sigma = parameter_values[1]
-        return np.array(rng.normal(mu, sigma, k)).reshape((k)).tolist()
+        result = np.array(rng.normal(mu, sigma, k))
+        return [np.array([x]) for x in result]
 
 
     def _check_input(self, parameters):
@@ -145,7 +146,8 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         parameter_values = self.get_input_values()
         mean = np.array(parameter_values[0:dim])
         cov = np.array(parameter_values[dim:dim+dim**2]).reshape((dim, dim))
-        return rng.multivariate_normal(mean, cov, k).reshape(k,-1).tolist()
+        result = rng.multivariate_normal(mean, cov, k)
+        return [np.array([x]) for x in result]
 
 
     def _check_input(self, parameters):
@@ -254,7 +256,9 @@ class MixtureNormal(ProbabilisticModel, Continuous):
             Data = index * rng.multivariate_normal(mean=mean, cov=np.identity(dimension)) \
                    + (1 - index) * rng.multivariate_normal(mean=mean, cov=0.01 * np.identity(dimension))
             Data_array[i] = Data
-        return np.array(Data_array).tolist()
+        result = np.array(Data_array)
+        return [np.array([x]) for x in result]
+
 
     def _check_input(self, parameters):
         """
@@ -327,7 +331,8 @@ class StudentT(ProbabilisticModel, Continuous):
         parameter_values = self.get_input_values()
         mean = parameter_values[0]
         df = parameter_values[1]
-        return np.array((rng.standard_t(df,k)+mean).reshape(k,-1)).tolist()
+        result = np.array((rng.standard_t(df,k)+mean))
+        return [np.array([x]) for x in result]
 
 
     def _check_input(self, parameters):
@@ -440,8 +445,7 @@ class MultiStudentT(ProbabilisticModel, Continuous):
             chisq = chisq.reshape(-1, 1).repeat(dim, axis=1)
         mvn = rng.multivariate_normal(np.zeros(dim), cov, k)
         result = (mean + np.divide(mvn, np.sqrt(chisq)))
-
-        return result.tolist()
+        return [np.array([x]) for x in result]
 
 
     def _check_input(self, parameters):
@@ -572,8 +576,7 @@ class Uniform(ProbabilisticModel, Continuous):
         samples = np.zeros(shape=(k, self.get_output_dimension()))
         for j in range(0, self.get_output_dimension()):
             samples[:, j] = rng.uniform(parameter_values[j], parameter_values[j+self.get_output_dimension()], k)
-
-        return samples.tolist()
+        return [np.array(x) for x in samples]
 
 
     def _check_input(self, parameters):
@@ -592,14 +595,14 @@ class Uniform(ProbabilisticModel, Continuous):
 
     def _check_output(self, parameters):
         """
-        Checks parameter values given as fixed values. Returns False iff a lower bound value is larger than a corresponding upper bound value.
+        Checks parameter values given as fixed values. Returns False iff a lower bound value is larger than a
+        corresponding upper bound value.
         """
+
         for i in range(self.get_output_dimension()):
-            parent_lower, index_lower = self.parents[i]
-            parent_upper, index_upper = self.parents[i+self.get_output_dimension()]
-            lower_value = parent_lower.fixed_values[index_lower]
-            upper_value = parent_upper.fixed_values[index_upper]
-            if(parameters[i]<lower_value or parameters[i]>upper_value):
+            lower_value = self.get_input_connector()[i]
+            upper_value = self.get_input_connector()[i+self.get_output_dimension()]
+            if parameters[i] < lower_value or parameters[i] > upper_value:
                 return False
         return True
 

@@ -49,16 +49,16 @@ class SampleParametersTest(unittest.TestCase):
     def test(self):
         N1 = Normal([0.1, 0.01])
         N2 = Normal([1, N1])
-        N1.fixed_values=[-0.1]
+        N1._fixed_values=[-0.1]
         self.assertFalse(N2._check_input(N2.get_input_connector()))
 
 
 class GetOutputValuesTest(unittest.TestCase):
-    """Tests whether get_output_values gives back values that can come from the distribution."""
+    """Tests whether get_stored_output_values gives back values that can come from the distribution."""
     def test(self):
         U = Uniform([[0], [1]])
         U._forward_simulate_and_store_output()
-        self.assertTrue((U.get_output_values()[0]>=0 and U.get_output_values()[0]<=1))
+        self.assertTrue((U.get_stored_output_values()[0] >= 0 and U.get_stored_output_values()[0] <= 1))
 
 
 class ModelResultingFromOperationTests(unittest.TestCase):
@@ -88,7 +88,7 @@ class SummationModelTests(unittest.TestCase):
 
         sample = N2.forward_simulate(1, rng)
 
-        self.assertTrue(isinstance(sample, np.ndarray))
+        self.assertTrue(isinstance(sample[0], np.ndarray))
 
 
 class SubtractionModelTests(unittest.TestCase):
@@ -102,7 +102,7 @@ class SubtractionModelTests(unittest.TestCase):
 
         sample = N2.forward_simulate(1, rng)
 
-        self.assertTrue(isinstance(sample, np.ndarray))
+        self.assertTrue(isinstance(sample[0], np.ndarray))
 
 
 class MultiplicationModelTests(unittest.TestCase):
@@ -115,7 +115,7 @@ class MultiplicationModelTests(unittest.TestCase):
         N1._forward_simulate_and_store_output(rng=rng)
 
         sample = N2.forward_simulate(1, rng)
-        self.assertTrue(isinstance(sample, np.ndarray))
+        self.assertTrue(isinstance(sample[0], np.ndarray))
 
     def test_multiplication_from_right(self):
         N1 = Normal([1, 0.1])
@@ -138,7 +138,7 @@ class DivisionModelTests(unittest.TestCase):
         N2._forward_simulate_and_store_output(rng=rng)
         sample = N3.forward_simulate(1)
 
-        self.assertTrue(isinstance(sample, np.ndarray))
+        self.assertTrue(isinstance(sample[0], np.ndarray))
 
     def test_division_from_right(self):
         N1 = Normal([1, 0.1])
@@ -176,7 +176,7 @@ class ExponentialModelTests(unittest.TestCase):
         rng = np.random.RandomState(1)
         N1._forward_simulate_and_store_output(rng=rng)
         sample = N2.forward_simulate(1, rng=rng)
-        self.assertTrue(isinstance(sample, np.ndarray))
+        self.assertTrue(isinstance(sample[0], np.ndarray))
 
 
 if __name__ == '__main__':

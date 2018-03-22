@@ -13,6 +13,7 @@ class InputConnector():
         dimension: int
             Dimensionality of the input parameters.
         """
+
         self._all_indices_specified = False
         self._dimension = dimension
         self._models = [None]*dimension
@@ -119,10 +120,10 @@ class InputConnector():
         """
         For the input models, return those fixed value(s) that are specified by index.
 
-        In case a value of an input model is not fixed, None is returned.
+        In case a value of an input model is not (yet) fixed, None is returned.
 
-        When input models are interpreted as random variables, this  method returns a realization of the input
-        random variable used for input parameter 'index'.
+        In other words, if the input models are interpreted as random variables, this method returns a realization for
+        all random variables used as input parameter, which is specified by 'index'.
 
         Parameters
         ----------
@@ -137,10 +138,11 @@ class InputConnector():
         if isinstance (index, Number):
             model = self._models[index]
             model_index = self._model_indices[index]
-            if model.fixed_values == None:
+            if model.get_stored_output_values() == None:
                 return None
             else:
-                return model.fixed_values[model_index]
+                output_values = model.get_stored_output_values()
+                return output_values[model_index]
 
         # index is a slice
         elif isinstance(index, slice):
@@ -167,6 +169,18 @@ class InputConnector():
         for i in range(0,self._dimension):
             result[i] = self.__getitem__(i)
         return result
+
+
+    def get_models(self):
+        """
+        Returns a list of all models.
+
+        Returns
+        -------
+        list
+        """
+
+        return self._models
 
 
     def get_model(self, index):
@@ -231,7 +245,7 @@ class InputConnector():
         """
 
         for model in self._models:
-            if model.get_output_values() == None:
+            if model.get_stored_output_values() == None:
                 return False
         return True
 
@@ -268,7 +282,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         else:
             raise TypeError('Input parameters are of wrong type.')
 
-        self.fixed_values = None
+        self._fixed_values = None
 
         # A flag indicating whether the model has been touched during a recursive operation
         self.visited = False
@@ -301,22 +315,38 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
         Returns the fixed values used by the current model as input parameters.
         Commonly used when sampling from the distribution.
-        """
-
-        return self._parameters.get_values().tolist()
-
-
-    def get_output_values(self):
-        """
-        Returns the current sampled value of the probabilistic model.
 
         Returns
         -------
-        return_values: list
-            The current values of the model.
+        list
         """
 
-        return self.fixed_values
+        return self.get_input_connector().get_values().tolist()
+
+
+    def get_input_models(self):
+        """
+        Returns a list of all input models.
+
+        Returns
+        -------
+        list
+        """
+
+        input_connector = self.get_input_connector()
+        return input_connector.get_models()
+
+
+    def get_stored_output_values(self):
+        """
+        Returns the stored sampled value of the probabilistic model.
+
+        Returns
+        -------
+        The same type as the output of a single forward simulation by the model.
+        """
+
+        return self._fixed_values
 
 
     def get_input_connector(self):
@@ -344,23 +374,28 @@ class ProbabilisticModel(metaclass = ABCMeta):
         return self._parameters._dimension
 
 
-    def set_parameters(self, parameters):
+    def set_output_values(self, values):
         """
-        Sets the parameter values of the probabilistic model to the specified values.
-        This method is commonly used to set new values after perturbing the old parameters.
+        Sets the output values of the model. This method is commonly used to set new values after perturbing the old
+        ones.
 
         Parameters
         ----------
-        parameters: python list
-            list of the new parameter values
+        values: same type as a single forward simulation of the model.
 
         Returns
         -------
         boolean
-            Returns True if it was possible to set the values using the provided list
+            Returns True if it was possible to set the values, false otherwise.
         """
-        if(self._check_output(parameters)):
-            self.fixed_values = parameters
+
+        if not isinstance(values, np.ndarray):
+            raise TypeError('Elements of input list are not of type numpy array.')
+        if values.shape[0] != self.get_output_dimension():
+            raise IndexError('Size of input list not equal to number output dimensions.')
+
+        if self._check_output(values):
+            self._fixed_values = values
             return True
         return False
 
@@ -521,7 +556,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         if(parameters_are_valid):
             sample_result = self.forward_simulate(1, rng=rng)
             if sample_result != None:
-                self.fixed_values = sample_result[0]
+                self.set_output_values(sample_result[0])
                 return True
         return False
 
@@ -622,11 +657,11 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
         Checks whether values is a reasonable output of the current model.
 
-        Consequently, this method should return false if values cannot possibly be generated from the current model.
+        Consequently, this method should return false if values cannot possibly be generated from the model.
 
         Parameters
         ----------
-        values: type used store the output of the model
+        values: numpy array of shape (get_output_dimension(),)
 
         Returns
         -------
@@ -639,8 +674,13 @@ class ProbabilisticModel(metaclass = ABCMeta):
     @abstractmethod
     def forward_simulate(self, k, rng):
         """
-        Samples from the distribution associated with the probabilistic model by using the current values for each
-        probabilistic model from which the model derives.
+        In this method the forward simulation should be implemented, respecting a standardized output.
+
+        In case the model is intended to be used as input for another model, a forward simulation *must* return a list of
+        numpy arrays with shape (get_output_dimension(),).
+
+        In case model is directly used for inference, and not as input for another model, a forward simulation
+        must return a list, but the elements can be arbitrarily defined.
 
         Parameters
         ----------
@@ -653,8 +693,8 @@ class ProbabilisticModel(metaclass = ABCMeta):
         Returns
         -------
         list
-            The list should contain the k output from the model, each of length get_output_dimension(). In case of an
-            error, the result *must* be None.
+            A list of k model outputs. In case of an error, the result *must* be None.
+            If model is used as input for other models, a single model output has to be a list of numpy arrays.
         """
 
         raise NotImplementedError
@@ -716,43 +756,53 @@ class Hyperparameter(ProbabilisticModel):
     This class represents all hyperparameters (i.e. fixed parameters).
 
     """
-    def __init__(self, parameters, name='Hyperparameter'):
+    def __init__(self, value, name='Hyperparameter'):
         """
 
         Parameters
         ----------
-        parameters: list
+        value: list
             The values to which the hyperparameter should be set
         """
+
         # A hyperparameter is defined by the fact that it does not have any parents
         self.name = name
-        self.fixed_values = [parameters]
+        self._fixed_values = [value]
         self.visited = False
+
 
     def _forward_simulate_and_store_output(self, rng=np.random.RandomState()):
         self.visited = True
         return True
 
-    def set_parameters(self, parameters, rng=np.random.RandomState()):
-        return True
-
-    def get_output_values(self):
-        return []
 
     def _check_input(self, parameters):
         return True
 
+
     def _check_output(self, parameters):
         return True
+
+
+    def set_output_values(self, parameters, rng=np.random.RandomState()):
+        return True
+
 
     def get_output_dimension(self):
         return 1;
 
+
     def get_input_connector(self):
         return None
 
+
+    def get_input_models(self):
+        return []
+
+
     def forward_simulate(self, k, rng=np.random.RandomState()):
-        return self.fixed_values*k
+        return [np.array(self._fixed_values) for _ in range(k)]
+
 
     def pdf(self, x):
         # Mathematically, the expression for the pdf of a hyperparameter should be: if(x==self.fixed_parameters) return
@@ -912,7 +962,7 @@ class SummationModel(ModelResultingFromOperation):
                 sample_value=sample_value[0]
             return_value.append(sample_value)
 
-        return np.array(return_value)
+        return return_value
 
 
 class SubtractionModel(ModelResultingFromOperation):
@@ -953,7 +1003,7 @@ class SubtractionModel(ModelResultingFromOperation):
                 sample_value=sample_value[0]
             return_value.append(sample_value)
 
-        return np.array(return_value)
+        return return_value
 
 
 class MultiplicationModel(ModelResultingFromOperation):
@@ -992,11 +1042,12 @@ class MultiplicationModel(ModelResultingFromOperation):
                 sample_value = sample_value[0]
             return_value.append(sample_value)
 
-        return np.array(return_value)
+        return return_value
 
 
 class DivisionModel(ModelResultingFromOperation):
     """This class represents all probabilistic models resulting from a division of two probabilistic models"""
+
     def forward_simulate(self, k, rng=np.random.RandomState()):
         """Divides the sampled values of both parent distributions.
 
@@ -1027,9 +1078,9 @@ class DivisionModel(ModelResultingFromOperation):
 
             for j in range(self.get_output_dimension()):
                 sample_value.append(parameter_values[j]/parameter_values[j + self.get_output_dimension()])
-            return_value.append(sample_value)
+            return_value += sample_value
 
-        return np.array(return_value)
+        return return_value
 
 
 class ExponentialModel(ModelResultingFromOperation):
@@ -1055,6 +1106,7 @@ class ExponentialModel(ModelResultingFromOperation):
 
     def _check_input(self, parameters):
         return True
+
 
     def forward_simulate(self, k, rng=np.random.RandomState()):
         """Raises the sampled values of the base by the exponent.
@@ -1087,9 +1139,9 @@ class ExponentialModel(ModelResultingFromOperation):
 
             for j in range(self.get_output_dimension()):
                 sample_value.append(parameter_values[j]**power)
-            result.append(sample_value)
+            result.append(np.array(sample_value))
 
-        return np.array(result)
+        return result
 
 
 class RExponentialModel(ModelResultingFromOperation):
@@ -1114,6 +1166,7 @@ class RExponentialModel(ModelResultingFromOperation):
 
     def _check_input(self, parameters):
         return True
+
 
     def forward_simulate(self, k, rng=np.random.RandomState()):
         """Raises the base by the sampled value of the exponent.
@@ -1148,5 +1201,5 @@ class RExponentialModel(ModelResultingFromOperation):
                 sample_value.append(parameter_values[j] ** power)
             result.append(sample_value)
 
-        return [True, np.array(result)]
+        return [np.array(result)]
 

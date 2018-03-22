@@ -141,7 +141,8 @@ class Binomial(Discrete, ProbabilisticModel):
         parameter_values = self.get_input_values()
         n = parameter_values[0]
         p = parameter_values[1]
-        return rng.binomial(n, p, k)
+        result = rng.binomial(n, p, k)
+        return [np.array([x]) for x in result]
 
 
     def get_output_dimension(self):

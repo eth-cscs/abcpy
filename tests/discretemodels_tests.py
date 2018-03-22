@@ -30,7 +30,7 @@ class SampleFromDistributionTests(unittest.TestCase):
     def test_binomial(self):
         B = Binomial([1, 0.1])
         samples = B.forward_simulate(3)
-        self.assertTrue(isinstance(samples, np.ndarray))
+        self.assertTrue(isinstance(samples[0], np.ndarray))
         self.assertTrue(len(samples)==3)
 
 
