@@ -24,7 +24,7 @@ class MultivariateNormalAPITests(AbstractAPIImplementationTests, unittest.TestCa
 
 class MultiStudentTAPITests(AbstractAPIImplementationTests, unittest.TestCase):
     model_types = [MultiStudentT]
-    model_inputs = [[[1, 0], [[1, 1], [0, 1]], 1]]
+    model_inputs = [[[1, 0], [[1, 0], [0, 1]], 3]]
 
 
 class CheckParametersAtInitializationTests(unittest.TestCase):

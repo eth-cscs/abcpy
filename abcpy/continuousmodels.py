@@ -428,8 +428,12 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
            The point at which the pdf should be evaluated.
        """
         parameter_values = self.get_input_values()
-        mean= parameter_values[:-1]
-        cov = parameter_values[-1]
+
+        dim = self._dimension
+        # Extract parameters
+        mean = np.array(parameter_values[0:dim])
+        cov = np.array(parameter_values[dim:dim+dim**2]).reshape((dim, dim))
+
         pdf = multivariate_normal(mean, cov).pdf(x)
         self.calculated_pdf = pdf
         return pdf
@@ -458,8 +462,6 @@ class MultiStudentT(ProbabilisticModel, Continuous):
             raise TypeError('Input for mean of Multivariate Student T has to be of type list.')
         if not isinstance(parameters[1], list):
             raise TypeError('Input for covariance of Multivariate Student T has to be of type list.')
-
-        ## This part confuses me as you say mean may not be list!!
 
         mean = parameters[0]
         if isinstance(mean, list):
@@ -517,7 +519,7 @@ class MultiStudentT(ProbabilisticModel, Continuous):
 
         dim = self._dimension
         param_ctn = input_connector.get_parameter_count()
-        if param_ctn != dim+dim**2+1:
+        if param_ctn > dim+dim**2+1 or param_ctn < dim+dim**2+1:
             return False
 
         # Extract parameters
@@ -563,16 +565,18 @@ class MultiStudentT(ProbabilisticModel, Continuous):
            The point at which the pdf should be evaluated.
        """
         parameter_values = self.get_input_values()
-        mean = parameter_values[:-2]
-        cov = parameter_values[-2]
-        v = parameter_values[-1]
-        mean = np.array(mean)
-        cov = np.array(cov)
+
+        dim = self._dimension
+        # Extract parameters
+        mean = np.array(parameter_values[0:dim])
+        cov = np.array(parameter_values[dim:dim+dim**2]).reshape((dim, dim))
+        df = parameter_values[-1]
+
         p=len(mean)
-        numerator = gamma((v + p) / 2)
-        denominator = gamma(v / 2) * pow(v * np.pi, p / 2.) * np.sqrt(abs(np.linalg.det(cov)))
+        numerator = gamma((df + p) / 2)
+        denominator = gamma(df / 2) * pow(df * np.pi, p / 2.) * np.sqrt(abs(np.linalg.det(cov)))
         normalizing_const = numerator / denominator
-        tmp = 1 + 1 / v * np.dot(np.dot(np.transpose(x - mean), np.linalg.inv(cov)), (x - mean))
-        density = normalizing_const * pow(tmp, -((v + p) / 2.))
+        tmp = 1 + 1 / df * np.dot(np.dot(np.transpose(x - mean), np.linalg.inv(cov)), (x - mean))
+        density = normalizing_const * pow(tmp, -((df + p) / 2.))
         self.calculated_pdf = density
         return density
