@@ -329,15 +329,17 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
 
         if not isinstance(parameters, list):
             raise TypeError('Input for Multivariate Normal has to be of type list.')
-        if len(parameters)<2:
-            raise ValueError('Input for Multivariate Normal has to be of length 2.')
 
-
+        ## Should we not already check here whether cov matrix satisfy symmetric and positive definite??
         ## Do we need following checks?
+        #if len(parameters)<2:
+        #    raise ValueError('Input for Multivariate Normal has to be of length 2.')
         #if not isinstance(parameters[0], list):
         #    raise TypeError('Each boundary for Uniform has to be of type list.')
         #if not isinstance(parameters[1], list):
         #    raise TypeError('Each boundary for Uniform has to be of type list.')
+
+        ## This part confuses me as you say mean may not be list!!
 
         mean = parameters[0]
         if isinstance(mean, list):
@@ -385,7 +387,7 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         dim = self._dimension
         param_ctn = parameters.get_parameter_count()
         if param_ctn != dim+dim**2:
-            raise ValueError('The input is not compatible')
+            raise ValueError('The number of inputs is not compatible')
             #return False
 
         cov = np.array(parameters[dim:dim+dim**2]).reshape((dim,dim))
@@ -450,6 +452,20 @@ class MultiStudentT(ProbabilisticModel, Continuous):
             The name that should be given to the probabilistic model in the journal file.
         """
 
+        if not isinstance(parameters, list):
+            raise TypeError('Input for Multivariate StudentT has to be of type list.')
+
+        ## Should we not already check here whether cov matrix satisfy symmetric and positive definite??
+        ## Do we need following checks?
+        #if len(parameters)<3:
+        #    raise ValueError('Input for Multivariate Student T has to be of length 3.')
+        #if not isinstance(parameters[0], list):
+        #    raise TypeError('Each boundary for Uniform has to be of type list.')
+        #if not isinstance(parameters[1], list):
+        #    raise TypeError('Each boundary for Uniform has to be of type list.')
+
+        ## This part confuses me as you say mean may not be list!!
+
         mean = parameters[0]
         if isinstance(mean, list):
             self._dimension = len(mean)
@@ -508,7 +524,7 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         expected_param_cnt = dim + dim**2 + 1
         observed_param_cnt = parameters.get_parameter_count()
         if( observed_param_cnt > expected_param_cnt or observed_param_cnt < expected_param_cnt ):
-            raise ValueError('Wrong number of input parameters.')
+            raise ValueError('The number of inputs is not compatible')
 
         # Extract parameters
         mean = np.array(parameters[0:dim])
@@ -517,17 +533,20 @@ class MultiStudentT(ProbabilisticModel, Continuous):
 
         # Check whether the covariance matrix is symmetric
         if not np.allclose(cov, cov.T, atol=1e-3):
-            return False
+            raise ValueError('Covariance matrix is not symmetric')
+            #return False
 
-        # Check whether the covariance matrix is positive definit
+        # Check whether the covariance matrix is positive definite
         try:
             is_pos = np.linalg.cholesky(cov)
         except np.linalg.LinAlgError:
-            return False
+            raise ValueError('Covariance matrix is not positive definite')
+            #return False
 
         # Check whether the degrees of freedom are <=0
         if df <= 0:
-            return False
+            raise ValueError('degrees of freedom is less than or equal to 0')
+            #return False
 
         return True
 
