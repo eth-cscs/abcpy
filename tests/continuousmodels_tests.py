@@ -16,19 +16,18 @@ class NormalAPITests(AbstractAPIImplementationTests, unittest.TestCase):
     model_inputs = [[0,1]]
 
 
-class MixtureNormalAPITests(AbstractAPIImplementationTests, unittest.TestCase):
-    model_types = [MixtureNormal]
-    model_inputs = [[1, 0]]
+class StundentTAPITests(AbstractAPIImplementationTests, unittest.TestCase):
+    model_types = [MultiStudentT]
+    model_inputs = [[[1, 0], [[1, 1], [0, 1]], 1]]
 
+
+#class MixtureNormalAPITests(AbstractAPIImplementationTests, unittest.TestCase):
+#    model_types = [MixtureNormal]
+#    model_inputs = [[1, 0]]
 
 class MultivariateNormalAPITests(AbstractAPIImplementationTests, unittest.TestCase):
     model_types = [MultivariateNormal]
     model_inputs = [[[1, 0, 0], [[1, 0], [0, 1]]]]
-
-
-class StundentTAPITests(AbstractAPIImplementationTests, unittest.TestCase):
-    model_types = [MultiStudentT]
-    model_inputs = [[[1, 0], [[1, 1], [0, 1]], 1]]
 
 
 class MultiStudentTAPITests(AbstractAPIImplementationTests, unittest.TestCase):
@@ -42,10 +41,17 @@ class CheckParametersAtInitializationTests(unittest.TestCase):
     # TODO: Test for all distributions the behaviour if input parameters are real distributions and not only
     # hyperparameters
 
+    def test_Uniform(self):
+        with self.assertRaises(ValueError):
+            Uniform([[1, 2, 3], [4, 5]])
 
     def test_Normal(self):
         with self.assertRaises(ValueError):
             Normal([1, -0.1])
+
+    def test_StudentT(self):
+        with self.assertRaises(ValueError):
+            StudentT([1, 0])
 
     def test_MultivariateNormal(self):
         with self.assertRaises(ValueError):
@@ -70,9 +76,6 @@ class CheckParametersAtInitializationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             MultiStudentT([[1, 0], [[1, 0], [0, 1]], -1])
 
-    def test_Uniform(self):
-        with self.assertRaises(ValueError):
-            Uniform([[1, 2, 3], [4, 5]])
 
 
 class DimensionTests(unittest.TestCase):
