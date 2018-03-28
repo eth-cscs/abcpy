@@ -18,17 +18,29 @@ class Bernoulli(Discrete, ProbabilisticModel):
             The name that should be given to the probabilistic model in the journal file.
         """
 
-        # TODO: there seem to be no tests for Bernoulli distribution.
-        super(Bernoulli, self).__init__(parameters, name)
+        if not isinstance(parameters, list):
+            raise TypeError('Input for Uniform has to be of type list.')
+        if len(parameters)!=1:
+            raise ValueError('Input for Uniform has to be of length 2.')
+
+        self._dimension = len(parameters)
+        input_parameters = InputConnector.from_list(parameters)
+        super(Bernoulli, self).__init__(input_parameters, name)
+        self.visited = False
 
 
-    def _check_input(self, parameters):
-        """Raises an error if more than one parameters are given, or if the probability is not in the interval (0,1)."""
-        if(len(parameters)>1):
-            raise IndexError('The probabilistic model of the bernoulli distribution only takes one parameter.')
-        if(isinstance(parameters[0][0], Hyperparameter)):
-            if(parameters[0][0].fixed_values[0]<=0 or parameters[0][0].fixed_values[0]>=1):
-                raise ValueError('The probability has to be in the interval (0,1).')
+    def _check_input(self, input_connector):
+        """
+        Checks parameter values sampled from the parents.
+        """
+        if(input_connector.get_parameter_count() > 1):
+            return False
+
+        # test whether lower bound is not greater than upper bound
+        if input_connector[0]<0 or input_connector[0]>1:
+           return False
+
+        return True
 
 
     def _check_output(self, parameters):

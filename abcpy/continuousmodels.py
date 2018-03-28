@@ -37,35 +37,6 @@ class Uniform(ProbabilisticModel, Continuous):
         super(Uniform, self).__init__(input_parameters, name)
         self.visited = False
 
-
-    def num_parameters(self):
-        return self._num_parameters
-
-
-    def forward_simulate(self, k, rng=np.random.RandomState()):
-        """
-        Samples from a uniform distribution using the current values for each probabilistic model from which the model derives.
-
-        Parameters
-        ----------
-        k: integer
-            The number of samples that should be drawn.
-        rng: Random number generator
-            Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
-
-        Returns
-        -------
-        list: [boolean, np.ndarray]
-            A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
-            """
-        parameter_values = self.get_input_values()
-
-        samples = np.zeros(shape=(k, self.get_output_dimension()))
-        for j in range(0, self.get_output_dimension()):
-            samples[:, j] = rng.uniform(parameter_values[j], parameter_values[j+self.get_output_dimension()], k)
-        return [np.array(x) for x in samples]
-
-
     def _check_input(self, input_connector):
         """
         Checks parameter values sampled from the parents.
@@ -92,6 +63,29 @@ class Uniform(ProbabilisticModel, Continuous):
             if parameters[i] < lower_value or parameters[i] > upper_value:
                 return False
         return True
+
+    def forward_simulate(self, k, rng=np.random.RandomState()):
+        """
+        Samples from a uniform distribution using the current values for each probabilistic model from which the model derives.
+
+        Parameters
+        ----------
+        k: integer
+            The number of samples that should be drawn.
+        rng: Random number generator
+            Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+
+        Returns
+        -------
+        list: [boolean, np.ndarray]
+            A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
+            """
+        parameter_values = self.get_input_values()
+
+        samples = np.zeros(shape=(k, self.get_output_dimension()))
+        for j in range(0, self.get_output_dimension()):
+            samples[:, j] = rng.uniform(parameter_values[j], parameter_values[j+self.get_output_dimension()], k)
+        return [np.array(x) for x in samples]
 
 
     def get_output_dimension(self):
@@ -141,10 +135,25 @@ class Normal(ProbabilisticModel, Continuous):
 
         input_parameters = InputConnector.from_list(parameters)
         super(Normal, self).__init__(input_parameters, name)
+        self.visited = False
 
-    def num_parameters(self):
-        return self._num_parameters
+    def _check_input(self, input_connector):
+        """
+        Returns True if the standard deviation is negative.
+        """
+        if input_connector.get_parameter_count() != 2:
+            return False
 
+        if(input_connector[1] <= 0):
+            return False
+        return True
+
+
+    def _check_output(self, parameters):
+        """
+        Checks parameter values that are given as fixed values.
+        """
+        return True
 
     def forward_simulate(self, k, rng=np.random.RandomState()):
         """
@@ -168,25 +177,6 @@ class Normal(ProbabilisticModel, Continuous):
         sigma = parameter_values[1]
         result = np.array(rng.normal(mu, sigma, k))
         return [np.array([x]) for x in result]
-
-
-    def _check_input(self, input_connector):
-        """
-        Returns True if the standard deviation is negative.
-        """
-        if input_connector.get_parameter_count() != 2:
-            return False
-
-        if(input_connector[1] <= 0):
-            return False
-        return True
-
-
-    def _check_output(self, parameters):
-        """
-        Checks parameter values that are given as fixed values.
-        """
-        return True
 
 
     def get_output_dimension(self):
@@ -236,6 +226,7 @@ class StudentT(ProbabilisticModel, Continuous):
 
         input_parameters = InputConnector.from_list(parameters)
         super(StudentT, self).__init__(input_parameters, name)
+        self.visited = False
 
     def forward_simulate(self, k, rng=np.random.RandomState()):
         """
@@ -270,15 +261,6 @@ class StudentT(ProbabilisticModel, Continuous):
         if(input_connector[1] <= 0):
             return False
 
-        return True
-
-
-    def _check_parameters_before_sampling(self, parameters):
-        """
-        Returns False iff the degrees of freedom are smaller than or equal to 0.
-        """
-        if(parameters[1]<=0):
-            return False
         return True
 
     def _check_output(self, parameters):
@@ -351,33 +333,7 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
             input_parameters = parameters
 
         super(MultivariateNormal, self).__init__(input_parameters, name)
-
-
-    def forward_simulate(self, k, rng=np.random.RandomState()):
-        """
-        Samples from a multivariate normal distribution using the current values for each probabilistic model from which the
-        model derives.
-
-        Parameters
-        ----------
-        k: integer
-            The number of samples that should be drawn.
-        rng: Random number generator
-            Defines the random number generator to be used. The default value uses a random seed to initialize the generator.
-
-        Returns
-        -------
-        list: [boolean, np.ndarray]
-            A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
-        """
-
-        dim = self._dimension
-        parameter_values = self.get_input_values()
-        mean = np.array(parameter_values[0:dim])
-        cov = np.array(parameter_values[dim:dim+dim**2]).reshape((dim, dim))
-        result = rng.multivariate_normal(mean, cov, k)
-        return [np.array([result[i,:]]).reshape(-1,) for i in range(k)]
-
+        self.visited = False
 
     def _check_input(self, input_connector):
         """
@@ -411,6 +367,31 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         """
 
         return True
+
+    def forward_simulate(self, k, rng=np.random.RandomState()):
+        """
+        Samples from a multivariate normal distribution using the current values for each probabilistic model from which the
+        model derives.
+
+        Parameters
+        ----------
+        k: integer
+            The number of samples that should be drawn.
+        rng: Random number generator
+            Defines the random number generator to be used. The default value uses a random seed to initialize the generator.
+
+        Returns
+        -------
+        list: [boolean, np.ndarray]
+            A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
+        """
+
+        dim = self._dimension
+        parameter_values = self.get_input_values()
+        mean = np.array(parameter_values[0:dim])
+        cov = np.array(parameter_values[dim:dim+dim**2]).reshape((dim, dim))
+        result = rng.multivariate_normal(mean, cov, k)
+        return [np.array([result[i,:]]).reshape(-1,) for i in range(k)]
 
 
     def get_output_dimension(self):
@@ -472,44 +453,7 @@ class MultiStudentT(ProbabilisticModel, Continuous):
             input_parameters = parameters
 
         super(MultiStudentT, self).__init__(input_parameters, name)
-
-
-    def forward_simulate(self, k, rng=np.random.RandomState()):
-        """
-        Samples from a multivariate Student's T-distribution using the current values for each probabilistic model from
-        which the model derives.
-
-        Parameters
-        ----------
-        k: integer
-            The number of samples that should be drawn.
-        rng: Random number generator
-            Defines the random number generator to be used. The default value uses a random seed to initialize the
-            generator.
-
-        Returns
-        -------
-        list: [boolean, np.ndarray]
-            A list containing whether it was possible to sample values from the distribution and if so, the sampled
-            values.
-        """
-
-        # Extract parameters
-        parameters = self.get_input_values()
-        dim = self.get_output_dimension()
-        mean = np.array(parameters[0:dim])
-        cov = np.array(parameters[dim:dim+dim**2]).reshape((dim, dim))
-        df = parameters[-1]
-
-        if (df == np.inf):
-            chisq = 1.0
-        else:
-            chisq = rng.chisquare(df, k) / df
-            chisq = chisq.reshape(-1, 1).repeat(dim, axis=1)
-        mvn = rng.multivariate_normal(np.zeros(dim), cov, k)
-        result = (mean + np.divide(mvn, np.sqrt(chisq)))
-        return [np.array([result[i, :]]).reshape(-1, ) for i in range(k)]
-
+        self.visited = False
 
     def _check_input(self, input_connector):
         """
@@ -549,6 +493,42 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         Checks parameter values given as fixed values.
         """
         return True
+
+    def forward_simulate(self, k, rng=np.random.RandomState()):
+        """
+        Samples from a multivariate Student's T-distribution using the current values for each probabilistic model from
+        which the model derives.
+
+        Parameters
+        ----------
+        k: integer
+            The number of samples that should be drawn.
+        rng: Random number generator
+            Defines the random number generator to be used. The default value uses a random seed to initialize the
+            generator.
+
+        Returns
+        -------
+        list: [boolean, np.ndarray]
+            A list containing whether it was possible to sample values from the distribution and if so, the sampled
+            values.
+        """
+
+        # Extract parameters
+        parameters = self.get_input_values()
+        dim = self.get_output_dimension()
+        mean = np.array(parameters[0:dim])
+        cov = np.array(parameters[dim:dim+dim**2]).reshape((dim, dim))
+        df = parameters[-1]
+
+        if (df == np.inf):
+            chisq = 1.0
+        else:
+            chisq = rng.chisquare(df, k) / df
+            chisq = chisq.reshape(-1, 1).repeat(dim, axis=1)
+        mvn = rng.multivariate_normal(np.zeros(dim), cov, k)
+        result = (mean + np.divide(mvn, np.sqrt(chisq)))
+        return [np.array([result[i, :]]).reshape(-1, ) for i in range(k)]
 
     def get_output_dimension(self):
         return self._dimension

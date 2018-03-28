@@ -142,7 +142,7 @@ class CheckParametersBeforeSamplingTests(unittest.TestCase):
 
     def test_StudentT(self):
         S = StudentT([3, 1])
-        self.assertFalse(S._check_parameters_before_sampling(InputConnector.from_list([3, -1])))
+        self.assertFalse(S._check_input(InputConnector.from_list([3, -1])))
 
     def test_MultivariateNormal(self):
         M = MultivariateNormal([[1, 0], [[0.1, 0], [0, 0.1]]])
