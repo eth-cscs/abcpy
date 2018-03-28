@@ -66,16 +66,16 @@ class Uniform(ProbabilisticModel, Continuous):
         return [np.array(x) for x in samples]
 
 
-    def _check_input(self, parameters):
+    def _check_input(self, input_connector):
         """
         Checks parameter values sampled from the parents.
         """
-        if(parameters.get_parameter_count() % 2 != 0):
-            raise IndexError('Number of input parameters is odd.')
+        if(input_connector.get_parameter_count() % 2 != 0):
+            return False
 
         # test whether lower bound is not greater than upper bound
         for j in range(self.get_output_dimension()):
-            if (parameters[j] > parameters[j+self.get_output_dimension()]):
+            if (input_connector[j] > input_connector[j+self.get_output_dimension()]):
                 return False
         return True
 
@@ -170,15 +170,15 @@ class Normal(ProbabilisticModel, Continuous):
         return [np.array([x]) for x in result]
 
 
-    def _check_input(self, parameters):
+    def _check_input(self, input_connector):
         """
         Returns True if the standard deviation is negative.
         """
-        if parameters.get_parameter_count() != 2:
-            raise ValueError('Number of parameters is not two.')
+        if input_connector.get_parameter_count() != 2:
+            return False
 
-        if(parameters[1] <= 0):
-            raise ValueError('Variance is not greater than 0.')
+        if(input_connector[1] <= 0):
+            return False
         return True
 
 
@@ -190,7 +190,9 @@ class Normal(ProbabilisticModel, Continuous):
 
 
     def get_output_dimension(self):
-        return self._dimension
+        return 1
+        ## Why does the following not work here?
+        ## return self._dimension
 
 
     def pdf(self, x):
@@ -258,15 +260,15 @@ class StudentT(ProbabilisticModel, Continuous):
         return [np.array([x]) for x in result]
 
 
-    def _check_input(self, parameters):
+    def _check_input(self, input_connector):
         """
         Checks parameter values sampled from the parents of the probabilistic model. Returns False iff the degrees of freedom are smaller than or equal to 0.
         """
-        if parameters.get_parameter_count() != 2:
-            raise ValueError('Number of parameters is not two.')
+        if input_connector.get_parameter_count() != 2:
+            return False
 
-        if(parameters[1] <= 0):
-            raise ValueError('Variance of Normal distribution is less than or equal to 0.')
+        if(input_connector[1] <= 0):
+            return False
 
         return True
 
@@ -287,6 +289,8 @@ class StudentT(ProbabilisticModel, Continuous):
 
     def get_output_dimension(self):
         return 1
+        ## Why does the following not work here?
+        ## return self._dimension
 
 
     def pdf(self, x):
@@ -315,10 +319,10 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
 
         Parameters
         ----------
-        parameters: list of at least length 2
-            Contains the probabilistic models and hyperparameters from which the model derives. The last entry defines
-            the covariance matrix, while all other entries define the mean. Note that if the mean is n dimensional, the
-            covariance matrix is required to be of dimension nxn. The covariance matrix is required to be symmetric and
+        parameters: list of at length 2
+            Contains the probabilistic models and hyperparameters from which the model derives. The first entry defines
+            the mean, while the second entry defines the Covariance matrix. Note that if the mean is n dimensional, the
+            covariance matrix is required to be of dimension nxn, symmetric and
             positive-definite.
 
         name: string
@@ -329,15 +333,12 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
 
         if not isinstance(parameters, list):
             raise TypeError('Input for Multivariate Normal has to be of type list.')
-
-        ## Should we not already check here whether cov matrix satisfy symmetric and positive definite??
-        ## Do we need following checks?
-        #if len(parameters)<2:
-        #    raise ValueError('Input for Multivariate Normal has to be of length 2.')
-        #if not isinstance(parameters[0], list):
-        #    raise TypeError('Each boundary for Uniform has to be of type list.')
-        #if not isinstance(parameters[1], list):
-        #    raise TypeError('Each boundary for Uniform has to be of type list.')
+        if len(parameters)<2:
+            raise ValueError('Input for Multivariate Normal has to be of length 2.')
+        if not isinstance(parameters[0], list):
+            raise TypeError('Input for mean of MultivarateNormal has to be of type list.')
+        if not isinstance(parameters[1], list):
+            raise TypeError('Input for covariance of MultivarateNormal has to be of type list.')
 
         ## This part confuses me as you say mean may not be list!!
 
@@ -375,34 +376,31 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         mean = np.array(parameter_values[0:dim])
         cov = np.array(parameter_values[dim:dim+dim**2]).reshape((dim, dim))
         result = rng.multivariate_normal(mean, cov, k)
-        return [np.array([x]) for x in result]
+        return [np.array([result[i,:]]).reshape(-1,) for i in range(k)]
 
 
-    def _check_input(self, parameters):
+    def _check_input(self, input_connector):
         """
         Checks parameter values sampled from the parents at initialization. Returns False iff the covariance matrix is
         not symmetric or not positive definite.
         """
         # Test whether input in compatible
         dim = self._dimension
-        param_ctn = parameters.get_parameter_count()
+        param_ctn = input_connector.get_parameter_count()
         if param_ctn != dim+dim**2:
-            raise ValueError('The number of inputs is not compatible')
-            #return False
+            return False
 
-        cov = np.array(parameters[dim:dim+dim**2]).reshape((dim,dim))
+        cov = np.array(input_connector[dim:dim+dim**2]).reshape((dim,dim))
 
         # Check whether the covariance matrix is symmetric
         if not np.allclose(cov, cov.T, atol=1e-3):
-            raise ValueError('Covariance matrix is not symmetric')
-            #return False
+            return False
 
         # Check whether the covariance matrix is positive definite
         try:
             is_pos = np.linalg.cholesky(cov)
         except np.linalg.LinAlgError:
-            raise ValueError('Covariance matrix is not positive definite')
-            #return False
+            return False
 
         return True
 
@@ -454,15 +452,12 @@ class MultiStudentT(ProbabilisticModel, Continuous):
 
         if not isinstance(parameters, list):
             raise TypeError('Input for Multivariate StudentT has to be of type list.')
-
-        ## Should we not already check here whether cov matrix satisfy symmetric and positive definite??
-        ## Do we need following checks?
-        #if len(parameters)<3:
-        #    raise ValueError('Input for Multivariate Student T has to be of length 3.')
-        #if not isinstance(parameters[0], list):
-        #    raise TypeError('Each boundary for Uniform has to be of type list.')
-        #if not isinstance(parameters[1], list):
-        #    raise TypeError('Each boundary for Uniform has to be of type list.')
+        if len(parameters)<3:
+            raise ValueError('Input for Multivariate Student T has to be of length 3.')
+        if not isinstance(parameters[0], list):
+            raise TypeError('Input for mean of Multivariate Student T has to be of type list.')
+        if not isinstance(parameters[1], list):
+            raise TypeError('Input for covariance of Multivariate Student T has to be of type list.')
 
         ## This part confuses me as you say mean may not be list!!
 
@@ -511,42 +506,38 @@ class MultiStudentT(ProbabilisticModel, Continuous):
             chisq = chisq.reshape(-1, 1).repeat(dim, axis=1)
         mvn = rng.multivariate_normal(np.zeros(dim), cov, k)
         result = (mean + np.divide(mvn, np.sqrt(chisq)))
-        return [np.array([x]) for x in result]
+        return [np.array([result[i, :]]).reshape(-1, ) for i in range(k)]
 
 
-    def _check_input(self, parameters):
+    def _check_input(self, input_connector):
         """
         Returns False iff the degrees of freedom are less than or equal to 0, the covariance matrix is not symmetric or
         the covariance matrix is not positive definite.
         """
 
-        dim = self.get_output_dimension()
-        expected_param_cnt = dim + dim**2 + 1
-        observed_param_cnt = parameters.get_parameter_count()
-        if( observed_param_cnt > expected_param_cnt or observed_param_cnt < expected_param_cnt ):
-            raise ValueError('The number of inputs is not compatible')
+        dim = self._dimension
+        param_ctn = input_connector.get_parameter_count()
+        if param_ctn != dim+dim**2+1:
+            return False
 
         # Extract parameters
-        mean = np.array(parameters[0:dim])
-        cov = np.array(parameters[dim:dim+dim**2]).reshape((dim, dim))
-        df = parameters[-1]
+        mean = np.array(input_connector[0:dim])
+        cov = np.array(input_connector[dim:dim+dim**2]).reshape((dim, dim))
+        df = input_connector[-1]
 
         # Check whether the covariance matrix is symmetric
         if not np.allclose(cov, cov.T, atol=1e-3):
-            raise ValueError('Covariance matrix is not symmetric')
-            #return False
+            return False
 
         # Check whether the covariance matrix is positive definite
         try:
             is_pos = np.linalg.cholesky(cov)
         except np.linalg.LinAlgError:
-            raise ValueError('Covariance matrix is not positive definite')
-            #return False
+            return False
 
         # Check whether the degrees of freedom are <=0
         if df <= 0:
-            raise ValueError('degrees of freedom is less than or equal to 0')
-            #return False
+            return False
 
         return True
 
