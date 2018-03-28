@@ -4,6 +4,107 @@ import unittest
 
 """These test cases implement tests for the probabilistic model class."""
 
+class AbstractAPIImplementationTests():
+    def setUp(self):
+        self.models = []
+        for model_type, model_input in zip(self.model_types, self.model_inputs):
+            model = model_type(model_input)
+            self.models.append(model)
+
+
+    def test__getitem__(self):
+        for model in self.models:
+            item = model[0]
+            self.assertTrue(isinstance(item, InputConnector), 'Return value not of type InputConnector for model {}.'.format(type(model)))
+
+
+    def test_get_input_values(self):
+        for model in self.models:
+            values = model.get_input_values()
+            self.assertTrue(isinstance(values, list), 'Return value not of type list in model {}.'.format(type(model)))
+            self.assertEqual(len(values), model.get_input_dimension(), 'Number of parameters not equal to input dimension of model {}.'.format(model))
+
+
+    def test_get_input_models(self):
+        for model in self.models:
+            in_models = model.get_input_models()
+            self.assertTrue(isinstance(in_models, list), 'Return value not of type list in model {}.'.format(type(model)))
+            self.assertEqual(len(in_models), model.get_input_dimension(), 'Number of parameters not equal to input dimension of model {}.'.format(model))
+
+
+    def test_get_stored_output_values(self):
+        for model in self.models:
+            output_before_at_init = model.get_stored_output_values()
+            self.assertIsNone(output_before_at_init, 'Return value at initialization of model {} should be of type None.'.format(type(model)))
+
+
+            rng = np.random.RandomState(1)
+            model._forward_simulate_and_store_output(rng)
+            out_values = model.get_stored_output_values()
+            self.assertTrue(isinstance(out_values, np.ndarray), 'Return value not of type numpy.array in model {}.'.format(type(model)))
+            self.assertEqual(len(out_values), model.get_output_dimension(), 'Number of parameters not equal to output dimension of model {}.'.format(model))
+
+
+    def test_get_input_connector(self):
+        for model in self.models:
+            in_con = model.get_input_connector()
+            self.assertTrue(isinstance(in_con, InputConnector), 'Return value not of type InputConnector in model {}.'.format(type(model)))
+
+
+    def test_get_input_dimension(self):
+        for model in self.models:
+            dim = model.get_input_dimension()
+            self.assertTrue(isinstance(dim, Number), 'Return value not of type Number in model {}.'.format(type(model)))
+            self.assertGreater(dim, 0, 'Input dimension must be larger than 0 for model {}.'.format(type(model)))
+
+
+    def test_set_output_values(self):
+        for model in self.models:
+            number = 1
+            with self.assertRaises(TypeError) as context:
+                model.set_output_values(number)
+            self.assertTrue(context.exception, 'Model {} should not accept a number as input.'.format(type(model)))
+
+            nparray = np.ones(model.get_output_dimension()+1)
+            with self.assertRaises(IndexError) as context:
+                model.set_output_values(nparray)
+            self.assertTrue(context.exception, 'Model {} should only accept input equal to output dimension.'.format(type(model)))
+
+    def test_pdf(self):
+        for model in self.models:
+            x = 0
+            pdf_at_x = model.pdf(x)
+            self.assertTrue(isinstance(pdf_at_x, Number), 'Return value not of type Number in model {}.'.format(type(model)))
+
+
+    def test_forward_simulate(self):
+        for model in self.models:
+            rng = np.random.RandomState(1)
+            result_list = model.forward_simulate(3, rng)
+            self.assertTrue(isinstance(result_list, list), 'Return value not of type list in model {}.'.format(type(model)))
+            self.assertEqual(len(result_list), 3, 'Model {} did not return the requseted number of formard simulations.'.format(type(model)))
+
+            result = result_list[0]
+            self.assertTrue(isinstance(result, np.ndarray), 'A single forward simulation is not of type numpy.array in model {}.'.format(type(model)))
+
+
+    def test_get_output_dimension(self):
+        for model in self.models:
+            expected_dim = model.get_output_dimension()
+            self.assertTrue(isinstance(expected_dim, Number), 'Return value not of type Number in model {}.'.format(type(model)))
+            self.assertGreater(expected_dim, 0, 'Output dimension must be larger than 0 for model {}.'.format(type(model)))
+
+            rng = np.random.RandomState(1)
+            result_list = model.forward_simulate(1, rng)
+            result = result_list[0]
+            result_dim = result.shape[0]
+            self.assertEqual(result_dim, expected_dim, 'Output dimension of forward simulation is not equal to get_output_dimension() for model {}.'.format(type(model)))
+
+
+class HyperParameterAPITests(AbstractAPIImplementationTests, unittest.TestCase):
+    model_types = [Hyperparameter]
+    model_inputs = [1]
+
 
 class GetItemTest(unittest.TestCase):
     """Tests whether the get_item operator (i.e. access operator) works as intended."""

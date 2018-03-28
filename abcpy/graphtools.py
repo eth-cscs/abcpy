@@ -4,6 +4,7 @@ from abcpy.probabilisticmodels import Hyperparameter, ModelResultingFromOperatio
 
 class GraphTools():
     """This class implements all methods that will be called recursively on the graph structure."""
+
     def sample_from_prior(self, model=None, rng=np.random.RandomState()):
         """
         Samples values for all random variables of the model.
@@ -49,8 +50,7 @@ class GraphTools():
         # If it was so far possible to sample parameters for all nodes, the current node as well as its parents are sampled, using depth-first search
         if(was_accepted):
             for model in models:
-
-                for parent, index in model.parents:
+                for parent in model.get_input_models():
                     if(not(parent.visited)):
                         parent.visited = True
                         was_accepted = self._sample_from_prior([parent], is_not_root = True, was_accepted=was_accepted, rng=rng)
@@ -66,20 +66,21 @@ class GraphTools():
 
     def _reset_flags(self, models=None):
         """
-        Resets all flags that say that a probabilistic model has been updated.
-        Commonly used after actions on the whole graph, to ensure that new actions can take place.
+        Resets all flags that say that a probabilistic model has been updated. Commonly used after actions on the whole
+        graph, to ensure that new actions can take place.
 
         Parameters
         ----------
-        models: list of abcpy.ProbabilisticModel objects
-            The models for which, together with their parents, the flags should be reset. If no value is provided, the root models are assumed to be the model of the inference method.
+        models: list of abcpy.ProbabilisticModel
+            The models for which, together with their parents, the flags should be reset. If no value is provided, the
+            root models are assumed to be the model of the inference method.
         """
-        if(not(models)):
-            models=self.model
+        if not models:
+            models = self.model
 
         # For each model, the flags of the parents get reset recursively.
         for model in models:
-            for parent, parent_index in model.parents:
+            for parent in model.get_input_models():
                 self._reset_flags([parent])
             model.visited = False
             model.calculated_pdf = None
@@ -131,16 +132,16 @@ class GraphTools():
             else:
                 relevant_parameters=[]
 
-            # Mark whether the parents of each model have been visited before for this model to avoid repeated calculation
-            visited_parents = [False for j in range(len(model.parents))]
+            # Mark whether the parents of each model have been visited before for this model to avoid repeated calculation.
+            visited_parents = [False for j in range(len(model.get_input_models()))]
             # For each parent, the pdf of this parent has to be calculated as well.
-            for parent_index, parents in enumerate(model.parents):
-                parent = parents[0]
+            for parent_index, parent in enumerate(model.get_input_models()):
                 # Only calculate the pdf if the parent has never been visited for this model
                 if(not(visited_parents[parent_index])):
                     pdf = self.pdf_of_prior([parent], parameters, mapping=mapping, is_root=False)
-                    for j in range(len(model.parents)):
-                        if(model.parents[j][0]==parent):
+                    input_models = model.get_input_models()
+                    for j in range(len(input_models)):
+                        if input_models[j][0] == parent:
                             visited_parents[j]=True
                     result[i]*=pdf
             if(not(is_root)):
@@ -186,7 +187,7 @@ class GraphTools():
                 mapping.append((model, index))
                 index+=model.get_output_dimension()
             # Add all parents to the mapping, if applicable
-            for parent, parent_index in model.parents:
+            for parent in model.get_input_models():
                 parent_mapping, index = self._get_mapping([parent], index=index, is_not_root=True)
                 parent.visited=True
                 for mappings in parent_mapping:
@@ -218,17 +219,20 @@ class GraphTools():
 
         return return_value
 
+
     def get_parameters(self, models=None, is_root=True):
         """
-        Returns the current values of all free parameters in the model.
-        Commonly used before perturbing the parameters of the model.
+        Returns the current values of all free parameters in the model. Commonly used before perturbing the parameters
+        of the model.
 
         Parameters
         ----------
         models: list of abcpy.ProbabilisticModel objects
-            The models for which, together with their parents, the parameter values should be returned. If no value is provided, the root models are assumed to be the model of the inference method.
+            The models for which, together with their parents, the parameter values should be returned. If no value is
+            provided, the root models are assumed to be the model of the inference method.
         is_root: boolean
-            Specifies whether the current models are at the root. This ensures that the values corresponding to simulated observations will not be returned.
+            Specifies whether the current models are at the root. This ensures that the values corresponding to
+            simulated observations will not be returned.
 
         Returns
         -------
@@ -237,31 +241,28 @@ class GraphTools():
         """
         parameters = []
 
-        # If we are at the root, we sed models to the model attribute of the inference method
-        if(is_root):
+        # If we are at the root, we set models to the model attribute of the inference method
+        if is_root:
             models = self.model
 
         for model in models:
             # If we are not at the root, the sampled values for the current node should be returned
-            if(not(is_root) and not(isinstance(model, ModelResultingFromOperation))):
-                model_parameters = model.get_output_values()
-                for parameter in model_parameters:
-                    parameters.append(parameter)
+            if is_root == False and not isinstance(model, ModelResultingFromOperation):
+                parameters.append(model.get_stored_output_values())
                 model.visited = True
 
             # Implement a depth-first search to return also the sampled values associated with each parent of the model
-            for parent, parent_index in model.parents:
-                if(not(parent.visited)):
-                    parent_parameters = self.get_parameters(models=[parent], is_root=False)
-                    for parameter in parent_parameters:
-                        parameters.append(parameter)
+            for parent in model.get_input_models():
+                if not parent.visited:
+                    parameters += self.get_parameters(models=[parent], is_root=False)
                     parent.visited = True
 
         # At the end of the algorithm, are flags are reset such that new methods can act on the graph freely
-        if(is_root):
+        if is_root:
             self._reset_flags()
 
         return parameters
+
 
     def set_parameters(self, parameters, models=None, index=0, is_root=True):
         """
@@ -284,25 +285,27 @@ class GraphTools():
         list: [boolean, integer]
             Returns whether it was possible to set all parameters and the next index to be considered in the parameters list.
         """
+
         # If we are at the root, we set models to the model attribute of the inference method
-        if(is_root):
+        if is_root:
             models = self.model
 
         for model in models:
             # New parameters should only be set in case we are not at the root
-            if (not(is_root) and not(isinstance(model, ModelResultingFromOperation))):
-                if (not(model.set_parameters(parameters[index:index+model.get_output_dimension()]))):
+            if not is_root and not isinstance(model, ModelResultingFromOperation):
+                new_output_values = np.array(parameters[index:index + model.get_output_dimension()])
+                if not model.set_output_values(new_output_values):
                     return [False, index]
-                index+=model.get_output_dimension()
+                index += model.get_output_dimension()
                 model.visited = True
 
             # New parameters for all parents are set using a depth-first search
-            for parent, parent_index in model.parents:
-                if(not(parent.visited)):
-                    is_set, index = self.set_parameters(parameters,models=[parent],index=index,is_root=False)
-                    if(not(is_set)):
+            for parent in model.get_input_models():
+                if not parent.visited and not isinstance(parent, Hyperparameter):
+                    is_set, index = self.set_parameters(parameters, models=[parent], index=index, is_root=False)
+                    if not is_set:
                         # At the end of the algorithm, are flags are reset such that new methods can act on the graph freely
-                        if(is_root):
+                        if is_root:
                             self._reset_flags()
                         return [False, index]
             model.visited = True
@@ -348,7 +351,7 @@ class GraphTools():
                         break
 
                 # Recursively order all the parents of the current model
-                for parent, parents_index in model.parents:
+                for parent in model.get_input_models():
                     if(not(parent.visited)):
                         parent_ordering = self.get_correct_ordering(parameters_and_models, models=[parent],is_root=False)
                         for parent_parameters in parent_ordering:
@@ -360,7 +363,7 @@ class GraphTools():
 
         return ordered_parameters
 
-    def simulate(self, rng=np.random.RandomState()):
+    def simulate(self, n_samples_per_param, rng=np.random.RandomState()):
         """Simulates data of each model using the currently sampled or perturbed parameters.
 
         Parameters
@@ -375,10 +378,10 @@ class GraphTools():
         """
         result = []
         for model in self.model:
-            parameters_compatible = model._check_input(model.parents)
+            parameters_compatible = model._check_input(model.get_input_connector())
             if parameters_compatible:
-                simulation_result = model.forward_simulate(self.n_samples_per_param, rng=rng)
-                result.append(simulation_result.tolist())
+                simulation_result = model.forward_simulate(n_samples_per_param, rng=rng)
+                result += simulation_result
             else:
                 return None
         return result

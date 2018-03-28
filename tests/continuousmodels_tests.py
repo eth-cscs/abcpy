@@ -1,7 +1,40 @@
 from abcpy.continuousmodels import *
+from tests.probabilisticmodels_tests import AbstractAPIImplementationTests
+
 import unittest
 
 """Tests whether the methods defined for continuous probabilistic models are working as intended."""
+
+
+class UniformAPITests(AbstractAPIImplementationTests, unittest.TestCase):
+    model_types = [Uniform]
+    model_inputs = [[[0, 1], [1, 2]]]
+
+
+class NormalAPITests(AbstractAPIImplementationTests, unittest.TestCase):
+    model_types = [Normal]
+    model_inputs = [[0,1]]
+
+
+class MixtureNormalAPITests(AbstractAPIImplementationTests, unittest.TestCase):
+    model_types = [MixtureNormal]
+    model_inputs = [[1, 0]]
+
+
+class MultivariateNormalAPITests(AbstractAPIImplementationTests, unittest.TestCase):
+    model_types = [MultivariateNormal]
+    model_inputs = [[[1, 0, 0], [[1, 0], [0, 1]]]]
+
+
+class StundentTAPITests(AbstractAPIImplementationTests, unittest.TestCase):
+    model_types = [MultiStudentT]
+    model_inputs = [[[1, 0], [[1, 1], [0, 1]], 1]]
+
+
+class MultiStudentTAPITests(AbstractAPIImplementationTests, unittest.TestCase):
+    model_types = [MultiStudentT]
+    model_inputs = [[[1, 0], [[1, 1], [0, 1]], 1]]
+
 
 class CheckParametersAtInitializationTests(unittest.TestCase):
     """Tests that no probabilistic model with invalid parameters can be initialized."""

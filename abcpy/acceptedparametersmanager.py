@@ -105,7 +105,7 @@ class AcceptedParametersManager:
                         mapping.append((model, index))
                         index+=1
 
-                for parent, parent_index in model.parents:
+                for parent in model.get_input_models():
                     parent_mapping, index = self.get_mapping([parent], is_root= False, index=index)
                     for element in parent_mapping:
                         mapping.append(element)
@@ -129,7 +129,6 @@ class AcceptedParametersManager:
         -------
         list:
             The accepted_parameters_bds values of all the probabilistic models specified in models.
-
         """
 
         # Get the enumerated recursive depth-first search ordering
@@ -159,7 +158,7 @@ class AcceptedParametersManager:
             models = self.model
 
         for model in models:
-            for parent, parent_index in model.parents:
+            for parent in model.get_input_models():
                 if(parent.visited):
                     self._reset_flags([parent])
             model.visited=False

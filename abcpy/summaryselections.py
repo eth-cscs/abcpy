@@ -106,7 +106,7 @@ class Semiautomatic(Summaryselections, GraphTools):
 
         self.sample_from_prior(rng=rng)
         parameter = self.get_parameters()
-        y_sim = self.simulate(rng=rng)
+        y_sim = self.simulate(self.n_samples_per_param, rng=rng)
         if y_sim is not None:
             statistics = self.statistics_calc.statistics(y_sim)
         return (parameter, statistics)

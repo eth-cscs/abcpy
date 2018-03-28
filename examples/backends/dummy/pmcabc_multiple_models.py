@@ -61,7 +61,7 @@ def infer_parameters():
 
 def analyse_journal(journal):
     # output parameters and weights
-    print(journal.get_output_values())
+    print(journal.get_stored_output_values())
     print(journal.weights)
 
     # do post analysis

@@ -27,9 +27,9 @@ class SampleFromPriorTests(unittest.TestCase):
         rng = np.random.RandomState(1)
 
         sampler.sample_from_prior(rng=rng)
-        self.assertIsNotNone(B1.fixed_values)
-        self.assertIsNotNone(N1.fixed_values)
-        self.assertIsNotNone(N2.fixed_values)
+        self.assertIsNotNone(B1._fixed_values)
+        self.assertIsNotNone(N1._fixed_values)
+        self.assertIsNotNone(N2._fixed_values)
 
 
 class ResetFlagsTests(unittest.TestCase):
@@ -53,7 +53,7 @@ class ResetFlagsTests(unittest.TestCase):
 
 
 class GetParametersTests(unittest.TestCase):
-    """Tests whether get_output_values returns only the free parameters of the graph."""
+    """Tests whether get_stored_output_values returns only the free parameters of the graph."""
     def setUp(self):
         self.B1 = Binomial([10, 0.2])
         self.N1 = Normal([0.03, 0.01])
@@ -97,9 +97,9 @@ class SetParametersTests(unittest.TestCase):
         is_accepted, index = self.sampler.set_parameters([3, 0.12, 0.029])
         self.assertTrue(is_accepted)
 
-        self.assertEqual(self.B1.fixed_values[0], 3)
-        self.assertEqual(self.N1.fixed_values[0], 0.029)
-        self.assertEqual(self.N2.fixed_values[0], 0.12)
+        self.assertEqual(self.B1.get_stored_output_values()[0], 3)
+        self.assertEqual(self.N1.get_stored_output_values()[0], 0.029)
+        self.assertEqual(self.N2.get_stored_output_values()[0], 0.12)
 
 
 class GetCorrectOrderingTests(unittest.TestCase):
@@ -158,15 +158,15 @@ class PerturbTests(unittest.TestCase):
 
 
     def test(self):
-        B1_value = self.B1.fixed_values
-        N1_value = self.N1.fixed_values
-        N2_value = self.N2.fixed_values
+        B1_value = self.B1.get_stored_output_values()
+        N1_value = self.N1.get_stored_output_values()
+        N2_value = self.N2.get_stored_output_values()
 
         self.sampler.perturb(1, rng=self.rng)
 
-        self.assertNotEqual(B1_value, self.B1.fixed_values)
-        self.assertNotEqual(N1_value, self.N1.fixed_values)
-        self.assertNotEqual(N2_value, self.N2.fixed_values)
+        self.assertNotEqual(B1_value, self.B1._fixed_values)
+        self.assertNotEqual(N1_value, self.N1._fixed_values)
+        self.assertNotEqual(N2_value, self.N2._fixed_values)
 
 
 class SimulateTests(unittest.TestCase):
@@ -188,7 +188,7 @@ class SimulateTests(unittest.TestCase):
 
         sampler.sample_from_prior(rng=rng)
 
-        y_sim = sampler.simulate(rng=rng)
+        y_sim = sampler.simulate(1, rng=rng)
 
         self.assertTrue(isinstance(y_sim, list))
 

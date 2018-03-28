@@ -23,7 +23,7 @@ class PenLogRegTests(unittest.TestCase):
         # create observed data
         y_obs = self.model.forward_simulate(1, rng=np.random.RandomState(1))[1].tolist()
         # create fake simulated data
-        self.prior.fixed_values = [1.1,1.0]
+        self.prior._fixed_values = [1.1, 1.0]
         y_sim = self.model.forward_simulate(100, rng=np.random.RandomState(1))[1].tolist()
         comp_likelihood = self.likfun.likelihood(y_obs, y_sim, 0)
         expected_likelihood = 4.3996556327224594
@@ -47,7 +47,7 @@ class SynLiklihoodTests(unittest.TestCase):
         # create observed data
         y_obs = self.model.forward_simulate(1, rng=np.random.RandomState(1))[1].tolist()
         # create fake simulated data
-        self.prior.fixed_values = [1.1,1.0]
+        self.prior._fixed_values = [1.1, 1.0]
         y_sim = self.model.forward_simulate(100, rng=np.random.RandomState(1))[1].tolist()
         # calculate the statistics of the observed data
         comp_likelihood = self.likfun.likelihood(y_obs, y_sim, 0)

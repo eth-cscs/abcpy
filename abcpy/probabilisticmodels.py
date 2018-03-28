@@ -339,11 +339,13 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
     def get_stored_output_values(self):
         """
-        Returns the stored sampled value of the probabilistic model.
+        Returns the stored sampled value of the probabilistic model after setting the values explicitly.
+
+        At initialization the function should return None.
 
         Returns
         -------
-        The same type as the output of a single forward simulation by the model.
+        numpy.array or None.
         """
 
         return self._fixed_values
@@ -379,9 +381,10 @@ class ProbabilisticModel(metaclass = ABCMeta):
         Sets the output values of the model. This method is commonly used to set new values after perturbing the old
         ones.
 
+
         Parameters
         ----------
-        values: same type as a single forward simulation of the model.
+        values: numpy array or dimension equal to output dimension.
 
         Returns
         -------
@@ -776,16 +779,16 @@ class Hyperparameter(ProbabilisticModel):
         return True
 
 
-    def _check_input(self, parameters):
+    def _check_input(self, input_connector):
         return True
 
 
-    def _check_output(self, parameters):
-        return True
+    def _check_output(self, values):
+        return False
 
 
     def set_output_values(self, parameters, rng=np.random.RandomState()):
-        return True
+        return False
 
 
     def get_output_dimension(self):
