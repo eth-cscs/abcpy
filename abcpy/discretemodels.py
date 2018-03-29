@@ -3,30 +3,28 @@ from abcpy.probabilisticmodels import ProbabilisticModel, Discrete, Hyperparamet
 import numpy as np
 from scipy.special import comb
 from scipy.stats import poisson, bernoulli
+from numbers import Number
 
 
 class Bernoulli(Discrete, ProbabilisticModel):
-    def __init__(self, parameters, name='Bernoulli'):
+    def __init__(self, parameter, name='Bernoulli'):
         """This class implements a probabilistic model following a bernoulli distribution.
 
         Parameters
         ----------
-        parameters: list
+        parameter: list
              A list containing one entry, the probability of the distribution.
 
         name: string
             The name that should be given to the probabilistic model in the journal file.
         """
 
-        if not isinstance(parameters, list):
-            raise TypeError('Input for Uniform has to be of type list.')
-        if len(parameters)!=1:
-            raise ValueError('Input for Uniform has to be of length 2.')
+        if not isinstance(parameter, Number):
+            raise TypeError('Input for Bernoulli has to be of type Number.')
 
-        self._dimension = len(parameters)
-        input_parameters = InputConnector.from_list(parameters)
-        super(Bernoulli, self).__init__(input_parameters, name)
-        self.visited = False
+        self._dimension = 1
+        input_parameters = InputConnector.from_number(parameter)
+        super().__init__(input_parameters, name)
 
 
     def _check_input(self, input_connector):
@@ -57,12 +55,9 @@ class Bernoulli(Discrete, ProbabilisticModel):
         rng: random number generator
             The random number generator to be used.
         """
-        parameter_values = self.get_input_values()
-        return_values = []
-        return_values.append(self._check_parameters_before_sampling(parameter_values))
-        if(return_values[0]):
-            return_values.append(rng.binomial(1, parameter_values[0], k))
-        return return_values
+        parameter = self.get_input_values()[0]
+        results = rng.binomial(1, parameter, k)
+        return [np.array([x]) for x in results]
 
 
     def get_output_dimension(self):
@@ -183,7 +178,7 @@ class Binomial(Discrete, ProbabilisticModel):
 
 
 class Poisson(Discrete, ProbabilisticModel):
-    def __init__(self, parameters, name='Poisson'):
+    def __init__(self, parameter, name='Poisson'):
         """This class implements a probabilistic model following a poisson distribution.
 
         Parameters
@@ -195,24 +190,36 @@ class Poisson(Discrete, ProbabilisticModel):
             The name that should be given to the probabilistic model in the journal file.
 
         """
-        # TODO: No tests for Poisson distribution
-        super(Poisson, self).__init__(parameters, name)
+        if not isinstance(parameter, Number):
+            raise TypeError('Input for Poisson has to be of type Number.')
+
+        input_parameters = InputConnector.from_number(parameter)
+        super().__init__(input_parameters, name)
 
 
-    def _check_input(self, parameters):
-        """Raises an error iff more than one parameter are given or the parameter given is smaller than 0."""
-        if(len(parameters)>1):
-            raise IndexError('The probabilistic model associated with the poisson distribution only takes 1 parameter as input.')
-        if(isinstance(parameters[0][0], Hyperparameter)):
-            if(parameters[0][0].fixed_values[0]<=0):
-                raise ValueError('The mean of the poisson distribution has to be larger than 0.')
-            if(not(isinstance(parameters[0][0].fixed_values[0], int))):
-                raise ValueError('The mean has to be of type integer.')
+    def _check_input(self, input_connector):
+        """
+        Raises an error if more than one parameters are given or the parameter given is smaller than 0.
+        """
+
+        if input_connector.get_parameter_count() != 1:
+            raise IndexError('The Poisson distribution only takes 1 parameter as input.')
+
+        mean = input_connector[0]
+        if not isinstance(mean, (int, np.int32, np.int64)):
+            raise ValueError('The mean has to be of type integer.')
+
+        if mean <= 0:
+            return False
+        return True
 
 
     def _check_output(self, parameters):
         return True
 
+
+    def get_output_dimension(self):
+        return 1
 
     def forward_simulate(self, k, rng=np.random.RandomState()):
         """Samples k values from the defined possion distribution.
@@ -226,17 +233,9 @@ class Poisson(Discrete, ProbabilisticModel):
         """
         parameter_values = self.get_input_values()
         parameter_values[0] = int(parameter_values[0])
-        return_values = []
-        return_values.append(self._check_parameters_before_sampling(parameter_values))
+        result = rng.poisson(parameter_values[0], k)
 
-        if(return_values[0]):
-            return_values.append(rng.poisson(parameter_values[0], k))
-
-        return return_values
-
-
-    def get_output_dimension(self):
-        return 1
+        return [np.array(x) for x in result]
 
 
     def pmf(self, x):

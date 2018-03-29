@@ -8,7 +8,7 @@ import unittest
 
 class BernoulliAPITests(AbstractAPIImplementationTests, unittest.TestCase):
     model_types = [Bernoulli]
-    model_inputs = [[[0, 1], [1, 2]]]
+    model_inputs = [0.3]
 
 class BinomialAPITests(AbstractAPIImplementationTests, unittest.TestCase):
     model_types = [Binomial]
@@ -16,7 +16,7 @@ class BinomialAPITests(AbstractAPIImplementationTests, unittest.TestCase):
 
 class PoissonAPITests(AbstractAPIImplementationTests, unittest.TestCase):
     model_types = [Poisson]
-    model_inputs = [[0, 3]]
+    model_inputs = [4]
 
 class CheckParametersAtInitializationTests(unittest.TestCase):
     """Tests that no probabilistic model with invalid parameters can be initialized."""
@@ -33,7 +33,7 @@ class CheckParametersAtInitializationTests(unittest.TestCase):
             Binomial([1, -0.1])
 
     def test_Poisson(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(TypeError):
             Poisson([1, 0])
 
 class DimensionTests(unittest.TestCase):
@@ -48,7 +48,7 @@ class DimensionTests(unittest.TestCase):
         self.assertTrue(Bi.get_output_dimension()==1)
 
     def test_Poisson(self):
-        Po = Poisson([3, 1])
+        Po = Poisson(3)
         self.assertTrue(Po.get_output_dimension()==1)
 
 
@@ -67,7 +67,7 @@ class SampleFromDistributionTests(unittest.TestCase):
         self.assertTrue(len(samples) == 3)
 
     def test_Poisson(self):
-        Po = Poisson([3, 1])
+        Po = Poisson(3)
         samples = Po.forward_simulate(3)
         self.assertTrue(isinstance(samples, list))
         self.assertTrue(len(samples) == 3)
@@ -85,7 +85,7 @@ class CheckParametersBeforeSamplingTests(unittest.TestCase):
         self.assertFalse(N._check_input(InputConnector.from_list([1, -0.1])))
 
     def test_Poisson(self):
-        Po = Poisson([3, 1])
+        Po = Poisson(3)
         self.assertFalse(S._check_parameters_before_sampling(InputConnector.from_list([3, -1])))
 
 if __name__ == '__main__':

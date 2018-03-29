@@ -313,7 +313,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
     def get_input_values(self):
         """
-        Returns the fixed values used by the current model as input parameters.
+        Returns the input values from the parent models as a list.
         Commonly used when sampling from the distribution.
 
         Returns
@@ -353,11 +353,13 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
     def get_input_connector(self):
         """
-        Returns the input parameters of the current model.
+        Returns the input connector object that connecects the current model to its parents.
+
+        In case of no dependencies, this function should return None.
 
         Returns
         -------
-        InputConnector
+        InputConnector, None
         """
 
         return self._parameters
@@ -770,7 +772,7 @@ class Hyperparameter(ProbabilisticModel):
 
         # A hyperparameter is defined by the fact that it does not have any parents
         self.name = name
-        self._fixed_values = [value]
+        self._fixed_values = np.array([value])
         self.visited = False
 
 
@@ -787,9 +789,16 @@ class Hyperparameter(ProbabilisticModel):
         return False
 
 
-    def set_output_values(self, parameters, rng=np.random.RandomState()):
+    def set_output_values(self, values, rng=np.random.RandomState()):
+        if not isinstance(values, np.ndarray):
+            raise TypeError('Input not a numpy.array.')
+        if values.shape[0] != 1:
+            raise IndexError('Dimensions not matching.')
         return False
 
+
+    def get_input_dimension(self):
+        return 0;
 
     def get_output_dimension(self):
         return 1;
@@ -800,6 +809,10 @@ class Hyperparameter(ProbabilisticModel):
 
 
     def get_input_models(self):
+        return []
+
+
+    def get_input_values(self):
         return []
 
 

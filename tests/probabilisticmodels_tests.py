@@ -34,10 +34,6 @@ class AbstractAPIImplementationTests():
 
     def test_get_stored_output_values(self):
         for model in self.models:
-            output_before_at_init = model.get_stored_output_values()
-            self.assertIsNone(output_before_at_init, 'Return value at initialization of model {} should be of type None.'.format(type(model)))
-
-
             rng = np.random.RandomState(1)
             model._forward_simulate_and_store_output(rng)
             out_values = model.get_stored_output_values()
@@ -48,14 +44,14 @@ class AbstractAPIImplementationTests():
     def test_get_input_connector(self):
         for model in self.models:
             in_con = model.get_input_connector()
-            self.assertTrue(isinstance(in_con, InputConnector), 'Return value not of type InputConnector in model {}.'.format(type(model)))
+            self.assertTrue(isinstance(in_con, InputConnector) or in_con == None, 'Return value not of type InputConnector nor None in model {}.'.format(type(model)))
 
 
     def test_get_input_dimension(self):
         for model in self.models:
             dim = model.get_input_dimension()
             self.assertTrue(isinstance(dim, Number), 'Return value not of type Number in model {}.'.format(type(model)))
-            self.assertGreater(dim, 0, 'Input dimension must be larger than 0 for model {}.'.format(type(model)))
+            self.assertGreaterEqual(dim, 0, 'Input dimension must be larger than 0 for model {}.'.format(type(model)))
 
 
     def test_set_output_values(self):
@@ -75,6 +71,16 @@ class AbstractAPIImplementationTests():
             x = 0
             pdf_at_x = model.pdf(x)
             self.assertTrue(isinstance(pdf_at_x, Number), 'Return value not of type Number in model {}.'.format(type(model)))
+
+
+    def test_check_input(self):
+        for model in self.models:
+            test_result = model._check_input(model.get_input_connector())
+            self.assertTrue(test_result, 'The checking method should return True if input is reasonable in model {}.'.format(type(model)))
+
+            with self.assertRaises(BaseException) as context:
+                model._check_input([0])
+            self.assertTrue(context.exception, 'Function should raise an exception in model {} if input not of type InputConnector.'.format(type(model)))
 
 
     def test_forward_simulate(self):
