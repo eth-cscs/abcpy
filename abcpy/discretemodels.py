@@ -3,28 +3,30 @@ from abcpy.probabilisticmodels import ProbabilisticModel, Discrete, Hyperparamet
 import numpy as np
 from scipy.special import comb
 from scipy.stats import poisson, bernoulli
-from numbers import Number
 
 
 class Bernoulli(Discrete, ProbabilisticModel):
-    def __init__(self, parameter, name='Bernoulli'):
+    def __init__(self, parameters, name='Bernoulli'):
         """This class implements a probabilistic model following a bernoulli distribution.
 
         Parameters
         ----------
-        parameter: list
+        parameters: list
              A list containing one entry, the probability of the distribution.
 
         name: string
             The name that should be given to the probabilistic model in the journal file.
         """
 
-        if not isinstance(parameter, Number):
-            raise TypeError('Input for Bernoulli has to be of type Number.')
+        if not isinstance(parameters, list):
+            raise TypeError('Input for Bernoulli has to be of type list.')
+        if len(parameters)!=1:
+            raise ValueError('Input for Bernoulli has to be of length 1.')
 
-        self._dimension = 1
-        input_parameters = InputConnector.from_number(parameter)
-        super().__init__(input_parameters, name)
+        self._dimension = len(parameters)
+        input_parameters = InputConnector.from_list(parameters)
+        super(Bernoulli, self).__init__(input_parameters, name)
+        self.visited = False
 
 
     def _check_input(self, input_connector):
@@ -34,7 +36,7 @@ class Bernoulli(Discrete, ProbabilisticModel):
         if(input_connector.get_parameter_count() > 1):
             return False
 
-        # test whether lower bound is not greater than upper bound
+        # test whether probability is in the interval [0,1]
         if input_connector[0]<0 or input_connector[0]>1:
            return False
 
@@ -42,6 +44,11 @@ class Bernoulli(Discrete, ProbabilisticModel):
 
 
     def _check_output(self, parameters):
+        """
+        Checks parameter values given as fixed values. Returns False iff it is not an integer
+        """
+        if not isinstance(parameters[0], (int, np.int32, np.int64)):
+            return False
         return True
 
 
@@ -55,13 +62,13 @@ class Bernoulli(Discrete, ProbabilisticModel):
         rng: random number generator
             The random number generator to be used.
         """
-        parameter = self.get_input_values()[0]
-        results = rng.binomial(1, parameter, k)
-        return [np.array([x]) for x in results]
+        parameter_values = self.get_input_values()
+        result = np.array(rng.binomial(1, parameter_values[0], k))
+        return [np.array([x]) for x in result]
 
 
     def get_output_dimension(self):
-        return 1
+        return self._dimension
 
 
     def pmf(self, x):
@@ -78,7 +85,10 @@ class Bernoulli(Discrete, ProbabilisticModel):
             The pmf evaluated at point x.
         """
         parameter_values = self.get_input_values()
-        return bernoulli(parameter_values[0]).pmf(x)
+        probability = parameter_values[0]
+        pmf = bernoulli(probability).pmf(x)
+        self.calculated_pmf = pmf
+        return pmf
 
 
 class Binomial(Discrete, ProbabilisticModel):
@@ -90,41 +100,51 @@ class Binomial(Discrete, ProbabilisticModel):
         ----------
         parameters: list
             Contains the probabilistic models and hyperparameters from which the model derives. Note that the first
-            entry of the list, n, has to be larger than or equal to 0, while the second entry, p, has to be in the
+            entry of the list, n, an integer and has to be larger than or equal to 0, while the second entry, p, has to be in the
             interval [0,1].
 
         name: string
             The name that should be given to the probabilistic model in the journal file.
         """
 
-        # Rewrite user input
+        if not isinstance(parameters, list):
+            raise TypeError('Input for Binomial has to be of type list.')
+        if len(parameters)!=2:
+            raise ValueError('Input for Binomial has to be of length 2.')
+
+        self._dimension = 1
         input_parameters = InputConnector.from_list(parameters)
         super(Binomial, self).__init__(input_parameters, name)
+        self.visited = False
 
-
-    def _check_input(self, parameters):
+    def _check_input(self, input_connector):
         """Raises an Error iff:
-        - The number of trials is smaller than 0
+        - The number of trials is less than 0
         - The number of trials is not an integer
         - The success probability is not in [0,1]
         """
 
-        if(parameters.get_parameter_count() == 2):
-            if isinstance(parameters.get_model(0), Hyperparameter):
-                if not isinstance(parameters[0], int):
-                    raise ValueError('The number of trials has to be of type integer.')
-        else:
-            raise ValueError('There have to be exactly two input parameters.')
-
-        if parameters[0] < 0:
+        if input_connector.get_parameter_count() != 2:
             return False
 
-        if parameters[1] < 0 or parameters[1] > 1:
+        # test whether probability is in the interval [0,1]
+        if input_connector[1]<0 or input_connector[1]>1:
             return False
+
+        # test whether number of trial is an integer
+        if not isinstance(input_connector[0], (int, np.int32, np.int64)):
+            return False
+
+        # test whether number of trial less than 0
+        if input_connector[0] < 0:
+            return False
+
         return True
 
 
     def _check_output(self, parameters):
+        if not isinstance(parameters[0], (int, np.int32, np.int64)):
+            return False
         return True
 
 
@@ -146,20 +166,16 @@ class Binomial(Discrete, ProbabilisticModel):
         """
 
         parameter_values = self.get_input_values()
-        n = parameter_values[0]
-        p = parameter_values[1]
-        result = rng.binomial(n, p, k)
+        result = rng.binomial(parameter_values[0], parameter_values[1], k)
         return [np.array([x]) for x in result]
 
-
     def get_output_dimension(self):
-        return 1
+        return self._dimension
 
 
     def pmf(self, x):
         """
         Calculates the probability mass function at point x.
-        Commonly used to determine whether perturbed parameters are still valid according to the pmf.
 
         Parameters
         ----------
@@ -173,12 +189,15 @@ class Binomial(Discrete, ProbabilisticModel):
         n = parameter_values[0]
         p = parameter_values[1]
         if(x>n):
-            return 0
-        return comb(n,x)*(p**x)*(1-p)**(n-x)
+            pmf = 0
+        else:
+            pmf = comb(n,x)*pow(p,x)*pow((1-p),(n-x))
+        self.calculated_pmf = pmf
+        return pmf
 
 
 class Poisson(Discrete, ProbabilisticModel):
-    def __init__(self, parameter, name='Poisson'):
+    def __init__(self, parameters, name='Poisson'):
         """This class implements a probabilistic model following a poisson distribution.
 
         Parameters
@@ -190,36 +209,35 @@ class Poisson(Discrete, ProbabilisticModel):
             The name that should be given to the probabilistic model in the journal file.
 
         """
-        if not isinstance(parameter, Number):
-            raise TypeError('Input for Poisson has to be of type Number.')
 
-        input_parameters = InputConnector.from_number(parameter)
-        super().__init__(input_parameters, name)
+        if not isinstance(parameters, list):
+            raise TypeError('Input for Poisson has to be of type list.')
+        if len(parameters)!=1:
+            raise ValueError('Input for Poisson has to be of length 1.')
+
+        self._dimension = 1
+        input_parameters = InputConnector.from_list(parameters)
+        super(Poisson, self).__init__(input_parameters, name)
+        self.visited = False
 
 
     def _check_input(self, input_connector):
-        """
-        Raises an error if more than one parameters are given or the parameter given is smaller than 0.
-        """
+        """Raises an error iff more than one parameter are given or the parameter given is smaller than 0."""
 
-        if input_connector.get_parameter_count() != 1:
-            raise IndexError('The Poisson distribution only takes 1 parameter as input.')
+        if(input_connector.get_parameter_count() > 1):
+            return False
 
-        mean = input_connector[0]
-        if not isinstance(mean, (int, np.int32, np.int64)):
-            raise ValueError('The mean has to be of type integer.')
+        # test whether the parameter is smaller than 0
+        if input_connector[0]<0:
+           return False
 
-        if mean <= 0:
+        return  True
+
+    def _check_output(self, parameters):
+        if not isinstance(parameters[0], (int, np.int32, np.int64)):
             return False
         return True
 
-
-    def _check_output(self, parameters):
-        return True
-
-
-    def get_output_dimension(self):
-        return 1
 
     def forward_simulate(self, k, rng=np.random.RandomState()):
         """Samples k values from the defined possion distribution.
@@ -231,11 +249,15 @@ class Poisson(Discrete, ProbabilisticModel):
         rng: random number generator
             The random number generator to be used.
         """
-        parameter_values = self.get_input_values()
-        parameter_values[0] = int(parameter_values[0])
-        result = rng.poisson(parameter_values[0], k)
 
-        return [np.array(x) for x in result]
+        parameter_values = self.get_input_values()
+
+        result = rng.poisson(int(parameter_values[0]), k)
+
+        return [np.array([x]) for x in result]
+
+    def get_output_dimension(self):
+        return self._dimension
 
 
     def pmf(self, x):
@@ -252,5 +274,7 @@ class Poisson(Discrete, ProbabilisticModel):
             The evaluated pmf at point x.
         """
         parameter_values = self.get_input_values()
-        parameter_values[0] = int(parameter_values[0])
-        return poisson(parameter_values[0]).pmf(x)
+
+        pmf = poisson(int(parameter_values[0])).pmf(x)
+
+        return pmf
