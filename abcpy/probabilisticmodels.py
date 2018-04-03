@@ -138,7 +138,7 @@ class InputConnector():
         if isinstance (index, Number):
             model = self._models[index]
             model_index = self._model_indices[index]
-            if model.get_stored_output_values() == None:
+            if model.get_stored_output_values() is None:
                 return None
             else:
                 output_values = model.get_stored_output_values()
@@ -245,7 +245,7 @@ class InputConnector():
         """
 
         for model in self._models:
-            if model.get_stored_output_values() == None:
+            if model.get_stored_output_values() is None:
                 return False
         return True
 
@@ -782,7 +782,15 @@ class Hyperparameter(ProbabilisticModel):
 
 
     def _check_input(self, input_connector):
-        return True
+        """
+        Hyperparameters have no input, thus we only accept None.
+        """
+
+        if input_connector is None:
+            return True
+        if not isinstance(input_connector, InputConnector):
+            raise TypeError
+        return False
 
 
     def _check_output(self, values):

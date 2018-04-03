@@ -78,7 +78,7 @@ class AbstractAPIImplementationTests():
             test_result = model._check_input(model.get_input_connector())
             self.assertTrue(test_result, 'The checking method should return True if input is reasonable in model {}.'.format(type(model)))
 
-            with self.assertRaises(BaseException) as context:
+            with self.assertRaises(Exception) as context:
                 model._check_input([0])
             self.assertTrue(context.exception, 'Function should raise an exception in model {} if input not of type InputConnector.'.format(type(model)))
 

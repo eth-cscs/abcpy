@@ -247,7 +247,7 @@ class GraphTools():
 
         for model in models:
             # If we are not at the root, the sampled values for the current node should be returned
-            if is_root == False and not isinstance(model, ModelResultingFromOperation):
+            if is_root == False and not isinstance(model, (ModelResultingFromOperation, Hyperparameter)):
                 parameters.append(model.get_stored_output_values())
                 model.visited = True
 
