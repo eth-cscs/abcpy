@@ -196,7 +196,7 @@ class RandomForest(ModelSelections, GraphTools):
         y_sim = model.forward_simulate(self.n_samples_per_param, rng=rng)
         while(y_sim[0] is False):
             y_sim = model.forward_simulate(self.n_samples_per_param, rng=rng)
-        y_sim = y_sim[1].tolist()
+        y_sim = y_sim[0].tolist()
         statistics = self.statistics_calc.statistics(y_sim)
 
         return (model, y_sim, statistics)

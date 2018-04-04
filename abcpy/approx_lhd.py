@@ -186,10 +186,8 @@ class PenLogReg(Approx_likelihood, GraphTools):
             ind=0
             while(ref_data_stat[model_index][-1] is None):
                 data = model.forward_simulate(1, rng=rng)
-                if(data[0]):
-                    data_stat = self.statistics_calc.statistics(data[1].tolist())
-                    ref_data_stat[model_index][ind]= data_stat
-                    ind+=1
+                data_stat = self.statistics_calc.statistics(data[0].tolist())
+                ref_data_stat[model_index][ind]= data_stat
+                ind+=1
             ref_data_stat[model_index] = np.squeeze(np.asarray(ref_data_stat[model_index]))
-            
         return ref_data_stat

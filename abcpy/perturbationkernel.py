@@ -274,6 +274,7 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
             if(not(accepted_parameters_manager.accepted_parameters_bds.value().shape[1]>1)):
                 cov = np.var(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index])
             else:
+                print(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index])
                 cov = np.cov(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], rowvar=False)
         return cov
 
