@@ -33,7 +33,7 @@ abcpy.backends module
     :undoc-members:
     :show-inheritance:
 
-
+abcpy.continuousmodels module
 -----------------------------
 
 .. automodule:: abcpy.continuousmodels
@@ -101,7 +101,7 @@ abcpy.probabilisticmodels module
 
 .. automodule:: abcpy.probabilisticmodels
     :members:
-    :special-members: __init__, _check_parameters_at_initialization, _check_parameters_before_sampling, _check_output, __get_item__, __add__, __sub__, __mul__, __truediv__, __pow__
+    :special-members: __init__, _check_input, _check_output, __get_item__, __add__, __sub__, __mul__, __truediv__, __pow__
     :undoc-members:
     :show-inheritance:
 

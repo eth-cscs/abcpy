@@ -9,27 +9,26 @@ class Gaussian(ProbabilisticModel, Continuous):
     This class is an re-implementation of the `abcpy.continousmodels.Normal` for documentation purposes.
     """
 
-    def __init__(self, parameters, name):
+    def __init__(self, parameters, name='Gaussian'):
         # We expect input of type parameters = [mu, sigma]
-        if(not(isinstance(parameters, list))):
+        if not isinstance(parameters, list):
             raise TypeError('Input of Normal model is of type list')
 
+        if len(parameters) != 2:
+            raise RuntimeError('Input list must be of length 2, containing [mu, sigma].')
+
         input_connector = InputConnector.from_list(parameters)
-        super(Gaussian, self).__init__(input_connector, name)
+        super().__init__(input_connector, name)
 
 
-    def _check_input(self, input_connector):
+    def _check_input(self, input_values):
         # Check whether input has correct type or format
-        if input_connector.get_parameter_count() != 2:
+        if len(input_values) != 2:
             raise ValueError('Number of parameters of Normal model must be 2.')
 
-        mu = input_connector[0]
-        sigma = input_connector[1]
-
-        if not isinstance(mu, Number) or not isinstance(sigma, Number):
-            return TypeError('Parent models produce output that is not compatible with Normal model.')
-
         # Check whether input is from correct domain
+        mu = input_values[0]
+        sigma = input_values[1]
         if sigma < 0:
             return False
 
@@ -58,8 +57,7 @@ class Gaussian(ProbabilisticModel, Continuous):
         vector_of_k_samples = np.array(rng.normal(mu, sigma, k))
 
         # Format the output to obey API
-        matrix_kx1 = vector_of_k_samples.reshape((k, 1))
-        result = matrix_kx1.tolist()
+        result = [np.array([x]) for x in vector_of_k_samples]
         return result
 
 
@@ -67,7 +65,6 @@ class Gaussian(ProbabilisticModel, Continuous):
         input_values = self.get_input_values()
         mu = input_values[0]
         sigma = input_values[1]
-
         pdf = np.norm(mu,sigma).pdf(x)
         return pdf
 

@@ -75,11 +75,11 @@ class AbstractAPIImplementationTests():
 
     def test_check_input(self):
         for model in self.models:
-            test_result = model._check_input(model.get_input_connector())
+            test_result = model._check_input(model.get_input_values())
             self.assertTrue(test_result, 'The checking method should return True if input is reasonable in model {}.'.format(type(model)))
 
             with self.assertRaises(Exception) as context:
-                model._check_input([0])
+                model._check_input(0)
             self.assertTrue(context.exception, 'Function should raise an exception in model {} if input not of type InputConnector.'.format(type(model)))
 
 
@@ -157,7 +157,7 @@ class SampleParametersTest(unittest.TestCase):
         N1 = Normal([0.1, 0.01])
         N2 = Normal([1, N1])
         N1._fixed_values=[-0.1]
-        self.assertFalse(N2._check_input(N2.get_input_connector()))
+        self.assertFalse(N2._check_input(N2.get_input_values()))
 
 
 class GetOutputValuesTest(unittest.TestCase):
