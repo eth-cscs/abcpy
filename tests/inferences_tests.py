@@ -70,7 +70,7 @@ class PMCTests(unittest.TestCase):
         stat_calc = Identity(degree = 2, cross = 0)
 
         # create fake observed data
-        y_obs = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
+        #y_obs = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
         y_obs = [np.array(9.8)]
       
         # Define the likelihood function
@@ -136,7 +136,7 @@ class PMCABCTests(unittest.TestCase):
         self.dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
-        self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
+        #self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
         self.observation = [np.array(9.8)]
 
         
@@ -224,7 +224,7 @@ class SABCTests(unittest.TestCase):
         self.dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
-        self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
+        #self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
         self.observation = [np.array(9.8)]
        
     def test_sample(self):
@@ -284,7 +284,7 @@ class ABCsubsimTests(unittest.TestCase):
         self.dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
-        self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
+        #self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
         self.observation = [np.array(9.8)]
        
     def test_sample(self):
@@ -344,7 +344,7 @@ class SMCABCTests(unittest.TestCase):
         self.dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
-        self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
+        #self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
         self.observation = [np.array(9.8)]
 
       
@@ -403,7 +403,7 @@ class APMCABCTests(unittest.TestCase):
         self.dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
-        self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
+        #self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
         self.observation = [np.array(9.8)]
 
       
@@ -464,7 +464,7 @@ class RSMCABCTests(unittest.TestCase):
         self.dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
-        self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
+        #self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
         self.observation = [np.array(9.8)]
 
       
