@@ -1,4 +1,5 @@
 from abcpy.probabilisticmodels import Hyperparameter, ModelResultingFromOperation
+import numpy as np
 
 
 class AcceptedParametersManager:
@@ -45,6 +46,7 @@ class AcceptedParametersManager:
         kernel_parameters: list
             A list, in which each entry contains the values of the parameters associated with the corresponding kernel in the joint perturbation kernel
         """
+
         self.kernel_parameters_bds = backend.broadcast(kernel_parameters)
 
     def update_broadcast(self, backend, accepted_parameters=None, accepted_weights=None, accepted_cov_mats=None):
@@ -142,7 +144,7 @@ class AcceptedParametersManager:
                 if(model==prob_model):
                     for i in range(len(self.accepted_parameters_bds.value())):
                         accepted_bds_values[i].append(self.accepted_parameters_bds.value()[i][index])
-
+        accepted_bds_values = [np.array(x).reshape(-1, ) for x in accepted_bds_values]
         return accepted_bds_values
 
     def _reset_flags(self, models=None):

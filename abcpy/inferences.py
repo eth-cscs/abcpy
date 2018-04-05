@@ -264,13 +264,14 @@ class RejectionABC(InferenceMethod):
         while distance > self.epsilon:
             # Accept new parameter value if the distance is less than epsilon
             self.sample_from_prior(rng=rng)
+            theta = np.array(self.get_parameters(self.model)).reshape(-1,)
             y_sim = self.simulate(self.n_samples_per_param, rng=rng)
             counter+=1
             if(y_sim is not None):
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
             else:
                 distance = self.distance.dist_max()
-        return (self.get_parameters(self.model), counter)
+        return (theta, counter)
 
 
 class PMCABC(BaseDiscrepancy, InferenceMethod):
@@ -432,6 +433,8 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             new_parameters, distances, counter = [list(t) for t in zip(*params_and_dists_and_ysim_and_counter)]
             new_parameters = np.array(new_parameters)
 
+            #print(new_parameters)
+
             for count in counter:
                 self.simulation_counter+=count
 
@@ -514,7 +517,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         distance = self.distance.dist_max()
         counter=0
         while distance > self.epsilon:
-            # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
+            #print( " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
 
             if self.accepted_parameters_manager.accepted_parameters_bds == None:
                 self.sample_from_prior(rng=rng)
@@ -526,7 +529,6 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 index = rng.choice(self.n_samples, size=1, p=self.accepted_parameters_manager.accepted_weights_bds.value().reshape(-1))
                 # truncate the normal to the bounds of parameter space of the model
                 # truncating the normal like this is fine: https://arxiv.org/pdf/0907.4010v1.pdf
-
                 while True:
                     perturbation_output = self.perturb(index[0], rng=rng)
                     if(perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1])!=0):
@@ -1310,7 +1312,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
             while acceptance == 0:
                 self.sample_from_prior(rng=rng)
-                new_theta = self.get_parameters()
+                new_theta = np.array(self.get_parameters()).reshape(-1,)
                 all_parameters.append(new_theta)
                 y_sim = self.simulate(self.n_samples_per_param, rng=rng)
                 counter+=1
@@ -1328,7 +1330,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
             while True:
                 perturbation_output = self.perturb(index, rng=rng)
                 if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
-                    new_theta = perturbation_output[1]
+                    new_theta = np.array(perturbation_output[1]).reshape(-1,)
                     break
 
             y_sim = self.simulate(self.n_samples_per_param, rng=rng)
@@ -1397,6 +1399,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             models = []
             for mdl, mdl_index in mapping:
                 models.append(mdl)
+
             kernel = DefaultKernel(models)
 
         self.kernel = kernel
@@ -1619,7 +1622,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             result_theta.append(self.get_parameters())
             result_distance.append(distance)
         else:
-            theta = self.accepted_parameters_manager.accepted_parameters_bds.value()[index]
+            theta = np.array(self.accepted_parameters_manager.accepted_parameters_bds.value()[index]).reshape(-1,)
             self.set_parameters(theta)
             y_sim = self.simulate(self.n_samples_per_param, rng=rng)
             counter+=1
@@ -1679,7 +1682,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
         accepted_cov_mats_transformed = [cov_mat*pow(2.0, -2.0 * t) for cov_mat in self.accepted_parameters_manager.accepted_cov_mats_bds.value()]
 
-        theta = self.accepted_parameters_manager.accepted_parameters_bds.value()[0]
+        theta = np.array(self.accepted_parameters_manager.accepted_parameters_bds.value()[0]).reshape(-1,)
 
         mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(
             self.accepted_parameters_manager.model)
@@ -1691,7 +1694,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
                 perturbation_output = self.perturb(0, rng=rng)
                 if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
                     break
-            y_sim = self.simulate(rng=rng)
+            y_sim = self.simulate(self.n_samples_per_param, rng=rng)
             counter+=1
             new_distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
 
@@ -1700,8 +1703,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,0 , theta)
             kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,0 , perturbation_output[1])
             ratio_likelihood_prob = kernel_numerator / kernel_denominator
-            acceptance_prob = min(1, ratio_prior_prob * ratio_likelihood_prob) * (
-            new_distance < self.anneal_parameter)
+            acceptance_prob = min(1, ratio_prior_prob * ratio_likelihood_prob) * (new_distance < self.anneal_parameter)
             ## If accepted
             if rng.binomial(1, acceptance_prob) == 1:
                 theta = perturbation_output[1]
@@ -1755,13 +1757,15 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
 
         if (kernel is None):
             warnings.warn(
-                "No kernel has been defined. The default kernel will be used. All continuous parameters are perturbed using a multivariate normal, all discrete parameters are perturbed using a random walk.",
+                "No kernel has been defined. The default kernel will be used. All continuous parameters are perturbed "
+                "using a multivariate normal, all discrete parameters are perturbed using a random walk.",
                 Warning)
 
             mapping, garbage_index = self._get_mapping()
             models = []
             for mdl, mdl_index in mapping:
                 models.append(mdl)
+
             kernel = DefaultKernel(models)
 
         self.kernel = kernel
@@ -1994,7 +1998,7 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
             index_accept = 1
         else:
             index = rng.choice(len(self.accepted_parameters_manager.accepted_parameters_bds.value()), size=1)
-            theta = self.accepted_parameters_manager.accepted_parameters_bds.value()[index[0]]
+            theta = np.array(self.accepted_parameters_manager.accepted_parameters_bds.value()[index[0]]).reshape(-1,)
             index_accept = 0.0
             for ind in range(self.R):
                 while True:
@@ -2664,7 +2668,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             counter+=1
         else:
             if self.accepted_parameters_manager.accepted_weights_bds.value()[index] > 0:
-                theta = self.accepted_parameters_manager.accepted_parameters_bds.value()[index]
+                theta = np.array(self.accepted_parameters_manager.accepted_parameters_bds.value()[index]).reshape(-1,)
                 while True:
                     perturbation_output = self.perturb(index, rng=rng)
                     if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:

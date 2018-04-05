@@ -269,12 +269,14 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
 
         if(accepted_parameters_manager.accepted_weights_bds is not None):
             weights = accepted_parameters_manager.accepted_weights_bds.value()
-            cov = np.cov(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], aweights=weights.reshape(-1), rowvar=False)
+            #cov = np.cov(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], aweights=weights.reshape(-1), rowvar=False)
+            cov = np.cov(np.array([np.array(x).reshape(-1, ) for x in
+                                   accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]]),
+                         aweights=weights.reshape(-1), rowvar=False)
         else:
             if(not(accepted_parameters_manager.accepted_parameters_bds.value().shape[1]>1)):
                 cov = np.var(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index])
             else:
-                print(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index])
                 cov = np.cov(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], rowvar=False)
         return cov
 

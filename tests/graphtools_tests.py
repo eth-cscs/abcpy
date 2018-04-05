@@ -194,7 +194,7 @@ class SimulateTests(unittest.TestCase):
 
         self.assertTrue(len(y_sim)==2)
 
-        self.assertTrue(isinstance(y_sim[0], np.ndarray))
+        self.assertTrue(isinstance(y_sim[0][0], np.ndarray))
 
 
 class GetMappingTests(unittest.TestCase):
