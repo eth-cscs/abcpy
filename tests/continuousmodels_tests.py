@@ -133,31 +133,31 @@ class CheckParametersBeforeSamplingTests(unittest.TestCase):
 
     def test_Uniform(self):
         U = Uniform([[0, 1], [1, 2]])
-        self.assertFalse(U._check_input(InputConnector.from_list([1, 1, 0, 2])))
-        self.assertFalse(U._check_input(InputConnector.from_list([1, 1, 2, 0])))
+        self.assertFalse(U._check_input([1, 1, 0, 2]))
+        self.assertFalse(U._check_input([1, 1, 2, 0]))
 
     def test_Normal(self):
         N = Normal([1, 0.1])
-        self.assertFalse(N._check_input(InputConnector.from_list([1, -0.1])))
+        self.assertFalse(N._check_input([1, -0.1]))
 
     def test_StudentT(self):
         S = StudentT([3, 1])
-        self.assertFalse(S._check_input(InputConnector.from_list([3, -1])))
+        self.assertFalse(S._check_input([3, -1]))
 
     def test_MultivariateNormal(self):
         M = MultivariateNormal([[1, 0], [[0.1, 0], [0, 0.1]]])
-        self.assertFalse(M._check_input(InputConnector.from_list([[1, 0], [[1, 1], [0, 1]]])))
+        self.assertFalse(M._check_input([[1, 0], [[1, 1], [0, 1]]]))
 
-        self.assertFalse(M._check_input(InputConnector.from_list([[1, 0], [[-1, 0], [0, -1]]])))
+        self.assertFalse(M._check_input([[1, 0], [[-1, 0], [0, -1]]]))
 
     def test_MultiStudentT(self):
         M = MultiStudentT([[1, 0], [[1, 0], [0, 1]], 1])
 
-        self.assertFalse(M._check_input(InputConnector.from_list([[1, 0], [[1, 1], [1, 0]], 1])))
+        self.assertFalse(M._check_input([[1, 0], [[1, 1], [1, 0]], 1]))
 
-        self.assertFalse(M._check_input(InputConnector.from_list([[1, 0], [[-1, 0], [0, -1]], 1])))
+        self.assertFalse(M._check_input([[1, 0], [[-1, 0], [0, -1]], 1]))
 
-        self.assertFalse(M._check_input(InputConnector.from_list([[1, 0], [[1, 0], [0, 1]], -1])))
+        self.assertFalse(M._check_input([[1, 0], [[1, 0], [0, 1]], -1]))
 
 
 if __name__ == '__main__':

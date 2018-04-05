@@ -37,16 +37,16 @@ class Uniform(ProbabilisticModel, Continuous):
         super(Uniform, self).__init__(input_parameters, name)
         self.visited = False
 
-    def _check_input(self, input_connector):
+    def _check_input(self, input_values):
         """
         Checks parameter values sampled from the parents.
         """
-        if(input_connector.get_parameter_count() % 2 != 0):
+        if len(input_values) % 2 != 0:
             return False
 
         # test whether lower bound is not greater than upper bound
         for j in range(self.get_output_dimension()):
-            if (input_connector[j] > input_connector[j+self.get_output_dimension()]):
+            if (input_values[j] > input_values[j+self.get_output_dimension()]):
                 return False
         return True
 
@@ -137,14 +137,14 @@ class Normal(ProbabilisticModel, Continuous):
         super(Normal, self).__init__(input_parameters, name)
         self.visited = False
 
-    def _check_input(self, input_connector):
+    def _check_input(self, input_values):
         """
         Returns True if the standard deviation is negative.
         """
-        if input_connector.get_parameter_count() != 2:
+        if len(input_values) != 2:
             return False
 
-        if(input_connector[1] <= 0):
+        if input_values[1] <= 0:
             return False
         return True
 
@@ -251,14 +251,14 @@ class StudentT(ProbabilisticModel, Continuous):
         return [np.array([x]) for x in result]
 
 
-    def _check_input(self, input_connector):
+    def _check_input(self, input_values):
         """
         Checks parameter values sampled from the parents of the probabilistic model. Returns False iff the degrees of freedom are smaller than or equal to 0.
         """
-        if input_connector.get_parameter_count() != 2:
+        if len(input_values) != 2:
             return False
 
-        if(input_connector[1] <= 0):
+        if input_values[1] <= 0:
             return False
 
         return True
@@ -335,18 +335,18 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         super(MultivariateNormal, self).__init__(input_parameters, name)
         self.visited = False
 
-    def _check_input(self, input_connector):
+    def _check_input(self, input_values):
         """
         Checks parameter values sampled from the parents at initialization. Returns False iff the covariance matrix is
         not symmetric or not positive definite.
         """
         # Test whether input in compatible
         dim = self._dimension
-        param_ctn = input_connector.get_parameter_count()
+        param_ctn = len(input_values)
         if param_ctn != dim+dim**2:
             return False
 
-        cov = np.array(input_connector[dim:dim+dim**2]).reshape((dim,dim))
+        cov = np.array(input_values[dim:dim+dim**2]).reshape((dim,dim))
 
         # Check whether the covariance matrix is symmetric
         if not np.allclose(cov, cov.T, atol=1e-3):
@@ -455,21 +455,21 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         super(MultiStudentT, self).__init__(input_parameters, name)
         self.visited = False
 
-    def _check_input(self, input_connector):
+    def _check_input(self, input_values):
         """
         Returns False iff the degrees of freedom are less than or equal to 0, the covariance matrix is not symmetric or
         the covariance matrix is not positive definite.
         """
 
         dim = self._dimension
-        param_ctn = input_connector.get_parameter_count()
+        param_ctn = len(input_values)
         if param_ctn > dim+dim**2+1 or param_ctn < dim+dim**2+1:
             return False
 
         # Extract parameters
-        mean = np.array(input_connector[0:dim])
-        cov = np.array(input_connector[dim:dim+dim**2]).reshape((dim, dim))
-        df = input_connector[-1]
+        mean = np.array(input_values[0:dim])
+        cov = np.array(input_values[dim:dim+dim**2]).reshape((dim, dim))
+        df = input_values[-1]
 
         # Check whether the covariance matrix is symmetric
         if not np.allclose(cov, cov.T, atol=1e-3):

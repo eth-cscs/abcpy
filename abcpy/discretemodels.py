@@ -29,15 +29,15 @@ class Bernoulli(Discrete, ProbabilisticModel):
         self.visited = False
 
 
-    def _check_input(self, input_connector):
+    def _check_input(self, input_values):
         """
         Checks parameter values sampled from the parents.
         """
-        if(input_connector.get_parameter_count() > 1):
+        if len(input_values) > 1:
             return False
 
         # test whether probability is in the interval [0,1]
-        if input_connector[0]<0 or input_connector[0]>1:
+        if input_values[0]<0 or input_values[0]>1:
            return False
 
         return True
@@ -117,26 +117,26 @@ class Binomial(Discrete, ProbabilisticModel):
         super(Binomial, self).__init__(input_parameters, name)
         self.visited = False
 
-    def _check_input(self, input_connector):
+    def _check_input(self, input_values):
         """Raises an Error iff:
         - The number of trials is less than 0
         - The number of trials is not an integer
         - The success probability is not in [0,1]
         """
 
-        if input_connector.get_parameter_count() != 2:
-            return False
-
-        # test whether probability is in the interval [0,1]
-        if input_connector[1]<0 or input_connector[1]>1:
-            return False
+        if len(input_values) != 2:
+            raise TypeError('Number of input parameters is exactly 2.')
 
         # test whether number of trial is an integer
-        if not isinstance(input_connector[0], (int, np.int32, np.int64)):
+        if not isinstance(input_values[0], (int, np.int32, np.int64)):
+            raise TypeError('Input parameter for number of trials has to be an integer.')
+
+        # test whether probability is in the interval [0,1]
+        if input_values[1] < 0 or input_values[1] > 1:
             return False
 
         # test whether number of trial less than 0
-        if input_connector[0] < 0:
+        if input_values[0] < 0:
             return False
 
         return True
@@ -207,7 +207,6 @@ class Poisson(Discrete, ProbabilisticModel):
 
         name: string
             The name that should be given to the probabilistic model in the journal file.
-
         """
 
         if not isinstance(parameters, list):
@@ -221,17 +220,18 @@ class Poisson(Discrete, ProbabilisticModel):
         self.visited = False
 
 
-    def _check_input(self, input_connector):
+    def _check_input(self, input_values):
         """Raises an error iff more than one parameter are given or the parameter given is smaller than 0."""
 
-        if(input_connector.get_parameter_count() > 1):
+        if len(input_values) > 1:
             return False
 
         # test whether the parameter is smaller than 0
-        if input_connector[0]<0:
+        if input_values[0]<0:
            return False
 
-        return  True
+        return True
+
 
     def _check_output(self, parameters):
         if not isinstance(parameters[0], (int, np.int32, np.int64)):

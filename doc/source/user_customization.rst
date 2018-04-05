@@ -6,30 +6,35 @@
 Implementing a new Model
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
-Often, one wants to use one of the provided inference schemes with a new
-probabilistic model that is not part of ABCpy. We now go through the details of
-such a scenario using the (already implemented) Gaussian distribution to explain
-how to implement such a model from scratch.
+One of the standard use cases of ABCpy is to do inference of a probabilistic model that is not part of ABCpy. We now go
+through the details of such a scenario using the (already implemented) Gaussian distribution to explain how to implement
+such a model from scratch.
 
-Every model has at least to conform to the API specified by the base class
-:py:class:`abcpy.probabilisticmodels.ProbabilisticModel`. Thus, a new model must
-derive from :py:class:`ProbabilisticModel` and implement the following methods:
+There are two main scenarios: First, we want to use our probabilistic model to explain a relationship between
+*parameters* (considered random variables for inference) and *observed data*.  This is for example the case when we want
+to do inference on mechanistic models that do not have a PDF. In this case, our model has to derive from
+:py:class:`ProbabilisticModel <abcpy.probabilisticmodels.ProbabilisticModel>` and implement a few required methods as
+for example :py:meth:`forward_simulate() <abcpy.probabilisticmodels.ProbabilisticModel.forward_simulate>`.
+
+In the second scenario, we want to use the model to build a relationship between *different parameters* (between
+different random variables for inference). Then our model is restricted to either output continuous or discrete
+parameters. Consequently, the model must derive from either from :py:class:`Continuous
+<abcpy.probabilisticmodels.Continuous>` or :py:class:`Discrete <abcpy.probabilisticmodels.Discrete>` and implement the
+required methods. These two classes in turn derive from from :py:class:`ProbabilisticModel
+<abcpy.probabilisticmodels.ProbabilisticModel>`, such that we have have to implement also the method required by the
+latter class.
+
+Let us go through the implementation of a simple Gaussian model. The model has to conform to the API specified by the
+base class :py:class:`ProbabilisticModels <abcpy.probabilisticmodels.ProbabilisticModel>`, and thus must implement at
+least the following methods:
 
 .. autoclass::  abcpy.probabilisticmodels.ProbabilisticModel
-   :members: _check_parameters_at_initialization, _check_parameters_before_sampling, _check_output, forward_simulate, get_output_dimension
+   :members: _check_input, _check_output, forward_simulate, get_output_dimension
    :noindex:
-      
-However, these methods are the sufficient only when you want to use your
-probabilistc model to explain a relationship between *parameters* (considered
-random variables for inference) and *observed data*.  This is for example the case
-when you want to do inference on mechanistic models that do not have a PDF.
 
-In case you want to use the model also to build a relationship between
-*different parameters* (between different random variables for inference), the
-model is restricted to either output continuous or descrete
-parameters. Consequently, the model must derive from either from
-:py:class:`abcpy.probabilisticmodels.Continuous` or
-:py:class:`abcpy.probabilisticmodels.Discrete` and implement the required methods.
+We want our model to work in all scenarios, so our model also has to conform to the API of :py:class:`Continuous
+<abcpy.probabilisticmodels.Continuous>` since our model output, the resulting data from a forward simulation, are from a
+continuous domain.
 
 .. autoclass::  abcpy.probabilisticmodels.Continuous
    :members: pdf
@@ -39,10 +44,6 @@ parameters. Consequently, the model must derive from either from
    :members: pmf
    :noindex:
 
-To understand better the difference of both cases, please have a look at the
-:ref:`Parameters as Random variables<Implementations>` section.
-
-     
 Implementation details
 ----------------------
 

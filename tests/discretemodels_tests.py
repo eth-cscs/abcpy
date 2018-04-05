@@ -82,25 +82,27 @@ class SampleFromDistributionTests(unittest.TestCase):
         self.assertTrue(len(samples) == 3)
 
 class CheckParametersBeforeSamplingTests(unittest.TestCase):
-    """Tests whether False will be returned if the input parameters of _check_parameters_before_sampling are not accepted."""
+    """Tests whether False will be returned if the input parameters of _check_parameters_before_sampling are not
+    accepted."""
 
     def test_Bernoulli(self):
         Bn = Bernoulli([0.5])
-        self.assertFalse(Bn._check_input(InputConnector.from_list([-.3])))
-        self.assertFalse(Bn._check_input(InputConnector.from_list([1.2])))
+        self.assertFalse(Bn._check_input([-.3]))
+        self.assertFalse(Bn._check_input([1.2]))
 
     def test_Binomial(self):
         Bi = Binomial([1, 0.5])
-        self.assertFalse(Bi._check_input(InputConnector.from_list([3, .5, 5])))
-        self.assertFalse(Bi._check_input(InputConnector.from_list([.3, .5])))
-        self.assertFalse(Bi._check_input(InputConnector.from_list([-2, .5])))
-        self.assertFalse(Bi._check_input(InputConnector.from_list([3, -.3])))
-        self.assertFalse(Bi._check_input(InputConnector.from_list([3, 1.2])))
+        with self.assertRaises(TypeError):
+            self.assertFalse(Bi._check_input([3, .5, 5]))
+            self.assertFalse(Bi._check_input([.3, .5]))
+            self.assertFalse(Bi._check_input([-2, .5]))
+            self.assertFalse(Bi._check_input([3, -.3]))
+            self.assertFalse(Bi._check_input([3, 1.2]))
 
     def test_Poisson(self):
         Po = Poisson([3])
-        self.assertFalse(Po._check_input(InputConnector.from_list([3, 5])))
-        self.assertFalse(Po._check_input(InputConnector.from_list([-1])))
+        self.assertFalse(Po._check_input([3, 5]))
+        self.assertFalse(Po._check_input([-1]))
 
 if __name__ == '__main__':
     unittest.main()

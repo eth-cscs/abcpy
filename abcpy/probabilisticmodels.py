@@ -165,8 +165,8 @@ class InputConnector():
         np.array
         """
 
-        result = np.zeros(self._dimension)
-        for i in range(0,self._dimension):
+        result = [0]*self._dimension
+        for i in range(0, self._dimension):
             result[i] = self.__getitem__(i)
         return result
 
@@ -276,7 +276,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
         # parameters is of type InputConnector
         if isinstance(input_connector, InputConnector):
-            if input_connector.all_models_fixed_values() and self._check_input(input_connector) == False:
+            if input_connector.all_models_fixed_values() and self._check_input(input_connector.get_values()) == False:
                 raise ValueError('Input parameters are not compatible with current model.')
             self._parameters = input_connector
         else:
@@ -321,7 +321,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         list
         """
 
-        return self.get_input_connector().get_values().tolist()
+        return self.get_input_connector().get_values()
 
 
     def get_input_models(self):
@@ -557,7 +557,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
             Check whether it was possible to set the parameters to sampled values.
         """
 
-        parameters_are_valid = self._check_input(self._parameters)
+        parameters_are_valid = self._check_input(self.get_input_values())
         if(parameters_are_valid):
             sample_result = self.forward_simulate(1, rng=rng)
             if sample_result != None:
@@ -626,7 +626,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
 
     @abstractmethod
-    def _check_input(self, input_connector):
+    def _check_input(self, input_values):
         """
         Check whether the input parameters are compatible with the underlying model.
 
@@ -646,7 +646,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
         Parameters
         ----------
-        input_connector: InputConnector
+        input_values: list of numbers
 
         Returns
         -------
@@ -781,15 +781,15 @@ class Hyperparameter(ProbabilisticModel):
         return True
 
 
-    def _check_input(self, input_connector):
+    def _check_input(self, input_values):
         """
         Hyperparameters have no input, thus we only accept None.
         """
 
-        if input_connector is None:
-            return True
-        if not isinstance(input_connector, InputConnector):
+        if not isinstance(input_values, list):
             raise TypeError
+        if len(input_values) == 0:
+            return True
         return False
 
 
@@ -874,7 +874,7 @@ class ModelResultingFromOperation(ProbabilisticModel):
         raise NotImplementedError
 
 
-    def _check_input(self, parameters):
+    def _check_input(self, input_values):
         return True
 
 
@@ -933,8 +933,8 @@ class ModelResultingFromOperation(ProbabilisticModel):
         for i in range(0, self.get_input_dimension()):
             model = self.get_input_connector().get_model(i)
             if not model.visited:
-                model_has_valid_parameters = model._check_input(model.get_input_connector())
-                if (model_has_valid_parameters):
+                model_has_valid_parameters = model._check_input(model.get_input_values())
+                if model_has_valid_parameters:
                     model_samples[model] = model.forward_simulate(k, rng=rng)
                     model.visited = True
                 else:
@@ -1128,7 +1128,7 @@ class ExponentialModel(ModelResultingFromOperation):
         super(ExponentialModel, self).__init__(parameters, name)
 
 
-    def _check_input(self, parameters):
+    def _check_input(self, input_values):
         return True
 
 
@@ -1188,7 +1188,7 @@ class RExponentialModel(ModelResultingFromOperation):
         super(RExponentialModel, self).__init__(parameters, name)
 
 
-    def _check_input(self, parameters):
+    def _check_input(self, input_values):
         return True
 
 
