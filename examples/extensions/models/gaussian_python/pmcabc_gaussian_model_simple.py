@@ -2,7 +2,7 @@ import numpy as np
 
 from numbers import Number
 
-from abcpy.probabilisticmodels import ProbabilisticModel, Continuous, Hyperparameter, InputConnector
+from abcpy.probabilisticmodels import ProbabilisticModel, Continuous, InputConnector
 
 class Gaussian(ProbabilisticModel, Continuous):
     """

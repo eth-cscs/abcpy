@@ -29,12 +29,12 @@ base class :py:class:`ProbabilisticModels <abcpy.probabilisticmodels.Probabilist
 least the following methods:
 
 .. autoclass::  abcpy.probabilisticmodels.ProbabilisticModel
-   :members: _check_input, _check_output, forward_simulate, get_output_dimension
+   :members: __init__, _check_input, _check_output, forward_simulate, get_output_dimension
    :noindex:
 
-We want our model to work in all scenarios, so our model also has to conform to the API of :py:class:`Continuous
-<abcpy.probabilisticmodels.Continuous>` since our model output, the resulting data from a forward simulation, are from a
-continuous domain.
+We want our model to work in both scenarios, so our model also has to conform to the API of :py:class:`Continuous
+<abcpy.probabilisticmodels.Continuous>` since the model output, which is the resulting data from a forward simulation,
+is from a continuous domain.
 
 .. autoclass::  abcpy.probabilisticmodels.Continuous
    :members: pdf
@@ -54,19 +54,30 @@ numbers, the newly implement class derives from
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
    :language: python
-   :lines: 5
+   :lines: 7
 
-When we implement a new model, a good start is to implement a constructor. We
-have to follow the subsequent convention:
+A good way to start implementing a new model is to define a convenient way to initialize it with its input parameters.
+In ABCpy all input parameters (input models) of our Gaussian model are independent ProbabilisticModels (or
+Hyperparameters) and should not be stored within the model we are going to write. We merely need a reference to the
+input parameters or input models respectively. This reference is handled by the :py:class:`InputConnector
+<abcpy.probabilisticmodels.InputConnector>` class. It is important that upon initialization of our model, we call the
+init function ProbabilisticModels and pass an InputConnector object to it. Let's be more concrete:
 
-.. automethod:: abcpy.probabilisticmodels.ProbabilisticModel.__init__
-    :noindex:
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
+    :language: python
+    :lines: 12-21
+    :dedent: 4
+    :linenos:
 
-In pseudo-code, the required input list might look similar to the following:
+For convenience our init function expects a list of parameters $[mu, sigma]$, where $mu$ is the mean and $sigma$ is the
+standard deviation are the sole two parameters of our generative Gaussian model. We do some basic syntactic checks on
+the input that throw exceptions if something unreasonable is provided. In line 9 we create in InputConnector object from
+the factory method :py:meth:`from_list <abcpy.probabilisticmodels.InputConnector.from_list>`. The resulting
+InputConnector creates links between our Gaussian model and the models (or hyperparameters) that are used for mu and
+sigma at initialization time.
 
-.. code-block:: python
+#HERE#
 
-    [(prob_model_1, 0), (prob_model_1, 2), prob_model_2, (hyperparameter, 0), 3.2]
 
 So calling the constructor of the
 :py:class:`abcpy.probabilisticmodels.ProbabilisticModel` essentially supports us
@@ -84,6 +95,7 @@ that look as following:
     :language: python
     :lines: 10-11
     :dedent: 4
+
 
 Note that we do not need to think about converting different types of inputs to
 tuples, as that is automatically done inside the constructor of

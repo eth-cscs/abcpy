@@ -682,10 +682,11 @@ class ProbabilisticModel(metaclass = ABCMeta):
         In this method the forward simulation should be implemented, respecting a standardized output.
 
         In case the model is intended to be used as input for another model, a forward simulation *must* return a list of
-        numpy arrays with shape (get_output_dimension(),).
+        k numpy arrays with shape (get_output_dimension(),).
 
-        In case model is directly used for inference, and not as input for another model, a forward simulation
-        must return a list, but the elements can be arbitrarily defined.
+        In case the model is directly used for inference, and not as input for another model, a forward simulation
+        also must return a list, but the elements can be arbitrarily defined. In this case it is only important that the
+        used statistics and distance functions can read the input.
 
         Parameters
         ----------
@@ -698,8 +699,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
         Returns
         -------
         list
-            A list of k model outputs. In case of an error, the result *must* be None.
-            If model is used as input for other models, a single model output has to be a list of numpy arrays.
         """
 
         raise NotImplementedError
