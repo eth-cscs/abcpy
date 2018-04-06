@@ -1919,6 +1919,16 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
                 accepted_parameters = np.concatenate((accepted_parameters, new_parameters))
                 accepted_dist = np.concatenate((accepted_dist, new_dist))
 
+            # print("INFO: Saving configuration to output journal.")
+            if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
+                journal.add_parameters(accepted_parameters)
+                journal.add_weights(np.ones(shape=(len(accepted_parameters), 1)) * (1 / len(accepted_parameters)))
+
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
+                names_and_parameters = self._get_names_and_parameters()
+                journal.add_user_parameters(names_and_parameters)
+                journal.number_of_simulations.append(self.simulation_counter)
+
             # 2: Compute acceptance probabilty and set R
             # print(aStep)
             # print(new_index)
@@ -1940,14 +1950,6 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
                                       0)
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
 
-            # print("INFO: Saving configuration to output journal.")
-            if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
-                journal.add_parameters(accepted_parameters)
-                journal.add_weights(np.ones(shape=(len(accepted_parameters), 1)) * (1 / len(accepted_parameters)))
-
-                names_and_parameters = self._get_names_and_parameters()
-                journal.add_user_parameters(names_and_parameters)
-                journal.number_of_simulations.append(self.simulation_counter)
 
         # Add epsilon_arr to the journal
         journal.configuration["epsilon_arr"] = epsilon
@@ -2239,6 +2241,9 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.add_parameters(accepted_parameters)
                 journal.add_weights(accepted_weights)
 
+                self.accepted_parameters_manager.update_broadcast(self.backend,
+                                                                  accepted_parameters=accepted_parameters,
+                                                                  accepted_weights=accepted_weights)
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)
                 journal.number_of_simulations.append(self.simulation_counter)
