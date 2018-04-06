@@ -75,7 +75,8 @@ class GetAcceptedParametersBdsValuesTests(unittest.TestCase):
 
         values = Manager.get_accepted_parameters_bds_values([B1,N2,N1])
         values_expected = [np.array(x).reshape(-1,) for x in [[2,3,4],[0.27,0.32,0.28],[0.97,0.12,0.99]]]
-        self.assertEqual(values, values_expected)
+
+        self.assertTrue(all([all(a == b) for a, b in zip(values, values_expected)]))
 
 
 if __name__ == '__main__':
