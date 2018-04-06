@@ -269,15 +269,13 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
 
         if(accepted_parameters_manager.accepted_weights_bds is not None):
             weights = accepted_parameters_manager.accepted_weights_bds.value()
-            #cov = np.cov(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], aweights=weights.reshape(-1), rowvar=False)
-            cov = np.cov(np.array([np.array(x).reshape(-1, ) for x in
-                                   accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]]),
-                         aweights=weights.reshape(-1), rowvar=False)
+            cov = np.cov(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float),
+                         aweights=weights.reshape(-1).astype(float), rowvar=False)
         else:
             if(not(accepted_parameters_manager.accepted_parameters_bds.value().shape[1]>1)):
-                cov = np.var(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index])
+                cov = np.var(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float))
             else:
-                cov = np.cov(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], rowvar=False)
+                cov = np.cov(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float), rowvar=False)
         return cov
 
 
@@ -306,8 +304,8 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
         continuous_model_values = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]
 
         # Perturb
-        continuous_model_values = np.array(continuous_model_values)
-        cov = accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]
+        continuous_model_values = np.array(continuous_model_values).astype(float)
+        cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
         perturbed_continuous_values = rng.multivariate_normal(continuous_model_values[row_index], cov)
         return perturbed_continuous_values
 
@@ -334,9 +332,9 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
 
         # Gets the relevant accepted parameters from the manager in order to calculate the pdf
 
-        mean = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][index]
+        mean = np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][index]).astype(float)
 
-        cov = accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]
+        cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
 
         return multivariate_normal(mean, cov).pdf(x)
 
@@ -375,15 +373,15 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
         """
 
         if(accepted_parameters_manager.accepted_weights_bds is not None):
-            weights = accepted_parameters_manager.accepted_weights_bds.value()
+            weights = np.array(accepted_parameters_manager.accepted_weights_bds.value())
             cov = np.cov(
-                accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], aweights=weights.reshape(-1),
+                np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float), aweights=weights.reshape(-1).astype(float),
                 rowvar=False)
         else:
             if(not(accepted_parameters_manager.accepted_parameters_bds.value().shape[1]>1)):
-                cov = np.var(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index])
+                cov = np.var(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float))
             else:
-                cov = np.cov(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], rowvar=False)
+                cov = np.cov(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float), rowvar=False)
         return cov
 
 
@@ -414,7 +412,7 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
 
         # Perturb
         continuous_model_values = np.array(continuous_model_values)
-        cov = accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]
+        cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index])
         p = len(continuous_model_values[row_index])
 
         if(self.df==np.inf):
@@ -424,7 +422,7 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
             chisq = chisq.reshape(-1,1).repeat(p, axis=1)
 
 
-        mvn = rng.multivariate_normal(np.zeros(p), cov, 1)
+        mvn = rng.multivariate_normal(np.zeros(p), cov.astype(float), 1)
         perturbed_continuous_values = continuous_model_values[row_index]+np.divide(mvn, np.sqrt(chisq))[0]
         return perturbed_continuous_values
 
@@ -449,13 +447,12 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
             The pdf evaluated at point x.
         """
 
-        mean = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][index]
+        mean = np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][index]).astype(float)
+        cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
 
-        cov = accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]
         v = self.df
-        mean = np.array(mean)
-        cov = np.array(cov)
         p = len(mean)
+        
         numerator = gamma((v + p) / 2)
         denominator = gamma(v / 2) * pow(v * np.pi, p / 2.) * np.sqrt(abs(np.linalg.det(cov)))
         normalizing_const = numerator / denominator
