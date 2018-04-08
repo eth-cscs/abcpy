@@ -2382,7 +2382,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
 
-    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, epsilon_final = 0.1, alpha = 0.95, covFactor = 2, resample = None, full_output=0, journal_file=None):
+    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, epsilon_final = 0.1, alpha = 0.95,
+               covFactor = 2, resample = None, full_output=0, journal_file=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -2450,7 +2451,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 accepted_weights=journal.weights[-1]
                 accepted_y_sim = journal.opt_values[-1]
 
-                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights)
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
+                                                                  accepted_weights=accepted_weights)
 
                 kernel_parameters = []
                 for kernel in self.kernel.kernels:
@@ -2511,7 +2513,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             # Update the weights
             accepted_weights = new_weights.reshape(len(new_weights), 1)
 
-            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights)
+            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
+                                                              accepted_weights=accepted_weights)
             if(accepted_y_sim is not None):
                 kernel_parameters = []
                 for kernel in self.kernel.kernels:
@@ -2535,7 +2538,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             # print("INFO: Broadcasting parameters.")
             self.epsilon = epsilon
 
-            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights, accepted_cov_mats=accepted_cov_mats)
+            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
+                                                              accepted_weights=accepted_weights, accepted_cov_mats=accepted_cov_mats)
             self._update_broadcasts(accepted_y_sim)
 
             # calculate resample parameters
@@ -2685,11 +2689,12 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 numerator = 0.0
                 denominator = 0.0
                 for ind in range(self.n_samples_per_param):
-                    numerator += (
-                    self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), [[y_sim[0][ind]]]) < self.epsilon[-1])
-                    denominator += (
-                    self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), [[y_sim_old[0][ind]]]) < self.epsilon[-1])
-                ratio_data_epsilon = numerator / denominator
+                    numerator += (self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), [[y_sim[0][ind]]]) < self.epsilon[-1])
+                    denominator += (self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), [[y_sim_old[0][ind]]]) < self.epsilon[-1])
+                if denominator == 0:
+                    ratio_data_epsilon = 1
+                else:
+                    ratio_data_epsilon = numerator / denominator
                 ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model, theta)
                 kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, index, theta)
                 kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, index, perturbation_output[1])

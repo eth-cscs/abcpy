@@ -452,7 +452,7 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
 
         v = self.df
         p = len(mean)
-        
+
         numerator = gamma((v + p) / 2)
         denominator = gamma(v / 2) * pow(v * np.pi, p / 2.) * np.sqrt(abs(np.linalg.det(cov)))
         normalizing_const = numerator / denominator
