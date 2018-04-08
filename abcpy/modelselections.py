@@ -24,7 +24,7 @@ class ModelSelections(metaclass = ABCMeta):
         Parameters
         ----------
         model_array: list
-            A list of models which are of type abcpy.models.Model
+            A list of models which are of type abcpy.probabilisticmodels
         statistics: abcpy.statistics.Statistics
             Statistics object that conforms to the Statistics class.
         backend: abcpy.backends.Backend
@@ -50,11 +50,9 @@ class ModelSelections(metaclass = ABCMeta):
     @abstractmethod
     def select_model(self, observations, n_samples = 1000, n_samples_per_param = 100):
         """To be overwritten by any sub-class: returns a model selected by the modelselection
-        procedure most suitable to the obersved data set observations. It is assumed that observations is a 
-        list of n same type elements(eg., The observations can be a list containing n timeseries, n 
-        graphs or n np.ndarray). Further two optional integer arguments n_samples and n_samples_per_param
-        is supplied denoting the number of samples in the refernce table and the data points in each 
-        simulated data set.
+        procedure most suitable to the obersved data set observations. Further two optional integer arguments n_samples
+        and n_samples_per_param is supplied denoting the number of samples in the refernce table and the data points in
+        each simulated data set.
         
         Parameters
         ----------
@@ -66,8 +64,8 @@ class ModelSelections(metaclass = ABCMeta):
             Number of data points in each simulated data set.  
         Returns
         -------
-        abcpy.models.Model
-            A model which are of type abcpy.models.Model
+        abcpy.probabilisticmodels
+            A model which are of type abcpy.probabilisticmodels
             
         """
         
@@ -76,8 +74,7 @@ class ModelSelections(metaclass = ABCMeta):
     @abstractmethod
     def posterior_probability(self, observations):
         """To be overwritten by any sub-class: returns the approximate posterior probability
-        of the chosen model given the observed data set observations. It is assumed that observations 
-        is a  list of n same type elements(eg., The observations can be a list containing n timeseries, n graphs or n np.ndarray).
+        of the chosen model given the observed data set observations.
         
         Parameters
         ----------
@@ -137,8 +134,8 @@ class RandomForest(ModelSelections, GraphTools):
             Number of data points in each simulated data set. The default value is 1.
         Returns
         -------
-        abcpy.models.Model
-            A model which are of type abcpy.models.Model
+        abcpy.probabilisticmodels
+            A model which are of type abcpy.probabilisticmodels
             
         """
         self.n_samples_per_param = n_samples_per_param
@@ -172,51 +169,19 @@ class RandomForest(ModelSelections, GraphTools):
 
         return(self.model_array[int(classifier.predict(self.statistics_calc.statistics(observations)))])
 
-    def _simulate_model_data(self, seed):
-        """
-        Samples a single model parameter and simulates from it until
-        distance between simulated outcome and the observation is
-        smaller than eplison.
-
-        Parameters
-        ----------
-        seed: int
-            value of a seed to be used for reseeding
-        Returns
-        -------
-        np.array
-            accepted parameter
-        """
-        # reseed random number genearator
-        rng = np.random.RandomState(seed)
-        len_model_array = len(self.model_array)
-        model = self.model_array[int(sum(np.linspace(0, len_model_array - 1, len_model_array) \
-                                         * rng.multinomial(1, (1 / len_model_array) * np.ones(len_model_array))))]
-        self.sample_from_prior([model], rng=rng)
-        y_sim = model.forward_simulate(self.n_samples_per_param, rng=rng)
-        while(y_sim[0] is False):
-            y_sim = model.forward_simulate(self.n_samples_per_param, rng=rng)
-        y_sim = y_sim[0].tolist()
-        statistics = self.statistics_calc.statistics(y_sim)
-
-        return (model, y_sim, statistics)
-
     def posterior_probability(self, observations, n_samples = 1000, n_samples_per_param = 1):
-        """        
+
+        """
         Parameters
         ----------
         observations: python list
-            The observed data set.
-        n_samples : integer, optional
-            Number of samples to generate for reference table. The default value is 1000.
-        n_samples_per_param : integer, optional 
-            Number of data points in each simulated data set. The default value is 1.
+                    The observed data set.
         Returns
         -------
-        abcpy.models.Model
-            A model which are of type abcpy.models.Model
-            
+        np.ndarray
+            A vector containing the approximate posterior probability of the model chosen.
         """
+
         self.n_samples_per_param = 1
         self.observations_bds = self.backend.broadcast(observations)
         # Creation of reference table
@@ -256,3 +221,31 @@ class RandomForest(ModelSelections, GraphTools):
 
         return(1-regressor.predict(self.statistics_calc.statistics(observations)))
 
+    def _simulate_model_data(self, seed):
+        """
+        Samples a single model parameter and simulates from it until
+        distance between simulated outcome and the observation is
+        smaller than eplison.
+
+        Parameters
+        ----------
+        seed: int
+            value of a seed to be used for reseeding
+        Returns
+        -------
+        np.array
+            accepted parameter
+        """
+        # reseed random number genearator
+        rng = np.random.RandomState(seed)
+        len_model_array = len(self.model_array)
+        model = self.model_array[int(sum(np.linspace(0, len_model_array - 1, len_model_array) \
+                                         * rng.multinomial(1, (1 / len_model_array) * np.ones(len_model_array))))]
+        self.sample_from_prior([model], rng=rng)
+        y_sim = model.forward_simulate(self.n_samples_per_param, rng=rng)
+        while(y_sim[0] is False):
+            y_sim = model.forward_simulate(self.n_samples_per_param, rng=rng)
+        y_sim = y_sim[0].tolist()
+        statistics = self.statistics_calc.statistics(y_sim)
+
+        return (model, y_sim, statistics)

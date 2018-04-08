@@ -231,19 +231,35 @@ variants of ABC inferential schemes: Rejection ABC [:py:class:`abcpy.inferences.
 [:py:class:`abcpy.inferences.PMCABC`], sequential Monte Carlo ABC [:py:class:`abcpy.inferences.SMCABC`], replenishment sequential Monte Carlo ABC
 (RSMC-ABC) [:py:class:`abcpy.inferences.RSMCABC`], adaptive population Monte Carlo ABC (APMC-ABC) [:py:class:`abcpy.inferences.APMCABC`], ABC with subset
 simulation (ABCsubsim) [:py:class:`abcpy.inferences.ABCsubsim`], and simulated annealing ABC (SABC) [:py:class:`abcpy.inferences.SABC`]. To perform ABC algorithms, 
-we provide different distance functions between datasets, e.g., a discrepancy measured by achievable classification accuracy between two datasets [:py:class:`abcpy.distances.PenLogReg`] 
+we provide different distance functions between datasets, e.g., a discrepancy measured by achievable classification accuracy between two datasets [:py:class:`abcpy.distances.Euclidean`, :py:class:`abcpy.distances.LogReg`, :py:class:`abcpy.distances.PenLogReg`] 
 
 We also have population Monte Carlo [:py:class:`abcpy.inferences.PMC`] algorithm to infer parameters when the likelihood or apprxomaite likelihood function is available. 
 For approximation of the likelihood function we provide two methods: synthetic likelihood approximation [:py:class:`abcpy.approx_lhd.SynLiklihood`] and another approximation using penalized logistic regression [:py:class:`abcpy.approx_lhd.PenLogReg`]
-
-Model Selection
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-A further extension of the inferential problem is the selection of a model (M), given an observed
-dataset, from a set of possible models. The package also includes a parallelized version of a random 
-forest ensemble model selection algorithm [:py:class:`abcpy.modelselections.RandomForest`].
 
 Summary Selection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 We have noticed in the `Parameters as Random Variables`_ section, the discrepancy measure between two datasets are define by a distance function between extracted summary statistics from the datasets. Hence the ABC algorithms are subjective to the summary statistics choice. This subjectivity can be avoided by a data-driven summary statistics choice from the available summary statistics of the dataset. In ABCpy we provide semiautomatic summry selection procedure [:py:class:`abcpy.summaryselections.Semiautomatic`]
+
+If your summary statistics for the inference problem related to the heights of the grown-up human were defined as:
+
+.. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian_summary_selection.py
+    :language: python
+    :lines: 21-23
+    :dedent: 4
+
+Then we can learn the optimized summary statistics from the given list of summary statistics using the semi-automatic summary selection procedure as following:
+
+.. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian_summary_selection.py
+    :language: python
+    :lines: 25-32
+    :dedent: 4
+
+Then we can perform the inference as before, but the distances will be computed on the newly learned summary statistics using the semi-automatic summary selection procedure.
+
+Model Selection
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A further extension of the inferential problem is the selection of a model (M), given an observed
+dataset, from a set of possible models. The package also includes a parallelized version of random 
+forest ensemble model selection algorithm [:py:class:`abcpy.modelselections.RandomForest`].

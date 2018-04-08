@@ -272,7 +272,7 @@ class LogReg(Distance):
 
 class DefaultJointDistance(Distance):
     def __init__(self, statistics):
-        """This class implements a default distance to be used when multiple root models exist. It uses LogReg as the distance calculator for each root model, and adds all individual distances.
+        """This class implements a default distance to be used when multiple root models exist. It uses Euclidean as the distance calculator for each root model, and adds all individual distances.
 
         Parameters
         ----------
