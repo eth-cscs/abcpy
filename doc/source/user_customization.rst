@@ -322,9 +322,6 @@ converted into a Python numpy array for the purposes of ABCpy.
 
 Implementing a new Distance
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-As discussed in the :ref:`Hierarchical model <gettingstarted>` section, our distance functions can, in general, act on multiple data sets. We provide a :py:class:`abcpy.distances.DefaultJointDistance` object to give a basic implementation of a distance acting on multiple data sets.
-
 We will now explain how you can implement your own distance measure. A distance needs to provide the following three methods:
 
 .. literalinclude:: ../../abcpy/distances.py
