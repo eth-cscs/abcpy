@@ -84,7 +84,7 @@ class ExampleGaussianMPITest(unittest.TestCase):
         journal = infer_parameters()
         test_result = journal.posterior_mean()[0]
         expected_result = 178.07690877694714
-        self.assertLess(abs(test_result - expected_result), 1e-1)
+        self.assertLess(abs(test_result - expected_result), 2)
 
 
 if __name__  == "__main__":
