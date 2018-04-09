@@ -11,7 +11,7 @@ class Distance(metaclass = ABCMeta):
     """
     
     @abstractmethod
-    def __init__(self, statistics_calc):
+    def __init__(self, statistics_calc, ind=0):
         """The constructor of a sub-class must accept a non-optional statistics
         calculator as a parameter. If stored to self.statistics_calc, the
         private helper method _calculate_summary_stat can be used.
@@ -20,6 +20,9 @@ class Distance(metaclass = ABCMeta):
         ----------
         statistics_calc : abcpy.stasistics.Statistics 
             Statistics extractor object that conforms to the Statistics class.
+        ind: int, optional
+            One integer value, which is index of a root model- The distance would be computed
+            on the data corresponding to that root model. The default value is 0, denoting the first root model
         """
         
         raise NotImplementedError
@@ -109,12 +112,13 @@ class Euclidean(Distance):
     The maximum value of the distance is np.inf.
     """
     
-    def __init__(self, statistics):
+    def __init__(self, statistics,ind=0):
         self.statistics_calc = statistics
 
         # Since the observations do always stay the same, we can save the summary statistics of them and not recalculate it each time
         self.s1 = None
         self.data_set = None
+        self.ind = ind
 
         
     def distance(self, d1, d2):
@@ -129,8 +133,8 @@ class Euclidean(Distance):
             raise TypeError('Data is not of allowed types')
         if not isinstance(d2, list):
             raise TypeError('Data is not of allowed types')
-        d1 = d1[0]
-        d2 = d2[0]
+        d1 = d1[self.ind]
+        d2 = d2[self.ind]
         # Extract summary statistics from the dataset
         if(self.s1 is None or self.data_set!=d1):
             self.s1 = self.statistics_calc.statistics(d1)
@@ -171,12 +175,13 @@ class PenLogReg(Distance):
     Software, 33(1), 1–22.
     """
 
-    def __init__(self, statistics):
+    def __init__(self, statistics,ind=0):
         self.statistics_calc = statistics
 
         # Since the observations do always stay the same, we can save the summary statistics of them and not recalculate it each time
         self.s1 = None
         self.data_set = None
+        self.ind = ind
         
     def distance(self, d1, d2):
         """Calculates the distance between two datasets.
@@ -190,8 +195,8 @@ class PenLogReg(Distance):
             raise TypeError('Data is not of allowed types')
         if not isinstance(d2, list):
             raise TypeError('Data is not of allowed types')
-        d1 = d1[0]
-        d2 = d2[0]
+        d1 = d1[self.ind]
+        d2 = d2[self.ind]
 
         # Extract summary statistics from the dataset
         if(self.s1 is None or self.data_set!=d1):
@@ -226,12 +231,13 @@ class LogReg(Distance):
     inference of intractable generative models via classification. arXiv:1407.4981.
     """
     
-    def __init__(self, statistics):
+    def __init__(self, statistics,ind=0):
         self.statistics_calc = statistics
 
         # Since the observations do always stay the same, we can save the summary statistics of them and not recalculate it each time
         self.s1 = None
         self.data_set = None
+        self.ind = ind
         
     def distance(self, d1, d2):
         """Calculates the distance between two datasets.
@@ -245,8 +251,8 @@ class LogReg(Distance):
             raise TypeError('Data is not of allowed types')
         if not isinstance(d2, list):
             raise TypeError('Data is not of allowed types')
-        d1 = d1[0]
-        d2 = d2[0]
+        d1 = d1[self.ind]
+        d2 = d2[self.ind]
         # Extract summary statistics from the dataset
         if(self.s1 is None or self.data_set!=d1):
             self.s1 = self.statistics_calc.statistics(d1)

@@ -183,14 +183,14 @@ Since we are now considering two observed datasets, we need to define an overall
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_multiple_models.py
     :language: python
-    :lines: 38-39
+    :lines: 33-49
     :dedent: 4
 
 We then parametrize the sampler and sample from the posterior distribution:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_multiple_models.py
     :language: python
-    :lines: 50-52, 55-56, 59
+    :lines: 51-70
     :dedent: 4
 
 Observe that the lists given to the sampler and the sampling method now contain two entries. These correspond to the two different observed data sets respectively.
