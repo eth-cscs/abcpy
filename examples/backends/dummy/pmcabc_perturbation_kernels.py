@@ -33,8 +33,8 @@ def infer_parameters():
     statistics_calculator = Identity(degree = 2, cross = False)
 
     # Define a distance measure
-    from abcpy.distances import DefaultJointDistance
-    distance_calculator = DefaultJointDistance(statistics_calculator)
+    from abcpy.distances import Euclidean
+    distance_calculator = Euclidean(statistics_calculator)
 
     # Define a backend
     from abcpy.backends import BackendDummy as Backend
@@ -57,7 +57,7 @@ def infer_parameters():
 
     # Define sampler
     from abcpy.inferences import PMCABC
-    sampler = PMCABC([final_grade, final_scholarship], distance_calculator, backend, kernel)
+    sampler = PMCABC([final_grade, final_scholarship], [distance_calculator, distance_calculator], backend, kernel)
 
     # Sample
     journal = sampler.sample([y_obs_grades, y_obs_scholarship], T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)

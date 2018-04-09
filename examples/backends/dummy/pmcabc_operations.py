@@ -35,7 +35,7 @@ def infer_parameters():
 
     # Defien a perturbation kernel
     from abcpy.perturbationkernel import DefaultKernel
-    kernel = DefaultKernel([school_location, class_size, grade, background])
+    kernel = DefaultKernel([school_location, class_size, grade_without_additional_effects, background])
 
     # Define sampling parameters
     T, n_sample, n_samples_per_param = 3, 250, 10
@@ -44,7 +44,7 @@ def infer_parameters():
 
     # Define sampler
     from abcpy.inferences import PMCABC
-    sampler = PMCABC([final_grade], distance_calculator, backend, kernel)
+    sampler = PMCABC([final_grade], [distance_calculator], backend, kernel)
 
     # Sample
     journal = sampler.sample([grades_obs], T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
