@@ -26,7 +26,7 @@ class PenLogRegTests(unittest.TestCase):
         self.mu._fixed_values = [1.1]
         self.sigma._fixed_values = [1.0]
         y_sim = self.model.forward_simulate(100, rng=np.random.RandomState(1))
-        comp_likelihood = self.likfun.likelihood(y_obs, y_sim, 0)
+        comp_likelihood = self.likfun.likelihood(y_obs, y_sim)
         expected_likelihood = 4.3996556327224594
         # This checks whether it computes a correct value and dimension is right
         self.assertLess(comp_likelihood - expected_likelihood, 10e-2)
@@ -52,7 +52,7 @@ class SynLiklihoodTests(unittest.TestCase):
         self.sigma._fixed_values = [1.0]
         y_sim = self.model.forward_simulate(100, rng=np.random.RandomState(1))
         # calculate the statistics of the observed data
-        comp_likelihood = self.likfun.likelihood(y_obs, y_sim, 0)
+        comp_likelihood = self.likfun.likelihood(y_obs, y_sim)
         expected_likelihood = 0.00924953470649
         # This checks whether it computes a correct value and dimension is right
         self.assertLess(comp_likelihood - expected_likelihood, 10e-2)

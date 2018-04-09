@@ -5,6 +5,7 @@ from abcpy.probabilisticmodels import *
 from abcpy.acceptedparametersmanager import *
 from abcpy.perturbationkernel import DefaultKernel
 from abcpy.jointdistances import LinearCombination
+from abcpy.jointapprox_lhd import ProductCombination
 
 
 import numpy as np
@@ -619,9 +620,10 @@ class PMC(BaseLikelihood, InferenceMethod):
     backend = None
 
 
-    def __init__(self, root_models, likfun, backend, kernel=None, seed=None):
+    def __init__(self, root_models, likfuns, backend, kernel=None, seed=None):
         self.model = root_models
-        self.likfun = likfun
+        # We define the joint Product of likelihood functions using all the likelihoods for each individual models
+        self.likfun = ProductCombination(root_models, likfuns)
 
         if(kernel is None):
             warnings.warn(
@@ -860,20 +862,20 @@ class PMC(BaseLikelihood, InferenceMethod):
 
         # Simulate the fake data from the model given the parameter value theta
         # print("DEBUG: Simulate model for parameter " + str(theta))
-        all_y_sim = self.simulate(self.n_samples_per_param, self.rng)
+        y_sim = self.simulate(self.n_samples_per_param, self.rng)
         # print("DEBUG: Extracting observation.")
-        all_obs = self.accepted_parameters_manager.observations_bds.value()
+        obs = self.accepted_parameters_manager.observations_bds.value()
         # print("DEBUG: Computing likelihood...")
+
 
         total_pdf_at_theta = 1.
 
-        for ind, (obs, y_sim) in enumerate(zip(all_obs, all_y_sim)):
-            lhd = self.likfun.likelihood(obs, y_sim, ind)
+        lhd = self.likfun.likelihood(obs, y_sim)
 
-            # print("DEBUG: Likelihood is :" + str(lhd))
-            pdf_at_theta = self.pdf_of_prior(self.model, theta)
+        # print("DEBUG: Likelihood is :" + str(lhd))
+        pdf_at_theta = self.pdf_of_prior(self.model, theta)
 
-            total_pdf_at_theta*=(pdf_at_theta*lhd)
+        total_pdf_at_theta*=(pdf_at_theta*lhd)
 
         # print("DEBUG: prior pdf evaluated at theta is :" + str(pdf_at_theta))
         return (total_pdf_at_theta, 1)

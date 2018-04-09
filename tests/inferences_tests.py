@@ -79,7 +79,7 @@ class PMCTests(unittest.TestCase):
 
 
         T, n_sample, n_samples_per_param = 1, 10, 100
-        sampler = PMC([self.model], likfun, backend, seed = 1)
+        sampler = PMC([self.model], [likfun], backend, seed = 1)
         journal = sampler.sample([y_obs], T, n_sample, n_samples_per_param, covFactors =  np.array([.1,.1]), iniPoints = None)
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
 
@@ -99,7 +99,7 @@ class PMCTests(unittest.TestCase):
 
         # use the PMC scheme for T = 2
         T, n_sample, n_samples_per_param = 2, 10, 100
-        sampler = PMC([self.model], likfun, backend, seed = 1)
+        sampler = PMC([self.model], [likfun], backend, seed = 1)
         journal = sampler.sample([y_obs], T, n_sample, n_samples_per_param, covFactors = np.array([.1,.1]), iniPoints = None)
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
         
