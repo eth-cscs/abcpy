@@ -179,21 +179,21 @@ However, depending on the students social background, the score will be changed,
 
 As in the algorithms before, we now define summary statistics, distance, backend and kernel. We will skip the definitions that have not changed from the previous section. However, we would like to point out the difference in definition of the distance.
 
-Since we are now considering two observed datasets, we need to define an overall distance on the two. Here, we use the default distance provided in ABCpy. It considers the euclidean distance for each observed data set and corresponding simulated data set seperatly, finally taking a mean over all the data sets. If you would like to implement a different distance measure on multiple data sets, check :ref:`Implementing a new Distance <implementations>`.
+Since we are now considering two observed datasets, we need to define an distances on them separately. Here, we use the euclidean distance for each observed data set and corresponding simulated data set. You can use two different distances on two different observed datasets. 
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_multiple_models.py
     :language: python
-    :lines: 33-49
+    :lines: 33-41
     :dedent: 4
 
-We then parametrize the sampler and sample from the posterior distribution:
+We then parametrize the sampler and sample from the posterior distribution. 
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_multiple_models.py
     :language: python
-    :lines: 51-70
+    :lines: 43-64
     :dedent: 4
 
-Observe that the lists given to the sampler and the sampling method now contain two entries. These correspond to the two different observed data sets respectively.
+Observe that the lists given to the sampler and the sampling method now contain two entries. These correspond to the two different observed data sets respectively. Also notice now we provide two different distances corresponding to the two different root models and their observed datasets. Presently ABCpy combines the distances by a linear combination. Further possibilities of combination will be made available in later versions of ABCpy.
 
 The source code can be found in `examples/backends/dummy/pmcabc_multiple_models.py`.
 

@@ -36,7 +36,7 @@ class RejectionABCTest(unittest.TestCase):
         y_obs = [np.array(9.8)]
 
         # use the rejection sampling scheme
-        sampler = RejectionABC([self.model], dist_calc, dummy, seed = 1)
+        sampler = RejectionABC([self.model], [dist_calc], dummy, seed = 1)
         journal = sampler.sample([y_obs], 10, 1, 10)
         mu_sample = np.array(journal.get_parameters()['mu'])
         sigma_sample = np.array(journal.get_parameters()['sigma'])
@@ -140,7 +140,7 @@ class PMCABCTests(unittest.TestCase):
         
     def test_calculate_weight(self):
         n_samples = 2
-        rc = PMCABC([self.model], self.dist_calc, self.backend, seed=1)
+        rc = PMCABC([self.model], [self.dist_calc], self.backend, seed=1)
         theta = np.array([1.0,1.0])
 
 
@@ -166,7 +166,7 @@ class PMCABCTests(unittest.TestCase):
     def test_sample(self):
         # use the PMCABC scheme for T = 1
         T, n_sample, n_simulate, eps_arr, eps_percentile = 1, 10, 1, [10], 10
-        sampler = PMCABC([self.model], self.dist_calc, self.backend, seed = 1)
+        sampler = PMCABC([self.model], [self.dist_calc], self.backend, seed = 1)
         journal = sampler.sample([self.observation], T, eps_arr, n_sample, n_simulate, eps_percentile)
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
           
@@ -185,7 +185,7 @@ class PMCABCTests(unittest.TestCase):
         
         # use the PMCABC scheme for T = 2
         T, n_sample, n_simulate, eps_arr, eps_percentile = 2, 10, 1, [10,5], 10
-        sampler = PMCABC([self.model], self.dist_calc, self.backend, seed = 1)
+        sampler = PMCABC([self.model], [self.dist_calc], self.backend, seed = 1)
         sampler.sample_from_prior(rng=np.random.RandomState(1))
         journal = sampler.sample([self.observation], T, eps_arr, n_sample, n_simulate, eps_percentile)
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
@@ -226,7 +226,7 @@ class SABCTests(unittest.TestCase):
     def test_sample(self):
         # use the SABC scheme for T = 1
         steps, epsilon, n_samples, n_samples_per_param = 1, 10, 10, 1
-        sampler = SABC([self.model], self.dist_calc, self.backend, seed = 1)
+        sampler = SABC([self.model], [self.dist_calc], self.backend, seed = 1)
         journal = sampler.sample([self.observation], steps, epsilon, n_samples, n_samples_per_param)
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
           
@@ -242,7 +242,7 @@ class SABCTests(unittest.TestCase):
 
         # use the SABC scheme for T = 2
         steps, epsilon, n_samples, n_samples_per_param = 2, 10, 10, 1
-        sampler = SABC([self.model], self.dist_calc, self.backend, seed = 1)
+        sampler = SABC([self.model], [self.dist_calc], self.backend, seed = 1)
         journal = sampler.sample([self.observation], steps, epsilon, n_samples, n_samples_per_param)
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
           
@@ -282,7 +282,7 @@ class ABCsubsimTests(unittest.TestCase):
 
         # use the ABCsubsim scheme for T = 1
         steps, n_samples, n_samples_per_param = 1, 10, 1
-        sampler = ABCsubsim([self.model], self.dist_calc, self.backend, seed = 1)
+        sampler = ABCsubsim([self.model], [self.dist_calc], self.backend, seed = 1)
         journal = sampler.sample([self.observation], steps, n_samples, n_samples_per_param)
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
             journal.get_parameters()['sigma']), np.array(journal.get_weights())
@@ -299,7 +299,7 @@ class ABCsubsimTests(unittest.TestCase):
 
         # use the ABCsubsim scheme for T = 2
         steps, n_samples, n_samples_per_param = 2, 10, 1
-        sampler = ABCsubsim([self.model], self.dist_calc, self.backend, seed = 1)
+        sampler = ABCsubsim([self.model], [self.dist_calc], self.backend, seed = 1)
         sampler.sample_from_prior(rng=np.random.RandomState(1))
         journal = sampler.sample([self.observation], steps, n_samples, n_samples_per_param)
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
@@ -342,7 +342,7 @@ class SMCABCTests(unittest.TestCase):
     def test_sample(self):
         # use the SMCABC scheme for T = 1
         steps, n_sample, n_simulate = 1, 10, 1
-        sampler = SMCABC([self.model], self.dist_calc, self.backend, seed = 1)
+        sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed = 1)
         journal = sampler.sample([self.observation], steps, n_sample, n_simulate)
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
             journal.get_parameters()['sigma']), np.array(journal.get_weights())
@@ -360,7 +360,7 @@ class SMCABCTests(unittest.TestCase):
         
         # use the SMCABC scheme for T = 2
         T, n_sample, n_simulate = 2, 10, 1
-        sampler = SMCABC([self.model], self.dist_calc, self.backend, seed = 1)
+        sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed = 1)
         journal = sampler.sample([self.observation], T, n_sample, n_simulate)
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
             journal.get_parameters()['sigma']), np.array(journal.get_weights())
@@ -401,7 +401,7 @@ class APMCABCTests(unittest.TestCase):
     def test_sample(self):
         # use the APMCABC scheme for T = 1
         steps, n_sample, n_simulate = 1, 10, 1
-        sampler = APMCABC([self.model], self.dist_calc, self.backend, seed = 1)
+        sampler = APMCABC([self.model], [self.dist_calc], self.backend, seed = 1)
         journal = sampler.sample([self.observation], steps, n_sample, n_simulate)
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
             journal.get_parameters()['sigma']), np.array(journal.get_weights())
@@ -420,7 +420,7 @@ class APMCABCTests(unittest.TestCase):
         
         # use the APMCABC scheme for T = 2
         T, n_sample, n_simulate = 2, 10, 1
-        sampler = APMCABC([self.model], self.dist_calc, self.backend, seed = 1)
+        sampler = APMCABC([self.model], [self.dist_calc], self.backend, seed = 1)
         journal = sampler.sample([self.observation], T, n_sample, n_simulate)
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
             journal.get_parameters()['sigma']), np.array(journal.get_weights())
@@ -461,7 +461,7 @@ class RSMCABCTests(unittest.TestCase):
     def test_sample(self):
         # use the RSMCABC scheme for T = 1
         steps, n_sample, n_simulate = 1, 10, 1
-        sampler = RSMCABC([self.model], self.dist_calc, self.backend, seed = 1)
+        sampler = RSMCABC([self.model], [self.dist_calc], self.backend, seed = 1)
         journal = sampler.sample([self.observation], steps, n_sample, n_simulate)
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
             journal.get_parameters()['sigma']), np.array(journal.get_weights())
@@ -481,7 +481,7 @@ class RSMCABCTests(unittest.TestCase):
         
         # use the RSMCABC scheme for T = 2
         steps, n_sample, n_simulate = 2, 10, 1
-        sampler = RSMCABC([self.model], self.dist_calc, self.backend, seed = 1)
+        sampler = RSMCABC([self.model], [self.dist_calc], self.backend, seed = 1)
         journal = sampler.sample([self.observation], steps, n_sample, n_simulate)
         sampler.sample_from_prior(rng=np.random.RandomState(1))
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(

@@ -30,23 +30,15 @@ def infer_parameters():
     # A quantity determining whether a student receives a scholarship, including his social background
     final_scholarship = scholarship_without_additional_effects + 3*background
 
-    # Define a summary statistics for final grade
+    # Define a summary statistics for final grade and final scholarship
     from abcpy.statistics import Identity
     statistics_calculator_final_grade = Identity(degree = 2, cross = False)
-
-    # Define a summary statistics for final scholarship
-    from abcpy.statistics import Identity
     statistics_calculator_final_scholarship = Identity(degree = 3, cross = False)
 
-    # Define a distance measure for final grade
+    # Define a distance measure for final grade and final scholarship
     from abcpy.distances import Euclidean
-    distance_calculator_final_grade = Euclidean(statistics_calculator_final_grade,0)
-
-    # Define a distance measure for final scholarship
-    from abcpy.distances import Euclidean
-    distance_calculator_final_scholarship = Euclidean(statistics_calculator_final_scholarship,1)
-
-    distance_calculator_joint= ????
+    distance_calculator_final_grade = Euclidean(statistics_calculator_final_grade)
+    distance_calculator_final_scholarship = Euclidean(statistics_calculator_final_scholarship)
 
     # Define a backend
     from abcpy.backends import BackendDummy as Backend
@@ -64,10 +56,12 @@ def infer_parameters():
 
     # Define sampler
     from abcpy.inferences import PMCABC
-    sampler = PMCABC([final_grade, final_scholarship], distance_calculator_joint, backend, kernel)
+    sampler = PMCABC([final_grade, final_scholarship], \
+                     [distance_calculator_final_grade, distance_calculator_final_scholarship], backend, kernel)
 
     # Sample
-    journal = sampler.sample([grades_obs, scholarship_obs], T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
+    journal = sampler.sample([grades_obs, scholarship_obs], \
+                             T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
 
 
 def analyse_journal(journal):

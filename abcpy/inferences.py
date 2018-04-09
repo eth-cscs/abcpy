@@ -4,6 +4,7 @@ from abcpy.graphtools import GraphTools
 from abcpy.probabilisticmodels import *
 from abcpy.acceptedparametersmanager import *
 from abcpy.perturbationkernel import DefaultKernel
+from abcpy.jointdistances import LinearCombination
 
 
 import numpy as np
@@ -166,9 +167,10 @@ class RejectionABC(InferenceMethod):
 
     backend = None
 
-    def __init__(self, root_models, distance, backend, seed=None):
+    def __init__(self, root_models, distances, backend, seed=None):
         self.model = root_models
-        self.distance = distance
+        # We define the joint Linear combination distance using all the distances for each individual models
+        self.distance = LinearCombination(root_models, distances)
         self.backend = backend
         self.rng = np.random.RandomState(seed)
 
@@ -312,9 +314,10 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
     backend = None
 
 
-    def __init__(self, root_models, distance, backend, kernel=None,seed=None):
+    def __init__(self, root_models, distances, backend, kernel=None,seed=None):
         self.model = root_models
-        self.distance = distance
+        # We define the joint Linear combination distance using all the distances for each individual models
+        self.distance = LinearCombination(root_models, distances)
         if(kernel is None):
             warnings.warn("No kernel has been defined. By default all continuous parameters are perturbed using a multivariate normal, all discrete parameters are perturbed using a random walk.", Warning)
 
@@ -376,8 +379,6 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
             journal.configuration["steps"] = steps
             journal.configuration["epsilon_percentile"] = epsilon_percentile
-            journal.configuration["type_statistics_calc_func"] = type(self.distance.statistics_calc).__name__
-
         else:
             journal = Journal.fromFile(journal_file)
 
@@ -945,9 +946,10 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
     backend = None
 
-    def __init__(self, root_models, distance, backend, kernel=None, seed=None):
+    def __init__(self, root_models, distances, backend, kernel=None, seed=None):
         self.model = root_models
-        self.distance = distance
+        # We define the joint Linear combination distance using all the distances for each individual models
+        self.distance = LinearCombination(root_models, distances)
 
         if (kernel is None):
             warnings.warn(
@@ -1033,8 +1035,6 @@ class SABC(BaseDiscrepancy, InferenceMethod):
             journal.configuration["n_update"] = n_update
             journal.configuration["adaptcov"] = adaptcov
             journal.configuration["full_output"] = full_output
-            journal.configuration["type_statistics_calc_func"] = type(self.distance.statistics_calc).__name__
-
         else:
             journal = Journal.fromFile(journal_file)
 
@@ -1386,9 +1386,10 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
     backend = None
 
-    def __init__(self, root_models, distance, backend, kernel=None,seed=None):
+    def __init__(self, root_models, distances, backend, kernel=None,seed=None):
         self.model = root_models
-        self.distance = distance
+        # We define the joint Linear combination distance using all the distances for each individual models
+        self.distance = LinearCombination(root_models, distances)
 
         if (kernel is None):
             warnings.warn(
@@ -1454,7 +1455,6 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             journal.configuration["chain_length"] = self.chain_length
             journal.configuration["ap_change_cutoff"] = ap_change_cutoff
             journal.configuration["full_output"] = full_output
-            journal.configuration["type_statistics_calc_func"] = type(self.distance.statistics_calc).__name__
         else:
             journal = Journal.fromFile(journal_file)
 
@@ -1751,9 +1751,10 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
     backend = None
 
 
-    def __init__(self, root_models, distance, backend, kernel=None,seed=None):
+    def __init__(self, root_models, distances, backend, kernel=None,seed=None):
         self.model = root_models
-        self.distance = distance
+        # We define the joint Linear combination distance using all the distances for each individual models
+        self.distance = LinearCombination(root_models, distances)
 
         if (kernel is None):
             warnings.warn(
@@ -1829,7 +1830,6 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
             journal.configuration["n_samples"] = self.n_samples
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
             journal.configuration["steps"] = steps
-            journal.configuration["type_statistics_calc_func"] = type(self.distance.statistics_calc).__name__
         else:
             journal = Journal.fromFile(journal_file)
 
@@ -2060,9 +2060,10 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
 
     backend = None
 
-    def __init__(self,  root_models, distance, backend, kernel = None,seed=None):
+    def __init__(self,  root_models, distances, backend, kernel = None,seed=None):
         self.model = root_models
-        self.distance = distance
+        # We define the joint Linear combination distance using all the distances for each individual models
+        self.distance = LinearCombination(root_models, distances)
 
         if (kernel is None):
             warnings.warn(
@@ -2132,7 +2133,6 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
             journal.configuration["n_samples"] = self.n_samples
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
             journal.configuration["steps"] = steps
-            journal.configuration["type_statistics_calc_func"] = type(self.distance.statistics_calc).__name__
         else:
             journal = Journal.fromFile(journal_file)
 
@@ -2353,9 +2353,10 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
     backend = None
 
-    def __init__(self, root_models, distance, backend, kernel = None,seed=None):
+    def __init__(self, root_models, distances, backend, kernel = None,seed=None):
         self.model = root_models
-        self.distance = distance
+        # We define the joint Linear combination distance using all the distances for each individual models
+        self.distance = LinearCombination(root_models, distances)
 
         if (kernel is None):
             warnings.warn(
@@ -2426,8 +2427,6 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             journal.configuration["n_samples"] = self.n_samples
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
             journal.configuration["steps"] = steps
-            journal.configuration["type_statistics_calc_func"] = type(self.distance.statistics_calc).__name__
-
         else:
             journal = Journal.fromFile(journal_file)
 

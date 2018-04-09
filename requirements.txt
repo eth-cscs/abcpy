@@ -1,7 +1,7 @@
 numpy==1.14
 scipy
 sklearn
-glmnet
+glmnet==2.0.0
 sphinx==1.4.8
 sphinx_rtd_theme 
 coverage
