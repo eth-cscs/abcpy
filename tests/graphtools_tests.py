@@ -22,7 +22,7 @@ class SampleFromPriorTests(unittest.TestCase):
         distance_calculator = LogReg(statistics_calculator)
         backend = Backend()
 
-        sampler = RejectionABC([graph], distance_calculator, backend)
+        sampler = RejectionABC([graph], [distance_calculator], backend)
 
         rng = np.random.RandomState(1)
 
@@ -44,7 +44,7 @@ class ResetFlagsTests(unittest.TestCase):
         distance_calculator = LogReg(statistics_calculator)
         backend = Backend()
 
-        sampler = RejectionABC([N2], distance_calculator, backend)
+        sampler = RejectionABC([N2], [distance_calculator], backend)
 
         sampler._reset_flags()
 
@@ -64,7 +64,7 @@ class GetParametersTests(unittest.TestCase):
         distance_calculator = LogReg(statistics_calculator)
         backend = Backend()
 
-        self.sampler = RejectionABC([self.graph], distance_calculator, backend)
+        self.sampler = RejectionABC([self.graph], [distance_calculator], backend)
 
         self.rng = np.random.RandomState(1)
 
@@ -87,7 +87,7 @@ class SetParametersTests(unittest.TestCase):
         distance_calculator = LogReg(statistics_calculator)
         backend = Backend()
 
-        self.sampler = RejectionABC([self.graph], distance_calculator, backend)
+        self.sampler = RejectionABC([self.graph], [distance_calculator], backend)
 
         self.rng = np.random.RandomState(1)
 
@@ -114,7 +114,7 @@ class GetCorrectOrderingTests(unittest.TestCase):
         distance_calculator = LogReg(statistics_calculator)
         backend = Backend()
 
-        self.sampler = RejectionABC([self.graph], distance_calculator, backend)
+        self.sampler = RejectionABC([self.graph], [distance_calculator], backend)
 
         self.rng = np.random.RandomState(1)
 
@@ -138,7 +138,7 @@ class PerturbTests(unittest.TestCase):
         distance_calculator = LogReg(statistics_calculator)
         backend = Backend()
 
-        self.sampler = PMCABC([self.graph], distance_calculator, backend)
+        self.sampler = PMCABC([self.graph], [distance_calculator], backend)
 
         self.rng = np.random.RandomState(1)
 
@@ -182,7 +182,7 @@ class SimulateTests(unittest.TestCase):
         distance_calculator = LogReg(statistics_calculator)
         backend = Backend()
 
-        sampler = RejectionABC([graph1, graph2], distance_calculator, backend)
+        sampler = RejectionABC([graph1, graph2], [distance_calculator, distance_calculator], backend)
 
         rng = np.random.RandomState(1)
 
@@ -210,7 +210,7 @@ class GetMappingTests(unittest.TestCase):
         distance_calculator = LogReg(statistics_calculator)
         backend = Backend()
 
-        sampler = RejectionABC([graph1, graph2], distance_calculator, backend)
+        sampler = RejectionABC([graph1, graph2], [distance_calculator, distance_calculator], backend)
 
         rng = np.random.RandomState(1)
 
@@ -241,7 +241,7 @@ class PdfOfPriorTests(unittest.TestCase):
         distance_calculator = LogReg(statistics_calculator)
         backend = Backend()
 
-        self.sampler = RejectionABC(self.graph, distance_calculator, backend)
+        self.sampler = RejectionABC(self.graph, [distance_calculator, distance_calculator], backend)
 
         rng = np.random.RandomState(1)
 
