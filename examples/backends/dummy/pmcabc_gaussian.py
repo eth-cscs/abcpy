@@ -45,13 +45,13 @@ def infer_parameters():
 
 def analyse_journal(journal):
     # output parameters and weights
-    print(journal.get_parameters())
-    print(journal.get_weights())
+    journal.get_parameters()
+    journal.get_weights()
     
     # do post analysis
-    print(journal.posterior_mean())
-    print(journal.posterior_cov())
-    print(journal.posterior_histogram())
+    journal.posterior_mean()
+    journal.posterior_cov()
+    journal.posterior_histogram()
     
     # print configuration
     print(journal.configuration)

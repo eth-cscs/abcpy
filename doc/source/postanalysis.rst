@@ -3,7 +3,7 @@
 5. Post Analysis
 ================
 
-The output when sampling from an inference scheme is a Journal
+The output of an inference scheme is a Journal
 (:py:class:`abcpy.output.Journal`) which holds all the necessary results and
 convenient methods to do the post analysis.
 
@@ -45,7 +45,7 @@ For the post analysis basic functions are provided:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
-    :lines: 51-53
+    :lines: 51-54
     :dedent: 4
 
 Also, to ensure reproducibility, every journal stores the parameters of the
