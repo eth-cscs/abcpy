@@ -327,7 +327,7 @@ Let us first look at the constructor. Distances in ABCpy should act on summary s
     :lines: 112-118
     :dedent: 4
 
-Then, we need to define how the distance is calculated. First we compute the summary statistics from the datasets and then compute the distance between the summary statistics. Notice, while computing the summary statistics we save first dataset and the corresponding summary statistics, as we always consider the first dataset being the observed dataset. 
+Then, we need to define how the distance is calculated. First we compute the summary statistics from the datasets and then compute the distance between the summary statistics. Notice, while computing the summary statistics we save first dataset and the corresponding summary, as we always consider the first dataset being the observed dataset. 
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
