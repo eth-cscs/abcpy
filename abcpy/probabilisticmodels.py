@@ -566,7 +566,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         return False
 
 
-    def pdf(self, x):
+    def pdf(self, input_values, x):
         """
         Calculates the probability density function at point x.
 
@@ -574,6 +574,8 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
         Parameters
         ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
         x: list
             The point at which the pdf should be evaluated.
 
@@ -584,7 +586,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
         # If the probabilistic model is discrete, there is no probability density function, but a probability mass function. This check ensures that calling the pdf of such a model still works.
         if(isinstance(self, Discrete)):
-            return self.pmf(x)
+            return self.pmf(input_values, x)
         else:
             raise NotImplementedError
 
@@ -602,7 +604,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
 
         if self._calculated_pdf == None:
-            self._calculated_pdf = self.pdf(x)
+            self._calculated_pdf = self.pdf(self.get_input_values(), x)
 
 
     def flush_stored_pdf(self):
@@ -728,12 +730,14 @@ class Continuous(metaclass = ABCMeta):
     This abstract class represents all continuous probabilistic models.
     """
     @abstractmethod
-    def pdf(self, x):
+    def pdf(self, input_values, x):
         """
         Calculates the probability density function of the model, if applicable.
 
         Parameters
         ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
         x: float
             The location at which the probability density function should be evaluated.
         """
@@ -745,12 +749,14 @@ class Discrete(metaclass = ABCMeta):
     This abstract class represents all discrete probabilistic models.
     """
     @abstractmethod
-    def pmf(self, x):
+    def pmf(self, input_values, x):
         """
         Calculates the probability mass function of the model, if applicable.
 
         Parameters
         ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
         x: float
             The location at which the probability mass function should be evaluated.
         """
@@ -829,7 +835,7 @@ class Hyperparameter(ProbabilisticModel):
         return [np.array(self._fixed_values) for _ in range(k)]
 
 
-    def pdf(self, x):
+    def pdf(self, input_values, x):
         # Mathematically, the expression for the pdf of a hyperparameter should be: if(x==self.fixed_parameters) return
         # 1; else return 0; However, since the pdf is called recursively for the whole model structure, and pdfs
         # multiply, this would mean that all pdfs become 0. Setting the return value to 1 ensures proper calulation of
@@ -888,11 +894,13 @@ class ModelResultingFromOperation(ProbabilisticModel):
         return self._dimension
 
 
-    def pdf(self, x):
+    def pdf(self, input_values, x):
         """Calculates the probability density function at point x.
 
         Parameters
         ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
         x: float or list
             The point at which the pdf should be evaluated.
 

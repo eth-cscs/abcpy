@@ -78,11 +78,13 @@ class Bernoulli(Discrete, ProbabilisticModel):
         return self._dimension
 
 
-    def pmf(self, x):
+    def pmf(self, input_values, x):
         """Evaluates the probability mass function at point x.
 
         Parameters
         ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
         x: float
             The point at which the pmf should be evaluated.
 
@@ -91,8 +93,7 @@ class Bernoulli(Discrete, ProbabilisticModel):
         float:
             The pmf evaluated at point x.
         """
-        parameter_values = self.get_input_values()
-        probability = parameter_values[0]
+        probability = input_values[0]
         pmf = bernoulli(probability).pmf(x)
         self.calculated_pmf = pmf
         return pmf
@@ -182,21 +183,22 @@ class Binomial(Discrete, ProbabilisticModel):
         return self._dimension
 
 
-    def pmf(self, x):
+    def pmf(self, input_values, x):
         """
         Calculates the probability mass function at point x.
 
         Parameters
         ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
         x: list
             The point at which the pmf should be evaluated.
         """
-        parameter_values = self.get_input_values()
 
         # If the provided point is not an integer, it is converted to one
         x = int(x)
-        n = parameter_values[0]
-        p = parameter_values[1]
+        n = input_values[0]
+        p = input_values[1]
         if(x>n):
             pmf = 0
         else:
@@ -270,11 +272,13 @@ class Poisson(Discrete, ProbabilisticModel):
         return self._dimension
 
 
-    def pmf(self, x):
+    def pmf(self, input_values, x):
         """Calculates the probability mass function of the distribution at point x.
 
         Parameters
         ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
         x: integer
             The point at which the pmf should be evaluated.
 
@@ -283,8 +287,7 @@ class Poisson(Discrete, ProbabilisticModel):
         Float
             The evaluated pmf at point x.
         """
-        parameter_values = self.get_input_values()
 
-        pmf = poisson(int(parameter_values[0])).pmf(x)
+        pmf = poisson(int(input_values[0])).pmf(x)
 
         return pmf

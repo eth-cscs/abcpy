@@ -247,7 +247,7 @@ class PdfOfPriorTests(unittest.TestCase):
 
         self.sampler.sample_from_prior(rng=rng)
 
-        self.pdf = self.sampler.pdf_of_prior(self.sampler.model, [1, 2, 4])
+        self.pdf = self.sampler.pdf_of_prior(self.sampler.model,  [1, 2, 4])
 
     def test_return_value(self):
         """Tests whether the return value is float."""
