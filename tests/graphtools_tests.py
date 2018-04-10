@@ -226,7 +226,7 @@ class PdfOfPriorTests(unittest.TestCase):
         class Mockobject(Normal):
             def __init__(self, parameters):
                 super(Mockobject, self).__init__(parameters)
-            def pdf(self, x):
+            def pdf(self, input_values, x):
                 return x
 
         self.N1 = Mockobject([1, 0.1])
