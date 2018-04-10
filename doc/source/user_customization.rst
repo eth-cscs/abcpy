@@ -72,7 +72,7 @@ This leads to the following implementation:
     :linenos:
 
 For convenience our init function expects a list of parameters :code:`[mu, sigma]`, where :code:`mu` is the mean and
-:code:`\sigma` is the standard deviation which are the sole two parameters of our generative Gaussian model. We do some
+:code:`sigma` is the standard deviation which are the sole two parameters of our generative Gaussian model. We do some
 basic syntactic checks on the input that throw exceptions if unreasonable input is provided. In line 9 we create in
 InputConnector object from the factory method :py:meth:`from_list <abcpy.probabilisticmodels.InputConnector.from_list>`.
 The resulting InputConnector creates links between our Gaussian model and the models (or hyperparameters) that are used
@@ -320,25 +320,25 @@ We will now explain how you can implement your own distance measure. A distance 
     :language: python
     :lines: 8, 14,29,66
 
-Let us first look at the constructor. Distances in ABCpy should act on summary statistics. Therefore, a statistics calculator should be provided in the constructor. Also, since we want to implement a distance for multiple data sets, we need to provide a distance calculator that will act on a single data set. Note that you could also omit this and define the distance for one data set directly within your distance class. However, since we have already defined distances for single sets, we will use this here.
+Let us first look at the constructor. Distances in ABCpy should act on summary statistics. Therefore, a statistics calculator should be provided in the constructor. Further, as the observations do always stay the same, we can save the summary statistics of them and not recalculate it each time.
 
-.. literalinclude:: ../../examples/extensions/distances/default_distance.py
+.. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 16-18
+    :lines: 112-118
     :dedent: 4
 
-Then, we need to define how the total distance is calculated. In our case, we decide that we will iterate over each observed and simulated data set, calculate the individual distance between those, add all these individual distances, and in the end divide the result by the number of data sets that we calculated the distance of in this way.
+Then, we need to define how the distance is calculated. First we compute the summary statistics from the datasets and then compute the distance between the summary statistics. Notice, while computing the summary statistics we save first dataset and the corresponding summary statistics, as we always consider the first dataset being the observed dataset. 
 
-.. literalinclude:: ../../examples/extensions/distances/default_distance.py
+.. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 20-25
+    :lines: 134-146
     :dedent: 4
 
-Finally, we need to define the maximal distance that can be obtained from this distance measure. We then normalize the distance by dividing by the number of data sets.
+Finally, we need to define the maximal distance that can be obtained from this distance measure. 
 
-.. literalinclude:: ../../examples/extensions/distances/default_distance.py
+.. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 27-28
+    :lines: 149-150
     :dedent: 4
 
 The complete example for this tutorial can be found `here

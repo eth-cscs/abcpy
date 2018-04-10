@@ -109,13 +109,13 @@ class Euclidean(Distance):
     The maximum value of the distance is np.inf.
     """
     
-    def __init__(self, statistics,ind=0):
+    def __init__(self, statistics):
         self.statistics_calc = statistics
 
-        # Since the observations do always stay the same, we can save the summary statistics of them and not recalculate it each time
+        # Since the observations do always stay the same, we can save the
+        #  summary statistics of them and not recalculate it each time
         self.s1 = None
         self.data_set = None
-        self.ind = ind
 
         
     def distance(self, d1, d2):
