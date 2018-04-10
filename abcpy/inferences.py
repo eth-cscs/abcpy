@@ -12,9 +12,6 @@ import numpy as np
 from abcpy.output import Journal
 from scipy import optimize
 
-import warnings
-
-
 class InferenceMethod(GraphTools, metaclass = ABCMeta):
     """
         This abstract base class represents an inference method.
