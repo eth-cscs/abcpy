@@ -9,8 +9,7 @@ from glmnet import LogitNet
 
 class Approx_likelihood(metaclass = ABCMeta):
     """This abstract base class defines the approximate likelihood 
-    function. To approximate the likelihood function at a parameter value given observed data set,
-    we need to pass a data set simulated from model set at the parameter value and the observed data set.
+    function.
     """
 
     @abstractmethod

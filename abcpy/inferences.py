@@ -148,7 +148,7 @@ class RejectionABC(InferenceMethod):
         Parameters
         ----------
         model: list
-        A list of the Probabilistic models corresponding to the observed datasets
+            A list of the Probabilistic models corresponding to the observed datasets
         distance: abcpy.distances.Distance
             Distance object defining the distance measure to compare simulated and observed data sets.
         backend: abcpy.backends.Backend

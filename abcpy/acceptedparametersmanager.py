@@ -5,7 +5,7 @@ import numpy as np
 class AcceptedParametersManager:
     def __init__(self, model):
         """
-        This class managed the accepted parameters and other bds objects.
+        This class manages the accepted parameters and other bds objects.
 
         Parameters
         ----------
@@ -79,6 +79,7 @@ class AcceptedParametersManager:
     def get_mapping(self, models, is_root=True, index=0):
         """Returns the order in which the models are discovered during recursive depth-first search.
         Commonly used when returning the accepted_parameters_bds for certain models.
+
         Parameters
         ----------
         models: list

@@ -8,7 +8,7 @@ from scipy.special import gamma
 class Uniform(ProbabilisticModel, Continuous):
     def __init__(self, parameters, name='Uniform'):
         """
-        This class implements a probabilistic model following a uniform distribution.
+        This class implements a probabilistic model following an uniform distribution.
 
         Parameters
         ----------
@@ -76,12 +76,12 @@ class Uniform(ProbabilisticModel, Continuous):
         k: integer
             The number of samples that should be drawn.
         rng: Random number generator
-            Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+            Defines the random number generator to be used. The default value uses a random seed to initialize the generator.
 
         Returns
         -------
-        list: [boolean, np.ndarray]
-            A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
+        list: [np.ndarray]
+            A list containing the sampled values as np-array.
             """
 
         samples = np.zeros(shape=(k, self.get_output_dimension()))
@@ -105,6 +105,11 @@ class Uniform(ProbabilisticModel, Continuous):
             List of input parameters, in the same order as specified in the InputConnector passed to the init function
         x: list
             The point at which the pdf should be evaluated.
+
+        Returns
+        -------
+        Float:
+            The evaluated pdf at point x.
         """
 
         lower_bound = input_values[:self.get_output_dimension()]
@@ -172,12 +177,12 @@ class Normal(ProbabilisticModel, Continuous):
         k: integer
             The number of samples that should be drawn.
         rng: Random number generator
-            Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+            Defines the random number generator to be used. The default value uses a random seed to initialize the generator.
 
         Returns
         -------
-        list: [boolean, np.ndarray]
-            A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
+        list: [np.ndarray]
+            A list containing the sampled values as np-array.
         """
 
         mu = input_values[0]
@@ -203,6 +208,11 @@ class Normal(ProbabilisticModel, Continuous):
             List of input parameters of the from [mu, sigma]
         x: list
             The point at which the pdf should be evaluated.
+
+        Returns
+        -------
+        Float:
+            The evaluated pdf at point x.
         """
 
         mu = input_values[0]
@@ -248,12 +258,12 @@ class StudentT(ProbabilisticModel, Continuous):
         k: integer
             The number of samples that should be drawn.
         rng: Random number generator
-            Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+            Defines the random number generator to be used. The default value uses a random seed to initialize the generator.
 
         Returns
         -------
-        list: [boolean, np.ndarray]
-            A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
+        list: [np.ndarray]
+            A list containing the sampled values as np-array.
         """
 
         mean = input_values[0]
@@ -297,6 +307,11 @@ class StudentT(ProbabilisticModel, Continuous):
             List of input parameters
         x: list
             The point at which the pdf should be evaluated.
+
+        Returns
+        -------
+        Float:
+            The evaluated pdf at point x.
         """
 
         df = input_values[1]
@@ -398,8 +413,8 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
 
         Returns
         -------
-        list: [boolean, np.ndarray]
-            A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
+        list: [np.ndarray]
+            A list containing the sampled values as np-array.
         """
 
         dim = self.get_output_dimension()
@@ -424,6 +439,11 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
             List of input parameters
         x: list
            The point at which the pdf should be evaluated.
+
+        Returns
+        -------
+        Float:
+            The evaluated pdf at point x.
         """
 
         dim = self._dimension
@@ -528,9 +548,8 @@ class MultiStudentT(ProbabilisticModel, Continuous):
 
         Returns
         -------
-        list: [boolean, np.ndarray]
-            A list containing whether it was possible to sample values from the distribution and if so, the sampled
-            values.
+        list: [np.ndarray]
+            A list containing the sampled values as np-array.
         """
 
         # Extract input_parameters
@@ -564,6 +583,11 @@ class MultiStudentT(ProbabilisticModel, Continuous):
             List of input parameters
         x: list
            The point at which the pdf should be evaluated.
+
+        Returns
+        -------
+        Float:
+            The evaluated pdf at point x.
         """
 
         dim = self.get_output_dimension()

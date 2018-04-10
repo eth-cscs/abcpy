@@ -67,7 +67,8 @@ class Bernoulli(Discrete, ProbabilisticModel):
 
         Returns
         -------
-        list of numpy arrays
+        list: [np.ndarray]
+            A list containing the sampled values as np-array.
         """
 
         result = np.array(rng.binomial(1, input_values[0], k))
@@ -167,12 +168,12 @@ class Binomial(Discrete, ProbabilisticModel):
         k: integer
             The number of samples that should be drawn.
         rng: Random number generator
-            Defines the random number generator to be used. The default value uses a random seed to initialize the                  generator.
+            Defines the random number generator to be used. The default value uses a random seed to initialize the generator.
 
         Returns
         -------
-        list: [boolean, np.ndarray]
-            A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
+        list: [np.ndarray]
+            A list containing the sampled values as np-array.
         """
 
         result = rng.binomial(input_values[0], input_values[1], k)
@@ -193,6 +194,11 @@ class Binomial(Discrete, ProbabilisticModel):
             List of input parameters, in the same order as specified in the InputConnector passed to the init function
         x: list
             The point at which the pmf should be evaluated.
+
+        Returns
+        -------
+        Float
+            The evaluated pmf at point x.
         """
 
         # If the provided point is not an integer, it is converted to one
@@ -262,6 +268,13 @@ class Poisson(Discrete, ProbabilisticModel):
             The number of samples.
         rng: random number generator
             The random number generator to be used.
+
+        Returns
+        -------
+        list: [np.ndarray]
+            A list containing the sampled values as np-array.
+
+
         """
 
         result = rng.poisson(int(input_values[0]), k)
