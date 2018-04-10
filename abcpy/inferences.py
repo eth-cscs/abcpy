@@ -320,7 +320,6 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         # We define the joint Linear combination distance using all the distances for each individual models
         self.distance = LinearCombination(root_models, distances)
         if(kernel is None):
-            warnings.warn("No kernel has been defined. By default all continuous parameters are perturbed using a multivariate normal, all discrete parameters are perturbed using a random walk.", Warning)
 
             mapping, garbage_index = self._get_mapping()
             models = []
@@ -626,9 +625,6 @@ class PMC(BaseLikelihood, InferenceMethod):
         self.likfun = ProductCombination(root_models, likfuns)
 
         if(kernel is None):
-            warnings.warn(
-                "No kernel has been defined. The default kernel will be used. All continuous parameters are perturbed using a multivariate normal, all discrete parameters are perturbed using a random walk.",
-                Warning)
 
             mapping, garbage_index = self._get_mapping()
             models = []
@@ -954,9 +950,6 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         self.distance = LinearCombination(root_models, distances)
 
         if (kernel is None):
-            warnings.warn(
-                "No kernel has been defined. The default kernel will be used. All continuous parameters are perturbed using a multivariate normal, all discrete parameters are perturbed using a random walk.",
-                Warning)
 
             mapping, garbage_index = self._get_mapping()
             models = []
@@ -1394,9 +1387,6 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
         self.distance = LinearCombination(root_models, distances)
 
         if (kernel is None):
-            warnings.warn(
-                "No kernel has been defined. The default kernel will be used. All continuous parameters are perturbed using a multivariate normal, all discrete parameters are perturbed using a random walk.",
-                Warning)
 
             mapping, garbage_index = self._get_mapping()
             models = []
@@ -1759,10 +1749,6 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         self.distance = LinearCombination(root_models, distances)
 
         if (kernel is None):
-            warnings.warn(
-                "No kernel has been defined. The default kernel will be used. All continuous parameters are perturbed "
-                "using a multivariate normal, all discrete parameters are perturbed using a random walk.",
-                Warning)
 
             mapping, garbage_index = self._get_mapping()
             models = []
@@ -2068,9 +2054,6 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
         self.distance = LinearCombination(root_models, distances)
 
         if (kernel is None):
-            warnings.warn(
-                "No kernel has been defined. The default kernel will be used. All continuous parameters are perturbed using a multivariate normal, all discrete parameters are perturbed using a random walk.",
-                Warning)
 
             mapping, garbage_index = self._get_mapping()
             models = []
@@ -2361,9 +2344,6 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         self.distance = LinearCombination(root_models, distances)
 
         if (kernel is None):
-            warnings.warn(
-                "No kernel has been defined. The default kernel will be used. All continuous parameters are perturbed using a multivariate normal, all discrete parameters are perturbed using a random walk.",
-                Warning)
 
             mapping, garbage_index = self._get_mapping()
             models = []
