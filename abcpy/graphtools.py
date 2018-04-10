@@ -146,7 +146,9 @@ class GraphTools():
                     result[i]*=pdf
             if(not(is_root)):
                 if(model.calculated_pdf is None):
-                    result[i] *= model.pdf(relevant_parameters)
+                    input = model.get_input_values()
+                    print(input)
+                    result[i] *= model.pdf(input,relevant_parameters)
                 else:
                     result[i]*=model.calculated_pdf
 

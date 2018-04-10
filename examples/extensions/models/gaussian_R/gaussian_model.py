@@ -1,7 +1,7 @@
 import numpy as np
 
-from abcpy.probabilisticmodels import ProbabilisticModel, Hyperparameter
-
+from numbers import Number
+from abcpy.probabilisticmodels import ProbabilisticModel, Continuous, InputConnector
 
 import rpy2.robjects as robjects
 import rpy2.robjects.numpy2ri
@@ -13,61 +13,60 @@ robjects.r('''
 
 r_simple_gaussian = robjects.globalenv['simple_gaussian']
 
+class Gaussian(ProbabilisticModel, Continuous):
 
-class Gaussian(Model):
-    def __init__(self, parameters):
-        super(Gaussian, self).__init__(parameters)
+    def __init__(self, parameters, name='Gaussian'):
+        # We expect input of type parameters = [mu, sigma]
+        if not isinstance(parameters, list):
+            raise TypeError('Input of Normal model is of type list')
 
-    def _check_parameters_at_initialization(self, parameters):
-        if(len(parameters)!=2):
-            raise IndexError('Gaussian should have exactly two input parameters.')
-        variance, index = parameters[1]
-        if(isinstance(variance, Hyperparameter) and variance.fixed_values[0]<0):
-            raise ValueError('Variance has to be larger than 0.')
+        if len(parameters) != 2:
+            raise RuntimeError('Input list must be of length 2, containing [mu, sigma].')
 
-    def _check_parameters_before_sampling(self, parameters):
-        if(parameters[1]<0):
+        input_connector = InputConnector.from_list(parameters)
+        super().__init__(input_connector, name)
+
+    def _check_input(self, input_values):
+        # Check whether input has correct type or format
+        if len(input_values) != 2:
+            raise ValueError('Number of parameters of Normal model must be 2.')
+
+        # Check whether input is from correct domain
+        mu = input_values[0]
+        sigma = input_values[1]
+        if sigma < 0:
             return False
+
         return True
 
-    def _check_parameters_fixed(self, parameters):
+    def _check_output(self, values):
+        if not isinstance(values, Number):
+            raise ValueError('Output of the normal distribution is always a number.')
+
+        # At this point values is a number (int, float); full domain for Normal is allowed
         return True
-
-    def sample_from_distribution(self, k, rng=np.random.RandomState()):
-        parameter_values = self.get_parameter_values()
-        return_value = []
-
-        return_value.append(self._check_parameters_before_sampling(parameter_values))
-
-        if (return_value[0]):
-            mu = parameter_values[0]
-            sigma = parameter_values[1]
-            return_value.append(np.array(rng.normal(mu, sigma, k)).reshape(-1))
-
-        return return_value
 
     def get_output_dimension(self):
         return 1
 
-    def pdf(self, x):
-        parameter_values = self.get_parameter_values()
-        mu = parameter_values[0]
-        sigma = parameter_values[1]
-        return norm(mu, sigma).pdf(x)
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+        # Extract the input parameters
+        mu = input_values[0]
+        sigma = input_values[1]
+        seed = rng.randint(np.iinfo(np.int32).max)
 
-    def simulate(self, k):
-        parameter_values = self.get_parameter_values()
-        return_value = []
+        # Do the actual forward simulation
+        vector_of_k_samples = list(r_simple_gaussian(mu, sigma, k))
 
-        return_value.append(self._check_parameters_before_sampling(parameter_values))
+        # Format the output to obey API
+        result = [np.array([x]) for x in vector_of_k_samples]
+        return result
 
-        if(return_value[0]):
-            mu = parameter_values[0]
-            sigma = parameter_values[1]
-            return_value.append(np.array(list(r_simple_gaussian(mu, sigma, k))))
-
-        return return_value
-
+    def pdf(self, input_values, x):
+        mu = input_values[0]
+        sigma = input_values[1]
+        pdf = np.norm(mu, sigma).pdf(x)
+        return pdf
     
 def infer_parameters():
     # define observation for true parameters mean=170, std=15
@@ -123,25 +122,6 @@ def analyse_journal(journal):
     
     from abcpy.output import Journal
     new_journal = Journal.fromFile('experiments.jnl')
-
-
-journal = infer_parameters()
-mu = journal.get_parameters()[:,0].reshape(-1,1)
-sigma = journal.get_parameters()[:,1].reshape(-1,1)
-
-import graph_ABC
-plot_mu = graph_ABC.plot(mu, true_value = 170)
-plot_sigma = graph_ABC.plot(sigma, true_value = 15)
-
-# this code is for testing purposes only and not relevant to run the example
-import unittest
-class ExampleExtendModelGaussianPython(unittest.TestCase):
-    def test_example(self):
-        journal = infer_parameters()
-        test_result = journal.posterior_mean()[0]
-        expected_result = 177.02
-        self.assertLess(abs(test_result - expected_result), 2.)
-    
 
 if __name__  == "__main__":
     journal = infer_parameters()

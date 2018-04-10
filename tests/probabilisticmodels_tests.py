@@ -69,7 +69,8 @@ class AbstractAPIImplementationTests():
     def test_pdf(self):
         for model in self.models:
             x = 0
-            pdf_at_x = model.pdf(x)
+            input = model.get_input_values()
+            pdf_at_x = model.pdf(input, x)
             self.assertTrue(isinstance(pdf_at_x, Number), 'Return value not of type Number in model {}.'.format(type(model)))
 
 

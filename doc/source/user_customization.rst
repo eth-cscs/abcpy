@@ -215,6 +215,7 @@ model written in C++ with ABCpy. First, have a look at our C++ model:
 .. literalinclude:: ../../examples/extensions/models/gaussian_cpp/gaussian_model_simple.cpp
    :language: c++
    :lines: 9 - 17
+   :linenos:
 
 To use this code in Python, we need to specify exactly how to expose the C++
 function to Python. Therefore, we write a Swig interface file that look as
@@ -222,6 +223,7 @@ follows:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_cpp/gaussian_model_simple.i
    :language: c++
+   :linenos:
 
 In the first line we define the module name we later have to import in your
 ABCpy Python code. Then, in curly brackets, we specify which libraries we want
@@ -237,6 +239,7 @@ Swig interface definition from numpy called `import_array`. The line
 .. literalinclude:: ../../examples/extensions/models/gaussian_cpp/gaussian_model_simple.i
    :language: c++
    :lines: 18
+   :linenos:
 
 states that we want the two parameters `result` and `k` of the `gaussian_model`
 C++ function be interpreted as an array of length k that is returned. Have a
@@ -262,10 +265,11 @@ can write a Python model which uses our C++ code:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_cpp/pmcabc-gaussian_model_simple.py
    :language: python
-   :lines: 3 - 45
+   :lines: 3 - 60
+   :linenos:
 
-The important lines are where we import the wrapper code as a module (line 2) and call
-the respective model function (line -2).
+The important lines are where we import the wrapper code as a module (line 3) and call
+the respective model function (line 48).
 
 The full code is available in `examples/extensions/models/gaussion_cpp/`. To
 simplify compilation of SWIG and C++ code we created a Makefile. Note that you
@@ -284,6 +288,7 @@ example. The following R code is the contents of the R file `gaussian_model.R`:
 .. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.R
     :language: R
     :lines: 1 - 4
+    :linenos:
 
 More complex R models are incorporated in the same way. To include this function
 within ABCpy we include the following code at the beginning of our Python file:
@@ -291,15 +296,17 @@ within ABCpy we include the following code at the beginning of our Python file:
 .. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
     :language: python
     :lines: 6 - 14
+    :linenos:
 
 This imports the R function `simple_gaussian` into the Python environment. We
 need to build our own model to incorporate this R function as in the previous
-section. The only difference is the `forward_simulate` method of the class `Gaussian'.
+section. The only difference is in the `forward_simulate` method of the class `Gaussian'.
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
     :language: python
-    :lines: 65
+    :lines: 59
     :dedent: 8
+    :linenos:
 
 The default output for R functions in Python is a float vector. This must be
 converted into a Python numpy array for the purposes of ABCpy.
