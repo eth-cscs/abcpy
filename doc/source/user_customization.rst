@@ -48,7 +48,7 @@ In the following we go through the implementation of a Gaussian generative model
 Since a Gaussian model generates continous numbers, the newly implement class derives from
 :py:class:`abcpy.probabilisticmodels.Continuous` and the header look as follows:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
    :language: python
    :lines: 7
 
@@ -65,7 +65,7 @@ init function ProbabilisticModels and pass an InputConnector object to it, as st
 
 This leads to the following implementation:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 12-21
     :dedent: 4
@@ -94,7 +94,7 @@ which should behave as follows:
 
 This leads to the following implementation:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 24-35
     :dedent: 4
@@ -118,7 +118,7 @@ Since the output of a Gaussian generative model is a single number from the full
 to syntactic checks. However, one could easily image models for which the output it restricted to a certain domain. Then,
 this function should return :code:`False` as soon as values are out of the desired domain.
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 38-43
     :dedent: 4
@@ -138,7 +138,7 @@ the following method:
 Since our model generates a single float number in one forward simulation, the implementation look the above function
 is straight forward:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 46-47
     :dedent: 4
@@ -157,7 +157,7 @@ be implemented obeying the following API
 
 A proper implementation look as follows:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 50-60
     :dedent: 4
@@ -181,7 +181,7 @@ a the following function that calculates the probability density function at spe
 As mentioned above, this is only required if one wants to use our model as input for other models. An implementation looks
 as follows:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 63-68
     :dedent: 4
@@ -212,7 +212,7 @@ in turn use your C++ code with ABCpy as if it was written in Python.
 We go through a complete example to illustrate how to use a simple Gaussian
 model written in C++ with ABCpy. First, have a look at our C++ model:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/gaussian_model_simple.cpp
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_cpp/gaussian_model_simple.cpp
    :language: c++
    :lines: 9 - 17
    :linenos:
@@ -221,7 +221,7 @@ To use this code in Python, we need to specify exactly how to expose the C++
 function to Python. Therefore, we write a Swig interface file that look as
 follows:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/gaussian_model_simple.i
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_cpp/gaussian_model_simple.i
    :language: c++
    :linenos:
 
@@ -236,7 +236,7 @@ instead in C++/C we would provide a memory position (pointer) where to write
 the results. Swig has to translate between the two concepts. We use actually an
 Swig interface definition from numpy called `import_array`. The line
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/gaussian_model_simple.i
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_cpp/gaussian_model_simple.i
    :language: c++
    :lines: 18
    :linenos:
@@ -263,7 +263,7 @@ This creates two wrapper files `gaussian_model_simple_wrap.cpp` and
 Note that the include paths might need to be adapted to your system. Finally, we
 can write a Python model which uses our C++ code:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/pmcabc-gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_cpp/pmcabc-gaussian_model_simple.py
    :language: python
    :lines: 3 - 60
    :linenos:
@@ -285,7 +285,7 @@ show how to use the `rpy2` package to connect with a model written in R.
 Continuing from the previous sections we use a simple Gaussian model as an
 example. The following R code is the contents of the R file `gaussian_model.R`:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.R
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_R/gaussian_model.R
     :language: R
     :lines: 1 - 4
     :linenos:
@@ -293,7 +293,7 @@ example. The following R code is the contents of the R file `gaussian_model.R`:
 More complex R models are incorporated in the same way. To include this function
 within ABCpy we include the following code at the beginning of our Python file:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_R/gaussian_model.py
     :language: python
     :lines: 6 - 14
     :linenos:
@@ -302,7 +302,7 @@ This imports the R function `simple_gaussian` into the Python environment. We
 need to build our own model to incorporate this R function as in the previous
 section. The only difference is in the `forward_simulate` method of the class `Gaussian'.
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_R/gaussian_model.py
     :language: python
     :lines: 59
     :dedent: 8
@@ -348,21 +348,29 @@ The complete example for this tutorial can be found `here
 Implementing a new Perturbation Kernel
 --------------------------------------
 
-Kernels in ABCpy can be of two types. They can either be derived from the class :py:class:`abcpy.perturbationkernel.ContinuousKernel` or from :py:class:`abcpy.perturbationkernel.DiscreteKernel`. Whether it is a discrete or continuous kernel defines whether this kernel will act on discrete or continuous parameters (and, therefore, whether it has a probability mass or probability density function, respectively).
-
-For this example, we will implement a kernel which perturbs continuous parameters using a multivariate normal distribution. This is one of the kernels already implemented within ABCpy.
-
 A kernel always needs the following methods to be a valid object of type :py:class:`abcpy.perturbationkernel.PerturbationKernel`:
 
 .. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 8,11,21,40,60
+    :lines: 12,24,45
 
+Kernels in ABCpy can be of two types. They can either be derived from the class :py:class:`abcpy.perturbationkernel.ContinuousKernel` or from :py:class:`abcpy.perturbationkernel.DiscreteKernel`. If the Kernel is a Continuous Kernel, we would need the following method:
+
+.. literalinclude:: ../../abcpy/perturbationkernel.py
+    :language: python
+    :lines: 99
+
+If the Kernel is a Discrete Kernel, we would need the following method:
+
+.. literalinclude:: ../../abcpy/perturbationkernel.py
+    :language: python
+    :lines: 107
+
+For this example, we will implement a kernel which perturbs continuous parameters using a multivariate normal distribution. This is one of the kernels already implemented within ABCpy.
 First, we need to define a constructor.
 
 .. automethod:: abcpy.perturbationkernel.PerturbationKernel.__init__
     :noindex:
-
 
 We expect that the arguments passed to the constructor should be of type :py:class:`abcpy.probabilisticmodels.ProbabilisticModel`, the random variables that should be perturbed using this kernel. All these models should be saved on the kernel for future reference.
 
@@ -414,7 +422,7 @@ Here the implementation for our kernel:
 
 The first line shows how you obtain the values of the parameters that your kernel should perturb. These values are converted to a numpy array. Then, the covariance matrix is retrieved from the accepted parameters manager using a similar function call. Finally, the parameters are perturbed and returned.
 
-Last but not least, each kernel requires a probability density or probability mass function:
+Last but not least, each kernel requires a probability density or probability mass function depending on whether it is a Continous Kernel or a Discrete Kernel:
 
 .. automethod:: abcpy.perturbationkernel.PerturbationKernel.pdf
     :noindex:

@@ -10,9 +10,9 @@ Parameters as Random Variables
 
 As an example, if we have measurements of the height of a group of grown up human and it is also known that a Gaussian distribution is an appropriate probabbilistic model for these kind of observations, then our observed dataset would be measurement of heights and the probabbilistic model would be Gaussian.
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 5
+    :lines: 72
     :dedent: 4
 
 Gaussian or Normal model has two parameters: the mean, denoted by :math:`\mu`, and the standard deviation, denoted by :math:`\sigma`. We consider these parameters as random variables. The goal of ABC is to quantify uncertainty of these parameters from the information contained in the observed data.
@@ -23,9 +23,9 @@ To define a parameter of a model as a random variable, you start by assigning a 
 
 In this example, it is quite simple. We know from experience that the average height should be somewhere between 150cm and 200cm, while the standard deviation is around 5 to 25. 
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 8-10, 12-14
+    :lines: 74-76, 78-79
     :dedent: 4
 
 We have defined the parameter :math:`\mu` and :math:`\sigma` of the Gaussian model as random variables and assigned Uniform prior distributions on them. The parameters of the prior distribution (150, 200, 5, 25) are assumed to be known to the user, hence they are called hyperparameters. You are required to pass a *name* string while defining a random variable. In the final output, you will see these names, together with the relevant outputs corresponding to them. 
@@ -34,55 +34,55 @@ For uncertainty quantification, we follow philosophy of Bayesian inference. We a
 
 The heart of the ABC inferential algorithm is a measure of discrepancy between the observed dataset and the synthetic dataset (simulated from the model). Often, computation of discrepancy measure between the observed and synthetic dataset is not feasible (e.g., high dimensionality of dataset) and the discrepancy measure is defined by computing a distance between relevant *summary statistics* extracted from the datasets. Here we first define a way to extract *summary statistics* from the dataset.
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 17-18
+    :lines: 82-83
     :dedent: 4
 
 Next we define the discrepancy measure between the datasets, by defining a distance function (LogReg distance is chosen here) between the extracted summary statistics. If we want to define the discrepancy measure through a distance function between the datasets directly, we choose Identity as summary statistics which gives the original dataset as the extracted summary statistics. 
  
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 21-22
+    :lines: 86-87
     :dedent: 4
 
 Algorithms in ABCpy requires a perturbation kernel, a tool to explore the parameter space. Here, we use the default kernel provided, which explores the parameter space of random variables, by perturbing it using a multivariate Gaussian distribution or performing a random walk if the  corresponding random variable is continuous or discrete. For a more involved example, please consult `Complex Perturbation Kernels`_.
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 25-26
+    :lines: 90-91
     :dedent: 4
 
 Finally, we need to define a backend declaring the type of parallelization. The example code here uses the dummy backend `BackendDummy` which does not parallelize the execution of the inference schemes. But this is handy for prototyping and testing. For more advanced parallelization backends avialable through ABCpy, please consult :ref:`Using Parallelization Backends <parallelization>` section. 
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 30-31
+    :lines: 95-96
     :dedent: 4
 
 Here we choose PMCABC algorithm to draw posterior samples of the parameters and instantiate a PMCABC object by passing the random variable corresponding to the observed data set, the distance function,  backend object, perturbation kernel and seed for random number generator to the constructor:
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 33-35
+    :lines: 98-100
     :dedent: 4
 
 Finally, we can parametrize the sampler and start sampling from the posterior distribution of the parameters given the observed dataset:
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 37-42
+    :lines: 102-106
     :dedent: 4
 
 The above inference scheme gives us samples from the posterior distribution of the parameter of interest quantifying the uncertainty of the inferred parameter, which are stored in the journal object. See :ref:`Post Analysis <postanalysis>` for further information on extracting results. 
 
 Note that the model and the observations are given as a list. This is due to the fact that in ABCpy, it is possible to have hierarchical models, building relationships between co-occuring groups of datasets. To learn more, see the `Hierarchical Model`_ section.
 
-The full source can be found in `examples/backends/dummy/pmcabc_gaussian.py`. To execute the code you only need to run
+The full source can be found in `examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py`. To execute the code you only need to run
 
 ::
 
-   python3 pmcabc_gaussian.py
+   python3 pmcabc_gaussian_model_simple.py
 
 Probabilistic Dependency between Random Variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -91,7 +91,7 @@ Since release 0.5.0 of ABCpy, we can have probabilistic dependency structures (e
 
 For this tutorial, we consider a school with different classes. Each class has some number of students. All students of the school take an exam and receive some grade. Lets consider the grades of the students as our observed dataset:
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_operations.py
+.. literalinclude:: ../../examples/extensions/graphicalmodels/pmcabc_graphical_model.py
     :language: python
     :lines: 6
     :dedent: 4
@@ -107,14 +107,14 @@ We, therefore, have additional parameters, specifying the mean of these normal d
 
 We can define these random variables and the dependencies between them (in a nutshell, a Bayesian network) in ABCpy:
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_operations.py
+.. literalinclude:: ../../examples/extensions/graphicalmodels/pmcabc_graphical_model.py
     :language: python
     :lines: 9-10, 13, 16, 19
     :dedent: 4
 
 So, each student will receive some grade without additional effects which is normally distributed, but then the final grade recieved will be a function of grade without additional effects and the other random variables defined beforehand (e.g., `school_location`, `class_size` and `background`). The model for the final grade of the students now can be written as:
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_operations.py
+.. literalinclude:: ../../examples/extensions/graphicalmodels/pmcabc_graphical_model.py
     :language: python
     :lines: 22
     :dedent: 4
@@ -128,26 +128,26 @@ In addition to these operators, you can now also use the "[]" operator (the acce
 
 As in the `Parameters as Random Variables`_ section, we now need to define some summary statistics of our data.
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_operations.py
+.. literalinclude:: ../../examples/extensions/graphicalmodels/pmcabc_graphical_model.py
     :language: python
     :lines: 25-26
     :dedent: 4
 
 And just as before, we need to provide a distance measure, a backend and a kernel.
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_operations.py
+.. literalinclude:: ../../examples/extensions/graphicalmodels/pmcabc_graphical_model.py
     :language: python
     :lines: 29-30, 33-34, 37-38
     :dedent: 4
 
 Now, again, we can parametrize the sampler and start sampling from the posterior distribution:
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_operations.py
+.. literalinclude:: ../../examples/extensions/graphicalmodels/pmcabc_graphical_model.py
     :language: python
     :lines: 41-43, 46-47, 50
     :dedent: 4
 
-The source code can be found in `examples/backends/dummy/pmcabc_operations.py`.
+The source code can be found in `examples/extensions/graphicalmodels/pmcabc_graphical_model.py`.
 
 Hierarchical Model
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -158,21 +158,21 @@ As mentioned above, ABCpy supports inference on a hierarchical model. Hierarchic
 
 We now consider a co-occuring observed data set considering the scholarships given out by the school to the students:
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_multiple_models.py
+.. literalinclude:: ../../examples/extensions/hierarchicalmodels/pmcabc_hierarchical_models.py
     :language: python
     :lines: 25
     :dedent: 4
 
 Each student receives some score, which determines whether he will receive a scholarship or not. We assume that this score is normally distributed:
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_multiple_models.py
+.. literalinclude:: ../../examples/extensions/hierarchicalmodels/pmcabc_hierarchical_models.py
     :language: python
     :lines: 28
     :dedent: 4
 
 However, depending on the students social background, the score will be changed, defining the additional part of our hierarchical model.
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_multiple_models.py
+.. literalinclude:: ../../examples/extensions/hierarchicalmodels/pmcabc_hierarchical_models.py
     :language: python
     :lines: 31
     :dedent: 4
@@ -181,21 +181,21 @@ As in the algorithms before, we now define summary statistics, distance, backend
 
 Since we are now considering two observed datasets, we need to define an distances on them separately. Here, we use the euclidean distance for each observed data set and corresponding simulated data set. You can use two different distances on two different observed datasets. 
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_multiple_models.py
+.. literalinclude:: ../../examples/extensions/hierarchicalmodels/pmcabc_hierarchical_models.py
     :language: python
     :lines: 33-41
     :dedent: 4
 
 We then parametrize the sampler and sample from the posterior distribution. 
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_multiple_models.py
+.. literalinclude:: ../../examples/extensions/hierarchicalmodels/pmcabc_hierarchical_models.py
     :language: python
     :lines: 43-64
     :dedent: 4
 
 Observe that the lists given to the sampler and the sampling method now contain two entries. These correspond to the two different observed data sets respectively. Also notice now we provide two different distances corresponding to the two different root models and their observed datasets. Presently ABCpy combines the distances by a linear combination. Further possibilities of combination will be made available in later versions of ABCpy.
 
-The source code can be found in `examples/backends/dummy/pmcabc_multiple_models.py`.
+The source code can be found in `examples/extensions/hierarchicalmodels/pmcabc_hierarchical_models.py`.
 
 
 Complex Perturbation Kernels
@@ -207,21 +207,21 @@ As pointed out earlier, it is possible to define complex perturbation kernels, p
 
 This can be implemented as following:
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_perturbation_kernels.py
+.. literalinclude:: ../../examples/extensions/perturbationkernels/pmcabc_perturbation_kernels.py
     :language: python
     :lines: 44-46
     :dedent: 4
 
 We have now defined how each set of parameters is perturbed on its own. The sampler object, however, needs to be provided with one single kernel. We, therefore, provide a class which groups the above kernels together. This class, :py:class:`abcpy.perturbationkernel.JointPerturbationKernel`, knows how to perturb each set of parameters individually. It just needs to be provided with all the relevant kernels:
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_perturbation_kernels.py
+.. literalinclude:: ../../examples/extensions/perturbationkernels/pmcabc_perturbation_kernels.py
     :language: python
     :lines: 49-50
     :dedent: 4
 
 This is all that needs to be changed. The rest of the implementation works the exact same as in the previous example. If you would like to implement your own perturbation kernel, please check :ref:`Implementing a new Perturbation Kernel <implementations>`. Please keep in mind that you can only perturb parameters. **You cannot use the access operator to perturb one part of a random variable differently than another part of the same variable.**
 
-The source code to this section can be found in `examples/backends/dummy/pmcabc_perturbation_kernels.py`
+The source code to this section can be found in `examples/extensions/perturbationkernels/pmcabc_perturbation_kernels.py`
 
 Inference Schemes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -243,14 +243,14 @@ We have noticed in the `Parameters as Random Variables`_ section, the discrepanc
 
 If your summary statistics for the inference problem related to the heights of the grown-up human were defined as:
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian_summary_selection.py
+.. literalinclude:: ../../examples/extensions/summaryselection/pmcabc_gaussian_summary_selection.py
     :language: python
     :lines: 21-23
     :dedent: 4
 
 Then we can learn the optimized summary statistics from the given list of summary statistics using the semi-automatic summary selection procedure as following:
 
-.. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian_summary_selection.py
+.. literalinclude:: ../../examples/extensions/summaryselection/pmcabc_gaussian_summary_selection.py
     :language: python
     :lines: 25-32
     :dedent: 4

@@ -97,7 +97,7 @@ def infer_parameters():
 
     # define sampling scheme
     from abcpy.inferences import PMCABC
-    sampler = PMCABC([height], distance_calculator, backend, kernel, seed=1)
+    sampler = PMCABC([height], [distance_calculator], backend, kernel, seed=1)
 
     # sample from scheme
     T, n_sample, n_samples_per_param = 3, 250, 10
