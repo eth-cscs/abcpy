@@ -234,7 +234,25 @@ simulation (ABCsubsim) [:py:class:`abcpy.inferences.ABCsubsim`], and simulated a
 we provide different distance functions between datasets, e.g., a discrepancy measured by achievable classification accuracy between two datasets [:py:class:`abcpy.distances.Euclidean`, :py:class:`abcpy.distances.LogReg`, :py:class:`abcpy.distances.PenLogReg`] 
 
 We also have population Monte Carlo [:py:class:`abcpy.inferences.PMC`] algorithm to infer parameters when the likelihood or apprxomaite likelihood function is available. 
-For approximation of the likelihood function we provide two methods: synthetic likelihood approximation [:py:class:`abcpy.approx_lhd.SynLiklihood`] and another approximation using penalized logistic regression [:py:class:`abcpy.approx_lhd.PenLogReg`]
+For approximation of the likelihood function we provide two methods: synthetic likelihood approximation [:py:class:`abcpy.approx_lhd.SynLiklihood`] and another approximation using penalized logistic regression [:py:class:`abcpy.approx_lhd.PenLogReg`]. Next we explain how we can use PMC algorithm using approximation of the likelihood functions. As we are now considering two observed datasets corresponding to two root models, we need to define an approximation of likelihood function for each of them separately. Here, we use the [:py:class:`abcpy.approx_lhd.SynLiklihood`] for each of the root models. It is also possible to use two different approximate likelihoods for two different root models. 
+
+.. literalinclude:: ../../examples/extensions/approx_lhd/pmc_hierarchical_models.py
+    :language: python
+    :lines: 33-41
+    :dedent: 4
+
+We then parametrize the sampler and sample from the posterior distribution. 
+
+.. literalinclude:: ../../examples/extensions/approx_lhd/pmc_hierarchical_models.py
+    :language: python
+    :lines: 52-64
+    :dedent: 4
+
+Observe that the lists given to the sampler and the sampling method now contain two entries. These correspond to the two different observed data sets respectively. Also notice now we provide two different distances corresponding to the two different root models and their observed datasets. Presently ABCpy combines the distances by a linear combination. Further possibilities of combination will be made available in later versions of ABCpy.
+
+The source code can be found in `examples/extensions/approx_lhd/pmc_hierarchical_models.py`.
+
+
 
 Summary Selection
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -263,3 +281,38 @@ Model Selection
 A further extension of the inferential problem is the selection of a model (M), given an observed
 dataset, from a set of possible models. The package also includes a parallelized version of random 
 forest ensemble model selection algorithm [:py:class:`abcpy.modelselections.RandomForest`].
+
+Lets consider an array of two models `Normal` and `StudentT`. We want to find out which one of these two models are the most suitable one for the observed dataset `y_obs`.
+
+.. literalinclude:: ../../examples/extensions/modelselection/randomforest_modelselections.py
+    :language: python
+    :lines: 7-19
+    :dedent: 4
+
+We first need to initiate the Model Selection scheme, for which we need to define the summary statistics and backend:
+
+.. literalinclude:: ../../examples/extensions/modelselection/randomforest_modelselections.py
+    :language: python
+    :lines: 21-30
+    :dedent: 4
+
+Now we can choose the most suitable model for the observed dataset `y_obs`,
+
+.. literalinclude:: ../../examples/extensions/modelselection/randomforest_modelselections.py
+    :language: python
+    :lines: 32-33
+    :dedent: 4
+
+or compute posterior probability of each of the models given the observed dataset.
+
+.. literalinclude:: ../../examples/extensions/modelselection/randomforest_modelselections.py
+    :language: python
+    :lines: 35-36
+    :dedent: 4
+
+
+
+
+
+
+
