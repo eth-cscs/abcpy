@@ -64,12 +64,15 @@ class Uniform(ProbabilisticModel, Continuous):
                 return False
         return True
 
-    def forward_simulate(self, k, rng=np.random.RandomState()):
+
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
         """
         Samples from a uniform distribution using the current values for each probabilistic model from which the model derives.
 
         Parameters
         ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
         k: integer
             The number of samples that should be drawn.
         rng: Random number generator
@@ -80,11 +83,10 @@ class Uniform(ProbabilisticModel, Continuous):
         list: [boolean, np.ndarray]
             A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
             """
-        parameter_values = self.get_input_values()
 
         samples = np.zeros(shape=(k, self.get_output_dimension()))
         for j in range(0, self.get_output_dimension()):
-            samples[:, j] = rng.uniform(parameter_values[j], parameter_values[j+self.get_output_dimension()], k)
+            samples[:, j] = rng.uniform(input_values[j], input_values[j+self.get_output_dimension()], k)
         return [np.array(x) for x in samples]
 
 
@@ -92,25 +94,28 @@ class Uniform(ProbabilisticModel, Continuous):
         return self._dimension
 
 
-    def pdf(self, x):
+    def pdf(self, input_values, x):
         """
-       Calculates the probability density function at point x.
-       Commonly used to determine whether perturbed parameters are still valid according to the pdf.
+        Calculates the probability density function at point x.
+        Commonly used to determine whether perturbed parameters are still valid according to the pdf.
 
-       Parameters
-       ----------
-       x: list
-           The point at which the pdf should be evaluated.
-       """
-        parameter_values = self.get_input_values()
-        lower_bound = parameter_values[:self.get_output_dimension()]
-        upper_bound = parameter_values[self.get_output_dimension():]
+        Parameters
+        ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
+        x: list
+            The point at which the pdf should be evaluated.
+        """
+
+        lower_bound = input_values[:self.get_output_dimension()]
+        upper_bound = input_values[self.get_output_dimension():]
         if (np.product(np.greater_equal(x, np.array(lower_bound)) * np.less_equal(x, np.array(upper_bound)))):
             pdf_value = 1. / np.product(np.array(upper_bound) - np.array(lower_bound))
         else:
             pdf_value = 0.
         self.calculated_pdf = pdf_value
         return pdf_value
+
 
 class Normal(ProbabilisticModel, Continuous):
     def __init__(self, parameters, name='Normal'):
@@ -155,12 +160,15 @@ class Normal(ProbabilisticModel, Continuous):
         """
         return True
 
-    def forward_simulate(self, k, rng=np.random.RandomState()):
+
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
         """
         Samples from a normal distribution using the current values for each probabilistic model from which the model derives.
 
         Parameters
         ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
         k: integer
             The number of samples that should be drawn.
         rng: Random number generator
@@ -172,9 +180,8 @@ class Normal(ProbabilisticModel, Continuous):
             A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
         """
 
-        parameter_values = self.get_input_values()
-        mu = parameter_values[0]
-        sigma = parameter_values[1]
+        mu = input_values[0]
+        sigma = input_values[1]
         result = np.array(rng.normal(mu, sigma, k))
         return [np.array([x]) for x in result]
 
@@ -185,19 +192,21 @@ class Normal(ProbabilisticModel, Continuous):
         ## return self._dimension
 
 
-    def pdf(self, x):
+    def pdf(self, input_values, x):
         """
         Calculates the probability density function at point x.
         Commonly used to determine whether perturbed parameters are still valid according to the pdf.
 
         Parameters
         ----------
+        input_values: list
+            List of input parameters of the from [mu, sigma]
         x: list
             The point at which the pdf should be evaluated.
         """
-        parameter_values = self.get_input_values()
-        mu = parameter_values[0]
-        sigma = parameter_values[1]
+
+        mu = input_values[0]
+        sigma = input_values[1]
         pdf = norm(mu,sigma).pdf(x)
         self.calculated_pdf = pdf
         return pdf
@@ -228,12 +237,14 @@ class StudentT(ProbabilisticModel, Continuous):
         super(StudentT, self).__init__(input_parameters, name)
         self.visited = False
 
-    def forward_simulate(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
         """
         Samples from a Student's T-distribution using the current values for each probabilistic model from which the model derives.
 
         Parameters
         ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
         k: integer
             The number of samples that should be drawn.
         rng: Random number generator
@@ -243,10 +254,10 @@ class StudentT(ProbabilisticModel, Continuous):
         -------
         list: [boolean, np.ndarray]
             A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
-            """
-        parameter_values = self.get_input_values()
-        mean = parameter_values[0]
-        df = parameter_values[1]
+        """
+
+        mean = input_values[0]
+        df = input_values[1]
         result = np.array((rng.standard_t(df,k)+mean))
         return [np.array([x]) for x in result]
 
@@ -275,19 +286,21 @@ class StudentT(ProbabilisticModel, Continuous):
         ## return self._dimension
 
 
-    def pdf(self, x):
+    def pdf(self, input_values, x):
         """
-       Calculates the probability density function at point x.
-       Commonly used to determine whether perturbed parameters are still valid according to the pdf.
+        Calculates the probability density function at point x.
+        Commonly used to determine whether perturbed parameters are still valid according to the pdf.
 
-       Parameters
-       ----------
-       x: list
-           The point at which the pdf should be evaluated.
-       """
-        parameter_values = self.get_input_values()
-        df = parameter_values[1]
-        x-=parameter_values[0] #divide by std dev if we include that
+        Parameters
+        ----------
+        input_values: list
+            List of input parameters
+        x: list
+            The point at which the pdf should be evaluated.
+        """
+
+        df = input_values[1]
+        x-=input_values[0] #divide by std dev if we include that
         pdf = gamma((df+1)/2)/(np.sqrt(df*np.pi)*gamma(df/2)*(1+x**2/df)**((df+1)/2))
         self.calculated_pdf = pdf
         return pdf
@@ -368,13 +381,16 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
 
         return True
 
-    def forward_simulate(self, k, rng=np.random.RandomState()):
+
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
         """
         Samples from a multivariate normal distribution using the current values for each probabilistic model from which the
         model derives.
 
         Parameters
         ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
         k: integer
             The number of samples that should be drawn.
         rng: Random number generator
@@ -386,10 +402,9 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
             A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
         """
 
-        dim = self._dimension
-        parameter_values = self.get_input_values()
-        mean = np.array(parameter_values[0:dim])
-        cov = np.array(parameter_values[dim:dim+dim**2]).reshape((dim, dim))
+        dim = self.get_output_dimension()
+        mean = np.array(input_values[0:dim])
+        cov = np.array(input_values[dim:dim+dim**2]).reshape((dim, dim))
         result = rng.multivariate_normal(mean, cov, k)
         return [np.array([result[i,:]]).reshape(-1,) for i in range(k)]
 
@@ -398,26 +413,28 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         return self._dimension
 
 
-    def pdf(self, x):
+    def pdf(self, input_values, x):
         """
         Calculates the probability density function at point x. Commonly used to determine whether perturbed parameters
         are still valid according to the pdf.
 
         Parameters
         ----------
+        input_values: list
+            List of input parameters
         x: list
            The point at which the pdf should be evaluated.
-       """
-        parameter_values = self.get_input_values()
+        """
 
         dim = self._dimension
         # Extract parameters
-        mean = np.array(parameter_values[0:dim])
-        cov = np.array(parameter_values[dim:dim+dim**2]).reshape((dim, dim))
+        mean = np.array(input_values[0:dim])
+        cov = np.array(input_values[dim:dim+dim**2]).reshape((dim, dim))
 
         pdf = multivariate_normal(mean, cov).pdf(x)
         self.calculated_pdf = pdf
         return pdf
+
 
 class MultiStudentT(ProbabilisticModel, Continuous):
     def __init__(self, parameters, name='MultiStudentT'):
@@ -494,13 +511,15 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         """
         return True
 
-    def forward_simulate(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
         """
         Samples from a multivariate Student's T-distribution using the current values for each probabilistic model from
         which the model derives.
 
         Parameters
         ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
         k: integer
             The number of samples that should be drawn.
         rng: Random number generator
@@ -514,12 +533,11 @@ class MultiStudentT(ProbabilisticModel, Continuous):
             values.
         """
 
-        # Extract parameters
-        parameters = self.get_input_values()
+        # Extract input_parameters
         dim = self.get_output_dimension()
-        mean = np.array(parameters[0:dim])
-        cov = np.array(parameters[dim:dim+dim**2]).reshape((dim, dim))
-        df = parameters[-1]
+        mean = np.array(input_values[0:dim])
+        cov = np.array(input_values[dim:dim+dim**2]).reshape((dim, dim))
+        df = input_values[-1]
 
         if (df == np.inf):
             chisq = 1.0
@@ -530,27 +548,30 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         result = (mean + np.divide(mvn, np.sqrt(chisq)))
         return [np.array([result[i, :]]).reshape(-1, ) for i in range(k)]
 
+
     def get_output_dimension(self):
         return self._dimension
 
 
-    def pdf(self, x):
+    def pdf(self, input_values, x):
         """
-       Calculates the probability density function at point x.
-       Commonly used to determine whether perturbed parameters are still valid according to the pdf.
+        Calculates the probability density function at point x.
+        Commonly used to determine whether perturbed parameters are still valid according to the pdf.
 
-       Parameters
-       ----------
-       x: list
+        Parameters
+        ----------
+        input_values: list
+            List of input parameters
+        x: list
            The point at which the pdf should be evaluated.
-       """
-        parameter_values = self.get_input_values()
+        """
 
-        dim = self._dimension
+        dim = self.get_output_dimension()
+
         # Extract parameters
-        mean = np.array(parameter_values[0:dim])
-        cov = np.array(parameter_values[dim:dim+dim**2]).reshape((dim, dim))
-        df = parameter_values[-1]
+        mean = np.array(input_values[0:dim])
+        cov = np.array(input_values[dim:dim+dim**2]).reshape((dim, dim))
+        df = input_values[-1]
 
         p=len(mean)
         numerator = gamma((df + p) / 2)

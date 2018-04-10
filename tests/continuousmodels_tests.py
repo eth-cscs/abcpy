@@ -99,31 +99,31 @@ class SampleFromDistributionTests(unittest.TestCase):
     """Tests the return value of forward_simulate for all continuous distributions."""
     def test_Normal(self):
         N = Normal([1, 0.1])
-        samples = N.forward_simulate(3)
+        samples = N.forward_simulate(N.get_input_values(), 3)
         self.assertTrue(isinstance(samples, list))
         self.assertTrue(len(samples)==3)
 
     def test_MultivariateNormal(self):
         M = MultivariateNormal([[1, 0], [[0.1, 0], [0, 0.1]]])
-        samples = M.forward_simulate(3)
+        samples = M.forward_simulate(M.get_input_values(), 3)
         self.assertTrue(isinstance(samples, list))
         self.assertTrue(len(samples) == 3)
 
     def test_StudentT(self):
         S = StudentT([3, 1])
-        samples = S.forward_simulate(3)
+        samples = S.forward_simulate(S.get_input_values(), 3)
         self.assertTrue(isinstance(samples, list))
         self.assertTrue(len(samples) == 3)
 
     def test_MultiStudentT(self):
         S = MultiStudentT([[1, 0], [[0.1, 0], [0, 0.1]], 1])
-        samples = S.forward_simulate(3)
+        samples = S.forward_simulate(S.get_input_values(), 3)
         self.assertTrue(isinstance(samples, list))
         self.assertTrue(len(samples) == 3)
 
     def test_Uniform(self):
         U = Uniform([[0, 1], [1, 2]])
-        samples = U.forward_simulate(3)
+        samples = U.forward_simulate(U.get_input_values(), 3)
         self.assertTrue(isinstance(samples, list))
         self.assertTrue(len(samples) == 3)
 

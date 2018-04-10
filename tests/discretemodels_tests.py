@@ -65,19 +65,19 @@ class SampleFromDistributionTests(unittest.TestCase):
     """Tests the return value of forward_simulate for all discrete distributions."""
     def test_Bernoulli(self):
         Bn = Bernoulli([0.5])
-        samples = Bn.forward_simulate(3)
+        samples = Bn.forward_simulate(Bn.get_input_values(), 3)
         self.assertTrue(isinstance(samples, list))
         self.assertTrue(len(samples)==3)
 
     def test_Binomial(self):
         Bi = Binomial([1, 0.1])
-        samples = Bi.forward_simulate(3)
+        samples = Bi.forward_simulate(Bi.get_input_values(), 3)
         self.assertTrue(isinstance(samples, list))
         self.assertTrue(len(samples) == 3)
 
     def test_Poisson(self):
         Po = Poisson([3])
-        samples = Po.forward_simulate(3)
+        samples = Po.forward_simulate(Po.get_input_values(), 3)
         self.assertTrue(isinstance(samples, list))
         self.assertTrue(len(samples) == 3)
 

@@ -52,18 +52,25 @@ class Bernoulli(Discrete, ProbabilisticModel):
         return True
 
 
-    def forward_simulate(self, k, rng=np.random.RandomState()):
-        """Samples from the bernoulli distribution associtated with the probabilistic model.
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+        """
+        Samples from the bernoulli distribution associtated with the probabilistic model.
 
         Parameters
         ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
         k: integer
             The number of samples to be drawn.
         rng: random number generator
             The random number generator to be used.
+
+        Returns
+        -------
+        list of numpy arrays
         """
-        parameter_values = self.get_input_values()
-        result = np.array(rng.binomial(1, parameter_values[0], k))
+
+        result = np.array(rng.binomial(1, input_values[0], k))
         return [np.array([x]) for x in result]
 
 
@@ -148,12 +155,14 @@ class Binomial(Discrete, ProbabilisticModel):
         return True
 
 
-    def forward_simulate(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
         """
         Samples from a binomial distribution using the current values for each probabilistic model from which the model derives.
 
         Parameters
         ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
         k: integer
             The number of samples that should be drawn.
         rng: Random number generator
@@ -165,9 +174,9 @@ class Binomial(Discrete, ProbabilisticModel):
             A list containing whether it was possible to sample values from the distribution and if so, the sampled values.
         """
 
-        parameter_values = self.get_input_values()
-        result = rng.binomial(parameter_values[0], parameter_values[1], k)
+        result = rng.binomial(input_values[0], input_values[1], k)
         return [np.array([x]) for x in result]
+
 
     def get_output_dimension(self):
         return self._dimension
@@ -239,22 +248,23 @@ class Poisson(Discrete, ProbabilisticModel):
         return True
 
 
-    def forward_simulate(self, k, rng=np.random.RandomState()):
-        """Samples k values from the defined possion distribution.
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+        """
+        Samples k values from the defined possion distribution.
 
         Parameters
         ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
         k: integer
             The number of samples.
         rng: random number generator
             The random number generator to be used.
         """
 
-        parameter_values = self.get_input_values()
-
-        result = rng.poisson(int(parameter_values[0]), k)
-
+        result = rng.poisson(int(input_values[0]), k)
         return [np.array([x]) for x in result]
+
 
     def get_output_dimension(self):
         return self._dimension

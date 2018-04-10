@@ -47,9 +47,8 @@ class Gaussian(ProbabilisticModel, Continuous):
         return 1
 
 
-    def forward_simulate(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
         # Extract the input parameters
-        input_values = self.get_input_values()
         mu = input_values[0]
         sigma = input_values[1]
 
@@ -61,8 +60,7 @@ class Gaussian(ProbabilisticModel, Continuous):
         return result
 
 
-    def pdf(self, x):
-        input_values = self.get_input_values()
+    def pdf(self, input_values, x):
         mu = input_values[0]
         sigma = input_values[1]
         pdf = np.norm(mu,sigma).pdf(x)

@@ -45,8 +45,8 @@ class ProductCombinationTests(unittest.TestCase):
         # create fake simulated data
         self.mu._fixed_values = [1.1]
         self.sigma._fixed_values = [1.0]
-        y_sim_1 = self.model1.forward_simulate(100, rng=np.random.RandomState(1))
-        y_sim_2 = self.model2.forward_simulate(100, rng=np.random.RandomState(1))
+        y_sim_1 = self.model1.forward_simulate(self.model1.get_input_values(), 100, rng=np.random.RandomState(1))
+        y_sim_2 = self.model2.forward_simulate(self.model2.get_input_values(), 100, rng=np.random.RandomState(1))
         # calculate the statistics of the observed data
         comp_likelihood = self.jointapprox_lhd.likelihood(y_obs, [y_sim_1, y_sim_2])
         expected_likelihood = 8.612491843767518e-43

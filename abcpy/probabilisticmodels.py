@@ -559,7 +559,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
         parameters_are_valid = self._check_input(self.get_input_values())
         if(parameters_are_valid):
-            sample_result = self.forward_simulate(1, rng=rng)
+            sample_result = self.forward_simulate(self.get_input_values(), 1, rng=rng)
             if sample_result != None:
                 self.set_output_values(sample_result[0])
                 return True
@@ -677,7 +677,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
 
     @abstractmethod
-    def forward_simulate(self, k, rng):
+    def forward_simulate(self, input_values, k, rng):
         """
         In this method the forward simulation should be implemented, respecting a standardized output.
 
@@ -690,6 +690,8 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
         Parameters
         ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
         k: integer
             The number of samples that should be drawn.
         rng: Random number generator
@@ -823,7 +825,7 @@ class Hyperparameter(ProbabilisticModel):
         return []
 
 
-    def forward_simulate(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
         return [np.array(self._fixed_values) for _ in range(k)]
 
 
@@ -869,7 +871,7 @@ class ModelResultingFromOperation(ProbabilisticModel):
         super(ModelResultingFromOperation, self).__init__(input_parameters, name)
 
 
-    def forward_simulate(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
         raise NotImplementedError
 
 
@@ -934,7 +936,7 @@ class ModelResultingFromOperation(ProbabilisticModel):
             if not model.visited:
                 model_has_valid_parameters = model._check_input(model.get_input_values())
                 if model_has_valid_parameters:
-                    model_samples[model] = model.forward_simulate(k, rng=rng)
+                    model_samples[model] = model.forward_simulate(model.get_input_values(), k, rng=rng)
                     model.visited = True
                 else:
                     raise ValueError('Model %s has invalid input parameters.' % parent.name)
@@ -949,11 +951,13 @@ class ModelResultingFromOperation(ProbabilisticModel):
 class SummationModel(ModelResultingFromOperation):
     """This class represents all probabilistic models resulting from an addition of two probabilistic models"""
 
-    def forward_simulate(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
         """Adds the sampled values of both parent distributions.
 
         Parameters
         ----------
+        input_values: list
+            List of input values
         k: integer
             The number of samples that should be sampled
         rng: random number generator
@@ -991,11 +995,13 @@ class SummationModel(ModelResultingFromOperation):
 class SubtractionModel(ModelResultingFromOperation):
     """This class represents all probabilistic models resulting from an subtraction of two probabilistic models"""
 
-    def forward_simulate(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
         """Adds the sampled values of both parent distributions.
 
         Parameters
         ----------
+        input_values: list
+            List of input values
         k: integer
             The number of samples that should be sampled
         rng: random number generator
@@ -1031,11 +1037,13 @@ class SubtractionModel(ModelResultingFromOperation):
 
 class MultiplicationModel(ModelResultingFromOperation):
     """This class represents all probabilistic models resulting from a multiplication of two probabilistic models"""
-    def forward_simulate(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
         """Multiplies the sampled values of both parent distributions element wise.
 
         Parameters
         ----------
+        input_values: list
+            List of input values
         k: integer
             The number of samples that should be sampled
         rng: random number generator
@@ -1045,7 +1053,7 @@ class MultiplicationModel(ModelResultingFromOperation):
         -------
         list:
             The first entry is True, it is always possible to sample, given two parent values. The second entry is the product of the parents values.
-            """
+        """
         return_value = []
 
         model_samples = self.sample_from_input_models(k, rng)
@@ -1071,11 +1079,13 @@ class MultiplicationModel(ModelResultingFromOperation):
 class DivisionModel(ModelResultingFromOperation):
     """This class represents all probabilistic models resulting from a division of two probabilistic models"""
 
-    def forward_simulate(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_valus, k, rng=np.random.RandomState()):
         """Divides the sampled values of both parent distributions.
 
         Parameters
         ----------
+        input_values: list
+            List of input values
         k: integer
             The number of samples that should be sampled
         rng: random number generator
@@ -1131,11 +1141,13 @@ class ExponentialModel(ModelResultingFromOperation):
         return True
 
 
-    def forward_simulate(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
         """Raises the sampled values of the base by the exponent.
 
         Parameters
         ----------
+        input_values: list
+            List of input values
         k: integer
             The number of samples that should be sampled
         rng: random number generator
@@ -1191,11 +1203,13 @@ class RExponentialModel(ModelResultingFromOperation):
         return True
 
 
-    def forward_simulate(self, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
         """Raises the base by the sampled value of the exponent.
 
         Parameters
         ----------
+        input_values: list
+            List of input values
         k: integer
             The number of samples that should be sampled
         rng: random number generator

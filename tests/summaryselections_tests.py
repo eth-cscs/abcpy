@@ -29,7 +29,7 @@ class SemiautomaticTests(unittest.TestCase):
         self.statistics_cal.statistics = lambda x, f2=self.summaryselection.transformation, f1=self.statistics_cal.statistics: f2(f1(x))
         # Simulate observed data
         Obs = Normal([2, 4] )
-        y_obs = Obs.forward_simulate(1)[0].tolist()
+        y_obs = Obs.forward_simulate(Obs.get_input_values(), 1)[0].tolist()
 
         extracted_statistics = self.statistics_cal.statistics(y_obs)
         self.assertEqual(np.shape(extracted_statistics), (1,2))

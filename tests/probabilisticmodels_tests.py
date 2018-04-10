@@ -86,7 +86,7 @@ class AbstractAPIImplementationTests():
     def test_forward_simulate(self):
         for model in self.models:
             rng = np.random.RandomState(1)
-            result_list = model.forward_simulate(3, rng)
+            result_list = model.forward_simulate(model.get_input_values(), 3, rng)
             self.assertTrue(isinstance(result_list, list), 'Return value not of type list in model {}.'.format(type(model)))
             self.assertEqual(len(result_list), 3, 'Model {} did not return the requseted number of formard simulations.'.format(type(model)))
 
@@ -101,7 +101,7 @@ class AbstractAPIImplementationTests():
             self.assertGreater(expected_dim, 0, 'Output dimension must be larger than 0 for model {}.'.format(type(model)))
 
             rng = np.random.RandomState(1)
-            result_list = model.forward_simulate(1, rng)
+            result_list = model.forward_simulate(model.get_input_values(), 1, rng)
             result = result_list[0]
             result_dim = result.shape[0]
             self.assertEqual(result_dim, expected_dim, 'Output dimension of forward simulation is not equal to get_output_dimension() for model {}.'.format(type(model)))
@@ -193,7 +193,7 @@ class SummationModelTests(unittest.TestCase):
         rng=np.random.RandomState(1)
         N1._forward_simulate_and_store_output(rng=rng)
 
-        sample = N2.forward_simulate(1, rng)
+        sample = N2.forward_simulate(N2.get_input_values(), 1, rng)
 
         self.assertTrue(isinstance(sample[0], np.ndarray))
 
@@ -207,7 +207,7 @@ class SubtractionModelTests(unittest.TestCase):
         rng=np.random.RandomState(1)
         N1._forward_simulate_and_store_output(rng=rng)
 
-        sample = N2.forward_simulate(1, rng)
+        sample = N2.forward_simulate(N2.get_input_values(), 1, rng)
 
         self.assertTrue(isinstance(sample[0], np.ndarray))
 
@@ -221,7 +221,7 @@ class MultiplicationModelTests(unittest.TestCase):
         rng=np.random.RandomState(1)
         N1._forward_simulate_and_store_output(rng=rng)
 
-        sample = N2.forward_simulate(1, rng)
+        sample = N2.forward_simulate(N2.get_input_values(), 1, rng)
         self.assertTrue(isinstance(sample[0], np.ndarray))
 
     def test_multiplication_from_right(self):
@@ -243,7 +243,7 @@ class DivisionModelTests(unittest.TestCase):
 
         N1._forward_simulate_and_store_output(rng=rng)
         N2._forward_simulate_and_store_output(rng=rng)
-        sample = N3.forward_simulate(1)
+        sample = N3.forward_simulate(N3.get_input_values(), 1)
 
         self.assertTrue(isinstance(sample[0], np.ndarray))
 
@@ -282,7 +282,7 @@ class ExponentialModelTests(unittest.TestCase):
         N2 = N1**2
         rng = np.random.RandomState(1)
         N1._forward_simulate_and_store_output(rng=rng)
-        sample = N2.forward_simulate(1, rng=rng)
+        sample = N2.forward_simulate(N2.get_input_values(), 1, rng=rng)
         self.assertTrue(isinstance(sample[0], np.ndarray))
 
 
