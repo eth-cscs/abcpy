@@ -19,7 +19,7 @@ def infer_parameters():
     grade_without_additional_effects = Normal([[4.5], [0.25]], )
 
     # The grade a student of a certain school receives
-    final_grade = grade_without_additional_effects-class_size-background
+    final_grade = grade_without_additional_effects - class_size - background
 
     # Define a summary statistics
     from abcpy.statistics import Identity

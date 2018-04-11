@@ -27,9 +27,21 @@ abcpy.approx_lhd module
 abcpy.backends module
 ---------------------
 
-.. automodule:: abcpy.backends
+.. automodule:: abcpy.backends.base
     :members:
-    :special-members: __init__       
+    :special-members: __init__
+    :undoc-members:
+    :show-inheritance:
+
+.. automodule:: abcpy.backends.spark
+    :members:
+    :special-members: __init__
+    :undoc-members:
+    :show-inheritance:
+
+.. automodule:: abcpy.backends.mpi
+    :members:
+    :special-members: __init__
     :undoc-members:
     :show-inheritance:
 
