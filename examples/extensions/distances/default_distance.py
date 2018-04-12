@@ -3,7 +3,10 @@ from abcpy.distances import Distance, Euclidean
 
 
 class DefaultJointDistance(Distance):
-    """This class implements a default distance to be used when multiple root models exist. It uses LogReg as the distance calculator for each root model, and adds all individual distances.
+    """
+    This class implements a default distance to be used when multiple root
+    models exist. It uses LogReg as the distance calculator for each root model, and
+    adds all individual distances.
 
     Parameters
     ----------
