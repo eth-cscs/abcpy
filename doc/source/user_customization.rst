@@ -228,6 +228,7 @@ There are several frameworks that help you integrating your C++/C code into
 Python. We showcase examples for
 
 * `Swig <http://www.swig.org/>`_
+
 .. * `Pybind <https://github.com/pybind>`_
 
 Using Swig
@@ -326,9 +327,9 @@ within ABCpy we include the following code at the beginning of our Python file:
     :lines: 6 - 14
     :linenos:
 
-This imports the R function `simple_gaussian` into the Python environment. We
-need to build our own model to incorporate this R function as in the previous
-section. The only difference is in the `forward_simulate` method of the class `Gaussian'.
+This imports the R function :code:`simple_gaussian` into the Python environment. We need to build our own model to
+incorporate this R function as in the previous section. The only difference is in the :code:`forward_simulate` method of
+the class :code:`Gaussian'.
 
 .. literalinclude:: ../../examples/extensions/simplemodels/gaussian_R/gaussian_model.py
     :language: python
@@ -342,20 +343,33 @@ converted into a Python numpy array for the purposes of ABCpy.
 
 Implementing a new Distance
 ---------------------------
-We will now explain how you can implement your own distance measure. A distance needs to provide the following three methods:
+We will now explain how you can implement your own distance measure. A new distance is implemented as a new class that
+derives from :py:class`Distance <abcpy.distance.Distance>` and for which the following three methods have to be
+implemented:
 
-.. literalinclude:: ../../abcpy/distances.py
-    :language: python
-    :lines: 8, 14,29,66
+* :py:meth:`Distance.__init__() <abcpy.distances.Distance.__init__>`
+* :py:meth:`Distance.distance() <abcpy.distances.Distance.distance>`
+* :py:meth:`Distance.dist_max() <abcpy.distances.Distance.dist_max>`
 
-Let us first look at the constructor. Distances in ABCpy should act on summary statistics. Therefore, a statistics calculator should be provided in the constructor. Further, as the observations do always stay the same, we can save the summary statistics of them and not recalculate it each time.
+
+Let us first look at the initializer documentation:
+
+.. automethod:: abcpy.distances.Distance.__init__
+    :noindex:
+
+Distances in ABCpy should act on summary statistics. Therefore, at initialization of a distance calculator, a statistics
+calculator should be provided. The following header conforms to this idea:
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
     :lines: 112-118
     :dedent: 4
 
-Then, we need to define how the distance is calculated. First we compute the summary statistics from the datasets and then compute the distance between the summary statistics. Notice, while computing the summary statistics we save first dataset and the corresponding summary, as we always consider the first dataset being the observed dataset. 
+Then, we need to define how the distance is calculated. First we compute the summary statistics from the datasets and
+then compute the distance between the summary statistics. Notice, while computing the summary statistics we save the
+first dataset and the corresponding summary statistics. This is since we always pass the observed dataset first to the
+distance function. The observed dataset does not change during an inference computation and thus it is efficient to
+compute it once and store it internally.
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
@@ -369,38 +383,45 @@ Finally, we need to define the maximal distance that can be obtained from this d
     :lines: 149-150
     :dedent: 4
 
-The complete example for this tutorial can be found `here
+The newly defined distance class can be used in the same way as the already existing once. The complete example for this
+tutorial can be found `here
 <https://github.com/eth-cscs/abcpy/blob/master/examples/extensions/distances/default_distance.py>`_.
 
 
 Implementing a new Perturbation Kernel
 --------------------------------------
 
-A kernel always needs the following methods to be a valid object of type :py:class:`abcpy.perturbationkernel.PerturbationKernel`:
+To implement a new kernel, we need to implement a new class that derives from
+:py:class:`abcpy.perturbationkernel.PerturbationKernel` and that implements the following abstract methods:
 
-.. literalinclude:: ../../abcpy/perturbationkernel.py
-    :language: python
-    :lines: 12,24,45
+* :py:meth:`PerturbationKernel.__init__() <abcpy.perturbationkernel.PerturbationKernel.__init__>`
+* :py:meth:`PerturbationKernel.calculate_cov() <abcpy.perturbationkernel.PerturbationKernel.calculate_cov>`
+* :py:meth:`PerturbationKernel.update() <abcpy.perturbationkernel.PerturbationKernel.update>`
 
-Kernels in ABCpy can be of two types. They can either be derived from the class :py:class:`abcpy.perturbationkernel.ContinuousKernel` or from :py:class:`abcpy.perturbationkernel.DiscreteKernel`. If the Kernel is a Continuous Kernel, we would need the following method:
+Kernels in ABCpy can be of two types: they can either be derived from the class :py:class:`ContinuousKernel
+<abcpy.perturbationkernel.ContinuousKernel>` or from :py:class:`DiscreteKernel
+<abcpy.perturbationkernel.DiscreteKernel>`. In case a continuous kernel is required, the following method must be
+implemented:
 
 .. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
     :lines: 99
 
-If the Kernel is a Discrete Kernel, we would need the following method:
+On the other hand, if the kernel is a discrete kernel, we would need the following method:
 
 .. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
     :lines: 107
 
-For this example, we will implement a kernel which perturbs continuous parameters using a multivariate normal distribution. This is one of the kernels already implemented within ABCpy.
-First, we need to define a constructor.
+As an example, we will implement a kernel which perturbs continuous parameters using a multivariate normal
+distribution (which is already implemented within ABCpy). First, we need to define a constructor.
 
 .. automethod:: abcpy.perturbationkernel.PerturbationKernel.__init__
     :noindex:
 
-We expect that the arguments passed to the constructor should be of type :py:class:`abcpy.probabilisticmodels.ProbabilisticModel`, the random variables that should be perturbed using this kernel. All these models should be saved on the kernel for future reference.
+Thus, ABCpy expects that the arguments passed to the initializer is of type :py:class:`ProbibilisticModel
+<abcpy.probabilisticmodels.ProbabilisticModel>`, which can be seen as the random variables that should be perturbed by
+this kernel. All these models should be saved on the kernel for future reference.
 
 .. literalinclude:: ../../examples/extensions/perturbationkernels/multivariate_normal_kernel.py
     :language: python
@@ -411,11 +432,21 @@ Next, we need the following method:
 .. automethod:: abcpy.perturbationkernel.PerturbationKernel.calculate_cov
     :noindex:
 
-This method calculates the covariance matrix for your kernel. Of course, not all kernels will have covariance matrices. However, since some kernels do, it is necessary to implement this method for all kernels. **If your kernel does not have a covariance matrix, simply return an empty list.**
+This method calculates the covariance matrix for your kernel. Of course, not all kernels will have covariance matrices.
+However, since some kernels do, it is necessary to implement this method for all kernels. *If your kernel does not have
+a covariance matrix, simply return an empty list.*
 
-The two arguments passed to this method are the accepted parameters manager and the kernel index. An object of type :py:class:`abcpy.acceptedparametersmanager.AcceptedParametersManager` is always initialized when an inference method object is instantiated. On this object, the accepted parameters, accepted weights, accepted covariance matrices for all kernels and other information is stored. This is such that various objects can access this information without much hassle centrally. To access any of the quantities mentioned above, you will have to call the `.value()` method of the corresponding quantity.
+The two arguments passed to this method are the accepted parameters manager and the kernel index. An object of type
+:py:class:`AcceptedParameterManager <abcpy.acceptedparametersmanager.AcceptedParametersManager>` is always initialized
+when an inference method object is instantiated. On this object, the accepted parameters, accepted weights, accepted
+covariance matrices for all kernels and other information is stored. This is such that various objects can access this
+information without much hassle centrally. To access any of the quantities mentioned above, you will have to call the
+`.value()` method of the corresponding quantity.
 
-The second parameter, the kernel index, specifies the index of the kernel in the list of kernels that the inference method will in the end obtain. Since the user is expected to collect all his kernels in one object, this index will automatically be provided. You do not need any knowledge of what the index actually is. However, it is used to access the values relevant to your kernel, for example the current calculated covariance matrix for a kernel.
+The second parameter, the kernel index, specifies the index of the kernel in the list of kernels that the inference
+method will in the end obtain. Since the user is expected to collect all his kernels in one object, this index will
+automatically be provided. You do not need any knowledge of what the index actually is. However, it is used to access
+the values relevant to your kernel, for example the current calculated covariance matrix for a kernel.
 
 Let us now look at the implementation of the method:
 
@@ -424,22 +455,27 @@ Let us now look at the implementation of the method:
     :lines: 10, 25-30
     :dedent: 4
 
-Some of the implemented inference algorithms weigh different sets of parameters differently. Therefore, if such weights are provided, we would like to weight the covariance matrix accordingly. We, therefore, check whether the accepted parameters manager contains any weights. If it does, we retrieve these weights, and calculate the covariance matrix using numpy, the parameters relevant to this kernel and the weights. If there are no weights, we simply calculate an unweighted covariance matrix.
+Some of the implemented inference algorithms weigh different sets of parameters differently. Therefore, if such weights
+are provided, we would like to weight the covariance matrix accordingly. We, therefore, check whether the accepted
+parameters manager contains any weights. If it does, we retrieve these weights, and calculate the covariance matrix
+using numpy, the parameters relevant to this kernel and the weights. If there are no weights, we simply calculate an
+unweighted covariance matrix.
 
 Next, we need the method:
 
 .. automethod:: abcpy.perturbationkernel.PerturbationKernel.update
     :noindex:
 
+This method perturbs the parameters that are associated with the random variables the kernel should perturb. The method
+again requires an accepted parameters manager and a kernel index. These have the same meaning as in the last method. In
+addition to this, a row index is required, as well as a random number generator. The row index specifies which set of
+parameters should be perturbed. There are usually multiple sets, which should be perturbed by different workers during
+parallelization. We, again, need not to worry about the actual value of this index.
 
-This method perturbs the parameters that are associated with the random variables the kernel should perturb.
-
-The method again requires an accepted parameters manager and a kernel index. These have the same meaning as in the last method.
-
-
-In addition to this, a row index is required, as well as a random number generator. The row index specifies which set of parameters should be perturbed. There are usually multiple sets, which should be perturbed by different workers during parallelization. You, again, need not worry about the actual value of this index.
-
-The random number generator should be a random number generator compatible with numpy. This is due to the fact that other methods will pass their random number generator to this method, and all random number generators used within ABCpy are provided by numpy. Also, note that even if your kernel does not require a random number generator, you still need to pass this argument.
+The random number generator should be a random number generator compatible with numpy. This is due to the fact that
+other methods will pass their random number generator to this method, and all random number generators used within ABCpy
+are provided by numpy. Also, note that even if your kernel does not require a random number generator, you still need to
+pass this argument.
 
 Here the implementation for our kernel:
 
@@ -448,9 +484,12 @@ Here the implementation for our kernel:
     :lines: 32, 53, 56-60
     :dedent: 4
 
-The first line shows how you obtain the values of the parameters that your kernel should perturb. These values are converted to a numpy array. Then, the covariance matrix is retrieved from the accepted parameters manager using a similar function call. Finally, the parameters are perturbed and returned.
+The first line shows how you obtain the values of the parameters that your kernel should perturb. These values are
+converted to a numpy array. Then, the covariance matrix is retrieved from the accepted parameters manager using a
+similar function call. Finally, the parameters are perturbed and returned.
 
-Last but not least, each kernel requires a probability density or probability mass function depending on whether it is a Continous Kernel or a Discrete Kernel:
+Last but not least, each kernel requires a probability density or probability mass function depending on whether it is a
+Continous Kernel or a Discrete Kernel:
 
 .. automethod:: abcpy.perturbationkernel.PerturbationKernel.pdf
     :noindex:
@@ -462,9 +501,12 @@ This method is implemented as follows for the multivariate normal:
     :lines: 62, 83-87
     :dedent: 4
 
-We simply obtain the parameter values and covariance matrix for this kernel and calculate the probability density function using scipy.
+We simply obtain the parameter values and covariance matrix for this kernel and calculate the probability density
+function using SciPy.
 
-Note that after defining your own kernel, you will need to collect all your kernels in a :py:class:`abcpy.perturbationkernel.JointPerturbationKernel` object in order for inference to work. For an example on how to do this, check the :ref:`Using perturbation kernels <gettingstarted>` section.
+Note that after defining your own kernel, you will need to collect all your kernels in a
+:py:class:`JointPerturbationKernel <abcpy.perturbationkernel.JointPerturbationKernel>` object in order for inference to
+work. For an example on how to do this, check the :ref:`Using perturbation kernels <gettingstarted>` section.
 
 The complete example used in this tutorial can be found `here
 <https://github.com/eth-cscs/abcpy/blob/master/examples/extensions/perturbationkernels/multivariate_normal_kernel.py>`_.
