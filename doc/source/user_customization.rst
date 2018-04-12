@@ -6,27 +6,26 @@
 Implementing a new Model
 ------------------------
 
-One of the standard use cases of ABCpy is to do inference of a probabilistic model that is not part of ABCpy. We now go
-through the details of such a scenario using the (already implemented) Gaussian distribution to explain how to implement
-such a model from scratch.
+One of the standard use cases of ABCpy is to do inference on a probabilistic model that is not part of ABCpy. We now go
+through the details of such a scenario using the (already implemented) Gaussian generative model to explain how to
+implement it from scratch.
 
-There are two main scenarios: First, we want to use our probabilistic model to explain a relationship between
-*parameters* (considered random variables for inference) and *observed data*.  This is for example the case when we want
-to do inference on mechanistic models that do not have a PDF. In this case, our model has to derive from
-:py:class:`ProbabilisticModel <abcpy.probabilisticmodels.ProbabilisticModel>` and implement a few required methods as
-for example :py:meth:`forward_simulate() <abcpy.probabilisticmodels.ProbabilisticModel.forward_simulate>`.
+There are two scenarios to use a model: First, we want to use our probabilistic model to explain a relationship between
+parameters* (considered random variables for inference) and *observed data*.  This is for example the case when we want
+to do inference on mechanistic models that do not have a PDF. In this case, our model implementation has to derive from
+:py:class:`ProbabilisticModel <abcpy.probabilisticmodels.ProbabilisticModel>` and a few abstract methods have to be
+defined, as for example :py:meth:`forward_simulate() <abcpy.probabilisticmodels.ProbabilisticModel.forward_simulate>`.
 
 In the second scenario, we want to use the model to build a relationship between *different parameters* (between
-different random variables for inference). Then our model is restricted to either output continuous or discrete
-parameters. Consequently, the model must derive from either from :py:class:`Continuous
+different random variables). Then our model is restricted to either output continuous or discrete parameters in form of
+a vector. Consequently, the model must derive from either from :py:class:`Continuous
 <abcpy.probabilisticmodels.Continuous>` or :py:class:`Discrete <abcpy.probabilisticmodels.Discrete>` and implement the
-required methods. These two classes in turn derive from from :py:class:`ProbabilisticModel
-<abcpy.probabilisticmodels.ProbabilisticModel>`, such that we have have to implement also the method required by the
-latter class.
+required abstract methods. These two classes in turn derive from from :py:class:`ProbabilisticModel
+<abcpy.probabilisticmodels.ProbabilisticModel>`, such that the second scenario essentially extends the first.
 
-Let us go through the implementation of a simple Gaussian model. The model has to conform to the API specified by the
-base class :py:class:`ProbabilisticModels <abcpy.probabilisticmodels.ProbabilisticModel>`, and thus must implement at
-least the following methods:
+Let us go through the implementation of a the Gaussian generative model. The model has to conform to the API specified
+by the base class :py:class:`ProbabilisticModels <abcpy.probabilisticmodels.ProbabilisticModel>`, and thus must
+implement at least the following methods:
 
 * :py:meth:`ProbabilisticModels.__init__() <abcpy.probabilisticmodels.ProbabilisticModel.__init__>`
 * :py:meth:`ProbabilisticModels._check_input() <abcpy.probabilisticmodels.ProbabilisticModel._check_input>`
@@ -34,9 +33,11 @@ least the following methods:
 * :py:meth:`ProbabilisticModels.forward_simulate() <abcpy.probabilisticmodels.ProbabilisticModel.forward_simulate>`
 * :py:meth:`ProbabilisticModels.get_output_dimension() <abcpy.probabilisticmodels.ProbabilisticModel.get_output_dimension>`
 
-We want our model to work in both scenarios, so our model also has to conform to the API of :py:class:`Continuous
-<abcpy.probabilisticmodels.Continuous>` since the model output, which is the resulting data from a forward simulation,
-is from a continuous domain.
+We want our model to work in both described scenarios, so our model also has to conform to the API of
+:py:class:`Continuous <abcpy.probabilisticmodels.Continuous>` since the model output, which is the resulting data from a
+forward simulation, is from a continuous domain. For completeness, here the abstract methods defined by
+:py:class:`Continuous <abcpy.probabilisticmodels.Continuous>` and :py:class:`Discrete
+<abcpy.probabilisticmodels.Discrete>`:
 
 * :py:meth:`Continuous.pdf() <abcpy.probabilisticmodels.Continuous.pdf>`
 * :py:meth:`Discrete.pmf() <abcpy.probabilisticmodels.Discrete.pmf>`
@@ -44,26 +45,28 @@ is from a continuous domain.
 Initializing a New Model
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-In the following we go through the implementation of a Gaussian generative model to explain the API in greater detail.
 Since a Gaussian model generates continous numbers, the newly implement class derives from
-:py:class:`abcpy.probabilisticmodels.Continuous` and the header look as follows:
+:py:class:`Continuous <abcpy.probabilisticmodels.Continuous>` and the header look as follows:
 
 .. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
    :language: python
    :lines: 7
 
 A good way to start implementing a new model is to define a convenient way to initialize it with its input parameters.
-In ABCpy all input parameters (input models) of our Gaussian model are independent ProbabilisticModels (or
-Hyperparameters) and should not be stored within the model we are going to write. We merely need a reference to the
-input parameters or input models respectively. This reference is handled by the :py:class:`InputConnector
-<abcpy.probabilisticmodels.InputConnector>` class. It is important that upon initialization of our model, we call the
-init function ProbabilisticModels and pass an InputConnector object to it, as stated in the documentation:
+In ABCpy all input parameters are either independent ProbabilisticModels or Hyperparameters. Thus, they should not be
+stored within but rather referenced in the model we implement. This reference is handled by the
+:py:class:`InputConnector <abcpy.probabilisticmodels.InputConnector>` class and **must be used** in our model
+implementation. The required procedure is to call the init function of ProbabilisticModels and pass an InputConnector
+object to it.
 
-.. autoclass::  abcpy.probabilisticmodels.ProbabilisticModel
-   :members: __init__
-   :noindex:
+.. automethod::  abcpy.probabilisticmodels.ProbabilisticModel.__init__
+    :noindex:
 
-This leads to the following implementation:
+However, it would be very inconvenient to initialize our Gaussian model with an InputConnector object. We rather like
+the init function to accept a list of parameters :code:`[mu, sigma]`, where :code:`mu` is the mean and :code:`sigma` is
+the standard deviation which are the sole two parameters of our generative Gaussian model. So the idea is to take
+a convenient input and transform it it an InputConnection object that in turn can be passed to the initializer of
+the super class. This leads to the following implementation:
 
 .. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
@@ -71,12 +74,37 @@ This leads to the following implementation:
     :dedent: 4
     :linenos:
 
-For convenience our init function expects a list of parameters :code:`[mu, sigma]`, where :code:`mu` is the mean and
-:code:`sigma` is the standard deviation which are the sole two parameters of our generative Gaussian model. We do some
-basic syntactic checks on the input that throw exceptions if unreasonable input is provided. In line 9 we create in
-InputConnector object from the factory method :py:meth:`from_list <abcpy.probabilisticmodels.InputConnector.from_list>`.
-The resulting InputConnector creates links between our Gaussian model and the models (or hyperparameters) that are used
-for mu and sigma at initialization time.
+
+First, we do some basic syntactic checks on the input that throw exceptions if unreasonable input is provided. Line 9 is
+the interesting part: the InputConnector comes with a convenient set of factory methods that create InputConnector
+objects:
+
+* :py:meth:`abcpy.probabilisticmodels.InputConnector.from_number()`
+* :py:meth:`abcpy.probabilisticmodels.InputConnector.from_model()`
+* :py:meth:`abcpy.probabilisticmodels.InputConnector.from_list()`
+
+
+We use the factory method :py:meth:`from_list <abcpy.probabilisticmodels.InputConnector.from_list>`. The resulting
+InputConnector creates links between our Gaussian model and the models (or hyperparameters) that are used for :code:`mu`
+and :code:`sigma` at initialization time. For example, if :code:`mu` and :code:`sigma` are initialized as
+hyperparameters like
+
+.. code-block:: python
+
+    model = Gaussian([0, 1])
+
+the :code:`from_list()` method will automatically create two HyperParameter objects :code:`HyperParameter(0)` and
+:code:`HyperParameter(1)` and will link the our current Gaussian model inputs to them. If we initialize :code:`mu` and
+:code:`sigma` with existing models like
+
+.. code-block:: python
+
+    uniform1 = Uniform([-1, 1])
+    uniform2 = Uniform([10,20])
+    model = Gaussian([uniform1, uniform2])
+
+the :code:`from_list()` method will link our inputs to the uniform models.
+
 
 Additionally, every model instance should have a unique name, which should also be passed to the init function of the
 super class.
@@ -86,10 +114,9 @@ Checking the Input
 ^^^^^^^^^^^^^^^^^^
 
 The next function we implement is :py:meth:`_check_input <abcpy.probabilisticmodels.ProbabilisiticModels._check_input>`
-which should behave as follows:
+which should behave as described in the documentation:
 
-.. autoclass::  abcpy.probabilisticmodels.ProbabilisticModel
-   :members: _check_input
+.. automethod::  abcpy.probabilisticmodels.ProbabilisticModel._check_input
    :noindex:
 
 This leads to the following implementation:
@@ -100,59 +127,13 @@ This leads to the following implementation:
     :dedent: 4
     :linenos:
 
-
-Checking the Output
-^^^^^^^^^^^^^^^^^^^
-
-We also need to check the output of the model. This method is commonly used in case our model is used as an input for
-other models. When using an inference scheme that utilizes perturbation, the output of our model is slightly perturbed.
-We have to make sure that the perturbed output is still valid for our model. Thus it is required to implement the method
-:py:meth:`_check_output() <abcpy.probabilisticmodels.ProbabilisiticModels._check_output>` that should obey to the
-following API
-
-.. autoclass::  abcpy.probabilisticmodels.ProbabilisticModel
-   :members: _check_output
-   :noindex:
-
-Since the output of a Gaussian generative model is a single number from the full real domain, we can restrict ourselves
-to syntactic checks. However, one could easily image models for which the output it restricted to a certain domain. Then,
-this function should return :code:`False` as soon as values are out of the desired domain.
-
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
-    :language: python
-    :lines: 38-43
-    :dedent: 4
-    :linenos:
-
-
-Getting the Output Dimension
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-In particular if our model is used as input for others models, we have expose the dimension of the produced output using
-the following method:
-
-.. autoclass::  abcpy.probabilisticmodels.ProbabilisticModel
-   :members: get_output_dimension
-   :noindex:
-
-Since our model generates a single float number in one forward simulation, the implementation look the above function
-is straight forward:
-
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
-    :language: python
-    :lines: 46-47
-    :dedent: 4
-    :linenos:
-
-
 Forward Simulation
 ^^^^^^^^^^^^^^^^^^
 
-At the core of our model lies the capability to forward simulate the model to create pseudo observations. This method must
-be implemented obeying the following API
+At the core of our model lies the capability to forward simulate and create pseudo observations. To expose this
+functionality the following method has to be implemented:
 
-.. autoclass::  abcpy.probabilisticmodels.ProbabilisticModel
-   :members: forward_simulate
+.. automethod::  abcpy.probabilisticmodels.ProbabilisticModel.forward_simulate
    :noindex:
 
 A proper implementation look as follows:
@@ -164,18 +145,65 @@ A proper implementation look as follows:
     :linenos:
 
 Note that both :code:`mu` and :code:`sigma` are stored in the list input values in the same order as we provided them
-to the InputConnector object in the init function. Futher note that the output is a list of vectors, though the Gaussian
-generative model only produces real numbers.
+to the InputConnector object in the init function. Futher note that the output is a list of vectors, each of dimension
+one, though the Gaussian generative model only produces real numbers.
+
+
+Checking the Output
+^^^^^^^^^^^^^^^^^^^
+
+We also need to check the output of the model. This method is commonly used in case our model is used as an input for
+other models. When using an inference scheme that utilizes perturbation, the output of our model is slightly perturbed.
+We have to make sure that the perturbed output is still valid for our model. The details of implementing the method
+:py:meth:`_check_output() <abcpy.probabilisticmodels.ProbabilisiticModels._check_output>` can be found in the
+documentation:
+
+.. automethod::  abcpy.probabilisticmodels.ProbabilisticModel._check_output
+   :noindex:
+
+Since the output of a Gaussian generative model is a single number from the full real domain, we can restrict ourselves
+to syntactic checks. However, one could easily imagine models for which the output it restricted to a certain domain.
+Then, this function should return :code:`False` as soon as values are out of the desired domain.
+
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
+    :language: python
+    :lines: 38-43
+    :dedent: 4
+    :linenos:
+
+Note that implementing this method is particularly important when using the current model as input for other models,
+hence in the second scenario described in `Implementing a new Model`_. In case our model should only be used for the
+first scenario, it is safe to omit the check and return true.
+
+
+Getting the Output Dimension
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+We have expose the dimension of the produced output of our model using the following method:
+
+.. automethod::  abcpy.probabilisticmodels.ProbabilisticModel.get_output_dimension
+   :noindex:
+
+Since our model generates a single float number in one forward simulation, the implementation looks is straight forward:
+
+.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
+    :language: python
+    :lines: 46-47
+    :dedent: 4
+    :linenos:
+
+Note that implementing this method is particularly important when using the current model as input for other models,
+hence in the second scenario described in `Implementing a new Model`_. In case our model should only be used for the
+first scenario, it is safe to return 1.
 
 
 Calculating the Probability Density Function
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Since our model also derives from :py:class:`Continuous <abcpy.probabilisticmodels.Continuous>` we also have to implement
-a the following function that calculates the probability density function at specific point.
+the following function that calculates the probability density function at specific point.
 
-.. autoclass::  abcpy.probabilisticmodels.Continuous
-   :members: pdf
+.. automethod::  abcpy.probabilisticmodels.Continuous.pdf
    :noindex:
 
 As mentioned above, this is only required if one wants to use our model as input for other models. An implementation looks

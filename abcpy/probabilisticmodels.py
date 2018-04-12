@@ -256,7 +256,8 @@ class ProbabilisticModel(metaclass = ABCMeta):
     """
 
     def __init__(self, input_connector, name=''):
-        """This constructor should be called from any derived class. 
+        """
+        This initializer *must be* called from any derived class to properly connect it to its input models.
 
         It accepts as input an InputConnector object that fully specifies how to connect all parent models to the
         current model.
@@ -633,22 +634,23 @@ class ProbabilisticModel(metaclass = ABCMeta):
         Check whether the input parameters are compatible with the underlying model.
 
         The following behavior is expected:
+
         1. If the input is of wrong type or has the wrong format, this method should *raise an exception*. For example,
         if the number of parameters does not match what the model expects.
-        2. If the values of the input models are not compatible, this method should return False. For example, if the an
+
+        2. If the values of the input models are not compatible, this method should return False. For example, if an
         input value is not from the expected domain.
 
-        Notes
-        -----
-        It is very important that in particular the realizations of the input models (fixed values) are thoroughly
-        checked. Many inference schemes modify the input slightly by applying a small perturbation during sampling. This
-        method is called to check whether the perturbation yields a reasonable input to the current model. In case this
-        function returns False, the inference schemes re-perturb the input and try again. If the check is not done
-        properly, the inference computation might *crash* or *not terminate*.
+        Background information: Many inference schemes modify the input slightly by applying a small perturbation during
+        sampling. This method is called to check whether the perturbation yields a reasonable input to the current
+        model. In case this function returns False, the inference schemes re-perturb the input and try again. If the
+        check is not done properly, the inference computation might **crash** or **not terminate**.
 
         Parameters
         ----------
-        input_values: list of numbers
+        input_values: list
+            A list of numbers that are the concatenation of all parent model outputs in the order specified by the
+            InputConnector object that was passed during initialization.
 
         Returns
         -------
@@ -662,17 +664,17 @@ class ProbabilisticModel(metaclass = ABCMeta):
     @abstractmethod
     def _check_output(self, values):
         """
-        Checks whether values is a reasonable output of the current model.
-
-        Consequently, this method should return false if values cannot possibly be generated from the model.
+        Checks whether values contains a reasonable output of the current model.
 
         Parameters
         ----------
-        values: numpy array of shape (get_output_dimension(),)
+        values: numpy array
+            Array of shape (get_output_dimension(),) that contains the model output.
 
         Returns
         -------
         boolean
+            Return false if values cannot possibly be generated from the model and true otherwise.
         """
 
         raise NotImplementedError
@@ -681,10 +683,10 @@ class ProbabilisticModel(metaclass = ABCMeta):
     @abstractmethod
     def forward_simulate(self, input_values, k, rng):
         """
-        In this method the forward simulation should be implemented, respecting a standardized output.
+        Provides the output (pseudo data) from a forward simulation of the current model.
 
-        In case the model is intended to be used as input for another model, a forward simulation *must* return a list of
-        k numpy arrays with shape (get_output_dimension(),).
+        In case the model is intended to be used as input for another model, a forward simulation **must** return a list
+        of k numpy arrays with shape (get_output_dimension(),).
 
         In case the model is directly used for inference, and not as input for another model, a forward simulation
         also must return a list, but the elements can be arbitrarily defined. In this case it is only important that the
@@ -693,9 +695,10 @@ class ProbabilisticModel(metaclass = ABCMeta):
         Parameters
         ----------
         input_values: list
-            List of input parameters, in the same order as specified in the InputConnector passed to the init function
+            A list of numbers that are the concatenation of all parent model outputs in the order specified by the
+            InputConnector object that was passed during initialization.
         k: integer
-            The number of samples that should be drawn.
+            The number of forward simulations that should be run
         rng: Random number generator
             Defines the random number generator to be used. The default value uses a random seed to initialize the
             generator.
@@ -703,6 +706,8 @@ class ProbabilisticModel(metaclass = ABCMeta):
         Returns
         -------
         list
+            A list of *k* elements, where each element is of type numpy arary and represents the result of a single
+            forward simulation.
         """
 
         raise NotImplementedError
@@ -711,7 +716,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
     @abstractmethod
     def get_output_dimension(self):
         """
-        Returns the output dimension of the current model.
+        Provides the output dimension of the current model.
 
         This function is in particular important if the current model is used as an input for other models. In such a
         case it is assumed that the output is always a vector of int or float. The length of the vector is the dimension
@@ -720,27 +725,31 @@ class ProbabilisticModel(metaclass = ABCMeta):
         Returns
         -------
         int:
-            The dimension of the output vector of the forward simulation.
+            The dimension of the output vector of a single forward simulation.
         """
 
+        raise NotImplementedError
 
 
 class Continuous(metaclass = ABCMeta):
     """
     This abstract class represents all continuous probabilistic models.
     """
+
     @abstractmethod
     def pdf(self, input_values, x):
         """
-        Calculates the probability density function of the model, if applicable.
+        Calculates the probability density function of the model.
 
         Parameters
         ----------
         input_values: list
-            List of input parameters, in the same order as specified in the InputConnector passed to the init function
+            A list of numbers that are the concatenation of all parent model outputs in the order specified by the
+            InputConnector object that was passed during initialization.
         x: float
             The location at which the probability density function should be evaluated.
         """
+
         raise NotImplementedError
 
 
@@ -748,18 +757,21 @@ class Discrete(metaclass = ABCMeta):
     """
     This abstract class represents all discrete probabilistic models.
     """
+
     @abstractmethod
     def pmf(self, input_values, x):
         """
-        Calculates the probability mass function of the model, if applicable.
+        Calculates the probability mass function of the model.
 
         Parameters
         ----------
         input_values: list
-            List of input parameters, in the same order as specified in the InputConnector passed to the init function
+            A list of numbers that are the concatenation of all parent model outputs in the order specified by the
+            InputConnector object that was passed during initialization.
         x: float
             The location at which the probability mass function should be evaluated.
         """
+
         raise NotImplementedError
 
 
