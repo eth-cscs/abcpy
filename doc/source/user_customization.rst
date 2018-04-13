@@ -48,7 +48,7 @@ Initializing a New Model
 Since a Gaussian model generates continous numbers, the newly implement class derives from
 :py:class:`Continuous <abcpy.probabilisticmodels.Continuous>` and the header look as follows:
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
    :language: python
    :lines: 7
 
@@ -68,7 +68,7 @@ the standard deviation which are the sole two parameters of our generative Gauss
 a convenient input and transform it it an InputConnection object that in turn can be passed to the initializer of
 the super class. This leads to the following implementation:
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 12-21
     :dedent: 4
@@ -121,7 +121,7 @@ which should behave as described in the documentation:
 
 This leads to the following implementation:
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 24-35
     :dedent: 4
@@ -138,7 +138,7 @@ functionality the following method has to be implemented:
 
 A proper implementation look as follows:
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 50-60
     :dedent: 4
@@ -165,7 +165,7 @@ Since the output of a Gaussian generative model is a single number from the full
 to syntactic checks. However, one could easily imagine models for which the output it restricted to a certain domain.
 Then, this function should return :code:`False` as soon as values are out of the desired domain.
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 38-43
     :dedent: 4
@@ -186,7 +186,7 @@ We have expose the dimension of the produced output of our model using the follo
 
 Since our model generates a single float number in one forward simulation, the implementation looks is straight forward:
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 46-47
     :dedent: 4
@@ -209,7 +209,7 @@ the following function that calculates the probability density function at speci
 As mentioned above, this is only required if one wants to use our model as input for other models. An implementation looks
 as follows:
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 63-68
     :dedent: 4
@@ -241,7 +241,7 @@ in turn use your C++ code with ABCpy as if it was written in Python.
 We go through a complete example to illustrate how to use a simple Gaussian
 model written in C++ with ABCpy. First, have a look at our C++ model:
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_cpp/gaussian_model_simple.cpp
+.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/gaussian_model_simple.cpp
    :language: c++
    :lines: 9 - 17
    :linenos:
@@ -250,7 +250,7 @@ To use this code in Python, we need to specify exactly how to expose the C++
 function to Python. Therefore, we write a Swig interface file that look as
 follows:
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_cpp/gaussian_model_simple.i
+.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/gaussian_model_simple.i
    :language: c++
    :linenos:
 
@@ -265,7 +265,7 @@ instead in C++/C we would provide a memory position (pointer) where to write
 the results. Swig has to translate between the two concepts. We use actually an
 Swig interface definition from numpy called `import_array`. The line
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_cpp/gaussian_model_simple.i
+.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/gaussian_model_simple.i
    :language: c++
    :lines: 18
    :linenos:
@@ -292,7 +292,7 @@ This creates two wrapper files `gaussian_model_simple_wrap.cpp` and
 Note that the include paths might need to be adapted to your system. Finally, we
 can write a Python model which uses our C++ code:
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_cpp/pmcabc-gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/pmcabc-gaussian_model_simple.py
    :language: python
    :lines: 3 - 60
    :linenos:
@@ -314,7 +314,7 @@ show how to use the `rpy2` package to connect with a model written in R.
 Continuing from the previous sections we use a simple Gaussian model as an
 example. The following R code is the contents of the R file `gaussian_model.R`:
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_R/gaussian_model.R
+.. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.R
     :language: R
     :lines: 1 - 4
     :linenos:
@@ -322,7 +322,7 @@ example. The following R code is the contents of the R file `gaussian_model.R`:
 More complex R models are incorporated in the same way. To include this function
 within ABCpy we include the following code at the beginning of our Python file:
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_R/gaussian_model.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
     :language: python
     :lines: 6 - 14
     :linenos:
@@ -331,7 +331,7 @@ This imports the R function :code:`simple_gaussian` into the Python environment.
 incorporate this R function as in the previous section. The only difference is in the :code:`forward_simulate` method of
 the class :code:`Gaussian'.
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_R/gaussian_model.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
     :language: python
     :lines: 59
     :dedent: 8
@@ -384,8 +384,7 @@ Finally, we need to define the maximal distance that can be obtained from this d
     :dedent: 4
 
 The newly defined distance class can be used in the same way as the already existing once. The complete example for this
-tutorial can be found `here
-<https://github.com/eth-cscs/abcpy/blob/master/examples/extensions/distances/default_distance.py>`_.
+tutorial can be found in examples/extensions/distances/default_distance.py.
 
 
 Implementing a new Perturbation Kernel
@@ -508,5 +507,5 @@ Note that after defining your own kernel, you will need to collect all your kern
 :py:class:`JointPerturbationKernel <abcpy.perturbationkernel.JointPerturbationKernel>` object in order for inference to
 work. For an example on how to do this, check the :ref:`Using perturbation kernels <gettingstarted>` section.
 
-The complete example used in this tutorial can be found `here
-<https://github.com/eth-cscs/abcpy/blob/master/examples/extensions/perturbationkernels/multivariate_normal_kernel.py>`_.
+The complete example used in this tutorial can be found
+examples/extensions/perturbationkernels/multivariate_normal_kernel.py.

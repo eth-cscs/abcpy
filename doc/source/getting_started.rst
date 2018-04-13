@@ -14,7 +14,7 @@ As an example, if we have measurements of the height of a group of grown up huma
 distribution is an appropriate probabilistic model for these kind of observations, then our observed dataset would be
 measurement of heights and the probabilistic model would be Gaussian.
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 72
     :dedent: 4
@@ -41,11 +41,10 @@ In our Gaussian example, providing prior information is quite simple. We know fr
 should be somewhere between 150cm and 200cm, while the standard deviation is around 5 to 25. In code, this would look as
 follows:
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 74-76, 78-79
     :dedent: 4
-    :linenos:
 
 We have defined the parameter :math:`\mu` and :math:`\sigma` of the Gaussian model as random variables and assigned
 Uniform prior distributions on them. The parameters of the prior distribution :math:`(150, 200, 5, 25)` are assumed to
@@ -67,7 +66,7 @@ synthetic dataset is not feasible (e.g., high dimensionality of dataset, computa
 measure is defined by computing a distance between relevant *summary statistics* extracted from the datasets. Here we
 first define a way to extract *summary statistics* from the dataset.
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 82-83
     :dedent: 4
@@ -79,7 +78,7 @@ between the datasets directly, we choose Identity as summary statistics which gi
 extracted summary statistics. This essentially means that the distance object automatically extracts the statistics from
 the datasets, and then compute the distance between the two statistics.
  
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 86-87
     :dedent: 4
@@ -89,7 +88,7 @@ kernel provided, which explores the parameter space of random variables, by usin
 distribution or by performing a random walk depending on whether the  corresponding random variable is continuous or
 discrete. For a more involved example, please consult `Complex Perturbation Kernels`_.
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 90-91
     :dedent: 4
@@ -99,7 +98,7 @@ the dummy backend :py:class:`BackendDummy <abcpy.backends.dummy>` which does not
 inference schemes, but  which this is handy for prototyping and testing. For more advanced parallelization backends
 available in ABCpy, please consult :ref:`Using Parallelization Backends <parallelization>` section.
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 95-96
     :dedent: 4
@@ -108,7 +107,7 @@ In this example, we choose PMCABC algorithm (inference scheme) to draw posterior
 we instantiate a PMCABC object by passing the random variable corresponding to the observed dataset, the distance
 function, backend object, perturbation kernel and a seed for the random number generator.
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 98-100
     :dedent: 4
@@ -116,7 +115,7 @@ function, backend object, perturbation kernel and a seed for the random number g
 Finally, we can parametrize the sampler and start sampling from the posterior distribution of the parameters given the
 observed dataset:
 
-.. literalinclude:: ../../examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
     :lines: 102-106
     :dedent: 4
@@ -129,7 +128,7 @@ Note that the model and the observations are given as a list. This is due to the
 have hierarchical models, building relationships between co-occuring groups of datasets. To learn more, see the
 `Hierarchical Model`_ section.
 
-The full source can be found in `examples/extensions/simplemodels/gaussian_python/pmcabc_gaussian_model_simple.py`. To
+The full source can be found in `examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py`. To
 execute the code you only need to run
 
 ::
@@ -150,7 +149,7 @@ Let us consider the following example: Assume we have a school with different cl
 students. All students of the school take an exam and receive some grade. Lets consider the grades of the students as
 our observed dataset:
 
-.. literalinclude:: ../../examples/extensions/graphicalmodels/pmcabc_graphical_model.py
+.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_single_set_of_obs.py
     :language: python
     :lines: 6
     :dedent: 4
@@ -170,7 +169,7 @@ that the grade without any bias would be a normally distributed parameter around
 We can define these random variables and the dependencies between them (in a nutshell, a Bayesian network) in ABCpy in
 the following way:
 
-.. literalinclude:: ../../examples/extensions/graphicalmodels/pmcabc_graphical_model.py
+.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_single_set_of_obs.py
     :language: python
     :lines: 9-10, 13, 16, 19
     :dedent: 4
@@ -180,7 +179,7 @@ grade recieved will be a function of grade without additional effects and the ot
 (e.g., `school_location`, `class_size` and `background`). The model for the final grade of the students now can be
 written as:
 
-.. literalinclude:: ../../examples/extensions/graphicalmodels/pmcabc_graphical_model.py
+.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_single_set_of_obs.py
     :language: python
     :lines: 22
     :dedent: 4
@@ -201,7 +200,7 @@ of a multidimensional random variable as a parameter of a new random variable.
 To do inference on the Baysian network given the observed datat, we again have to define some summary statistics of our
 data (similar to the `Parameters as Random Variables`_ section).
 
-.. literalinclude:: ../../examples/extensions/graphicalmodels/pmcabc_graphical_model.py
+.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_single_set_of_obs.py
     :language: python
     :lines: 25-26
     :dedent: 4
@@ -209,20 +208,20 @@ data (similar to the `Parameters as Random Variables`_ section).
 And just as before, we need to provide a distance measure, a backend and a kernel to the inference scheme of our choice,
 which again is PMCABC.
 
-.. literalinclude:: ../../examples/extensions/graphicalmodels/pmcabc_graphical_model.py
+.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_single_set_of_obs.py
     :language: python
     :lines: 29-30, 33-34, 37-38
     :dedent: 4
 
 Finally, we can parametrize the sampler and start sampling from the posterior distribution:
 
-.. literalinclude:: ../../examples/extensions/graphicalmodels/pmcabc_graphical_model.py
+.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_single_set_of_obs.py
     :language: python
     :lines: 41-43, 46-47, 50
     :dedent: 4
 
-The source code can be found in `examples/extensions/graphicalmodels/pmcabc_graphical_model.py` and can be run as show
-above.
+The source code can be found in `examples/hierarchicalmodels/pmcabc_inference_on_single_set_of_obs.py` and can be run as
+show above.
 
 Hierarchical Model
 ~~~~~~~~~~~~~~~~~~
@@ -237,21 +236,21 @@ Let us assume that in addition to the final grade of a student, we have (co-occu
 scholarships given out by the school to the students. Whether a student gets a scholarship depends on his social
 background and on an independent score.
 
-.. literalinclude:: ../../examples/extensions/hierarchicalmodels/pmcabc_hierarchical_models.py
+.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
     :language: python
     :lines: 25
     :dedent: 4
 
 We assume the score is normally distributed and we model it as follows:
 
-.. literalinclude:: ../../examples/extensions/hierarchicalmodels/pmcabc_hierarchical_models.py
+.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
     :language: python
     :lines: 28
     :dedent: 4
 
 We model the impact of the students social background on the scholarship as follows:
 
-.. literalinclude:: ../../examples/extensions/hierarchicalmodels/pmcabc_hierarchical_models.py
+.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
     :language: python
     :lines: 31
     :dedent: 4
@@ -268,14 +267,14 @@ considering two observed datasets, we need to define an distances on them separa
 distance for each observed data set and corresponding simulated dataset. You can use two different distances on two
 different observed datasets.
 
-.. literalinclude:: ../../examples/extensions/hierarchicalmodels/pmcabc_hierarchical_models.py
+.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
     :language: python
     :lines: 33-41
     :dedent: 4
 
 Using these two distance functions with the final code look as follows:
 
-.. literalinclude:: ../../examples/extensions/hierarchicalmodels/pmcabc_hierarchical_models.py
+.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
     :language: python
     :lines: 43-64
     :dedent: 4
@@ -285,7 +284,7 @@ different observed data sets respectively. Also notice now we provide two differ
 different root models and their observed datasets. Presently ABCpy combines the distances by a linear combination, however
 customized combination strategies can be implemented by the user.
 
-The full source code can be found in `examples/extensions/hierarchicalmodels/pmcabc_hierarchical_models.py`.
+The full source code can be found in `examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py`.
 
 
 Complex Perturbation Kernels
@@ -350,14 +349,14 @@ two observed datasets corresponding to two root models, we need to define an app
 each of them separately. Here, we use the :py:class:`abcpy.approx_lhd.SynLiklihood` for each of the root models. It is
 also possible to use two different approximate likelihoods for two different root models.
 
-.. literalinclude:: ../../examples/extensions/approx_lhd/pmc_hierarchical_models.py
+.. literalinclude:: ../../examples/approx_lhd/pmc_hierarchical_models.py
     :language: python
     :lines: 33-41
     :dedent: 4
 
 We then parametrize the sampler and sample from the posterior distribution. 
 
-.. literalinclude:: ../../examples/extensions/approx_lhd/pmc_hierarchical_models.py
+.. literalinclude:: ../../examples/approx_lhd/pmc_hierarchical_models.py
     :language: python
     :lines: 52-64
     :dedent: 4
@@ -367,7 +366,7 @@ different observed data sets respectively. Also notice now we provide two differ
 different root models and their observed datasets. Presently ABCpy combines the distances by a linear combination.
 Further possibilities of combination will be made available in later versions of ABCpy.
 
-The source code can be found in `examples/extensions/approx_lhd/pmc_hierarchical_models.py`.
+The source code can be found in `examples/approx_lhd/pmc_hierarchical_models.py`.
 
 
 Summary Selection
@@ -382,7 +381,7 @@ from the available summary statistics of the dataset. In ABCpy we provide a semi
 Taking our initial example from `Parameters as Random Variables`_ where we model the height of humans, we can had summary
 statistics defined as follows:
 
-.. literalinclude:: ../../examples/extensions/summaryselection/pmcabc_gaussian_summary_selection.py
+.. literalinclude:: ../../examples/summaryselection/pmcabc_gaussian_summary_selection.py
     :language: python
     :lines: 21-23
     :dedent: 4
@@ -390,7 +389,7 @@ statistics defined as follows:
 Then we can learn the optimized summary statistics from the given list of summary statistics using the semi-automatic
 summary selection procedure as following:
 
-.. literalinclude:: ../../examples/extensions/summaryselection/pmcabc_gaussian_summary_selection.py
+.. literalinclude:: ../../examples/summaryselection/pmcabc_gaussian_summary_selection.py
     :language: python
     :lines: 25-32
     :dedent: 4
@@ -408,28 +407,28 @@ forest ensemble model selection algorithm [:py:class:`abcpy.modelselections.Rand
 Lets consider an array of two models `Normal` and `StudentT`. We want to find out which one of these two models are the
 most suitable one for the observed dataset `y_obs`.
 
-.. literalinclude:: ../../examples/extensions/modelselection/randomforest_modelselections.py
+.. literalinclude:: ../../examples/modelselection/randomforest_modelselections.py
     :language: python
     :lines: 7-19
     :dedent: 4
 
 We first need to initiate the Model Selection scheme, for which we need to define the summary statistics and backend:
 
-.. literalinclude:: ../../examples/extensions/modelselection/randomforest_modelselections.py
+.. literalinclude:: ../../examples/modelselection/randomforest_modelselections.py
     :language: python
     :lines: 21-30
     :dedent: 4
 
 Now we can choose the most suitable model for the observed dataset `y_obs`,
 
-.. literalinclude:: ../../examples/extensions/modelselection/randomforest_modelselections.py
+.. literalinclude:: ../../examples/modelselection/randomforest_modelselections.py
     :language: python
     :lines: 32-33
     :dedent: 4
 
 or compute posterior probability of each of the models given the observed dataset.
 
-.. literalinclude:: ../../examples/extensions/modelselection/randomforest_modelselections.py
+.. literalinclude:: ../../examples/modelselection/randomforest_modelselections.py
     :language: python
     :lines: 35-36
     :dedent: 4
