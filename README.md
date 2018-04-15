@@ -71,6 +71,8 @@ There is a paper in the proceedings of the 2017 PASC conference. We would apprec
 
 Other publications related to the ABCpy package:
 
+* Comparison of ABC alorithms from an HPC perspective
+
 ```
 @article{Dutta2017arXivABCpy,
   title={ABCpy: A High-Performance Computing Perspective to Approximate Bayesian Computation},
@@ -79,6 +81,51 @@ Other publications related to the ABCpy package:
   year={2017}
 }
 ```
+
+* Bayesian Inference of Spreading Processes on Networks 
+
+```
+@article{2017arXiv170908862D,
+    title = "{Bayesian Inference of Spreading Processes on Networks}",
+   author = {{Dutta}, R. and {Mira}, A. and {Onnela}, J.-P.},
+  journal = {ArXiv e-prints arXiv:1709.08862},
+     year = {2017}
+}
+```
+* Bayesian parameter estimation of platelets deposition model (towrads personalized clinical test)
+
+```
+@article{2017arXiv171001054D,
+   author = {{Dutta}, R. and {Chopard}, B. and {L{\"a}tt}, J. and {Dubois}, F. and 
+	{Zouaoui Boudjeltia}, K. and {Mira}, A.},
+    title = "{Parameter estimation of platelets deposition: Approximate Bayesian computation with high performance computing}",
+  journal = {ArXiv e-prints arXiv:1710.01054},
+     year = {2017}
+}
+```
+* Bayesin inference of Dynamic Queueing Networks 
+
+```
+@article{2018arXiv180402526E,
+   author = {{Ebert}, A. and {Dutta}, R. and {Wu}, P. and {Mengersen}, K. and 
+	{Ruggeri}, F. and {Mira}, A.},
+    title = "{Likelihood-Free Parameter Estimation for Dynamic Queueing Networks}",
+  journal = {ArXiv e-prints arXiv:1804.02526},
+     year = {2018}
+}
+```
+* Bayesian Calibration of Force-fields
+
+```
+@article{2018arXiv180402742D,
+   author = {{Dutta}, R. and {Faidon Brotzakis}, Z. and {Mira}, A.},
+    title = "{Bayesian Calibration of Force-fields from Experimental Data: TIP4P Water}",
+  journal = {ArXiv e-prints arXiv:1804.02742},
+     year = {2018}
+}
+
+```
+
 
 ## License
 ABCpy is published under the BSD 3-clause license, see [here](LICENSE).
