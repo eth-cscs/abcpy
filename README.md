@@ -103,7 +103,7 @@ Other publications related to the ABCpy package:
      year = {2017}
 }
 ```
-* Bayesin inference of Dynamic Queueing Networks 
+* Bayesian inference of Dynamic Queueing Networks 
 
 ```
 @article{2018arXiv180402526E,
