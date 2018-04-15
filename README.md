@@ -5,9 +5,9 @@ absence of likelihood function, which parallelizes existing approaximate Bayesia
 algorithms and other likelihood-free inference schemes. It presently includes:
 
 * RejectionABC
-* PMC-ABC (Population Monte Carlo ABC)
-* SMC-ABC (Sequential Monte Carlo ABC)
-* RSMC-ABC (Replenishment SMC-ABC)
+* PMCABC (Population Monte Carlo ABC)
+* SMCABC (Sequential Monte Carlo ABC)
+* RSMCABC (Replenishment SMC-ABC)
 * APMCABC (Adaptive Population Monte Carlo ABC)
 * SABC (Simulated Annealing ABC)
 * ABCsubsim (ABC using subset simulation)
@@ -38,7 +38,7 @@ ABCpy was written by [Ritabrata Dutta, Università della svizzera italiana](http
 and [Marcel Schoengens, CSCS, ETH Zurich](schoengens@cscs.ch), and we're actively developing it. Please feel free 
 to submit any bugs or feature requests. We'd also love to hear about your experiences with ABCpy in general. Drop us an email!
 
-We want to thank Prof. Antonietta Mira, Università della svizzera italiana, and Prof. Jukka-Pekka Onnela, Harvard University for helpful 
+We want to thank [Prof. Antonietta Mira, Università della svizzera italiana](https://search.usi.ch/en/people/f8960de6d60dd08a79b6c1eb20b7442b/Mira-Antonietta), and [Prof. Jukka-Pekka Onnela, Harvard University](https://www.hsph.harvard.edu/onnela-lab/) for helpful 
 contributions and advice; Avinash Ummadisinghu and Nicole Widmern correspondingly for developning dynamic-MPI backend and 
 making ABCpy suitbale for Graphical models; and CSCS (Swiss Super Computing Center) for their generous support.
 
