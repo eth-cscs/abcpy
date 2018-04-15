@@ -34,11 +34,11 @@ Further, we provide a
 has been applied successfully. This is a good place to look at more complicated inference setups.
 
 # Author 
-ABCpy was written by [Ritabrata Dutta, University of Lugano](https://search.usi.ch/en/people/c4342228614d041dca7e2f67cbb996c9/dutta-ritabrata) 
+ABCpy was written by [Ritabrata Dutta, Università della svizzera italiana](https://search.usi.ch/en/people/c4342228614d041dca7e2f67cbb996c9/dutta-ritabrata) 
 and [Marcel Schoengens, CSCS, ETH Zurich](schoengens@cscs.ch), and we're actively developing it. Please feel free 
 to submit any bugs or feature requests. We'd also love to hear about your experiences with ABCpy in general. Drop us an email!
 
-We want to thank Prof. Antonietta Mira, University of Lugano, and Prof. Jukka-Pekka Onnela, Harvard University for helpful 
+We want to thank Prof. Antonietta Mira, Università della svizzera italiana, and Prof. Jukka-Pekka Onnela, Harvard University for helpful 
 contributions and advice; Avinash Ummadisinghu and Nicole Widmern correspondingly for developning dynamic-MPI backend and 
 making ABCpy suitbale for Graphical models; and CSCS (Swiss Super Computing Center) for their generous support.
 
