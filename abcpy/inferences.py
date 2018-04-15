@@ -1704,7 +1704,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
 
 class RSMCABC(BaseDiscrepancy, InferenceMethod):
-    """This base class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
+    """This base class implements Replenishment Sequential Monte Carlo Approximate Bayesian computation of
     Drovandi and Pettitt [1].
 
     [1] CC. Drovandi CC and AN. Pettitt, Estimation of parameters for macroparasite population evolution using
