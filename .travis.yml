@@ -18,6 +18,9 @@ install:
 - pip install -r requirements/backend-spark.txt
 script:
 - make test
+before_deploy:
+- make clean
+- mkdir dist
 deploy:
 - provider: pypi
   user: mschoengens

@@ -11,6 +11,7 @@ help:
 
 clean:
 	find . -name "*.pyc" -type f -delete
+	find . -name "*.pkl" -type f -delete
 	find . -name "__pycache__" -delete
 	find . -name ".#*" -delete
 	find . -name "#*#" -delete
@@ -72,6 +73,7 @@ reinstall: uninstall install
 
 
 whl_file: clean
+	mkdir -p build/dist
 	python3 setup.py -v bdist_wheel -d build/dist
 	@echo
 	@echo "Find" `ls build/dist` "in build/dist/."

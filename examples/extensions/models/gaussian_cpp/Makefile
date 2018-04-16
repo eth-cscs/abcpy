@@ -8,6 +8,9 @@ INCLUDEPATH=/usr/include/python3.4m
 
 cpp_simple: _gaussian_model_simple.so gaussian_model_simple.py
 
+clean:
+	rm gaussian_model_simple.o gaussian_model_simple.py gaussian_model_simple_wrap.cpp
+
 %.py: %.i
 	$(SWIG) $(SWIGFLAGS) -o $@ $<
 
