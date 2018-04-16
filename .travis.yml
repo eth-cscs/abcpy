@@ -18,6 +18,8 @@ install:
 - pip install -r requirements/backend-spark.txt
 script:
 - make test
+before_deployment:
+- make clean
 deploy:
 - provider: pypi
   user: mschoengens
