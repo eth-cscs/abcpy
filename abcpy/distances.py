@@ -4,6 +4,7 @@ import numpy as np
 from glmnet import LogitNet
 from sklearn import linear_model
 
+
 class Distance(metaclass = ABCMeta):
     """This abstract base class defines how the distance between the observed and
     simulated data should be implemented.    
@@ -78,7 +79,7 @@ class Distance(metaclass = ABCMeta):
         
         raise NotImplementedError
 
-    
+
     def _calculate_summary_stat(self,d1,d2):
         """Helper function that extracts the summary statistics s1 and s2 from d1 and
         d2 using the statistics object stored in self.statistics_calc.
@@ -101,7 +102,6 @@ class Distance(metaclass = ABCMeta):
         return (s1,s2)
 
 
-
 class Euclidean(Distance):
     """
     This class implements the Euclidean distance between two vectors.
@@ -112,20 +112,37 @@ class Euclidean(Distance):
     def __init__(self, statistics):
         self.statistics_calc = statistics
 
+        # Since the observations do always stay the same, we can save the
+        #  summary statistics of them and not recalculate it each time
+        self.s1 = None
+        self.data_set = None
+
         
     def distance(self, d1, d2):
-        if len(d1) != len(d2):
-            raise BaseException("Input data sets have different sizes: {} vs {}".format(len(d1), len(d2)))
+        """Calculates the distance between two datasets.
 
-        s1 = self.statistics_calc.statistics(d1)
+        Parameters
+        ----------
+        d1, d2: list
+            A list, containing a list describing the data set
+        """
+        if not isinstance(d1, list):
+            raise TypeError('Data is not of allowed types')
+        if not isinstance(d2, list):
+            raise TypeError('Data is not of allowed types')
+
+        # Extract summary statistics from the dataset
+        if(self.s1 is None or self.data_set!=d1):
+            self.s1 = self.statistics_calc.statistics(d1)
+            self.data_set = d1
         s2 = self.statistics_calc.statistics(d2)
 
         # compute distance between the statistics
-        dist = np.zeros(shape=(s1.shape[0],s1.shape[0]))
-        for ind1 in range(0, s1.shape[0]):
+        dist = np.zeros(shape=(self.s1.shape[0],s2.shape[0]))
+        for ind1 in range(0, self.s1.shape[0]):
             for ind2 in range(0, s2.shape[0]):
-                dist[ind1,ind2] = np.sqrt(np.sum(pow(s1[ind1,:]-s2[ind2,:],2)))
-                
+                dist[ind1,ind2] = np.sqrt(np.sum(pow(self.s1[ind1,:]-s2[ind2,:],2)))
+
         return dist.mean()
 
     
@@ -157,15 +174,32 @@ class PenLogReg(Distance):
     def __init__(self, statistics):
         self.statistics_calc = statistics
 
+        # Since the observations do always stay the same, we can save the summary statistics of them and not recalculate it each time
+        self.s1 = None
+        self.data_set = None
         
     def distance(self, d1, d2):
+        """Calculates the distance between two datasets.
+
+        Parameters
+        ----------
+        d1, d2: list
+            A list, containing a list describing the data set
+        """
+        if not isinstance(d1, list):
+            raise TypeError('Data is not of allowed types')
+        if not isinstance(d2, list):
+            raise TypeError('Data is not of allowed types')
+
         # Extract summary statistics from the dataset
-        s1 = self.statistics_calc.statistics(d1)
+        if(self.s1 is None or self.data_set!=d1):
+            self.s1 = self.statistics_calc.statistics(d1)
+            self.data_set = d1
         s2 = self.statistics_calc.statistics(d2)
-         
+
         # compute distnace between the statistics 
-        training_set_features = np.concatenate((s1, s2), axis=0)
-        label_s1 = np.zeros(shape=(len(s1), 1))
+        training_set_features = np.concatenate((self.s1, s2), axis=0)
+        label_s1 = np.zeros(shape=(len(self.s1), 1))
         label_s2 = np.ones(shape=(len(s2), 1))
         training_set_labels = np.concatenate((label_s1, label_s2), axis=0).ravel()
 
@@ -182,7 +216,7 @@ class PenLogReg(Distance):
     
 
 class LogReg(Distance):
-    """This class implements a distance mesure based on the classification
+    """This class implements a distance measure based on the classification
     accuracy [1]. The classification accuracy is calculated between two dataset d1 and d2 using 
     logistics regression and return it as a distance. The maximum value of the distance is 1.0.
 
@@ -192,15 +226,33 @@ class LogReg(Distance):
     
     def __init__(self, statistics):
         self.statistics_calc = statistics
+
+        # Since the observations do always stay the same, we can save the summary statistics of them and not recalculate it each time
+        self.s1 = None
+        self.data_set = None
         
     def distance(self, d1, d2):
+        """Calculates the distance between two datasets.
+
+        Parameters
+        ----------
+        d1, d2: list
+            A list, containing a list describing the data set
+        """
+        if not isinstance(d1, list):
+            raise TypeError('Data is not of allowed types')
+        if not isinstance(d2, list):
+            raise TypeError('Data is not of allowed types')
+
         # Extract summary statistics from the dataset
-        s1 = self.statistics_calc.statistics(d1)
+        if(self.s1 is None or self.data_set!=d1):
+            self.s1 = self.statistics_calc.statistics(d1)
+            self.data_set = d1
         s2 = self.statistics_calc.statistics(d2)
         
-        # compute distnace between the statistics
-        training_set_features = np.concatenate((s1, s2), axis=0)
-        label_s1 = np.zeros(shape=(len(s1), 1))
+        # compute distance between the statistics
+        training_set_features = np.concatenate((self.s1, s2), axis=0)
+        label_s1 = np.zeros(shape=(len(self.s1), 1))
         label_s2 = np.ones(shape=(len(s2), 1))
         training_set_labels = np.concatenate((label_s1, label_s2), axis=0).ravel()
 
@@ -209,10 +261,7 @@ class LogReg(Distance):
         log_reg_model.fit(training_set_features, training_set_labels)
         score = log_reg_model.score(training_set_features, training_set_labels)
         distance = 2.0 * (score - 0.5)
-        
         return distance
 
     def dist_max(self):
         return 1.0
-         
-    

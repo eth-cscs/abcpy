@@ -1,13 +1,15 @@
 from abc import ABCMeta, abstractmethod
 
+from abcpy.graphtools import GraphTools
+
 import numpy as np
 from sklearn.covariance import ledoit_wolf
 from glmnet import LogitNet 
 
+
 class Approx_likelihood(metaclass = ABCMeta):
     """This abstract base class defines the approximate likelihood 
-    function. To approximate the likelihood function at a parameter value given observed data set,
-    we need to pass a data set simulated from model set at the parameter value and the observed data set.
+    function.
     """
 
     @abstractmethod
@@ -59,6 +61,8 @@ class SynLiklihood(Approx_likelihood):
     Journal of Multivariate Analysis, Volume 88, Issue 2, pages 365-411, February 2004.
     """
     def __init__(self, statistics_calc):
+        self.stat_obs = None
+        self.data_set=None
         self.statistics_calc = statistics_calc
 
 
@@ -71,7 +75,9 @@ class SynLiklihood(Approx_likelihood):
             raise TypeError('simulated data is not of allowed types')
 
         # Extract summary statistics from the observed data
-        stat_obs = self.statistics_calc.statistics(y_obs)
+        if(self.stat_obs is None or y_obs!=self.data_set):
+            self.stat_obs = self.statistics_calc.statistics(y_obs)
+            self.data_set=y_obs
 
         # Extract summary statistics from the simulated data
         stat_sim = self.statistics_calc.statistics(y_sim)
@@ -85,14 +91,14 @@ class SynLiklihood(Approx_likelihood):
         # print("DEBUG: robust_precision_sim_det computation..")
         robust_precision_sim_det = np.linalg.det(robust_precision_sim)
         # print("DEBUG: combining.")
-        result = pow(np.sqrt((1/(2*np.pi))*robust_precision_sim_det),stat_obs.shape[0])\
-        *np.exp(np.sum(-0.5*np.sum(np.array(stat_obs-mean_sim)* \
-        np.array(np.matrix(robust_precision_sim)*np.matrix(stat_obs-mean_sim).T).T, axis = 1)))
+        result = pow(np.sqrt((1/(2*np.pi))*robust_precision_sim_det),self.stat_obs.shape[0])\
+        *np.exp(np.sum(-0.5*np.sum(np.array(self.stat_obs-mean_sim)* \
+        np.array(np.matrix(robust_precision_sim)*np.matrix(self.stat_obs-mean_sim).T).T, axis = 1)))
 
         return result
 
 
-class PenLogReg(Approx_likelihood):
+class PenLogReg(Approx_likelihood, GraphTools):
     """This class implements the approximate likelihood function which computes the approximate
     likelihood up to a constant using penalized logistic regression described in
     Dutta et. al. [1]. It takes one additional function handler defining the 
@@ -135,7 +141,10 @@ class PenLogReg(Approx_likelihood):
         self.seed = seed
         self.max_iter = max_iter
         # Simulate reference data and extract summary statistics from the reference data
-        self.ref_data_stat = self._simulate_ref_data()
+        self.ref_data_stat = self._simulate_ref_data()[0]
+
+        self.stat_obs = None
+        self.data_set = None
         
 
         
@@ -147,7 +156,9 @@ class PenLogReg(Approx_likelihood):
             raise TypeError('simulated data is not of allowed types')            
         
         # Extract summary statistics from the observed data
-        stat_obs = self.statistics_calc.statistics(y_obs)
+        if(self.stat_obs is None or self.data_set!=y_obs):
+            self.stat_obs = self.statistics_calc.statistics(y_obs)
+            self.data_set=y_obs
                 
         # Extract summary statistics from the simulated data
         stat_sim = self.statistics_calc.statistics(y_sim)
@@ -157,20 +168,25 @@ class PenLogReg(Approx_likelihood):
         X = np.array(np.concatenate((stat_sim,self.ref_data_stat),axis=0))
         m = LogitNet(alpha = 1, n_splits = self.n_folds, max_iter = self.max_iter, random_state= self.seed)
         m = m.fit(X, y)
-        result = np.exp(-np.sum((m.intercept_+np.sum(np.multiply(m.coef_,stat_obs),axis=1)),axis=0))
+        result = np.exp(-np.sum((m.intercept_+np.sum(np.multiply(m.coef_,self.stat_obs),axis=1)),axis=0))
         
         return result
 
 
-    def _simulate_ref_data(self):
+    def _simulate_ref_data(self, rng=np.random.RandomState()):
         """
         Simulate the reference data set. This code is run at the initialization of
         Penlogreg
         """
 
-        ref_data_stat = [None]*self.n_simulate
-        for ind in range(0,self.n_simulate):        
-            self.model.sample_from_prior()
-            ref_data_stat[ind] = self.statistics_calc.statistics(self.model.simulate(1))
-            
-        return np.squeeze(np.asarray(ref_data_stat))            
+        ref_data_stat = [[None]*self.n_simulate for i in range(len(self.model))]
+        self.sample_from_prior(rng=rng)
+        for model_index, model in enumerate(self.model):
+            ind=0
+            while(ref_data_stat[model_index][-1] is None):
+                data = model.forward_simulate(model.get_input_values(), 1, rng=rng)
+                data_stat = self.statistics_calc.statistics(data[0].tolist())
+                ref_data_stat[model_index][ind]= data_stat
+                ind+=1
+            ref_data_stat[model_index] = np.squeeze(np.asarray(ref_data_stat[model_index]))
+        return ref_data_stat

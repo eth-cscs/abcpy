@@ -9,13 +9,31 @@ Welcome to ABCpy's documentation!
 :Release: |version|
 :Date: |today|
 
-
 .. toctree::
    :maxdepth: 2
    :caption: User Documentation
 
-   README
+   installation
 
+.. toctree::
+   :maxdepth: 2
+
+   getting_started
+
+.. toctree::
+   :maxdepth: 2
+
+   user_customization
+
+.. toctree::
+   :maxdepth: 2
+
+   parallelization
+
+.. toctree::
+   :maxdepth: 2
+
+   postanalysis
 
 .. toctree::
    :maxdepth: 2

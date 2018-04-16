@@ -1,41 +1,42 @@
 import unittest
 import numpy as np
-from abcpy.distributions import Uniform
-from abcpy.models import Gaussian
+from abcpy.continuousmodels import Uniform
+from abcpy.continuousmodels import Normal
 from abcpy.statistics import Identity
 from abcpy.backends import BackendDummy as Backend
 from abcpy.summaryselections import Semiautomatic
 
 
-
 class SemiautomaticTests(unittest.TestCase):
     def setUp(self):
-        self.stat_calc = Identity(degree = 1, cross = 0)
-        
+
         # define prior and model
-        prior = Uniform([150, 5],[200, 25])
-        self.model = Gaussian(prior, seed = 1)
+        sigma = Uniform([[10], [20]])
+        mu = Normal([0, 1])
+        Y = Normal([mu, sigma])
 
         # define backend
         self.backend = Backend()
 
         # define statistics
-        self.statistics_cal = Identity(degree = 2, cross = False)
+        self.statistics_cal = Identity(degree = 3, cross = False)
         
-        #Initialize summaryselection
-        self.summaryselection = Semiautomatic(self.model, self.statistics_cal, self.backend, n_samples = 1000, seed = 1)
-
+        # Initialize summaryselection
+        self.summaryselection = Semiautomatic([Y], self.statistics_cal, self.backend, n_samples = 1000, n_samples_per_param = 1, seed = 1)
         
     def test_transformation(self):
-        #Transform statistics extraction
+        # Transform statistics extraction
         self.statistics_cal.statistics = lambda x, f2=self.summaryselection.transformation, f1=self.statistics_cal.statistics: f2(f1(x))
-        y_obs = self.model.simulate(10)
-        extracted_statistics_10 = self.statistics_cal.statistics(y_obs)
-        self.assertEqual(np.shape(extracted_statistics_10), (10,2))
-        y_obs = self.model.simulate(1)
-        extracted_statistics_1 = self.statistics_cal.statistics(y_obs)
-        self.assertLess(extracted_statistics_1[0,0] - 111.012664458, 10e-2)
-        self.assertLess(extracted_statistics_1[0,1] - (-63.224510811), 10e-2)
+        # Simulate observed data
+        Obs = Normal([2, 4] )
+        y_obs = Obs.forward_simulate(Obs.get_input_values(), 1)[0].tolist()
+
+        extracted_statistics = self.statistics_cal.statistics(y_obs)
+        self.assertEqual(np.shape(extracted_statistics), (1,2))
+
+        # NOTE we cannot test this, since the linear regression used uses a random number generator (which we cannot access and is in C). Therefore, our results differ and testing might fail
+        #self.assertLess(extracted_statistics[0,0] - 0.00215507052338, 10e-2)
+        #self.assertLess(extracted_statistics[0,1] - (-0.0058023274456), 10e-2)
         
 if __name__ == '__main__':
     unittest.main()
