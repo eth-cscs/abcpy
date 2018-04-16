@@ -21,13 +21,14 @@ scientists by providing
 * a fully modularized framework that is easy to use and easy to extend, 
 * a quick way to integrate your generative model into the framework (from C++, R etc.) and
 * a non-intrusive, user-friendly way to parallelize inference computations (for your laptop to clusters, supercomputers and AWS)
+* an intuitive way to perform inference on hierarchical models or more generally on Bayesian networks
 
 # Documentation
 For more information, check out the
 
-* [Tutorial](http://abcpy.readthedocs.io/en/latest/README.html) 
-* [Examples](https://github.com/eth-cscs/abcpy/tree/master/examples) directory and
-* [Reference](http://abcpy.readthedocs.io/en/latest/abcpy.html)
+* [Tutorial](http://abcpy.readthedocs.io/en/v0.5.0/README.html) 
+* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.5.0/examples) directory and
+* [Reference](http://abcpy.readthedocs.io/en/v0.5.0/abcpy.html)
 
 Further, we provide a
 [collection of models](https://github.com/eth-cscs/abcpy-models) for which ABCpy
@@ -38,9 +39,14 @@ ABCpy was written by [Ritabrata Dutta, Università della svizzera italiana](http
 and [Marcel Schoengens, CSCS, ETH Zurich](schoengens@cscs.ch), and we're actively developing it. Please feel free 
 to submit any bugs or feature requests. We'd also love to hear about your experiences with ABCpy in general. Drop us an email!
 
-We want to thank [Prof. Antonietta Mira, Università della svizzera italiana](https://search.usi.ch/en/people/f8960de6d60dd08a79b6c1eb20b7442b/Mira-Antonietta), and [Prof. Jukka-Pekka Onnela, Harvard University](https://www.hsph.harvard.edu/onnela-lab/) for helpful 
-contributions and advice; Avinash Ummadisinghu and Nicole Widmern correspondingly for developning dynamic-MPI backend and 
-making ABCpy suitbale for Graphical models; and CSCS (Swiss Super Computing Center) for their generous support.
+We want to thank
+[Prof. Antonietta Mira, Università della svizzera italiana](https://search.usi.ch/en/people/f8960de6d60dd08a79b6c1eb20b7442b/Mira-Antonietta),
+and
+[Prof. Jukka-Pekka Onnela, Harvard University](https://www.hsph.harvard.edu/onnela-lab/)
+for helpful contributions and advice; Avinash Ummadisinghu and Nicole Widmern
+respectively for developing dynamic-MPI backend and making ABCpy suitbale for
+hierarchical models; and finally CSCS (Swiss National Super Computing Center)
+for their generous support.
 
 ## Citation
 
@@ -69,62 +75,24 @@ There is a paper in the proceedings of the 2017 PASC conference. We would apprec
 
 ## Other Refernces
 
-Other publications related to the ABCpy package:
+Publications in which ABCpy was applied:
 
-* Comparison of ABC alorithms from an HPC perspective
+* R. Dutta, M. Schoengens, A. Ummadisingu, J. P.  Onnela, A. Mira, "ABCpy: A
+  High-Performance Computing Perspective to Approximate Bayesian Computation",
+  2017, arXiv:1711.04694
 
-```
-@article{Dutta2017arXivABCpy,
-  title={ABCpy: A High-Performance Computing Perspective to Approximate Bayesian Computation},
-  author={Dutta, Ritabrata and Schoengens, Marcel and Ummadisingu, Avinash and Onnela, Jukka-Pekka and Mira, Antonietta},
-  journal={arXiv preprint arXiv:1711.04694},
-  year={2017}
-}
-```
+* R. Dutta, J. P.  Onnela, A. Mira, "Bayesian Inference of Spreading Processes
+  on Networks", 2017, arXiv:1709.08862
+  
+* R. Dutta, B. Chopard, J. Lätt, F. Dubois, K. Zouaoui Boudjeltia and A. Mira,
+  "Parameter Estimation of Platelets Deposition: Approximate Bayesian
+  Computation with High Performance Computing", 2017, arXiv:1710.01054
 
-* Bayesian Inference of Spreading Processes on Networks 
+* A. Ebert, R. Dutta, P. Wu, K. Mengersen and A. Mira, "Likelihood-Free
+  Parameter Estimation for Dynamic Queueing Networks", 2018, arXiv:1804.02526
 
-```
-@article{2017arXiv170908862D,
-    title = "{Bayesian Inference of Spreading Processes on Networks}",
-   author = {{Dutta}, R. and {Mira}, A. and {Onnela}, J.-P.},
-  journal = {ArXiv e-prints arXiv:1709.08862},
-     year = {2017}
-}
-```
-* Bayesian parameter estimation of platelets deposition model (towrads personalized clinical test)
-
-```
-@article{2017arXiv171001054D,
-   author = {{Dutta}, R. and {Chopard}, B. and {L{\"a}tt}, J. and {Dubois}, F. and 
-	{Zouaoui Boudjeltia}, K. and {Mira}, A.},
-    title = "{Parameter estimation of platelets deposition: Approximate Bayesian computation with high performance computing}",
-  journal = {ArXiv e-prints arXiv:1710.01054},
-     year = {2017}
-}
-```
-* Bayesian inference of Dynamic Queueing Networks 
-
-```
-@article{2018arXiv180402526E,
-   author = {{Ebert}, A. and {Dutta}, R. and {Wu}, P. and {Mengersen}, K. and 
-	{Ruggeri}, F. and {Mira}, A.},
-    title = "{Likelihood-Free Parameter Estimation for Dynamic Queueing Networks}",
-  journal = {ArXiv e-prints arXiv:1804.02526},
-     year = {2018}
-}
-```
-* Bayesian Calibration of Force-fields
-
-```
-@article{2018arXiv180402742D,
-   author = {{Dutta}, R. and {Faidon Brotzakis}, Z. and {Mira}, A.},
-    title = "{Bayesian Calibration of Force-fields from Experimental Data: TIP4P Water}",
-  journal = {ArXiv e-prints arXiv:1804.02742},
-     year = {2018}
-}
-
-```
+* R. Dutta, Z. Faidon Brotzakis and A. Mira, "Bayesian Calibration of
+  Force-fields from Experimental Data: TIP4P Water", 2018, arXiv:1804.02742
 
 
 ## License
