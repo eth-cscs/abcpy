@@ -20,7 +20,7 @@ script:
 - make test
 before_deploy:
 - make clean
-- mkdir -p build/dist
+- mkdir dist
 deploy:
 - provider: pypi
   user: mschoengens
