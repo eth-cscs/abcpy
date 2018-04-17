@@ -19,7 +19,7 @@ install:
 script:
 - make test
 before_deploy:
-- pip install -u pip
+- pip install --user pip
 - echo $PYTHONPATH
 deploy:
 - provider: pypi
