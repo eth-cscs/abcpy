@@ -19,8 +19,8 @@ install:
 script:
 - make test
 before_deploy:
-- pip install pip
-- echo $PYTHONPATH
+- make clean
+- mkdir -p build/dist
 deploy:
 - provider: pypi
   user: mschoengens
