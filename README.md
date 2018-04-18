@@ -26,7 +26,7 @@ scientists by providing
 # Documentation
 For more information, check out the
 
-* [Tutorial](http://abcpy.readthedocs.io/en/v0.5.0/README.html) 
+* [Documentation](http://abcpy.readthedocs.io/en/v0.5.0) 
 * [Examples](https://github.com/eth-cscs/abcpy/tree/v0.5.0/examples) directory and
 * [Reference](http://abcpy.readthedocs.io/en/v0.5.0/abcpy.html)
 
