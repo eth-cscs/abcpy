@@ -219,6 +219,7 @@ class GetMappingTests(unittest.TestCase):
         mapping, index = sampler._get_mapping()
         self.assertTrue(mapping==[(B1, 0),(N2, 1),(N1,2)])
 
+from abcpy.continuousmodels import Uniform
 
 class PdfOfPriorTests(unittest.TestCase):
     """Tests the implemetation of pdf_of_prior"""
@@ -229,11 +230,11 @@ class PdfOfPriorTests(unittest.TestCase):
             def pdf(self, input_values, x):
                 return x
 
-        self.N1 = Mockobject([1, 0.1])
-        self.N2 = Mockobject([self.N1, 0.1])
-        self.N3 = Mockobject([0.1, 0.01])
-        self.graph1 = Mockobject([self.N2, self.N3])
-        self.graph2 = Mockobject([2, self.N3])
+        self.N1 = Uniform([[1.3], [1.55]], name='n1')
+        self.N2 = Uniform([[self.N1], [1.60]], name='n2')
+        self.N3 = Uniform([[2], [4]], name='n3')
+        self.graph1 = Uniform([[self.N1], [self.N2]], name='graph1')
+        self.graph2 = Uniform([[.5], [self.N3]])
 
         self.graph = [self.graph1, self.graph2]
 
@@ -241,21 +242,25 @@ class PdfOfPriorTests(unittest.TestCase):
         distance_calculator = LogReg(statistics_calculator)
         backend = Backend()
 
-        self.sampler = RejectionABC(self.graph, [distance_calculator, distance_calculator], backend)
+        self.sampler1 = RejectionABC([self.graph1], [distance_calculator], backend)
+        self.sampler2 = RejectionABC([self.graph2], [distance_calculator], backend)
+        self.sampler3 = RejectionABC(self.graph, [distance_calculator, distance_calculator], backend)
 
-        rng = np.random.RandomState(1)
-
-        self.sampler.sample_from_prior(rng=rng)
-
-        self.pdf = self.sampler.pdf_of_prior(self.sampler.model,  [1, 2, 4])
+        self.pdf1 = self.sampler1.pdf_of_prior(self.sampler1.model,  [1.32088846, 1.42945274])
+        self.pdf2 = self.sampler1.pdf_of_prior(self.sampler2.model, [3])
+        self.pdf3 = self.sampler3.pdf_of_prior(self.sampler3.model, [1.32088846, 1.42945274, 3])
 
     def test_return_value(self):
         """Tests whether the return value is float."""
-        self.assertTrue(isinstance(self.pdf, float))
+        self.assertTrue(isinstance(self.pdf1, float))
+        self.assertTrue(isinstance(self.pdf2, float))
+        self.assertTrue(isinstance(self.pdf3, float))
 
     def test_result(self):
         """Test whether pdf calculation works as intended"""
-        self.assertTrue(self.pdf==32)
+        self.assertTrue(self.pdf1 == 14.331188169432183)
+        self.assertTrue(self.pdf2 == 0.5)
+        self.assertTrue(self.pdf3 == 7.1655940847160915)
 
 
 if __name__ == '__main__':

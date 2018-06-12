@@ -86,6 +86,11 @@ class GraphTools():
             model.calculated_pdf = None
 
     def pdf_of_prior(self, models, parameters, mapping=None, is_root=True):
+        self.set_parameters(parameters)
+        result = self._recursion_pdf_of_prior(models, parameters, mapping, is_root)
+        return result
+
+    def _recursion_pdf_of_prior(self, models, parameters, mapping=None, is_root=True):
         """
         Calculates the joint probability density function of the prior of the specified models at the given parameter values.
         Commonly used to check whether new parameters are valid given the prior, as well as to calculate acceptance probabilities.
@@ -138,23 +143,23 @@ class GraphTools():
             for parent_index, parent in enumerate(model.get_input_models()):
                 # Only calculate the pdf if the parent has never been visited for this model
                 if(not(visited_parents[parent_index])):
-                    pdf = self.pdf_of_prior([parent], parameters, mapping=mapping, is_root=False)
+                    pdf = self._recursion_pdf_of_prior([parent], parameters, mapping=mapping, is_root=False)
                     input_models = model.get_input_models()
                     for j in range(len(input_models)):
                         if input_models[j][0] == parent:
                             visited_parents[j]=True
-                    result[i]*=pdf
+                    result[i] *= pdf
             if(not(is_root)):
                 if(model.calculated_pdf is None):
                     result[i] *= model.pdf(model.get_input_values(),relevant_parameters)
                 else:
-                    result[i]*=model.calculated_pdf
+                    result[i] *= 1 #model.calculated_pdf
 
         # Multiply the pdfs of all roots together to give an overall pdf.
         temporary_result = result
         result = 1.
         for individual_result in temporary_result:
-            result*=individual_result
+            result *= individual_result
 
         return result
 

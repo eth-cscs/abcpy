@@ -114,6 +114,7 @@ class Uniform(ProbabilisticModel, Continuous):
 
         lower_bound = input_values[:self.get_output_dimension()]
         upper_bound = input_values[self.get_output_dimension():]
+
         if (np.product(np.greater_equal(x, np.array(lower_bound)) * np.less_equal(x, np.array(upper_bound)))):
             pdf_value = 1. / np.product(np.array(upper_bound) - np.array(lower_bound))
         else:
