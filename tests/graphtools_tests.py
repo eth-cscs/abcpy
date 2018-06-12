@@ -247,7 +247,7 @@ class PdfOfPriorTests(unittest.TestCase):
         self.sampler3 = RejectionABC(self.graph, [distance_calculator, distance_calculator], backend)
 
         self.pdf1 = self.sampler1.pdf_of_prior(self.sampler1.model,  [1.32088846, 1.42945274])
-        self.pdf2 = self.sampler1.pdf_of_prior(self.sampler2.model, [3])
+        self.pdf2 = self.sampler2.pdf_of_prior(self.sampler2.model, [3])
         self.pdf3 = self.sampler3.pdf_of_prior(self.sampler3.model, [1.32088846, 1.42945274, 3])
 
     def test_return_value(self):
