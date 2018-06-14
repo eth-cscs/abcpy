@@ -86,6 +86,26 @@ class GraphTools():
             model.calculated_pdf = None
 
     def pdf_of_prior(self, models, parameters, mapping=None, is_root=True):
+        """
+        Calculates the joint probability density function of the prior of the specified models at the given parameter values.
+        Commonly used to check whether new parameters are valid given the prior, as well as to calculate acceptance probabilities.
+
+        Parameters
+        ----------
+        models: list of abcpy.ProbabilisticModel objects
+            Defines the models for which the pdf of their prior should be evaluated
+        parameters: python list
+            The parameters at which the pdf should be evaluated
+        mapping: list of tupels
+            Defines the mapping of probabilistic models and index in a parameter list.
+        is_root: boolean
+            A flag specifying whether the provided models are the root models. This is to ensure that the pdf is calculated correctly.
+
+        Returns
+        -------
+        list
+            The resulting pdf,as well as the next index to be considered in the parameters list.
+        """
         self.set_parameters(parameters)
         result = self._recursion_pdf_of_prior(models, parameters, mapping, is_root)
         return result
@@ -153,7 +173,7 @@ class GraphTools():
                 if(model.calculated_pdf is None):
                     result[i] *= model.pdf(model.get_input_values(),relevant_parameters)
                 else:
-                    result[i] *= 1 #model.calculated_pdf
+                    result[i] *= 1 
 
         # Multiply the pdfs of all roots together to give an overall pdf.
         temporary_result = result
