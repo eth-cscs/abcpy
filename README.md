@@ -26,9 +26,9 @@ scientists by providing
 # Documentation
 For more information, check out the
 
-* [Documentation](http://abcpy.readthedocs.io/en/v0.5.0) 
-* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.5.0/examples) directory and
-* [Reference](http://abcpy.readthedocs.io/en/v0.5.0/abcpy.html)
+* [Documentation](http://abcpy.readthedocs.io/en/v0.5.1) 
+* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.5.1/examples) directory and
+* [Reference](http://abcpy.readthedocs.io/en/v0.5.1/abcpy.html)
 
 Further, we provide a
 [collection of models](https://github.com/eth-cscs/abcpy-models) for which ABCpy
