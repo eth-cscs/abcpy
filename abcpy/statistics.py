@@ -71,10 +71,10 @@ class Statistics(metaclass = ABCMeta):
         if not isinstance(summary_statistics, (np.ndarray)):
             raise TypeError('Summary statisticss is not of allowed types')
         # Include the polynomial expansion
-        result = summary_statistics    
+        result = summary_statistics
         for ind in range(2,self.degree+1):
             result = np.column_stack((result,np.power(summary_statistics,ind)))
-            
+
         # Include the cross-product term
         if self.cross == True and summary_statistics.shape[1]>1:          
             # Convert to a matrix
@@ -93,7 +93,6 @@ class Identity(Statistics):
     def __init__(self, degree = 2, cross = True):
         self.degree = degree
         self.cross = cross
-        
 
     def statistics(self, data):
         if isinstance(data, list):
@@ -105,7 +104,6 @@ class Identity(Statistics):
                 data = np.concatenate(data).reshape(len(data),-1)
         else:
             raise TypeError('Input data should be of type list, but found type {}'.format(type(data)))
-
         # Expand the data with polynomial expansion            
         result = self._polynomial_expansion(data)  
         

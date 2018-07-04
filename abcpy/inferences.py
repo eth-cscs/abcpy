@@ -234,7 +234,7 @@ class RejectionABC(InferenceMethod):
 
         journal.add_parameters(accepted_parameters)
         journal.add_weights(np.ones((n_samples, 1)))
-
+        self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
         names_and_parameters = self._get_names_and_parameters()
         journal.add_user_parameters(names_and_parameters)
 
@@ -482,7 +482,8 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
                 journal.add_parameters(accepted_parameters)
                 journal.add_weights(accepted_weights)
-
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
+                                                                  accepted_weights=accepted_weights)
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)
 
@@ -830,7 +831,8 @@ class PMC(BaseLikelihood, InferenceMethod):
                 journal.add_parameters(accepted_parameters)
                 journal.add_weights(accepted_weights)
                 journal.add_opt_values(approx_likelihood_new_parameters)
-
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
+                                                                  accepted_weights=accepted_weights)
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)
                 journal.number_of_simulations.append(self.simulation_counter)
@@ -1050,6 +1052,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         samples_until = 0
 
         for aStep in range(0, steps):
+            print(aStep)
             if(aStep==0 and journal_file is not None):
                 accepted_parameters=journal.parameters[-1]
                 accepted_weights=journal.weights[-1]
@@ -1103,7 +1106,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
             new_parameters = np.array(new_parameters)
             new_distances = np.array(new_distances)
             new_all_distances = np.concatenate(new_all_distances)
-            index = index_arr
+            index = np.array(index)
             acceptance = np.array(acceptance)
 
             # Reading all_distances at Initial step
@@ -1152,7 +1155,8 @@ class SABC(BaseDiscrepancy, InferenceMethod):
             if full_output == 1:
                 journal.add_parameters(accepted_parameters)
                 journal.add_weights(accepted_weights)
-
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
+                                                                  accepted_weights=accepted_weights)
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)
                 journal.number_of_simulations.append(self.simulation_counter)
@@ -1191,7 +1195,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         if full_output == 0:
             journal.add_parameters(accepted_parameters)
             journal.add_weights(accepted_weights)
-
+            self.accepted_parameters_manager.update_broadcast(self.backend,accepted_parameters=accepted_parameters,accepted_weights=accepted_weights)
             names_and_parameters = self._get_names_and_parameters()
             journal.add_user_parameters(names_and_parameters)
             journal.number_of_simulations.append(self.simulation_counter)
@@ -1311,7 +1315,6 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
                 all_distances.append(distance)
                 acceptance = rng.binomial(1, np.exp(-distance / self.epsilon), 1)
-
             acceptance = 1
         else:
             ## Select one arbitrary particle:
@@ -1545,6 +1548,8 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
                 journal.add_parameters(accepted_parameters)
                 journal.add_weights(accepted_weights)
                 journal.add_opt_values(accepted_cov_mats)
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
+                                                                  accepted_weights=accepted_weights)
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)
                 journal.number_of_simulations.append(self.simulation_counter)
@@ -1562,7 +1567,8 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             journal.add_parameters(accepted_parameters)
             journal.add_weights(accepted_weights)
             journal.add_opt_values(accepted_cov_mats)
-
+            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
+                                                              accepted_weights=accepted_weights)
             names_and_parameters = self._get_names_and_parameters()
             journal.add_user_parameters(names_and_parameters)
             journal.number_of_simulations.append(self.simulation_counter)
