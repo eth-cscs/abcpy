@@ -145,41 +145,34 @@ that the inference can be done on the full graph. Further we can also define new
 between existing random variables. To make this concept more approachable, we now exemplify an inference problem on a
 probabilistic dependency structure.
 
-Let us consider the following example: Assume we have a school with different classes. Each class has some number of
-students. All students of the school take an exam and receive some grade. Lets consider the grades of the students as
-our observed dataset:
 
-.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_single_set_of_obs.py
+Students of a school took an exam and received some grade. The observed grades of the students are:
+
+.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
     :language: python
     :lines: 6
     :dedent: 4
-
-The grades of the students depend on several variables: if there were bias, the size of the class a student is in, as
-well as the social background of the student. The dependency structure between these variables can be defined using the
+which depend on several variables: if there were bias, the average size of the classes, as well as the number of teachers at the school. 
+Here we assume the average size of a class and the number of the teachers at the school are normally distributed with
+some mean, depending on the budget of the school and variance $1$. We further assume that the budget of the school is 
+uniformly distributed between 1 and 10 millions US dollars. Finally, we can assume that the grade without any bias would
+be a normally distributed parameter around an average grade. The dependency structure between these variables can be defined using the
 following Bayesian network:
 
 .. image:: network_1_model.png
 
-Here we assume the size of a class the student belongs to and his/her social background are normally distributed with
-some mean and variance. However, they also both depend on the location of the school. In certain neighbourhoods, the
-class size might be larger, or the social background might differ. We therefore have additional parameters, specifying
-the mean of these normal distributions will vary uniformly between some lower and upper bounds. Finally, we can assume
-that the grade without any bias would be a normally distributed parameter around an average grade.
+We can define these random variables and the dependencies between them in ABCpy in the following way:
 
-We can define these random variables and the dependencies between them (in a nutshell, a Bayesian network) in ABCpy in
-the following way:
-
-.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_single_set_of_obs.py
+.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
     :language: python
     :lines: 9-10, 13, 16, 19
     :dedent: 4
-
 So, each student will receive some grade without additional effects which is normally distributed, but then the final
 grade recieved will be a function of grade without additional effects and the other random variables defined beforehand
-(e.g., `school_location`, `class_size` and `background`). The model for the final grade of the students now can be
-written as:
+(e.g., `school_budget`, `class_size` and `no_teacher`). The model for the final grade of the students now can be
+written as [Figure~\ref{fig:dep_grade}]:
 
-.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_single_set_of_obs.py
+.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
     :language: python
     :lines: 22
     :dedent: 4
@@ -197,62 +190,21 @@ easily perform the required operations on the final result to get these paramete
 now also use the :code:`[]` operator (the access operator in Python). This allows you to select single values or ranges
 of a multidimensional random variable as a parameter of a new random variable.
 
-To do inference on the Baysian network given the observed datat, we again have to define some summary statistics of our
-data (similar to the `Parameters as Random Variables`_ section).
-
-.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_single_set_of_obs.py
-    :language: python
-    :lines: 25-26
-    :dedent: 4
-
-And just as before, we need to provide a distance measure, a backend and a kernel to the inference scheme of our choice,
-which again is PMCABC.
-
-.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_single_set_of_obs.py
-    :language: python
-    :lines: 29-30, 33-34, 37-38
-    :dedent: 4
-
-Finally, we can parametrize the sampler and start sampling from the posterior distribution:
-
-.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_single_set_of_obs.py
-    :language: python
-    :lines: 41-43, 46-47, 50
-    :dedent: 4
-
-The source code can be found in `examples/hierarchicalmodels/pmcabc_inference_on_single_set_of_obs.py` and can be run as
-show above.
-
 Hierarchical Model
 ~~~~~~~~~~~~~~~~~~
 
-As mentioned above, ABCpy supports inference on hierarchical models. Hierarchical models can share some of the
-parameters of interest and model co-occuring datasets. To illustrate how this is implemented, we will follow the example
-model given in `Probabilistic Dependency between Random Variables`_ section and extend it to co-occuring datasets.
+
+ABCpy also supports inference when co-occuring datasets are available. To illustrate how this is implemented, we 
+will consider the example from `Probabilistic Dependency between Random Variables`_ section and extend it for co-occuring datasets, 
+when we also have data for final scholarships given out by the school to the students in addition to the final grade of a student.
 
 .. image:: network.png
 
-Let us assume that in addition to the final grade of a student, we have (co-occuring, observed) data for final
-scholarships given out by the school to the students. Whether a student gets a scholarship depends on his social
-background and on an independent score.
+Whether a student gets a scholarship depends on the number of teachers in the school and on an independent score. Assuming the score is normally distributed, we can model the impact of the students social background on the scholarship as follows:
 
 .. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
     :language: python
-    :lines: 25
-    :dedent: 4
-
-We assume the score is normally distributed and we model it as follows:
-
-.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
-    :language: python
-    :lines: 28
-    :dedent: 4
-
-We model the impact of the students social background on the scholarship as follows:
-
-.. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
-    :language: python
-    :lines: 31
+    :lines: 25, 28, 31
     :dedent: 4
 
 With this we now have two *root* ProbabilisicModels (random variables), namely :code:`final_grade` and
@@ -260,7 +212,7 @@ With this we now have two *root* ProbabilisicModels (random variables), namely :
 :code:`scholarship_obs`. With this we are able to do an inference computation on all free parameters of the hierarchical
 model (of the DAG) given our observations.
 
-To inference uncertainty of our parameters, we follow the same steps as in our previous examples: We choose summary
+To infer uncertainty of our parameters, we follow the same steps as in our previous examples: We choose summary
 statistics, distance, inference scheme, backend and kernel. We will skip the definitions that have not changed from the
 previous section. However, we would like to point out the difference in definition of the distance. Since we are now
 considering two observed datasets, we need to define an distances on them separately. Here, we use the Euclidean
@@ -292,12 +244,12 @@ Complex Perturbation Kernels
 
 As pointed out earlier, it is possible to define complex perturbation kernels, perturbing different random variables in
 different ways. Let us take the same example as in the `Hierarchical Model`_ and assume that we want to perturb the
-schools location as well as the scholarship score, using a multivariate normal kernel. However, the remaining
+schools budget, grade score and scholarship score without additional effect, using a multivariate normal kernel. However, the remaining
 parameters we would like to perturb using a multivariate Student's-T kernel. This can be implemented as follows:
 
 .. literalinclude:: ../../examples/extensions/perturbationkernels/pmcabc_perturbation_kernels.py
     :language: python
-    :lines: 44-46
+    :lines: 46-48
     :dedent: 4
 
 We have now defined how each set of parameters is perturbed on its own. The sampler object, however, needs to be
@@ -307,7 +259,7 @@ It just needs to be provided with all the relevant kernels:
 
 .. literalinclude:: ../../examples/extensions/perturbationkernels/pmcabc_perturbation_kernels.py
     :language: python
-    :lines: 49-50
+    :lines: 51-52
     :dedent: 4
 
 This is all that needs to be changed. The rest of the implementation works the exact same as in the previous example. If
