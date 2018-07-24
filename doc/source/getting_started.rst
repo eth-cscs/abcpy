@@ -43,7 +43,7 @@ follows:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 74-76, 78-79
+    :lines: 74-76, 77-79
     :dedent: 4
 
 We have defined the parameter :math:`\mu` and :math:`\sigma` of the Gaussian model as random variables and assigned
@@ -70,7 +70,6 @@ first define a way to extract *summary statistics* from the dataset.
     :language: python
     :lines: 82-83
     :dedent: 4
-    :linenos:
 
 Next we define the discrepancy measure between the datasets, by defining a distance function (LogReg distance is chosen
 here) between the extracted summary statistics. If we want to define the discrepancy measure through a distance function

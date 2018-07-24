@@ -7,16 +7,16 @@ def infer_parameters():
 
     # The prior information changing the class size and the teacher student ratio, depending on the yearly budget of the school 
     from abcpy.continuousmodels import Uniform, Normal
-    school_budget = Uniform([[1], [10]], )
+    school_budget = Uniform([[1], [10]], name = 'school_budget')
 
     # The average class size of a certain school
-    class_size = Normal([[800*school_budget], [1]], )
+    class_size = Normal([[800*school_budget], [1]], name = 'class_size')
 
     # The number of teachers in the school
-    no_teacher = Normal([[20*school_budget], [1]], )
+    no_teacher = Normal([[20*school_budget], [1]], name = 'no_teacher')
 
     # The grade a student would receive without any bias
-    grade_without_additional_effects = Normal([[4.5], [0.25]], )
+    grade_without_additional_effects = Normal([[4.5], [0.25]], name = 'grade_without_additional_effects')
 
     # The grade a student of a certain school receives
     final_grade = grade_without_additional_effects - .001 * class_size + .02 * no_teacher
@@ -25,7 +25,7 @@ def infer_parameters():
     scholarship_obs = [2.7179657436207805, 2.124647285937229, 3.07193407853297, 2.335024761813643, 2.871893855192, 3.4332002458233837, 3.649996835818173, 3.50292335102711, 2.815638168018455, 2.3581613289315992, 2.2794821846395568, 2.8725835459926503, 3.5588573782815685, 2.26053126526137, 1.8998143530749971, 2.101110815311782, 2.3482974964831573, 2.2707679029919206, 2.4624550491079225, 2.867017757972507, 3.204249152084959, 2.4489542437714213, 1.875415915801106, 2.5604889644872433, 3.891985093269989, 2.7233633223405205, 2.2861070389383533, 2.9758813233490082, 3.1183403287267755, 2.911814060853062, 2.60896794303205, 3.5717098647480316, 3.3355752461779824, 1.99172284546858, 2.339937680892163, 2.9835630207301636, 2.1684912355975774, 3.014847335983034, 2.7844122961916202, 2.752119871525148, 2.1567428931391635, 2.5803629307680644, 2.7326646074552103, 2.559237193255186, 3.13478196958166, 2.388760269933492, 3.2822443541491815, 2.0114405441787437, 3.0380056368041073, 2.4889680313769724, 2.821660164621084, 3.343985964873723, 3.1866861970287808, 4.4535037154856045, 3.0026333138006027, 2.0675706089352612, 2.3835301730913185, 2.584208398359566, 3.288077633446465, 2.6955853384148183, 2.918315169739928, 3.2464814419322985, 2.1601516779909433, 3.231003347780546, 1.0893224045062178, 0.8032302688764734, 2.868438615047827]
 
     # A quantity that determines whether a student will receive a scholarship
-    scholarship_without_additional_effects = Normal([[2], [0.5]], )
+    scholarship_without_additional_effects = Normal([[2], [0.5]], name = 'schol_without_additional_effects')
 
     # A quantity determining whether a student receives a scholarship, including his social teacher_student_ratio
     final_scholarship = scholarship_without_additional_effects + .03 * no_teacher
