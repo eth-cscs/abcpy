@@ -158,7 +158,7 @@ uniformly distributed between 1 and 10 millions US dollars. Finally, we can assu
 be a normally distributed parameter around an average grade. The dependency structure between these variables can be defined using the
 following Bayesian network:
 
-.. image:: network_1_model.png
+.. image:: network.png
 
 We can define these random variables and the dependencies between them in ABCpy in the following way:
 
@@ -176,8 +176,9 @@ written as [Figure~\ref{fig:dep_grade}]:
     :lines: 22
     :dedent: 4
 
-Notice here we created  a new random variable `final_grade`, by subtracting the random variables `class_size` and
-`background` from the random variable `grade`. In short, this illustrates that you can perform standard operations "+",
+Notice here we created a new random variable `final_grade`, by subtracting the random variables `class_size` multiplied
+by 0.001 and adding `no_teacher` multiplied by 0.02 from the random variable `grade_without_additional_effects.
+In short, this illustrates that you can perform standard operations "+",
 "-", "*", "/" and "**" (the power operator in Python) on any two random variables, to get a new random variable. It is
 possible to perform these operations between two random variables additionally to the general data types of Python
 (integer, float, and so on) since they are converted to :py:class:`HyperParameters
@@ -197,7 +198,7 @@ ABCpy also supports inference when co-occuring datasets are available. To illust
 will consider the example from `Probabilistic Dependency between Random Variables`_ section and extend it for co-occuring datasets, 
 when we also have data for final scholarships given out by the school to the students in addition to the final grade of a student.
 
-.. image:: network.png
+.. image:: network1.png
 
 Whether a student gets a scholarship depends on the number of teachers in the school and on an independent score. Assuming the score is normally distributed, we can model the impact of the students social background on the scholarship as follows:
 
