@@ -54,13 +54,7 @@ class CheckParametersAtInitializationTests(unittest.TestCase):
             DiscreteUniform(np.array([1, 2, 3]))
 
         with self.assertRaises(ValueError):
-            DiscreteUniform([2.0, 3])
-
-        with self.assertRaises(ValueError):
-            DiscreteUniform([2, 3.0])
-
-        with self.assertRaises(ValueError):
-            DiscreteUniform([5, 3])
+            DiscreteUniform([2, 3, 4])
 
 class DimensionTests(unittest.TestCase):
     """Tests whether the dimensions of all discrete models are defined in the correct way."""
@@ -78,8 +72,9 @@ class DimensionTests(unittest.TestCase):
         self.assertTrue(Po.get_output_dimension()==1)
 
     def test_DiscreteUniform(self):
-        DU = DiscreteUniform([10, 20])
-        self.assertTrue(DU.get_output_dimension()==1)
+        print('Hallo')
+        Du = DiscreteUniform([10, 20])
+        self.assertTrue(Du.get_output_dimension()==1)
 
 class SampleFromDistributionTests(unittest.TestCase):
     """Tests the return value of forward_simulate for all discrete distributions."""
@@ -102,8 +97,8 @@ class SampleFromDistributionTests(unittest.TestCase):
         self.assertTrue(len(samples) == 3)
 
     def test_DiscreteUniform(self):
-        DU = DiscreteUniform([10, 20])
-        samples = DU.forward_simulate(DU.get_input_values(), 3)
+        Du = DiscreteUniform([10, 20])
+        samples = Du.forward_simulate(Du.get_input_values(), 3)
         self.assertTrue(isinstance(samples, list))
         self.assertTrue(len(samples) == 3)
 
@@ -131,10 +126,10 @@ class CheckParametersBeforeSamplingTests(unittest.TestCase):
         self.assertFalse(Po._check_input([-1]))
 
     def test_DiscreteUniform(self):
-        DU = DiscreteUniform([10, 20])
-        self.assertFalse(DU._check_input([3.0, 5]))
-        self.assertFalse(DU._check_input([2, 6.0]))
-        self.assertFalse(DU._check_input([5, 2]))
+        Du = DiscreteUniform([10, 20])
+        self.assertFalse(Du._check_input([3.0, 5]))
+        self.assertFalse(Du._check_input([2, 6.0]))
+        self.assertFalse(Du._check_input([5, 2]))
 
 if __name__ == '__main__':
     unittest.main()

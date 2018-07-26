@@ -337,11 +337,11 @@ class DiscreteUniform(Discrete, ProbabilisticModel):
         lowerbound = input_values[0]  # Lower bound
         upperbound = input_values[1]  # Upper bound
 
-        if not isinstance(lowerbound, (int, np.int64, np.int32, np.int16)) or not isinstance(upperbound, (
-        int, np.int64, np.int32, np.int16)) \
-                or lowerbound >= upperbound:
+        if not isinstance(lowerbound, (int, np.int64, np.int32, np.int16)) or not isinstance(upperbound, (int, np.int64, np.int32, np.int16)) or lowerbound >= upperbound:
             print('Parameters are not of correct type or out of range')
             return False
+
+        return True
 
     def _check_output(self, parameters):
         """
@@ -395,3 +395,4 @@ class DiscreteUniform(Discrete, ProbabilisticModel):
         pmf = 1. / (upperbound - lowerbound + 1)
         self.calculated_pmf = pmf
         return pmf
+
