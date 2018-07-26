@@ -18,6 +18,10 @@ class PoissonAPITests(AbstractAPIImplementationTests, unittest.TestCase):
     model_types = [Poisson]
     model_inputs = [[3]]
 
+class DiscreteUniform(AbstractAPIImplementationTests, unittest.TestCase):
+    model_types = [DiscreteUniform]
+    model_inputs = [[10, 20]]
+
 class CheckParametersAtInitializationTests(unittest.TestCase):
     """Tests that no probabilistic model with invalid parameters can be initialized."""
 
@@ -45,6 +49,19 @@ class CheckParametersAtInitializationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             Poisson([2, 3])
 
+    def test_DiscreteUniform(self):
+        with self.assertRaises(TypeError):
+            DiscreteUniform(np.array([1, 2, 3]))
+
+        with self.assertRaises(ValueError):
+            DiscreteUniform([2.0, 3])
+
+        with self.assertRaises(ValueError):
+            DiscreteUniform([2, 3.0])
+
+        with self.assertRaises(ValueError):
+            DiscreteUniform([5, 3])
+
 class DimensionTests(unittest.TestCase):
     """Tests whether the dimensions of all discrete models are defined in the correct way."""
 
@@ -60,6 +77,9 @@ class DimensionTests(unittest.TestCase):
         Po = Poisson([3])
         self.assertTrue(Po.get_output_dimension()==1)
 
+    def test_DiscreteUniform(self):
+        DU = DiscreteUniform([10, 20])
+        self.assertTrue(DU.get_output_dimension()==1)
 
 class SampleFromDistributionTests(unittest.TestCase):
     """Tests the return value of forward_simulate for all discrete distributions."""
@@ -78,6 +98,12 @@ class SampleFromDistributionTests(unittest.TestCase):
     def test_Poisson(self):
         Po = Poisson([3])
         samples = Po.forward_simulate(Po.get_input_values(), 3)
+        self.assertTrue(isinstance(samples, list))
+        self.assertTrue(len(samples) == 3)
+
+    def test_DiscreteUniform(self):
+        DU = DiscreteUniform([10, 20])
+        samples = DU.forward_simulate(DU.get_input_values(), 3)
         self.assertTrue(isinstance(samples, list))
         self.assertTrue(len(samples) == 3)
 
@@ -103,6 +129,12 @@ class CheckParametersBeforeSamplingTests(unittest.TestCase):
         Po = Poisson([3])
         self.assertFalse(Po._check_input([3, 5]))
         self.assertFalse(Po._check_input([-1]))
+
+    def test_DiscreteUniform(self):
+        DU = DiscreteUniform([10, 20])
+        self.assertFalse(DU._check_input([3.0, 5]))
+        self.assertFalse(DU._check_input([2, 6.0]))
+        self.assertFalse(DU._check_input([5, 2]))
 
 if __name__ == '__main__':
     unittest.main()
