@@ -6,7 +6,7 @@ from abcpy.acceptedparametersmanager import *
 from abcpy.perturbationkernel import DefaultKernel
 from abcpy.jointdistances import LinearCombination
 from abcpy.jointapprox_lhd import ProductCombination
-
+import copy
 
 import numpy as np
 from abcpy.output import Journal
@@ -1008,6 +1008,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
+        global broken_preemptively
         self.sample_from_prior(rng=self.rng)
         self.accepted_parameters_manager.broadcast(self.backend, observations)
         self.epsilon = epsilon
@@ -1051,12 +1052,16 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         accept = 0
         samples_until = 0
 
+        ## Counter whether broken preemptively
+        broken_preemptively = False
+
         for aStep in range(0, steps):
             print(aStep)
             if(aStep==0 and journal_file is not None):
                 accepted_parameters=journal.parameters[-1]
                 accepted_weights=journal.weights[-1]
 
+                #Broadcast Accepted parameters and Accedpted weights
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights)
 
                 kernel_parameters = []
@@ -1064,6 +1069,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                     kernel_parameters.append(
                         self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
 
+                #Broadcast Accepted Kernel parameters
                 self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
@@ -1074,7 +1080,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 else:
                     accepted_cov_mats = [beta*new_cov_mat + 0.0001*(new_cov_mat)*np.eye(accepted_parameters.shape[1]) for new_cov_mat in new_cov_mats]
 
-
+                # Broadcast Accepted Covariance Matrix
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
 
             # main SABC algorithm
@@ -1100,6 +1106,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                                                                                                        zip(
                                                                                                            *params_and_dists)]
 
+            # Keeping counter of number of simulations
             for count in counter:
                 self.simulation_counter+=count
 
@@ -1130,37 +1137,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 U = np.mean(smooth_distances)
             epsilon = self._schedule(U, v)
 
-            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
-
-            kernel_parameters = []
-            for kernel in self.kernel.kernels:
-                kernel_parameters.append(
-                    self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
-
-            self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
-
-            new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
-
-            if accepted_parameters.shape[1] > 1:
-                accepted_cov_mats = [beta*new_cov_mat+0.0001*np.trace(new_cov_mat)*np.eye(len(new_cov_mat)) for new_cov_mat in new_cov_mats]
-            else:
-                accepted_cov_mats = [beta * new_cov_mat + 0.0001 * (new_cov_mat) * np.eye(accepted_parameters.shape[1])
-                                     for new_cov_mat in new_cov_mats]
-
             # 4: Show progress and if acceptance rate smaller than a value break the iteration
-
-            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,accepted_cov_mats=accepted_cov_mats)
-
-            # print("INFO: Saving intermediate configuration to output journal.")
-            if full_output == 1:
-                journal.add_parameters(accepted_parameters)
-                journal.add_weights(accepted_weights)
-                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
-                                                                  accepted_weights=accepted_weights)
-                names_and_parameters = self._get_names_and_parameters()
-                journal.add_user_parameters(names_and_parameters)
-                journal.number_of_simulations.append(self.simulation_counter)
-
             if aStep > 0:
                 accept = accept + np.sum(acceptance)
                 samples_until = samples_until + sample_array[aStep]
@@ -1169,6 +1146,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 'updates: ', np.sum(sample_array[1:aStep + 1]) / np.sum(sample_array[1:]) * 100, ' epsilon: ', epsilon, \
                 'u.mean: ', U, 'acceptance rate: ', acceptance_rate)
                 if acceptance_rate < ar_cutoff:
+                    broken_preemptively = True
                     break
 
             # 5: Resampling if number of accepted particles greater than resample
@@ -1190,11 +1168,71 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 accept = 0
                 samples_until = 0
 
+                ## Compute and broadcast accepted parameters, accepted kernel parameters and accepted Covariance matrix
+                # Broadcast Accepted parameters and add to journal
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
+                # Compute Accepetd Kernel parameters and broadcast them
+                kernel_parameters = []
+                for kernel in self.kernel.kernels:
+                    kernel_parameters.append(
+                        self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
+                self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
+                # Compute Kernel Covariance Matrix and broadcast it
+                new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
+                if accepted_parameters.shape[1] > 1:
+                    accepted_cov_mats = [beta * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(len(new_cov_mat))
+                                         for new_cov_mat in new_cov_mats]
+                else:
+                    accepted_cov_mats = [
+                        beta * new_cov_mat + 0.0001 * (new_cov_mat) * np.eye(accepted_parameters.shape[1])
+                        for new_cov_mat in new_cov_mats]
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
+
+                if (full_output == 1 and aStep<= steps-1):
+                    ## Saving intermediate configuration to output journal.
+                    print('Saving after resampling')
+                    journal.add_parameters(copy.deepcopy(accepted_parameters))
+                    journal.add_weights(copy.deepcopy(accepted_weights))
+                    journal.add_distances(copy.deepcopy(distances))
+                    names_and_parameters = self._get_names_and_parameters()
+                    journal.add_user_parameters(names_and_parameters)
+                    journal.number_of_simulations.append(self.simulation_counter)
+            else:
+                ## Compute and broadcast accepted parameters, accepted kernel parameters and accepted Covariance matrix
+                # Broadcast Accepted parameters
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
+                # Compute Accepetd Kernel parameters and broadcast them
+                kernel_parameters = []
+                for kernel in self.kernel.kernels:
+                    kernel_parameters.append(
+                        self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
+                self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
+                # Compute Kernel Covariance Matrix and broadcast it
+                new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
+                if accepted_parameters.shape[1] > 1:
+                    accepted_cov_mats = [beta * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(len(new_cov_mat))
+                                         for new_cov_mat in new_cov_mats]
+                else:
+                    accepted_cov_mats = [
+                        beta * new_cov_mat + 0.0001 * (new_cov_mat) * np.eye(accepted_parameters.shape[1])
+                        for new_cov_mat in new_cov_mats]
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
+
+                if (full_output == 1 and aStep <= steps-1):
+                    ## Saving intermediate configuration to output journal.
+                    journal.add_parameters(copy.deepcopy(accepted_parameters))
+                    journal.add_weights(copy.deepcopy(accepted_weights))
+                    journal.add_distances(copy.deepcopy(distances))
+                    names_and_parameters = self._get_names_and_parameters()
+                    journal.add_user_parameters(names_and_parameters)
+                    journal.number_of_simulations.append(self.simulation_counter)
+
         # Add epsilon_arr, number of final steps and final output to the journal
         # print("INFO: Saving final configuration to output journal.")
-        if full_output == 0:
-            journal.add_parameters(accepted_parameters)
-            journal.add_weights(accepted_weights)
+        if (full_output == 0) or (full_output ==1 and broken_preemptively and aStep<= steps-1):
+            journal.add_parameters(copy.deepcopy(accepted_parameters))
+            journal.add_weights(copy.deepcopy(accepted_weights))
+            journal.add_distances(copy.deepcopy(distances))
             self.accepted_parameters_manager.update_broadcast(self.backend,accepted_parameters=accepted_parameters,accepted_weights=accepted_weights)
             names_and_parameters = self._get_names_and_parameters()
             journal.add_user_parameters(names_and_parameters)
@@ -1545,8 +1583,8 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
             # print("INFO: Saving intermediate configuration to output journal.")
             if full_output == 1:
-                journal.add_parameters(accepted_parameters)
-                journal.add_weights(accepted_weights)
+                journal.add_parameters(copy.deepcopy(accepted_parameters))
+                journal.add_weights(copy.deepcopy(accepted_weights))
                 journal.add_opt_values(accepted_cov_mats)
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                                   accepted_weights=accepted_weights)
@@ -1564,8 +1602,8 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
         # Add anneal_parameter, number of final steps and final output to the journal
         # print("INFO: Saving final configuration to output journal.")
         if full_output == 0:
-            journal.add_parameters(accepted_parameters)
-            journal.add_weights(accepted_weights)
+            journal.add_parameters(copy.deepcopy(accepted_parameters))
+            journal.add_weights(copy.deepcopy(accepted_weights))
             journal.add_opt_values(accepted_cov_mats)
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                               accepted_weights=accepted_weights)
@@ -1912,9 +1950,8 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
 
             # print("INFO: Saving configuration to output journal.")
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
-                journal.add_parameters(accepted_parameters)
+                journal.add_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_weights(np.ones(shape=(len(accepted_parameters), 1)) * (1 / len(accepted_parameters)))
-
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)
@@ -2226,9 +2263,8 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
 
             # print("INFO: Saving configuration to output journal.")
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
-                journal.add_parameters(accepted_parameters)
-                journal.add_weights(accepted_weights)
-
+                journal.add_parameters(copy.deepcopy(accepted_parameters))
+                journal.add_weights(copy.deepcopy(accepted_weights))
                 self.accepted_parameters_manager.update_broadcast(self.backend,
                                                                   accepted_parameters=accepted_parameters,
                                                                   accepted_weights=accepted_weights)
@@ -2544,9 +2580,9 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             # print("INFO: Saving configuration to output journal.")
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
-                journal.add_parameters(accepted_parameters)
-                journal.add_weights(accepted_weights)
-                journal.add_opt_values(accepted_y_sim)
+                journal.add_parameters(copy.deepcopy(accepted_parameters))
+                journal.add_weights(copy.deepcopy(accepted_weights))
+                journal.add_opt_values(copy.deepcopy(accepted_y_sim))
 
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)
