@@ -302,8 +302,10 @@ class Poisson(Discrete, ProbabilisticModel):
         """
 
         pmf = poisson(int(input_values[0])).pmf(x)
-
+        self.calculated_pmf = pmf
         return pmf
+
+
 
 class DiscreteUniform(Discrete, ProbabilisticModel):
     def __init__(self, parameters, name='DiscreteUniform'):
@@ -338,9 +340,7 @@ class DiscreteUniform(Discrete, ProbabilisticModel):
         upperbound = input_values[1]  # Upper bound
 
         if not isinstance(lowerbound, (int, np.int64, np.int32, np.int16)) or not isinstance(upperbound, (int, np.int64, np.int32, np.int16)) or lowerbound >= upperbound:
-            print('Parameters are not of correct type or out of range')
             return False
-
         return True
 
     def _check_output(self, parameters):
