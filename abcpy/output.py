@@ -34,6 +34,7 @@ class Journal:
         
         self.parameters = []
         self.weights = []
+        self.distances = []
         self.opt_values = []
         self.configuration = {}
 
@@ -183,6 +184,39 @@ class Journal:
         if self._type == 1:
             self.weights.append(weights)
 
+    def get_distances(self, iteration=None):
+        """
+        Returns the distances from a sampling scheme.
+
+        For intermediate results, pass the iteration.
+
+        Parameters
+        ----------
+        iteration: int
+            specify the iteration for which to return distances
+        """
+
+        if iteration is None:
+            end = len(self.distances) - 1
+            return self.distances[end]
+        else:
+            return self.distances[iteration]
+
+    def add_distances(self, distances):
+        """
+        Saves provided distances by appending them to the journal. If type==0, old weights get overwritten.
+
+        Parameters
+        ----------
+        distances: numpy.array
+            vector containing n distances
+        """
+
+        if self._type == 0:
+            self.distances = [distances]
+
+        if self._type == 1:
+            self.distances.append(distances)
 
 
     def add_opt_values(self, opt_values):
@@ -202,7 +236,6 @@ class Journal:
             self.opt_values.append(opt_values)
 
 
-            
     def save(self, filename):
         """
         Stores the journal to disk.
