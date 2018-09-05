@@ -327,7 +327,8 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
     backend = None
 
 
-    def __init__(self, root_models, distances, backend, kernel=None,seed=None):
+    def __init__(self, root_models, distances, backend, kernel=None,seed=None,
+            logger=None):
         self.model = root_models
         # We define the joint Linear combination distance using all the distances for each individual models
         self.distance = LinearCombination(root_models, distances)
@@ -342,6 +343,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         self.kernel = kernel
         self.backend = backend
         self.rng = np.random.RandomState(seed)
+        self.logger = logger
 
         self.accepted_parameters_manager = AcceptedParametersManager(self.model)
 
@@ -529,7 +531,14 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
         distance = self.distance.dist_max()
+
+        if distance < self.epsilon and self.logger:
+            self.logger.warn("initial epsilon {:e} is larger than dist_max {:e}"
+                             .format(self.epsilon, distance))
+
+        theta = self.get_parameters()
         counter=0
+
         while distance > self.epsilon:
             #print( " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
 
@@ -553,8 +562,17 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
 
             if(y_sim is not None):
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),y_sim)
+                if self.logger:
+                    self.logger.debug("distance after {:4d} simulations: {:e}".format(
+                        counter, distance))
             else:
                 distance = self.distance.dist_max()
+
+        if self.logger:
+            self.logger.info(
+                    "needed {:4d} simulations to reach distance {:e} < epsilon = {:e}".
+                    format(counter, distance, self.epsilon)
+                    )
 
         return (theta, distance, counter)
 
