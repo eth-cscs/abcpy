@@ -1,16 +1,17 @@
+import copy
 from abc import ABCMeta, abstractmethod, abstractproperty
 
-from abcpy.graphtools import GraphTools
-from abcpy.probabilisticmodels import *
-from abcpy.acceptedparametersmanager import *
-from abcpy.perturbationkernel import DefaultKernel
-from abcpy.jointdistances import LinearCombination
-from abcpy.jointapprox_lhd import ProductCombination
-import copy
-
 import numpy as np
-from abcpy.output import Journal
 from scipy import optimize
+
+from abcpy.acceptedparametersmanager import *
+from abcpy.graphtools import GraphTools
+from abcpy.jointapprox_lhd import ProductCombination
+from abcpy.jointdistances import LinearCombination
+from abcpy.output import Journal
+from abcpy.perturbationkernel import DefaultKernel
+from abcpy.probabilisticmodels import *
+
 
 class InferenceMethod(GraphTools, metaclass = ABCMeta):
     """
@@ -165,12 +166,13 @@ class RejectionABC(InferenceMethod):
 
     backend = None
 
-    def __init__(self, root_models, distances, backend, seed=None):
+    def __init__(self, root_models, distances, backend, seed=None, logger=None):
         self.model = root_models
         # We define the joint Linear combination distance using all the distances for each individual models
         self.distance = LinearCombination(root_models, distances)
         self.backend = backend
         self.rng = np.random.RandomState(seed)
+        self.logger = logger
 
         # An object managing the bds objects
         self.accepted_parameters_manager = AcceptedParametersManager(self.model)
@@ -259,6 +261,11 @@ class RejectionABC(InferenceMethod):
         """
         distance = self.distance.dist_max()
 
+        if distance < self.epsilon and self.logger:
+            self.logger.warn("initial epsilon {:e} is larger than dist_max {:e}"
+                             .format(self.epsilon, distance))
+
+        theta = np.array(self.get_parameters(self.model)).reshape(-1,)
         counter = 0
 
         while distance > self.epsilon:
@@ -269,8 +276,16 @@ class RejectionABC(InferenceMethod):
             counter+=1
             if(y_sim is not None):
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+                if self.logger:
+                    self.logger.debug("distance after {:4d} simulations: {:e}".format(
+                        counter, distance))
             else:
                 distance = self.distance.dist_max()
+        if self.logger:
+            self.logger.info(
+                    "needed {:4d} simulations to reach distance {:e} < epsilon = {:e}".
+                    format(counter, distance, self.epsilon)
+                    )
         return (theta, counter)
 
 
