@@ -2142,12 +2142,13 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
 
     backend = None
 
-    def __init__(self,  root_models, distances, backend, kernel = None,seed=None):
+    def __init__(self,  root_models, distances, backend, kernel=None, seed=None,
+            logger=NoLogger()):
         self.model = root_models
         # We define the joint Linear combination distance using all the distances for each individual models
         self.distance = LinearCombination(root_models, distances)
 
-        if (kernel is None):
+        if kernel is None:
 
             mapping, garbage_index = self._get_mapping()
             models = []
@@ -2157,6 +2158,7 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
 
         self.kernel = kernel
         self.backend = backend
+        self.logger = logger
 
         self.epsilon= None
         self.rng = np.random.RandomState(seed)
@@ -2226,6 +2228,7 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
         # main APMCABC algorithm
         # print("INFO: Starting APMCABC iterations.")
         for aStep in range(steps):
+            self.logger.info("APMCABC iteration {}".format(aStep))
             if(aStep==0 and journal_file is not None):
                 accepted_parameters=journal.parameters[-1]
                 accepted_weights=journal.weights[-1]
@@ -2249,7 +2252,6 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
                 alpha_accepted_weights=accepted_weights
 
             # 0: Drawing new new/perturbed samples using prior or MCMC Kernel
-            # print("DEBUG: Iteration " + str(aStep) + " of APMCABC algorithm.")
             if aStep > 0:
                 n_additional_samples = n_samples - round(n_samples * alpha)
             else:
@@ -2260,12 +2262,12 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
             rng_pds = self.backend.parallelize(rng_arr)
 
             # update remotely required variables
-            # print("INFO: Broadcasting parameters.")
+            self.logger.info("broadcasting parameters")
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=alpha_accepted_parameters, accepted_weights=alpha_accepted_weights, accepted_cov_mats=accepted_cov_mats)
             self._update_broadcasts(alpha_accepted_dist)
 
             # calculate resample parameters
-            # print("INFO: Resampling parameters")
+            self.logger.info("resampling parameters")
             params_and_dist_weights_pds = self.backend.map(self._accept_parameter, rng_pds)
             params_and_dist_weights = self.backend.collect(params_and_dist_weights_pds)
             new_parameters, new_dist, new_weights, counter = [list(t) for t in zip(*params_and_dist_weights)]
@@ -2301,7 +2303,7 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
             alpha_accepted_dist = accepted_dist[index_alpha]
 
             # 3: calculate covariance
-            # print("INFO: Calculating covariance matrix.")
+            self.logger.info("calculating covariance matrix")
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=alpha_accepted_parameters, accepted_weights=alpha_accepted_weights)
 
             kernel_parameters = []
@@ -2382,13 +2384,14 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
                 perturbation_output = self.perturb(index[0], rng=rng)
                 if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
                     break
+
             y_sim = self.simulate(self.n_samples_per_param, rng=rng)
             counter+=1
             dist = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
 
             prior_prob = self.pdf_of_prior(self.model, perturbation_output[1])
             denominator = 0.0
-            for i in range(0, len(self.accepted_parameters_manager.accepted_weights_bds.value())):
+            for i in range(len(self.accepted_parameters_manager.accepted_weights_bds.value())):
                 pdf_value = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, index[0], perturbation_output[1])
                 denominator += self.accepted_parameters_manager.accepted_weights_bds.value()[i, 0] * pdf_value
             weight = 1.0 * prior_prob / denominator
