@@ -982,7 +982,8 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
     backend = None
 
-    def __init__(self, root_models, distances, backend, kernel=None, seed=None):
+    def __init__(self, root_models, distances, backend, kernel=None, seed=None,
+            logger=NoLogger()):
         self.model = root_models
         # We define the joint Linear combination distance using all the distances for each individual models
         self.distance = LinearCombination(root_models, distances)
@@ -998,6 +999,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         self.kernel = kernel
         self.backend = backend
         self.rng = np.random.RandomState(seed)
+        self.logger = logger
 
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
@@ -1095,7 +1097,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         broken_preemptively = False
 
         for aStep in range(0, steps):
-            print(aStep)
+            self.logger.debug("step {}".format(aStep))
             if(aStep==0 and journal_file is not None):
                 accepted_parameters=journal.parameters[-1]
                 accepted_weights=journal.weights[-1]
@@ -1133,12 +1135,12 @@ class SABC(BaseDiscrepancy, InferenceMethod):
             data_pds = self.backend.parallelize(data_arr)
 
             # 0: update remotely required variables
-            # print("INFO: Broadcasting parameters.")
+            self.logger.info("broadcasting parameters")
             self.epsilon = epsilon
             self._update_broadcasts(smooth_distances, all_distances)
 
             # 1: Calculate  parameters
-            # print("INFO: Initial accepted parameter parameters")
+            self.logger.info("initial accepted parameter parameters")
             params_and_dists_pds = self.backend.map(self._accept_parameter, data_pds)
             params_and_dists = self.backend.collect(params_and_dists_pds)
             new_parameters, new_distances, new_all_parameters, new_all_distances, index, acceptance, counter = [list(t) for t in
@@ -1181,9 +1183,14 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 accept = accept + np.sum(acceptance)
                 samples_until = samples_until + sample_array[aStep]
                 acceptance_rate = accept / samples_until
-                print(
-                'updates: ', np.sum(sample_array[1:aStep + 1]) / np.sum(sample_array[1:]) * 100, ' epsilon: ', epsilon, \
-                'u.mean: ', U, 'acceptance rate: ', acceptance_rate)
+
+                msg = ("updates= {:.2f}, epsilon= {}, u.mean={:e}, acceptance rate: {:.2f}"
+                        .format(
+                            np.sum(sample_array[1:aStep + 1]) / np.sum(sample_array[1:]) * 100,
+                            epsilon, U, acceptance_rate
+                            )
+                        )
+                self.logger.debug(msg)
                 if acceptance_rate < ar_cutoff:
                     broken_preemptively = True
                     break
