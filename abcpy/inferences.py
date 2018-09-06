@@ -412,6 +412,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         # main PMCABC algorithm
         self.logger.info("starting PMC iterations")
         for aStep in range(steps):
+            self.logger.debug("iteration {} of PMC algorithm".format(aStep))
             if(aStep==0 and journal_file is not None):
                 accepted_parameters = journal.parameters[-1]
                 accepted_weights = journal.weights[-1]
@@ -430,8 +431,6 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 # Since each entry of new_cov_mats is a numpy array, we can multiply like this
                 accepted_cov_mats = [covFactor * new_cov_mat for new_cov_mat in new_cov_mats]
 
-            # print("DEBUG: Iteration " + str(aStep) + " of PMCABC algorithm.")
-            self.logger.debug("iteration {} of PMC algorithm".format(aStep))
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
             rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
             rng_pds = self.backend.parallelize(rng_arr)
