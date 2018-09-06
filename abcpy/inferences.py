@@ -1464,12 +1464,13 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
     backend = None
 
-    def __init__(self, root_models, distances, backend, kernel=None,seed=None):
+    def __init__(self, root_models, distances, backend, kernel=None,seed=None,
+            logger=NoLogger()):
         self.model = root_models
         # We define the joint Linear combination distance using all the distances for each individual models
         self.distance = LinearCombination(root_models, distances)
 
-        if (kernel is None):
+        if kernel is None:
 
             mapping, garbage_index = self._get_mapping()
             models = []
@@ -1482,6 +1483,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
         self.backend = backend
         self.rng = np.random.RandomState(seed)
         self.anneal_parameter = None
+        self.logger = logger
 
 
         # these are usually big tables, so we broadcast them to have them once
@@ -1542,13 +1544,15 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
 
         for aStep in range(0, steps):
-            if(aStep==0 and journal_file is not None):
+            self.logger.info("step {}".format(aStep))
+
+            if aStep==0 and journal_file is not None:
                 accepted_parameters = journal.parameters[-1]
                 accepted_weights = journal.weights[-1]
                 accepted_cov_mats = journal.opt_values[-1]
 
             # main ABCsubsim algorithm
-            # print("INFO: Initialization of ABCsubsim")
+            self.logger.info("initializatio of ABCsubsim")
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=int(n_samples / temp_chain_length),
                                         dtype=np.uint32)
             rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
@@ -1558,12 +1562,13 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             rng_and_index_pds = self.backend.parallelize(rng_and_index_arr)
 
             # 0: update remotely required variables
-            # print("INFO: Broadcasting parameters.")
+            self.logger.info("broadcasting parameters")
 
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
 
             # 1: Calculate  parameters
             # print("INFO: Initial accepted parameter parameters")
+            self.logger.info("initial accepted parameters")
             params_and_dists_pds = self.backend.map(self._accept_parameter, rng_and_index_pds)
             params_and_dists = self.backend.collect(params_and_dists_pds)
             new_parameters, new_distances, counter = [list(t) for t in zip(*params_and_dists)]
@@ -1626,8 +1631,8 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
 
-            # print("INFO: Saving intermediate configuration to output journal.")
             if full_output == 1:
+                self.logger.info("saving intermediate configuration to output journal")
                 journal.add_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_weights(copy.deepcopy(accepted_weights))
                 journal.add_opt_values(accepted_cov_mats)
@@ -1639,8 +1644,9 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
             # Show progress
             anneal_parameter_change_percentage = 100 * abs(anneal_parameter_old - anneal_parameter) / abs(anneal_parameter)
-            print('Steps: ', aStep, 'annealing parameter: ', anneal_parameter, 'change (%) in annealing parameter: ',
-                  anneal_parameter_change_percentage)
+            msg = ("step: {}, annealing parameter: {:.4f}, change(%) in annealing parameter: {:.1f}"
+                   .format(aStep, anneal_parameter, anneal_parameter_change_percentage))
+            self.logger.info(msg)
             if anneal_parameter_change_percentage < ap_change_cutoff:
                 break
 
