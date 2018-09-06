@@ -8,10 +8,10 @@ from abcpy.acceptedparametersmanager import *
 from abcpy.graphtools import GraphTools
 from abcpy.jointapprox_lhd import ProductCombination
 from abcpy.jointdistances import LinearCombination
-from abcpy.no_logger import NoLogger
 from abcpy.output import Journal
 from abcpy.perturbationkernel import DefaultKernel
 from abcpy.probabilisticmodels import *
+from abcpy.utils import NoLogger, cached
 
 
 class InferenceMethod(GraphTools, metaclass = ABCMeta):
@@ -2434,7 +2434,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
     backend = None
 
-    def __init__(self, root_models, distances, backend, kernel = None,seed=None):
+    def __init__(self, root_models, distances, backend, kernel =
+            None,seed=None,logger=NoLogger()):
         self.model = root_models
         # We define the joint Linear combination distance using all the distances for each individual models
         self.distance = LinearCombination(root_models, distances)
@@ -2449,6 +2450,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
         self.kernel = kernel
         self.backend = backend
+        self.logger = logger
 
         self.epsilon = None
         self.rng = np.random.RandomState(seed)
@@ -2521,8 +2523,9 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         epsilon = [10000]
 
         # main SMC ABC algorithm
-        # print("INFO: Starting SMCABC iterations.")
         for aStep in range(0, steps):
+            self.logger.info("SMCABC iteration {}".format(aStep))
+
             if(aStep==0 and journal_file is not None):
                 accepted_parameters=journal.parameters[-1]
                 accepted_weights=journal.weights[-1]
@@ -2550,6 +2553,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
             # 0: Compute the Epsilon
             if accepted_y_sim != None:
+                self.logger.info("compute epsilon, might take a while")
                 # Compute epsilon for next step
                 fun = lambda epsilon_var: self._compute_epsilon(epsilon_var, \
                                                                 epsilon, observations, accepted_y_sim, accepted_weights,
@@ -2560,7 +2564,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 epsilon.append(epsilon_new)
 
             # 1: calculate weights for new parameters
-            # print("INFO: Calculating weights.")
+            self.logger.info("calculating weights")
             if accepted_y_sim != None:
                 new_weights = np.zeros(shape=(n_samples), )
                 for ind1 in range(n_samples):
@@ -2581,7 +2585,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
             # 2: Resample
             if accepted_y_sim != None and pow(sum(pow(new_weights, 2)), -1) < resample:
-                print('Resampling')
+                self.logger.info("resampling")
                 # Weighted resampling:
                 index_resampled = self.rng.choice(np.arange(n_samples), n_samples, replace=1, p=new_weights)
                 accepted_parameters = accepted_parameters[index_resampled, :]
@@ -2605,7 +2609,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
 
             # 3: Drawing new perturbed samples using MCMC Kernel
-            # print("DEBUG: Iteration " + str(aStep) + " of SMCABC algorithm.")
+            self.logger.debug("drawing new pertubated samples using mcmc kernel")
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
             rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
             index_arr = np.arange(n_samples)
@@ -2620,7 +2624,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             self._update_broadcasts(accepted_y_sim)
 
             # calculate resample parameters
-            # print("INFO: Resampling parameters")
+            self.logger.info("resampling parameters")
             params_and_ysim_pds = self.backend.map(self._accept_parameter, rng_and_index_pds)
             params_and_ysim = self.backend.collect(params_and_ysim_pds)
             new_parameters, new_y_sim, counter = [list(t) for t in zip(*params_and_ysim)]
@@ -2634,8 +2638,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             accepted_y_sim = new_y_sim
 
 
-            # print("INFO: Saving configuration to output journal.")
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
+                self.logger.info("saving configuration to output journal")
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
                 journal.add_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_weights(copy.deepcopy(accepted_weights))
@@ -2698,8 +2702,14 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         return (result)
 
     def _bisection(self, func, low, high, tol):
+
+        # cache computed values, as we call func below
+        # several times for the same argument:
+        func = cached(func)
         midpoint = (low + high) / 2.0
         while (high - low) / 2.0 > tol:
+            self.logger.debug("bisection: distance = {:e} > tol = {:e}"
+                              .format((high - low) / 2, tol))
             if func(midpoint) == 0:
                 return midpoint
             elif func(low) * func(midpoint) < 0:
