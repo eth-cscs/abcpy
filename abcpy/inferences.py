@@ -411,8 +411,9 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 raise ValueError("The length of epsilon_init can only be equal to 1 or steps.")
 
         # main PMCABC algorithm
-        # print("INFO: Starting PMCABC iterations.")
-        for aStep in range(0, steps):
+        if self.logger:
+            self.logger.info("starting PMC iterations")
+        for aStep in range(steps):
             if(aStep==0 and journal_file is not None):
                 accepted_parameters = journal.parameters[-1]
                 accepted_weights = journal.weights[-1]
@@ -426,23 +427,31 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
                 # 3: calculate covariance
-                # print("INFO: Calculating covariance matrix.")
+                if self.logger:
+                    self.logger.info("calculateing covariance matrix")
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
                 # Since each entry of new_cov_mats is a numpy array, we can multiply like this
                 accepted_cov_mats = [covFactor * new_cov_mat for new_cov_mat in new_cov_mats]
 
             # print("DEBUG: Iteration " + str(aStep) + " of PMCABC algorithm.")
+            if self.logger:
+                self.logger.debug("iteration {} of PMC algorithm".format(aStep))
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
             rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
             rng_pds = self.backend.parallelize(rng_arr)
 
             # 0: update remotely required variables
             # print("INFO: Broadcasting parameters.")
+            if self.logger:
+                self.logger.info("broadcasting parameters")
             self.epsilon = epsilon_arr[aStep]
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters, accepted_weights, accepted_cov_mats)
 
             # 1: calculate resample parameters
             # print("INFO: Resampling parameters")
+            if self.logger:
+                self.logger.info("resamping parameters")
+
             params_and_dists_and_ysim_and_counter_pds = self.backend.map(self._resample_parameter, rng_pds)
             params_and_dists_and_ysim_and_counter = self.backend.collect(params_and_dists_and_ysim_and_counter_pds)
             new_parameters, distances, counter = [list(t) for t in zip(*params_and_dists_and_ysim_and_counter)]
@@ -455,6 +464,8 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
 
             # Compute epsilon for next step
             # print("INFO: Calculating acceptance threshold (epsilon).")
+            if self.logger:
+                self.logger.info("calculating acceptances threshold")
             if aStep < steps - 1:
                 if epsilon_arr[aStep + 1] == None:
                     epsilon_arr[aStep + 1] = np.percentile(distances, epsilon_percentile)
@@ -462,11 +473,12 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                     epsilon_arr[aStep + 1] = np.max(
                         [np.percentile(distances, epsilon_percentile), epsilon_arr[aStep + 1]])
             # 2: calculate weights for new parameters
-            # print("INFO: Calculating weights.")
-
-
+            if self.logger:
+                self.logger.info("calculating weights")
 
             new_parameters_pds = self.backend.parallelize(new_parameters)
+            if self.logger:
+                self.logger.info("calculate weights")
             new_weights_pds = self.backend.map(self._calculate_weight, new_parameters_pds)
             new_weights = np.array(self.backend.collect(new_weights_pds)).reshape(-1, 1)
             sum_of_weights = 0.0
@@ -485,7 +497,8 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
             # 3: calculate covariance
-            # print("INFO: Calculating covariance matrix.")
+            if self.logger:
+                self.logger.info("calculating covariance matrix")
             new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
             # Since each entry of new_cov_mats is a numpy array, we can multiply like this
             new_cov_mats = [covFactor*new_cov_mat for new_cov_mat in new_cov_mats]
@@ -495,7 +508,9 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             accepted_weights = new_weights
             accepted_cov_mats = new_cov_mats
 
-            # print("INFO: Saving configuration to output journal.")
+            if self.logger:
+                self.logger.info("save configuration to output journal")
+
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
                 journal.add_parameters(accepted_parameters)
                 journal.add_weights(accepted_weights)
@@ -591,6 +606,8 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         float
             the new weight for theta
         """
+        if self.logger:
+            self.logger.debug("_calculate_weight")
         if self.accepted_parameters_manager.kernel_parameters_bds is None:
             return 1.0 / self.n_samples
         else:
@@ -650,7 +667,7 @@ class PMC(BaseLikelihood, InferenceMethod):
     backend = None
 
 
-    def __init__(self, root_models, likfuns, backend, kernel=None, seed=None):
+    def __init__(self, root_models, likfuns, backend, kernel=None, seed=None, logger=None):
         self.model = root_models
         # We define the joint Product of likelihood functions using all the likelihoods for each individual models
         self.likfun = ProductCombination(root_models, likfuns)
@@ -666,6 +683,7 @@ class PMC(BaseLikelihood, InferenceMethod):
         self.kernel = kernel
         self.backend = backend
         self.rng = np.random.RandomState(seed)
+        self.logger = logger
 
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
@@ -754,7 +772,8 @@ class PMC(BaseLikelihood, InferenceMethod):
 
         # 3: calculate covariance
         # print("INFO: Calculating covariance matrix.")
-
+        if self.logger:
+            self.logger.info("calculating covariance matrix")
 
         new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
         # Since each entry of new_cov_mats is a numpy array, we can multiply like this
@@ -765,7 +784,9 @@ class PMC(BaseLikelihood, InferenceMethod):
 
         # main SMC algorithm
         # print("INFO: Starting PMC iterations.")
-        for aStep in range(0, steps):
+        if self.logger:
+            self.logger.info("starting pmc iterations")
+        for aStep in range(steps):
             if(aStep==0 and journal_file is not None):
                 accepted_parameters = journal.parameters[-1]
                 accepted_weights = journal.weights[-1]
@@ -781,7 +802,8 @@ class PMC(BaseLikelihood, InferenceMethod):
                 self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
                 # 3: calculate covariance
-                # print("INFO: Calculating covariance matrix.")
+                if self.logger:
+                    self.logger.info("calculating covariance matrix")
 
 
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
@@ -789,14 +811,17 @@ class PMC(BaseLikelihood, InferenceMethod):
 
                 accepted_cov_mats = [covFactor * new_cov_mat for covFactor, new_cov_mat in zip(covFactors, new_cov_mats)]
 
-            # print("DEBUG: Iteration " + str(aStep) + " of PMC algorithm.")
+            if self.logger:
+                self.logger.info("iteration {} of PMC algorithm".format(aStep))
 
             # 0: update remotely required variables
-            # print("INFO: Broadcasting parameters.")
+            if self.logger:
+                self.logger.info("broadcasting parameters")
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights, accepted_cov_mats=accepted_cov_mats)
 
             # 1: calculate resample parameters
-            # print("INFO: Resample parameters.")
+            if self.logger:
+                self.logger.info("resample parameters")
             index = self.rng.choice(accepted_parameters.shape[0], size=n_samples, p=accepted_weights.reshape(-1))
             # Choose a new particle using the resampled particle (make the boundary proper)
             # Initialize new_parameters
@@ -808,10 +833,12 @@ class PMC(BaseLikelihood, InferenceMethod):
                         new_parameters[ind, :] = perturbation_output[1]
                         break
             # 2: calculate approximate lieklihood for new parameters
-            # print("INFO: Calculate approximate likelihood.")
+            if self.logger:
+                self.logger.info("calculate approximate likelihood")
             new_parameters_pds = self.backend.parallelize(new_parameters)
             approx_likelihood_new_parameters_and_counter_pds = self.backend.map(self._approx_lik_calc, new_parameters_pds)
-            # print("DEBUG: Collect approximate likelihood from pds.")
+            if self.logger:
+                self.logger.debug("collect approximate likelihood from pds")
             approx_likelihood_new_parameters_and_counter = self.backend.collect(approx_likelihood_new_parameters_and_counter_pds)
             approx_likelihood_new_parameters, counter = [list(t) for t in zip(*approx_likelihood_new_parameters_and_counter)]
 
@@ -821,7 +848,8 @@ class PMC(BaseLikelihood, InferenceMethod):
                 self.simulation_counter+=count
 
             # 3: calculate new weights for new parameters
-            # print("INFO: Calculating weights.")
+            if self.logger:
+                self.logger.info("calculating weights")
             new_weights_pds = self.backend.map(self._calculate_weight, new_parameters_pds)
             new_weights = np.array(self.backend.collect(new_weights_pds)).reshape(-1, 1)
 
@@ -835,8 +863,9 @@ class PMC(BaseLikelihood, InferenceMethod):
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=new_weights)
 
             # 4: calculate covariance
-            # print("INFO: Calculating covariance matrix.")
             # The parameters relevant to each kernel have to be used to calculate n_sample times. It is therefore more efficient to broadcast these parameters once, instead of collecting them at each kernel in each step
+            if self.logger:
+                self.logger.info("calculating covariance matrix")
             kernel_parameters = []
             for kernel in self.kernel.kernels:
                 kernel_parameters.append(
@@ -845,8 +874,8 @@ class PMC(BaseLikelihood, InferenceMethod):
             self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
             # 3: calculate covariance
-            # print("INFO: Calculating covariance matrix.")
-
+            if self.logger:
+                self.logger.info("calculating covariance matrix")
 
             new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
             # Since each entry of new_cov_mats is a numpy array, we can multiply like this
@@ -859,7 +888,9 @@ class PMC(BaseLikelihood, InferenceMethod):
             accepted_weights = new_weights
             accepted_cov_mat = new_cov_mats
 
-            # print("INFO: Saving configuration to output journal.")
+            if self.logger:
+                self.logger.info("saving configuration to output journal")
+
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
                 journal.add_parameters(accepted_parameters)
                 journal.add_weights(accepted_weights)
@@ -923,6 +954,9 @@ class PMC(BaseLikelihood, InferenceMethod):
         float
             The new weight for theta
         """
+
+        if self.logger:
+            self.logger.debug("_calculate_weight")
 
         if self.accepted_parameters_manager.accepted_weights_bds is None:
             return 1.0 / self.n_samples
