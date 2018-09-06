@@ -1835,12 +1835,13 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
     backend = None
 
 
-    def __init__(self, root_models, distances, backend, kernel=None,seed=None):
+    def __init__(self, root_models, distances, backend, kernel=None,seed=None,
+                 logger=NoLogger()):
         self.model = root_models
         # We define the joint Linear combination distance using all the distances for each individual models
         self.distance = LinearCombination(root_models, distances)
 
-        if (kernel is None):
+        if kernel is None:
 
             mapping, garbage_index = self._get_mapping()
             models = []
@@ -1851,8 +1852,9 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
 
         self.kernel = kernel
         self.backend = backend
+        self.logger = logger
 
-        self.R=None
+        self.R = None
         self.rng = np.random.RandomState(seed)
 
         # these are usually big tables, so we broadcast them to have them once
@@ -1918,9 +1920,10 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         accepted_dist = None
 
         # main RSMCABC algorithm
-        # print("INFO: Starting RSMCABC iterations.")
         for aStep in range(steps):
-            if(aStep==0 and journal_file is not None):
+            self.logger.info("RSMCABC iteration {}".format(aStep))
+
+            if aStep == 0 and journal_file is not None:
                 accepted_parameters=journal.parameters[-1]
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
@@ -1965,6 +1968,8 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
                 accepted_cov_mats = [covFactor*cov_mat for cov_mat in accepted_cov_mats]
 
             if epsilon[-1] < epsilon_final:
+                self.logger("accepted epsilon {:e} < {:e}"
+                            .format(epsilon[-1], epsilon_final))
                 break
 
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_replenish, dtype=np.uint32)
@@ -1999,8 +2004,8 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
                 accepted_parameters = np.concatenate((accepted_parameters, new_parameters))
                 accepted_dist = np.concatenate((accepted_dist, new_dist))
 
-            # print("INFO: Saving configuration to output journal.")
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
+                self.logger.info("saving configuration to output journal.")
                 journal.add_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_weights(np.ones(shape=(len(accepted_parameters), 1)) * (1 / len(accepted_parameters)))
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
@@ -2009,8 +2014,6 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.number_of_simulations.append(self.simulation_counter)
 
             # 2: Compute acceptance probabilty and set R
-            # print(aStep)
-            # print(new_index)
             prob_acceptance = sum(new_index) / (R * n_replenish)
             if prob_acceptance == 1 or prob_acceptance == 0:
                 R = 1
