@@ -264,7 +264,7 @@ class RejectionABC(InferenceMethod):
 
         if distance < self.epsilon and self.logger:
             self.logger.warn("initial epsilon {:e} is larger than dist_max {:e}"
-                             .format(self.epsilon, distance))
+                             .format(float(self.epsilon), distance))
 
         theta = np.array(self.get_parameters(self.model)).reshape(-1,)
         counter = 0
@@ -283,7 +283,7 @@ class RejectionABC(InferenceMethod):
                 distance = self.distance.dist_max()
         self.logger.info(
                 "needed {:4d} simulations to reach distance {:e} < epsilon = {:e}".
-                format(counter, distance, self.epsilon)
+                format(counter, distance, float(self.epsilon))
                 )
         return (theta, counter)
 
@@ -537,7 +537,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
 
         if distance < self.epsilon and self.logger:
             self.logger.warn("initial epsilon {:e} is larger than dist_max {:e}"
-                             .format(self.epsilon, distance))
+                             .format(float(self.epsilon), distance))
 
         theta = self.get_parameters()
         counter=0
@@ -572,7 +572,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
 
         self.logger.info(
                 "needed {:4d} simulations to reach distance {:e} < epsilon = {:e}".
-                format(counter, distance, self.epsilon)
+                format(counter, distance, float(self.epsilon))
                 )
 
         return (theta, distance, counter)
