@@ -4,7 +4,10 @@ WGET=wget -q
 
 CC=g++
 CPPFLAGS=-fPIC
-INCLUDEPATH=/usr/include/python3.4m
+INCLUDEPATH=$(shell python3-config --includes)
+INCLUDEPATHNUMPY=$(shell python3 -c 'import numpy as np; print(np.get_include())')
+PYTHONLINKERSETTINGS=$(shell python3-config --ldflags | cut -d" " -f 1)
+PYTHONLIBS=$(shell python3-config --libs)
 
 cpp_simple: _gaussian_model_simple.so gaussian_model_simple.py
 
@@ -18,10 +21,10 @@ clean:
 	$(SWIG) $(SWIGFLAGS) -o $@ $<
 
 %.o: %.cpp
-	$(CC) $(CPPFLAGS) -I $(INCLUDEPATH) -c $< -o $@
+	$(CC) $(CPPFLAGS) -I $(INCLUDEPATHNUMPY) $(INCLUDEPATH) -c $< -o $@
 
 _%.so: %.o %_wrap.o
-	$(CC) -shared $^ -o $@
+	$(CC) -shared $^ $(PYTHONLINKERSETTINGS) $(PYTHONLIBS) -o $@
 
 %.i:
 	$(WGET) "https://raw.githubusercontent.com/numpy/numpy/master/tools/swig/numpy.i"
