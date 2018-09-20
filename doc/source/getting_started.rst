@@ -3,14 +3,14 @@
 2. Getting Started
 ==================
 
-Here, we explain how to use ABCpy to quntify parameter uncertainty of a probabbilistic model given some observed
+Here, we explain how to use ABCpy to quantify parameter uncertainty of a probabilistic model given some observed
 dataset. If you are new to uncertainty quantification using Approximate Bayesian Computation (ABC), we recommend you to
 start with the `Parameters as Random Variables`_ section.
 
 Parameters as Random Variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-As an example, if we have measurements of the height of a group of grown up human and it is also known that a Gaussian
+As an example, if we have measurements of the height of a group of grown up humans and it is also known that a Gaussian
 distribution is an appropriate probabilistic model for these kind of observations, then our observed dataset would be
 measurement of heights and the probabilistic model would be Gaussian.
 
@@ -33,7 +33,7 @@ please check the implementing a new model section.
 
 To define a parameter of a model as a random variable, you start by assigning a *prior* distribution on them. We can
 utilize *prior* knowledge about these parameters as *prior* distribution. In the absence of prior knowledge, we still
-need to provide *prior* information and a non-informative flat disribution on the parameter space can be used. The prior
+need to provide *prior* information and a non-informative flat distribution on the parameter space can be used. The prior
 distribution on the random variables are assigned by a probabilistic model which can take other random variables or hyper
 parameters as input.
 
@@ -92,9 +92,9 @@ discrete. For a more involved example, please consult `Complex Perturbation Kern
     :lines: 90-91
     :dedent: 4
 
-Finally, we need to specify a backend that determins the parallelization framework to use. The example code here uses
+Finally, we need to specify a backend that determines the parallelization framework to use. The example code here uses
 the dummy backend :py:class:`BackendDummy <abcpy.backends.dummy>` which does not parallelize the computation of the
-inference schemes, but  which this is handy for prototyping and testing. For more advanced parallelization backends
+inference schemes, but which is handy for prototyping and testing. For more advanced parallelization backends
 available in ABCpy, please consult :ref:`Using Parallelization Backends <parallelization>` section.
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
@@ -124,7 +124,7 @@ quantifying the uncertainty of the inferred parameter, which are stored in the j
 <postanalysis>` for further information on extracting results.
 
 Note that the model and the observations are given as a list. This is due to the fact that in ABCpy, it is possible to
-have hierarchical models, building relationships between co-occuring groups of datasets. To learn more, see the
+have hierarchical models, building relationships between co-occurring groups of datasets. To learn more, see the
 `Hierarchical Model`_ section.
 
 The full source can be found in `examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py`. To
@@ -169,7 +169,7 @@ We can define these random variables and the dependencies between them in ABCpy 
 So, each student will receive some grade without additional effects which is normally distributed, but then the final
 grade recieved will be a function of grade without additional effects and the other random variables defined beforehand
 (e.g., `school_budget`, `class_size` and `no_teacher`). The model for the final grade of the students now can be
-written as [Figure~\ref{fig:dep_grade}]:
+written as:
 
 .. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
     :language: python
@@ -177,7 +177,7 @@ written as [Figure~\ref{fig:dep_grade}]:
     :dedent: 4
 
 Notice here we created a new random variable `final_grade`, by subtracting the random variables `class_size` multiplied
-by 0.001 and adding `no_teacher` multiplied by 0.02 from the random variable `grade_without_additional_effects.
+by 0.001 and adding `no_teacher` multiplied by 0.02 from the random variable `grade_without_additional_effects`.
 In short, this illustrates that you can perform standard operations "+",
 "-", "*", "/" and "**" (the power operator in Python) on any two random variables, to get a new random variable. It is
 possible to perform these operations between two random variables additionally to the general data types of Python
@@ -194,8 +194,8 @@ Hierarchical Model
 ~~~~~~~~~~~~~~~~~~
 
 
-ABCpy also supports inference when co-occuring datasets are available. To illustrate how this is implemented, we 
-will consider the example from `Probabilistic Dependency between Random Variables`_ section and extend it for co-occuring datasets, 
+ABCpy also supports inference when co-occurring datasets are available. To illustrate how this is implemented, we
+will consider the example from `Probabilistic Dependency between Random Variables`_ section and extend it for co-occurring datasets,
 when we also have data for final scholarships given out by the school to the students in addition to the final grade of a student.
 
 .. image:: network1.png
@@ -215,7 +215,7 @@ model (of the DAG) given our observations.
 To infer uncertainty of our parameters, we follow the same steps as in our previous examples: We choose summary
 statistics, distance, inference scheme, backend and kernel. We will skip the definitions that have not changed from the
 previous section. However, we would like to point out the difference in definition of the distance. Since we are now
-considering two observed datasets, we need to define an distances on them separately. Here, we use the Euclidean
+considering two observed datasets, we need to define a distance on each one of them separately. Here, we use the Euclidean
 distance for each observed data set and corresponding simulated dataset. You can use two different distances on two
 different observed datasets.
 
@@ -264,7 +264,7 @@ It just needs to be provided with all the relevant kernels:
 
 This is all that needs to be changed. The rest of the implementation works the exact same as in the previous example. If
 you would like to implement your own perturbation kernel, please check :ref:`Implementing a new Perturbation Kernel
-<implementations>`. Please keep in mind that you can only perturb parameters. **You cannot use the access operator to
+<user_customization>`. Please keep in mind that you can only perturb parameters. **You cannot use the access operator to
 perturb one component of a multi-dimensional random variable differently than another component of the same variable.**
 
 The source code to this section can be found in `examples/extensions/perturbationkernels/pmcabc_perturbation_kernels.py`
@@ -314,7 +314,7 @@ We then parametrize the sampler and sample from the posterior distribution.
     :dedent: 4
 
 Observe that the lists given to the sampler and the sampling method now contain two entries. These correspond to the two
-different observed data sets respectively. Also notice now we provide two different distances corresponding to the two
+different observed data sets respectively. Also notice we now provide two different distances corresponding to the two
 different root models and their observed datasets. Presently ABCpy combines the distances by a linear combination.
 Further possibilities of combination will be made available in later versions of ABCpy.
 
@@ -339,7 +339,7 @@ statistics defined as follows:
     :dedent: 4
 
 Then we can learn the optimized summary statistics from the given list of summary statistics using the semi-automatic
-summary selection procedure as following:
+summary selection procedure as follows:
 
 .. literalinclude:: ../../examples/summaryselection/pmcabc_gaussian_summary_selection.py
     :language: python
