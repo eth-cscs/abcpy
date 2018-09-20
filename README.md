@@ -1,7 +1,7 @@
 # ABCpy [![Documentation Status](https://readthedocs.org/projects/abcpy/badge/?version=latest)](http://abcpy.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.org/eth-cscs/abcpy.svg?branch=master)](https://travis-ci.org/eth-cscs/abcpy)
 
 ABCpy is a scientific library written in Python for Bayesian uncertainty quantification in
-absence of likelihood function, which parallelizes existing approaximate Bayesian computation (ABC) 
+absence of likelihood function, which parallelizes existing approximate Bayesian computation (ABC) 
 algorithms and other likelihood-free inference schemes. It presently includes:
 
 * RejectionABC
@@ -44,7 +44,7 @@ We want to thank
 and
 [Prof. Jukka-Pekka Onnela, Harvard University](https://www.hsph.harvard.edu/onnela-lab/)
 for helpful contributions and advice; Avinash Ummadisinghu and Nicole Widmern
-respectively for developing dynamic-MPI backend and making ABCpy suitbale for
+respectively for developing dynamic-MPI backend and making ABCpy suitable for
 hierarchical models; and finally CSCS (Swiss National Super Computing Center)
 for their generous support.
 

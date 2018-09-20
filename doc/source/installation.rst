@@ -3,8 +3,8 @@
 1. Installation
 ===============
 
-ABCpy requires Python3 and is not compatible with Python2. The simplest way to install ABCpy is via PyPI and the is
-recommended method to use.
+ABCpy requires Python3 and is not compatible with Python2. The simplest way to install ABCpy is via PyPI and we
+recommended to use this method.
 
 Installation from PyPI
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -16,7 +16,7 @@ Simplest way to install
 This clearly works also in a virtual environment.
 
 
-Installation from Souce
+Installation from Source
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 If you prefer to work on the source, clone the repository
@@ -30,7 +30,7 @@ Make sure all requirements are installed
    cd abcpy
    pip3 install -r requirements.txt
 
-To create a package and install it do
+To create a package and install it, do
 ::
 
    make package
