@@ -1,8 +1,10 @@
 from abc import ABCMeta, abstractmethod
-from abcpy.probabilisticmodels import Continuous
+
 import numpy as np
-from scipy.stats import multivariate_normal
 from scipy.special import gamma
+from scipy.stats import multivariate_normal
+
+from abcpy.probabilisticmodels import Continuous
 
 
 class PerturbationKernel(metaclass = ABCMeta):
@@ -336,7 +338,7 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
 
         cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
 
-        return multivariate_normal(mean, cov).pdf(x)
+        return multivariate_normal(mean, cov, allow_singular=True).pdf(x)
 
 
 class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
@@ -569,5 +571,4 @@ class DefaultKernel(JointPerturbationKernel):
             super(DefaultKernel, self).__init__([continuous_kernel])
         else:
             super(DefaultKernel, self).__init__([continuous_kernel, discrete_kernel])
-
 
