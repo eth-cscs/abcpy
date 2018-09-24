@@ -1,8 +1,11 @@
+import logging
 import numpy as np
 
 from numbers import Number
 
 from abcpy.probabilisticmodels import ProbabilisticModel, Continuous, InputConnector
+
+logging.basicConfig(level=logging.INFO)
 
 class Gaussian(ProbabilisticModel, Continuous):
     """
