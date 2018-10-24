@@ -398,5 +398,14 @@ or compute posterior probability of each of the models given the observed datase
    :dedent: 4
 
 
+Logging
+~~~~~~~
 
+Sometimes, when running inference schemes it is desired to have a more verbose
+logging output. This can be achieved by using Python's standard logger and
+setting it to info mode at the beginning of the file.
 
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
+   :language: python
+   :lines: 1, 8
+   :dedent: 0
