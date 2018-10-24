@@ -35,8 +35,8 @@ Further, we provide a
 has been applied successfully. This is a good place to look at more complicated inference setups.
 
 # Author 
-ABCpy was written by [Ritabrata Dutta, Università della svizzera
-italiana](https://search.usi.ch/en/people/c4342228614d041dca7e2f67cbb996c9/dutta-ritabrata)
+ABCpy was written by [Ritabrata Dutta, Warwick
+University](https://warwick.ac.uk/fac/sci/statistics/staff/academic-research/dutta/)
 and [Marcel Schoengens](schoengens@cscs.ch), CSCS, ETH Zurich, and we're
 actively developing it. Please feel free to submit any bugs or feature requests.
 We'd also love to hear about your experiences with ABCpy in general. Drop us an
