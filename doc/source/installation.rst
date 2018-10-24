@@ -17,7 +17,7 @@ This clearly works also in a virtual environment.
 
 
 Installation from Source
-~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 If you prefer to work on the source, clone the repository
 ::
