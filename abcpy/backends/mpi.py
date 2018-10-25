@@ -94,7 +94,8 @@ class BackendMPIMaster(Backend):
         elif command == self.OP_FINISH:
             data_packet = (command,)
 
-        _ = self.comm.bcast(data_packet, root=0)
+        #_ = self.comm.bcast(data_packet, root=0)
+        _ = self.master_communicator.bcast(data_packet, root=0)
 
 
 
@@ -169,7 +170,8 @@ class BackendMPIMaster(Backend):
         responding to them with the data and then sending them a Sentinel
         signalling that they can exit.
         """
-        is_map_done = [True if i in self.master_node_ranks else False for i in range(self.size)]
+        #is_map_done = [True if i in self.master_node_ranks else False for i in range(self.size)]
+        is_map_done = [True if i in self.master_node_ranks else False for i in range(self.master_size)]
         status = MPI.Status()
 
         #Copy it to the pending. This is so when master accesses
@@ -177,9 +179,11 @@ class BackendMPIMaster(Backend):
         self.pds_pending_store[pds_id] = list(self.pds_store[pds_id])
 
         #While we have some ranks that haven't finished
-        while sum(is_map_done)<self.size:
+        #while sum(is_map_done)<self.size:
+        while sum(is_map_done)<self.master_size:
             #Wait for a reqest from anyone
-            data_request = self.comm.recv(
+            #data_request = self.comm.recv(
+            data_request = self.master_communicator.recv(
                 source=MPI.ANY_SOURCE,
                 tag=MPI.ANY_TAG,
                 status=status,
@@ -198,7 +202,8 @@ class BackendMPIMaster(Backend):
             #Everyone's already exhausted all the data.
             # Send a sentinel and mark the node as finished
             if num_current_pds_items == 0:
-                self.comm.send(None, dest=request_from_rank, tag=pds_id)
+                #self.comm.send(None, dest=request_from_rank, tag=pds_id)
+                self.master_communicator.send(None, dest=request_from_rank, tag=pds_id)
                 is_map_done[request_from_rank] = True
             else:
                 #Create the chunk of data to send. Pop off items and tag them with an id.
@@ -207,7 +212,8 @@ class BackendMPIMaster(Backend):
                 for i in range(self.chunk_size):
                     chunk_to_send+=[(num_current_pds_items-i,current_pds_items.pop())]
 
-                    self.comm.send(chunk_to_send, dest=request_from_rank, tag=pds_id)
+                    #self.comm.send(chunk_to_send, dest=request_from_rank, tag=pds_id)
+                    self.master_communicator.send(chunk_to_send, dest=request_from_rank, tag=pds_id)
 
     def map(self, func, pds):
         """
@@ -237,7 +243,6 @@ class BackendMPIMaster(Backend):
 
         data = (pds_id, pds_id_new, func)
         self.__command_slaves(self.OP_MAP, data)
-
         self.orchestrate_map(pds_id)
 
         pds_res = PDSMPI([], pds_id_new, self)
@@ -264,7 +269,8 @@ class BackendMPIMaster(Backend):
         # Tell the slaves to enter collect with the pds's pds_id
         self.__command_slaves(self.OP_COLLECT, (pds.pds_id,))
 
-        all_data = self.comm.gather(pds.python_list, root=0)
+        #all_data = self.comm.gather(pds.python_list, root=0)
+        all_data = self.master_communicator.gather(pds.python_list, root=0)
 
         #Initialize lists to accumulate results
         all_data_indices,all_data_items = [],[]
@@ -289,7 +295,8 @@ class BackendMPIMaster(Backend):
         bds_id = self.__generate_new_bds_id()
         self.__command_slaves(self.OP_BROADCAST, (bds_id,))
 
-        _ = self.comm.bcast(value, root=0)
+        #_ = self.comm.bcast(value, root=0)
+        _ = self.master_communicator.bcast(value, root=0)
 
         bds = BDSMPI(value, bds_id, self)
         return bds
@@ -369,10 +376,14 @@ class BackendMPISlave(Backend):
         self.bds_store = {}
 
         #Go into an infinite loop waiting for commands from the user.
-        self.slave_run()
+        #Process 0 of the model is the "master" of the model and deal with the central master
+        if self.model_rank == 0:
+            self.__slave_run()
+        else :
+            self.__slave_model_run()
 
 
-    def slave_run(self):
+    def __slave_run(self):
         """
         This method is the infinite loop a slave enters directly from init.
         It makes the slave wait for a command to perform from the master and
@@ -397,7 +408,9 @@ class BackendMPISlave(Backend):
         self.pds_store = {}
 
         while True:
-            data = self.comm.bcast(None, root=0)
+            #data = self.comm.bcast(None, root=0)
+            data = self.master_communicator.bcast(None, root=0)
+            # print("Received some instruction from master")
 
             op = data[0]
             if op == self.OP_PARALLELIZE:
@@ -408,15 +421,17 @@ class BackendMPISlave(Backend):
 
 
             elif op == self.OP_MAP:
+                # print("Map")
                 pds_id, pds_id_result, function_packed = data[1:]
                 self.__rec_pds_id, self.__rec_pds_id_result = pds_id, pds_id_result
 
                 #Use cloudpickle to convert back function string to a function
-                func = cloudpickle.loads(function_packed)
+                #func = cloudpickle.loads(function_packed)
 
                 #Enter the map so we can grab data and perform the func.
                 #Func sent before and not during for performance reasons
-                pds_res = self.map(func)
+                #pds_res = self.map(func)
+                pds_res = self.map(function_packed)
 
                 # Store the result in a newly gnerated PDS pds_id
                 self.pds_store[pds_res.pds_id] = pds_res
@@ -442,9 +457,38 @@ class BackendMPISlave(Backend):
                 del self.bds_store[bds_id]
 
             elif op == self.OP_FINISH:
+                # print("Finish")
+                # tells other processes of the worker to finish
+                self.model_communicator.bcast([self.OP_FINISH], root=0)
                 quit()
             else:
                 raise Exception("Slave recieved unknown command code")
+
+
+    def __runfunc(self, function_packed, data_item):
+        #Unpack function and run it
+        func = cloudpickle.loads(function_packed)
+        if(self.model_size > 1):
+            return func(self.model_communicator, data_item)
+        else:
+            return func(data_item)
+
+    def __slave_model_run(self):
+        while True:
+            data = self.model_communicator.bcast(None, root=0)
+            # print("Received some instruction from model master")
+            op = data[0]
+            if op == self.OP_MAP:
+                # print("Map")
+                #Receive data from master of the model
+                function_packed = self.model_communicator.bcast(None, root=0)[0]
+                data_item = self.model_communicator.bcast(None, root=0)[0]
+                self.__runfunc(function_packed, data_item)
+            elif op == self.OP_FINISH:  
+                # print("Finish") 
+                quit()
+            else:
+                raise Exception("Slave model received unknown command code")
 
 
     def __get_received_pds_id(self):
@@ -455,12 +499,18 @@ class BackendMPISlave(Backend):
 
         return self.__rec_pds_id, self.__rec_pds_id_result
 
+    def __master_model_function_run(self, function_packed, data_item):
+        #Send function and data to other processes
+        self.model_communicator.bcast([self.OP_MAP], root=0)
+        self.model_communicator.bcast([function_packed], root=0)
+        self.model_communicator.bcast([data_item], root=0)
+        return self.__runfunc(function_packed, data_item)
 
 
     def parallelize(self):
         pass
 
-    def map(self, func):
+    def map(self, function_packed):
         """
         A distributed implementation of map that works on parallel data sets (PDS).
 
@@ -485,7 +535,8 @@ class BackendMPISlave(Backend):
         rdd = []
         while True:
             #Ask for a chunk of data since it's free
-            data_chunks = self.comm.sendrecv(pds_id, 0, pds_id)
+            #data_chunks = self.comm.sendrecv(pds_id, 0, pds_id)
+            data_chunks = self.master_communicator.sendrecv(pds_id, 0, pds_id)
 
             #If it receives a sentinel, it's done and it can exit
             if data_chunks is None:
@@ -494,11 +545,8 @@ class BackendMPISlave(Backend):
             #Accumulate the indicess and *processed* chunks
             for chunk in data_chunks:
                 data_index,data_item = chunk
-                try:
-                    result = func(data_item)
-                except Exception as e:
-                    result = e
-                rdd.append((data_index, result))
+                res = self.__master_model_function_run(function_packed, data_item)
+                rdd+=[(data_index,res)]
 
         pds_res = PDSMPI(rdd, pds_id_new, self)
 
@@ -522,14 +570,16 @@ class BackendMPISlave(Backend):
         """
 
         #Send the data we have back to the master
-        _ = self.comm.gather(pds.python_list, root=0)
+        #_ = self.comm.gather(pds.python_list, root=0)
+        _ = self.master_communicator.gather(pds.python_list, root=0)
 
 
     def broadcast(self, value):
         """
         Value is ignored for the slaves. We get data from master
         """
-        value = self.comm.bcast(None, root=0)
+        #value = self.comm.bcast(None, root=0)
+        value = self.master_communicator.bcast(None, root=0)
         self.bds_store[self.__bds_id] = value
 
 
@@ -543,7 +593,7 @@ class BackendMPI(BackendMPIMaster if MPI.COMM_WORLD.Get_rank() == 0 else Backend
     and the slaves.
     """
 
-    def __init__(self, master_node_ranks=[0]):
+    def __init__(self, master_node_ranks=[0], process_per_model=1):
         self.comm = MPI.COMM_WORLD
         self.size = self.comm.Get_size()
         self.rank = self.comm.Get_rank()
@@ -551,6 +601,25 @@ class BackendMPI(BackendMPIMaster if MPI.COMM_WORLD.Get_rank() == 0 else Backend
         if self.size < 2:
             raise ValueError('A minimum of 2 ranks are required for the MPI backend')
 
+        #Construct the appropriate communicators for resource allocation to models
+        #There is one communicator for master nodes
+        #And one communicator per model
+        self.process_per_model = process_per_model
+        self.model_color = int(((self.rank - sum(i < self.rank for i in master_node_ranks)) / process_per_model) + 1)
+        if(self.rank in master_node_ranks):
+            self.model_color = 0
+        # print("Global rank : ", self.rank, ", color : ", self.model_color)
+        self.model_communicator = MPI.COMM_WORLD.Split(self.model_color, self.rank)
+        self.model_size = self.model_communicator.Get_size()
+        self.model_rank = self.model_communicator.Get_rank()
+
+        # create a communicator to broadcast instructions to slaves
+        self.master_color = 1
+        if(self.model_color == 0 or self.model_rank == 0):
+            self.master_color = 0
+        self.master_communicator = MPI.COMM_WORLD.Split(self.master_color, self.rank)
+        self.master_size = self.master_communicator.Get_size()
+        self.master_rank = self.master_communicator.Get_rank()
 
         #Set the global backend
         globals()['backend'] = self
