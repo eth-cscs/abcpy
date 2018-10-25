@@ -259,7 +259,7 @@ ABCpy Python code. Then, in curly brackets, we specify which libraries we want
 to include and which function we want to expose through the wrapper.
 
 Now comes the tricky part. The model class expects a method `forward_simulate` that
-forward-simulates our model and which returns an array of syntetic
+forward-simulates our model and which returns an array of synthetic
 observations. However, C++/C does not know the concept of returning an array,
 instead in C++/C we would provide a memory position (pointer) where to write
 the results. Swig has to translate between the two concepts. We use actually an
@@ -327,9 +327,10 @@ within ABCpy we include the following code at the beginning of our Python file:
     :lines: 6 - 14
     :linenos:
 
-This imports the R function :code:`simple_gaussian` into the Python environment. We need to build our own model to
-incorporate this R function as in the previous section. The only difference is in the :code:`forward_simulate` method of
-the class :code:`Gaussian'.
+This imports the R function :code:`simple_gaussian` into the Python environment.
+We need to build our own model to incorporate this R function as in the previous
+section. The only difference is in the :code:`forward_simulate` method of the
+class :code:`Gaussian'.
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
     :language: python
@@ -418,7 +419,7 @@ distribution (which is already implemented within ABCpy). First, we need to defi
 .. automethod:: abcpy.perturbationkernel.PerturbationKernel.__init__
     :noindex:
 
-Thus, ABCpy expects that the arguments passed to the initializer is of type :py:class:`ProbibilisticModel
+Thus, ABCpy expects that the arguments passed to the initializer is of type :py:class:`ProbabilisticModel
 <abcpy.probabilisticmodels.ProbabilisticModel>`, which can be seen as the random variables that should be perturbed by
 this kernel. All these models should be saved on the kernel for future reference.
 
@@ -488,7 +489,7 @@ converted to a numpy array. Then, the covariance matrix is retrieved from the ac
 similar function call. Finally, the parameters are perturbed and returned.
 
 Last but not least, each kernel requires a probability density or probability mass function depending on whether it is a
-Continous Kernel or a Discrete Kernel:
+Continuous Kernel or a Discrete Kernel:
 
 .. automethod:: abcpy.perturbationkernel.PerturbationKernel.pdf
     :noindex:

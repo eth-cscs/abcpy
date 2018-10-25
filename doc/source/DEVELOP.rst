@@ -13,7 +13,7 @@ steps required in order to deploy a new release. Assume we want to deploy the
 new version `M.m.b':
 
 1. Create a release branch `release-M.m.b`
-2. Adapt `VERSION` file in the repos root directiory: `echo M.m.b > VERSION`
+2. Adapt `VERSION` file in the repos root directory: `echo M.m.b > VERSION`
 3. Adapt `README.md` file: adapt links to correct version of `User Documentation` and `Reference`
 4. Merge all desired feature branches into the release branch
 5. Create a pull/ merge request: release branch -> master

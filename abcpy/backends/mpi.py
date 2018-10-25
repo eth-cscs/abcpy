@@ -1,10 +1,12 @@
-import numpy as np
-import cloudpickle
-import time
 import pickle
+import time
 
+import cloudpickle
+import numpy as np
 from mpi4py import MPI
-from abcpy.backends import Backend, PDS, BDS
+
+from abcpy.backends import BDS, PDS, Backend
+
 
 class BackendMPIMaster(Backend):
     """Defines the behavior of the master process
@@ -268,9 +270,11 @@ class BackendMPIMaster(Backend):
         all_data_indices,all_data_items = [],[]
 
         for node_data in all_data:
-            for item in node_data:
-                all_data_indices+=[item[0]]
-                all_data_items+=[item[1]]
+            for index, item in node_data:
+                if isinstance(item, Exception):
+                    raise item
+                all_data_indices.append(index)
+                all_data_items.append(item)
 
         #Sort the accumulated data according to the indices we tagged
         #them with when distributing 
@@ -490,7 +494,11 @@ class BackendMPISlave(Backend):
             #Accumulate the indicess and *processed* chunks
             for chunk in data_chunks:
                 data_index,data_item = chunk
-                rdd+=[(data_index,func(data_item))]
+                try:
+                    result = func(data_item)
+                except Exception as e:
+                    result = e
+                rdd.append((data_index, result))
 
         pds_res = PDSMPI(rdd, pds_id_new, self)
 

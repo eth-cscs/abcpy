@@ -1,6 +1,8 @@
 import unittest
+
 from mpi4py import MPI
-from abcpy.backends import BackendMPI,BackendMPITestHelper
+
+from abcpy.backends import BackendMPI, BackendMPITestHelper
 
 
 def setUpModule():
@@ -136,3 +138,15 @@ class MPIBackendTests(unittest.TestCase):
         pds_map4 = backend_mpi.map(obj.square ,pds)
         pds_res4 = backend_mpi.collect(pds_map4)
         self.assertTrue(pds_res4==expected_result,"Failed pickle test for non-static function")
+
+    def test_exception_handling(self):
+
+        def function_with_possible_zero_devision(i):
+            return 1 / i
+
+        data = [1, 2, 0]
+        pds = backend_mpi.parallelize(data)
+
+        pds_map = backend_mpi.map(function_with_possible_zero_devision, pds)
+        with self.assertRaises(ZeroDivisionError):
+            backend_mpi.collect(pds_map)
