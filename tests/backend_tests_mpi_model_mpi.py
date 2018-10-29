@@ -24,12 +24,12 @@ def setUpModule():
 class MPIBackendTests(unittest.TestCase):
 
     def test_parallelize(self):
-        data = [0]*backend_mpi.size
+        data = [0]*backend_mpi.size()
         pds = backend_mpi.parallelize(data)
         pds_map = backend_mpi.map(lambda model_comm, x: x + MPI.COMM_WORLD.Get_rank(), pds)
         res = backend_mpi.collect(pds_map)
 
-        for master_index in backend_mpi.master_node_ranks:
+        for master_index in backend_mpi.master_node_ranks():
             self.assertTrue(master_index not in res,"Node in master_node_ranks performed map.")
 
     def test_map(self):
@@ -46,43 +46,45 @@ class MPIBackendTests(unittest.TestCase):
         assert res==list(map(lambda x:2*(x**2),data))
 
 
-    # def test_broadcast(self):
-    #     data = [1,2,3,4,5]
-    #     pds = backend_mpi.parallelize(data)
+    def test_broadcast(self):
+        data = [1,2,3,4,5]
+        pds = backend_mpi.parallelize(data)
 
-    #     bds = backend_mpi.broadcast(100)
+        bds = backend_mpi.broadcast(100)
 
-    #     #Pollute the BDS values of the master to confirm slaves
-    #     # use their broadcasted value
-    #     for k,v in  backend_mpi.bds_store.items():
-    #          backend_mpi.bds_store[k] = 99999
+        #Pollute the BDS values of the master to confirm slaves
+        # use their broadcasted value
+        for k,v in  backend_mpi.bds_store.items():
+             backend_mpi.bds_store[k] = 99999
 
-    #     def test_map(model_comm, x):
-    #         return x + bds.value()
+        def test_map(model_comm, x):
+            return x + bds.value()
 
-    #     pds_m = backend_mpi.map(test_map, pds)
-    #     self.assertTrue(backend_mpi.collect(pds_m)==[101,102,103,104,105])
+        pds_m = backend_mpi.map(test_map, pds)
+        self.assertTrue(backend_mpi.collect(pds_m)==[101,102,103,104,105])
 
-    # def test_pds_delete(self):
+    def test_pds_delete(self):
 
-    #     def check_if_exists(model_comm, x):
-    #         obj = BackendMPITestHelper()
-    #         return obj.check_pds(x)
+        def check_if_exists(model_comm, x):
+            obj = BackendMPITestHelper()
+            if model_comm.Get_rank() == 0:
+                return obj.check_pds(x)
+            return None
 
-    #     data = [1,2,3,4,5]
-    #     pds = backend_mpi.parallelize(data)
+        data = [1,2,3,4,5]
+        pds = backend_mpi.parallelize(data)
 
-    #     #Check if the pds we just created exists in all the slaves(+master)
+        #Check if the pds we just created exists in all the slaves(+master)
 
-    #     id_check_pds = backend_mpi.parallelize([pds.pds_id]*5)
-    #     pds_check_result = backend_mpi.map(check_if_exists, id_check_pds)
-    #     self.assertTrue(False not in backend_mpi.collect(pds_check_result),"PDS was not created")
+        id_check_pds = backend_mpi.parallelize([pds.pds_id]*5)
+        pds_check_result = backend_mpi.map(check_if_exists, id_check_pds)
+        self.assertTrue(False not in backend_mpi.collect(pds_check_result),"PDS was not created")
 
-    #     #Delete the PDS on master and try again
-    #     del pds
-    #     pds_check_result = backend_mpi.map(check_if_exists,id_check_pds)
+        #Delete the PDS on master and try again
+        del pds
+        pds_check_result = backend_mpi.map(check_if_exists,id_check_pds)
 
-    #     self.assertTrue(True not in backend_mpi.collect(pds_check_result),"PDS was not deleted")
+        self.assertTrue(True not in backend_mpi.collect(pds_check_result),"PDS was not deleted")
 
 
     def test_bds_delete(self):

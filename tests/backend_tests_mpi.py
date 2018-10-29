@@ -26,12 +26,12 @@ def setUpModule():
 class MPIBackendTests(unittest.TestCase):
 
     def test_parallelize(self):
-        data = [0]*backend_mpi.size
+        data = [0]*backend_mpi.size()
         pds = backend_mpi.parallelize(data)
         pds_map = backend_mpi.map(lambda x: x + MPI.COMM_WORLD.Get_rank(), pds)
         res = backend_mpi.collect(pds_map)
 
-        for master_index in backend_mpi.master_node_ranks:
+        for master_index in backend_mpi.master_node_ranks():
             self.assertTrue(master_index not in res,"Node in master_node_ranks performed map.")
 
     def test_map(self):
