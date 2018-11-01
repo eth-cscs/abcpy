@@ -8,12 +8,12 @@ def setUpModule():
     If an exception is raised in a setUpModule then none of 
     the tests in the module will be run. 
     
-    This is useful because the slaves run in a while loop on initialization
-    only responding to the master's commands and will never execute anything else.
+    This is useful because the teams run in a while loop on initialization
+    only responding to the scheduler's commands and will never execute anything else.
 
-    On termination of master, the slaves call quit() that raises a SystemExit(). 
+    On termination of scheduler, the teams call quit() that raises a SystemExit(). 
     Because of the behaviour of setUpModule, it will not run any unit tests
-    for the slave and we now only need to write unit-tests from the master's 
+    for the team and we now only need to write unit-tests from the scheduler's 
     point of view. 
     '''
     global rank,backend_mpi
@@ -29,8 +29,8 @@ class MPIBackendTests(unittest.TestCase):
         pds_map = backend_mpi.map(lambda model_comm, x: x + MPI.COMM_WORLD.Get_rank(), pds)
         res = backend_mpi.collect(pds_map)
 
-        for master_index in backend_mpi.master_node_ranks():
-            self.assertTrue(master_index not in res,"Node in master_node_ranks performed map.")
+        for scheduler_index in backend_mpi.scheduler_node_ranks():
+            self.assertTrue(scheduler_index not in res,"Node in scheduler_node_ranks performed map.")
 
     def test_map(self):
         def square_mpi(model_comm, x):
@@ -52,7 +52,7 @@ class MPIBackendTests(unittest.TestCase):
 
         bds = backend_mpi.broadcast(100)
 
-        #Pollute the BDS values of the master to confirm slaves
+        #Pollute the BDS values of the scheduler to confirm teams
         # use their broadcasted value
         for k,v in  backend_mpi.bds_store.items():
              backend_mpi.bds_store[k] = 99999
@@ -74,13 +74,13 @@ class MPIBackendTests(unittest.TestCase):
         data = [1,2,3,4,5]
         pds = backend_mpi.parallelize(data)
 
-        #Check if the pds we just created exists in all the slaves(+master)
+        #Check if the pds we just created exists in all the teams(+scheduler)
 
         id_check_pds = backend_mpi.parallelize([pds.pds_id]*5)
         pds_check_result = backend_mpi.map(check_if_exists, id_check_pds)
         self.assertTrue(False not in backend_mpi.collect(pds_check_result),"PDS was not created")
 
-        #Delete the PDS on master and try again
+        #Delete the PDS on scheduler and try again
         del pds
         pds_check_result = backend_mpi.map(check_if_exists,id_check_pds)
 
@@ -96,12 +96,12 @@ class MPIBackendTests(unittest.TestCase):
         data = [1,2,3,4,5]
         bds = backend_mpi.broadcast(data)
 
-        #Check if the pds we just created exists in all the slaves(+master)
+        #Check if the pds we just created exists in all the teams(+scheduler)
         id_check_bds = backend_mpi.parallelize([bds.bds_id]*5)
         bds_check_result = backend_mpi.map(check_if_exists, id_check_bds)
         self.assertTrue(False not in backend_mpi.collect(bds_check_result),"BDS was not created")
 
-        #Delete the PDS on master and try again
+        #Delete the PDS on scheduler and try again
         del bds
         bds_check_result = backend_mpi.map(check_if_exists,id_check_bds)
         self.assertTrue(True not in backend_mpi.collect(bds_check_result),"BDS was not deleted")

@@ -2,7 +2,6 @@ from abcpy.backends.base import *
 
 
 def BackendMPI(*args,**kwargs):
-
     # import and setup module mpimanager
     import abcpy.backends.mpimanager
     master_node_ranks = [0]
