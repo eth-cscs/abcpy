@@ -358,10 +358,14 @@ class BackendMPIWorker(Backend):
         Passes the model communicator if ther is more than one process per model
         """
         func = cloudpickle.loads(function_packed)
-        if(self.mpimanager.get_model_size() > 1):
-            return func(self.mpimanager.get_model_communicator(), data_item)
-        else:
-            return func(data_item)
+        try:
+            if(self.mpimanager.get_model_size() > 1):
+                res = func(self.mpimanager.get_model_communicator(), data_item)
+            else:
+                res = func(data_item)
+        except Exception as e:
+            res = e
+        return res
 
 
     def __worker_run(self):
