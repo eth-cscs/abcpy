@@ -811,13 +811,10 @@ class PMC(BaseLikelihood, InferenceMethod):
                         break
             # 2: calculate approximate lieklihood for new parameters
             self.logger.info("Calculate approximate likelihood")
-            new_parameters_pds = self.backend.parallelize(new_parameters)
-            approx_likelihood_new_parameters_and_counter_pds = self.backend.map(self._approx_lik_calc, new_parameters_pds)
-            self.logger.debug("collect approximate likelihood from pds")
-            approx_likelihood_new_parameters_and_counter = self.backend.collect(approx_likelihood_new_parameters_and_counter_pds)
-            approx_likelihood_new_parameters, counter = [list(t) for t in zip(*approx_likelihood_new_parameters_and_counter)]
-
-            approx_likelihood_new_parameters = np.array(approx_likelihood_new_parameters).reshape(-1,1)
+            merged_sim_data_parameter = self.flat_map(new_parameters, self.n_samples_per_param, self._simulate_data)
+            # Compute likelihood for each parameter value
+            approx_likelihood_new_parameters, counter = self.simple_map(merged_sim_data_parameter, self._approx_calc)
+            approx_likelihood_new_parameters = np.array(approx_likelihood_new_parameters).reshape(-1, 1)
 
             for count in counter:
                 self.simulation_counter+=count
@@ -874,30 +871,66 @@ class PMC(BaseLikelihood, InferenceMethod):
 
         return journal
 
-    # define helper functions for map step
-    def _approx_lik_calc(self, theta):
-        """
-        Compute likelihood for new parameters using approximate likelihood function
+    ## Simple_map and Flat_map: Python wrapper for nested parallelization
+    def simple_map(self, data, map_function):
+        data_pds = self.backend.parallelize(data)
+        result_pds = self.backend.map(map_function, data_pds)
+        result = self.backend.collect(result_pds)
+        main_result, counter = [list(t) for t in zip(*result)]
+        return main_result, counter
+    def flat_map(self, data, n_repeat, map_function):
+        repeated_data = np.repeat(data, n_repeat, axis=0)
+        repeated_data_pds = self.backend.parallelize(repeated_data)
+        repeated_data__result_pds = self.backend.map(map_function, repeated_data_pds)
+        repeated_data_result = self.backend.collect(repeated_data__result_pds)
+        repeated_data, result = [list(t) for t in zip(*repeated_data_result)]
+        merged_result_data = []
+        for ind in range(0, data.shape[0]):
+            merged_result_data.append([[[result[np.int(i)][0][0] \
+                                         for i in
+                                         np.where(np.mean(repeated_data == data[ind, :], axis=1) == 1)[0]]],
+                                       data[ind, :]])
+        return merged_result_data
 
+    # define helper functions for map step
+    def _simulate_data(self, theta):
+        """
+        Simulate n_sample_per_param many datasets for new parameter
         Parameters
         ----------
         theta: numpy.ndarray
             1xp matrix containing the model parameters, where p is the number of parameters
-
         Returns
         -------
-        float
-            The approximated likelihood function
+        (theta, sim_data)
+            tehta and simulate data
         """
 
         # Simulate the fake data from the model given the parameter value theta
         # print("DEBUG: Simulate model for parameter " + str(theta))
         self.set_parameters(theta)
-        y_sim = self.simulate(self.n_samples_per_param, self.rng)
+        y_sim = self.simulate(1, self.rng)
+
+        return (theta, y_sim)
+
+    def _approx_calc(self, sim_data_parameter):
+        """
+        Compute likelihood for new parameters using approximate likelihood function
+        Parameters
+        ----------
+        sim_data_parameter: list
+            First element is the parameter and the second element is the simulated data
+        Returns
+        -------
+        float
+            The approximated likelihood function
+        """
+        # Extract data and parameter
+        y_sim, theta = sim_data_parameter[0], sim_data_parameter[1]
+
         # print("DEBUG: Extracting observation.")
         obs = self.accepted_parameters_manager.observations_bds.value()
         # print("DEBUG: Computing likelihood...")
-
 
         total_pdf_at_theta = 1.
 
@@ -906,7 +939,7 @@ class PMC(BaseLikelihood, InferenceMethod):
         # print("DEBUG: Likelihood is :" + str(lhd))
         pdf_at_theta = self.pdf_of_prior(self.model, theta)
 
-        total_pdf_at_theta*=(pdf_at_theta*lhd)
+        total_pdf_at_theta *= (pdf_at_theta * lhd)
 
         # print("DEBUG: prior pdf evaluated at theta is :" + str(pdf_at_theta))
         return (total_pdf_at_theta, 1)
