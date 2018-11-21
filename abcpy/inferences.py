@@ -821,6 +821,7 @@ class PMC(BaseLikelihood, InferenceMethod):
 
             # 3: calculate new weights for new parameters
             self.logger.info("Calculating weights")
+            new_parameters_pds = self.backend.parallelize(new_parameters)
             new_weights_pds = self.backend.map(self._calculate_weight, new_parameters_pds)
             new_weights = np.array(self.backend.collect(new_weights_pds)).reshape(-1, 1)
 
