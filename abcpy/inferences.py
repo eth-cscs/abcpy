@@ -892,6 +892,7 @@ class PMC(BaseLikelihood, InferenceMethod):
 
         # Simulate the fake data from the model given the parameter value theta
         # print("DEBUG: Simulate model for parameter " + str(theta))
+        self.set_parameters(theta)
         y_sim = self.simulate(self.n_samples_per_param, self.rng)
         # print("DEBUG: Extracting observation.")
         obs = self.accepted_parameters_manager.observations_bds.value()
