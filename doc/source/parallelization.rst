@@ -69,7 +69,7 @@ run. A minimum of two ranks is required, since rank 0 (master) is used to
 orchestrate the calculation and all other ranks (workers) actually perform the
 calculation.
 
-The standard way to run the script using Open MPI is directly via mpirun like below
+The standard way to run the script using MPI is directly via mpirun like below
 or on a cluster through a job scheduler like Slurm:
 
 ::
@@ -79,6 +79,32 @@ or on a cluster through a job scheduler like Slurm:
 
 The adapted Python code can be found in
 `examples/backend/mpi/pmcabc_gaussian.py`.
+
+MPI nested parallelization
+--------------------------
+
+Sometimes, the model on which we want to perform parameter inference is itself parallelized. 
+When this parallelization is achieved using threads, there is no problem for each MPI process
+to spawn multiple threads on a node. But even if the standard allows it, there can be situation
+where the spawning of MPI process at runtime is limited. In order to have a fully portable execution model,
+it is then preferable to spawn as many MPI processes as necessary and then split the MPI processes
+into multiple communicators. For example, if we want to run n instances of a MPI model and allows
+m processes to each instance, we will have to spawn (n*m)+1 processes, because of the master process. 
+
+The MPI parallelized model has then to be able to take the communicator
+created by abcpy as a parameter.
+
+In the case of MPI nested parallelization, we have to specify the number of process that will be 
+allocated to each MPI model. For example
+
+.. literalinclude:: ../../examples/backends/mpi/mpi_model.py
+    :language: python
+    :lines: 6-7
+    :dedent: 4
+
+An example using the nested MPI parallelization can be found in
+`examples/backend/mpi/mpi_model.py`.
+
 
 Note that in order to run jobs in parallel you need to have MPI installed on the
 system(s) in question with the requisite Python bindings for MPI (mpi4py). The
