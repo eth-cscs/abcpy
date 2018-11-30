@@ -257,7 +257,7 @@ class LogReg(Distance):
         training_set_labels = np.concatenate((label_s1, label_s2), axis=0).ravel()
 
         reg_inv = 1e5
-        log_reg_model = linear_model.LogisticRegression(C=reg_inv, penalty='l1')
+        log_reg_model = linear_model.LogisticRegression(C=reg_inv, penalty='l1', max_iter=1000, solver='liblinear')
         log_reg_model.fit(training_set_features, training_set_labels)
         score = log_reg_model.score(training_set_features, training_set_labels)
         distance = 2.0 * (score - 0.5)
