@@ -1588,7 +1588,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=int(n_samples / temp_chain_length),
                                         dtype=np.uint32)
             rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
-            index_arr = np.linspace(0, n_samples / temp_chain_length - 1, n_samples / temp_chain_length).astype(
+            index_arr = np.linspace(0, n_samples // temp_chain_length - 1, n_samples // temp_chain_length).astype(
                 int).reshape(int(n_samples / temp_chain_length), )
             rng_and_index_arr = np.column_stack((rng_arr, index_arr))
             rng_and_index_pds = self.backend.parallelize(rng_and_index_arr)
