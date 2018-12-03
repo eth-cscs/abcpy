@@ -327,9 +327,10 @@ within ABCpy we include the following code at the beginning of our Python file:
     :lines: 6 - 14
     :linenos:
 
-This imports the R function :code:`simple_gaussian` into the Python environment. We need to build our own model to
-incorporate this R function as in the previous section. The only difference is in the :code:`forward_simulate` method of
-the class :code:`Gaussian'.
+This imports the R function :code:`simple_gaussian` into the Python environment.
+We need to build our own model to incorporate this R function as in the previous
+section. The only difference is in the :code:`forward_simulate` method of the
+class :code:`Gaussian'.
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
     :language: python

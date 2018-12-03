@@ -91,8 +91,8 @@ class PMCTests(unittest.TestCase):
         self.assertEqual(mu_sample_shape, (10,1))
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
-        self.assertLess(abs(mu_post_mean - (-3.55548377)), 1e-3)
-        self.assertLess(abs(sigma_post_mean - 5.87147492), 1e-3)
+        self.assertLess(abs(mu_post_mean - (-3.402868)), 1e-3)
+        self.assertLess(abs(sigma_post_mean - 6.212), 1e-3)
 
         self.assertFalse(journal.number_of_simulations == 0)
 
@@ -111,8 +111,8 @@ class PMCTests(unittest.TestCase):
         self.assertEqual(mu_sample_shape, (10,1))
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
-        self.assertLess(abs(mu_post_mean - (-3.88512394) ), 1e-3)
-        self.assertLess(abs(sigma_post_mean - 2.90352432), 1e-3)
+        self.assertLess(abs(mu_post_mean - (-3.03325763) ), 1e-3)
+        self.assertLess(abs(sigma_post_mean - 6.92124735), 1e-3)
 
         self.assertFalse(journal.number_of_simulations == 0)
 

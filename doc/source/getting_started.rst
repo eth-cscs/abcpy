@@ -138,38 +138,47 @@ execute the code you only need to run
 Probabilistic Dependency between Random Variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Since release 0.5.0 of ABCpy, a probabilistic dependency structures (e.g., a Bayesian network) between random variables
-can be modelled. Behind the scene, ABCpy will represent this dependency structure as a directed acyclic graph (DAG) such
-that the inference can be done on the full graph. Further we can also define new random variables through operations
-between existing random variables. To make this concept more approachable, we now exemplify an inference problem on a
-probabilistic dependency structure.
+Since release 0.5.0 of ABCpy, a probabilistic dependency structures (e.g., a
+Bayesian network) between random variables can be modelled. Behind the scene,
+ABCpy will represent this dependency structure as a directed acyclic graph (DAG)
+such that the inference can be done on the full graph. Further we can also
+define new random variables through operations between existing random
+variables. To make this concept more approachable, we now exemplify an inference
+problem on a probabilistic dependency structure.
 
-
-Students of a school took an exam and received some grade. The observed grades of the students are:
+Students of a school took an exam and received some grade. The observed grades
+of the students are:
 
 .. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
     :language: python
     :lines: 6
     :dedent: 4
-which depend on several variables: if there were bias, the average size of the classes, as well as the number of teachers at the school. 
-Here we assume the average size of a class and the number of the teachers at the school are normally distributed with
-some mean, depending on the budget of the school and variance $1$. We further assume that the budget of the school is 
-uniformly distributed between 1 and 10 millions US dollars. Finally, we can assume that the grade without any bias would
-be a normally distributed parameter around an average grade. The dependency structure between these variables can be defined using the
-following Bayesian network:
+
+which depend on several variables: if there were bias, the average size of the
+classes, as well as the number of teachers at the school. Here we assume the
+average size of a class and the number of the teachers at the school are
+normally distributed with some mean, depending on the budget of the school and
+variance $1$. We further assume that the budget of the school is uniformly
+distributed between 1 and 10 millions US dollars. Finally, we can assume that
+the grade without any bias would be a normally distributed parameter around an
+average grade. The dependency structure between these variables can be defined
+using the following Bayesian network:
 
 .. image:: network.png
 
-We can define these random variables and the dependencies between them in ABCpy in the following way:
+We can define these random variables and the dependencies between them in ABCpy
+in the following way:
 
 .. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
     :language: python
     :lines: 9-10, 13, 16, 19
     :dedent: 4
-So, each student will receive some grade without additional effects which is normally distributed, but then the final
-grade recieved will be a function of grade without additional effects and the other random variables defined beforehand
-(e.g., `school_budget`, `class_size` and `no_teacher`). The model for the final grade of the students now can be
-written as:
+
+So, each student will receive some grade without additional effects which is
+normally distributed, but then the final grade recieved will be a function of
+grade without additional effects and the other random variables defined
+beforehand (e.g., `school_budget`, `class_size` and `no_teacher`). The model for
+the final grade of the students now can be written as:
 
 .. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
     :language: python
@@ -296,10 +305,13 @@ two methods:
 * Synthetic likelihood approximation :py:class:`abcpy.approx_lhd.SynLiklihood`, and another method using
 * penalized logistic regression :py:class:`abcpy.approx_lhd.PenLogReg`.
 
-Next we explain how we can use PMC algorithm using approximation of the likelihood functions. As we are now considering
-two observed datasets corresponding to two root models, we need to define an approximation of likelihood function for
-each of them separately. Here, we use the :py:class:`abcpy.approx_lhd.SynLiklihood` for each of the root models. It is
-also possible to use two different approximate likelihoods for two different root models.
+Next we explain how we can use PMC algorithm using approximation of the
+likelihood functions. As we are now considering two observed datasets
+corresponding to two root models, we need to define an approximation of
+likelihood function for each of them separately. Here, we use the
+:py:class:`abcpy.approx_lhd.SynLiklihood` for each of the root models. It is
+also possible to use two different approximate likelihoods for two different
+root models.
 
 .. literalinclude:: ../../examples/approx_lhd/pmc_hierarchical_models.py
     :language: python
@@ -311,7 +323,7 @@ We then parametrize the sampler and sample from the posterior distribution.
 .. literalinclude:: ../../examples/approx_lhd/pmc_hierarchical_models.py
     :language: python
     :lines: 52-64
-    :dedent: 4
+    :dedent: 4 
 
 Observe that the lists given to the sampler and the sampling method now contain two entries. These correspond to the two
 different observed data sets respectively. Also notice we now provide two different distances corresponding to the two
@@ -381,13 +393,19 @@ Now we can choose the most suitable model for the observed dataset `y_obs`,
 or compute posterior probability of each of the models given the observed dataset.
 
 .. literalinclude:: ../../examples/modelselection/randomforest_modelselections.py
-    :language: python
-    :lines: 35-36
-    :dedent: 4
+   :language: python
+   :lines: 35-36
+   :dedent: 4
 
 
+Logging
+~~~~~~~
 
+Sometimes, when running inference schemes it is desired to have a more verbose
+logging output. This can be achieved by using Python's standard logger and
+setting it to info mode at the beginning of the file.
 
-
-
-
+.. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
+   :language: python
+   :lines: 1, 8
+   :dedent: 0
