@@ -61,8 +61,10 @@ class NestedBivariateGaussian(ProbabilisticModel):
         return 2
 
 
+    #def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
+    #def forward_simulate(self, mpi_comm, input_values, k, rng=np.random.RandomState()): #, mpi_comm=None):
     def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
-        # def forward_simulate(self, mpi_comm, input_values, k, rng=np.random.RandomState()): #, mpi_comm=None):
+
         rank = mpi_comm.Get_rank()
 
         # Extract the input parameters
@@ -73,7 +75,9 @@ class NestedBivariateGaussian(ProbabilisticModel):
         vector_of_k_samples = np.array(rng.normal(mu, sigma, k))
 
         # Send everything back to rank 0
+        # print("Hello from forward_simulate before gather, rank = ", rank)
         data = mpi_comm.gather(vector_of_k_samples)
+        # print("Hello from forward_simulate after gather, rank = ", rank)
 
         # Format the output to obey API but only on rank 0
         if rank == 0:
@@ -83,6 +87,7 @@ class NestedBivariateGaussian(ProbabilisticModel):
                 element1 = data[1][i]
                 point = np.array([element0, element1])
                 result[i] = point
+            print("Process 0 will return : ", result)
             return result
         else:
             return
@@ -117,15 +122,18 @@ def infer_parameters():
     from abcpy.distances import LogReg
     distance_calculator = LogReg(statistics_calculator)
 
-    # define sampling scheme
-    from abcpy.inferences import PMCABC
-    sampler = PMCABC([height_weight_model], [distance_calculator], backend, seed=1)
-    
+    from abcpy.approx_lhd import SynLiklihood
+    approx_lhd = SynLiklihood(statistics_calculator)
+
+    # define sampling scheme    
+    from abcpy.inferences import PMC
+    sampler = PMC([height_weight_model], [approx_lhd], backend, seed=1)
+
     # sample from scheme
-    T, n_sample, n_samples_per_param = 3, 250, 10
-    eps_arr = np.array([.75])
-    epsilon_percentile = 10
-    journal = sampler.sample([y_obs],  T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
+    #T, n_sample, n_samples_per_param = 3, 250, 10
+    T, n_sample, n_samples_per_param = 1, 1, 1
+
+    journal = sampler.sample([y_obs],  T, n_sample, n_samples_per_param)
 
     return journal
 

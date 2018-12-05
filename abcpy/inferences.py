@@ -2,6 +2,8 @@ import copy
 import logging
 import numpy as np
 
+import sys
+
 from abc import ABCMeta, abstractmethod, abstractproperty
 from scipy import optimize
 
@@ -515,7 +517,9 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         return journal
 
     # define helper functions for map step
-    def _resample_parameter(self, rng):
+    #def _resample_parameter(self, rng):
+    #def _resample_parameter(self, mpi_comm, rng):
+    def _resample_parameter(self, rng, mpi_comm=None):
         """
         Samples a single model parameter and simulate from it until
         distance between simulated outcome and the observation is
@@ -548,7 +552,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             if self.accepted_parameters_manager.accepted_parameters_bds == None:
                 self.sample_from_prior(rng=rng)
                 theta = self.get_parameters()
-                y_sim = self.simulate(self.n_samples_per_param, rng=rng)
+                y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
                 counter+=1
 
             else:
@@ -560,13 +564,19 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                     if(perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1])!=0):
                         theta = perturbation_output[1]
                         break
-                y_sim = self.simulate(self.n_samples_per_param, rng=rng)
+                y_sim = self.simulate(mpi_comm, self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
                 counter+=1
 
             if(y_sim is not None):
+                print("Will compute distance")
+                print("self.accepted_parameters_manager.observations_bds.value() : ", self.accepted_parameters_manager.observations_bds.value())
+                print("type(self.accepted_parameters_manager.observations_bds.value()) : ", type(self.accepted_parameters_manager.observations_bds.value()))
+                print("y_sim : ", y_sim)
+                print("type(y_sim) : ", type(y_sim))
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),y_sim)
                 self.logger.debug("distance after {:4d} simulations: {:e}".format(
                     counter, distance))
+                print("Distance computed")
             else:
                 distance = self.distance.dist_max()
 
@@ -875,7 +885,7 @@ class PMC(BaseLikelihood, InferenceMethod):
         return journal
 
     # define helper functions for map step
-    def _approx_lik_calc(self, theta):
+    def _approx_lik_calc(self, theta, mpi_comm=None):
         """
         Compute likelihood for new parameters using approximate likelihood function
 
@@ -892,7 +902,7 @@ class PMC(BaseLikelihood, InferenceMethod):
 
         # Simulate the fake data from the model given the parameter value theta
         # print("DEBUG: Simulate model for parameter " + str(theta))
-        y_sim = self.simulate(self.n_samples_per_param, self.rng)
+        y_sim = self.simulate(self.n_samples_per_param, self.rng, mpi_comm=mpi_comm)
         # print("DEBUG: Extracting observation.")
         obs = self.accepted_parameters_manager.observations_bds.value()
         # print("DEBUG: Computing likelihood...")
@@ -910,7 +920,7 @@ class PMC(BaseLikelihood, InferenceMethod):
         # print("DEBUG: prior pdf evaluated at theta is :" + str(pdf_at_theta))
         return (total_pdf_at_theta, 1)
 
-    def _calculate_weight(self, theta):
+    def _calculate_weight(self, theta, mpi_comm=None):
         """
         Calculates the weight for the given parameter using
         accepted_parameters, accepted_cov_mat

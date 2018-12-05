@@ -239,6 +239,12 @@ class LogReg(Distance):
         d1, d2: list
             A list, containing a list describing the data set
         """
+
+        print("d1 : ", d1)
+        print("type(d1) : ", type(d1))
+        print("d2 : ", d2)
+        print("type(d2) : ", type(d2))
+
         if not isinstance(d1, list):
             raise TypeError('Data is not of allowed types')
         if not isinstance(d2, list):

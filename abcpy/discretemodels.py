@@ -52,7 +52,7 @@ class Bernoulli(Discrete, ProbabilisticModel):
         return True
 
 
-    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """
         Samples from the bernoulli distribution associtated with the probabilistic model.
 
@@ -157,7 +157,7 @@ class Binomial(Discrete, ProbabilisticModel):
         return True
 
 
-    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """
         Samples from a binomial distribution using the current values for each probabilistic model from which the model derives.
 
@@ -256,7 +256,7 @@ class Poisson(Discrete, ProbabilisticModel):
         return True
 
 
-    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """
         Samples k values from the defined possion distribution.
 

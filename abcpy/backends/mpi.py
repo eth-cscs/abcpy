@@ -360,7 +360,7 @@ class BackendMPIWorker(Backend):
         func = cloudpickle.loads(function_packed)
         try:
             if(self.mpimanager.get_model_size() > 1):
-                res = func(self.mpimanager.get_model_communicator(), data_item)
+                res = func(data_item, self.mpimanager.get_model_communicator())
             else:
                 res = func(data_item)
         except Exception as e:
