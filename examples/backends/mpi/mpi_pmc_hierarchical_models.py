@@ -4,7 +4,7 @@ def setup_backend():
     global backend
     
     from abcpy.backends import BackendMPI as Backend
-    backend = Backend(process_per_model=1)
+    backend = Backend()
 
 """An example showing how to implement a bayesian network in ABCpy"""
 def infer_parameters():

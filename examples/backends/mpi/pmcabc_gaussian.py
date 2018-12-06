@@ -4,7 +4,7 @@ def setup_backend():
     global backend
     
     from abcpy.backends import BackendMPI as Backend
-    backend = Backend()
+    backend = Backend(process_per_model=2)
 
 
 def infer_parameters():

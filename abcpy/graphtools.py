@@ -407,7 +407,7 @@ class GraphTools():
             if parameters_compatible:
                 simulation_result = model.forward_simulate(model.get_input_values(), n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
                 result.append(simulation_result)
-                if mpi_comm.Get_rank() != 0:
+                if mpi_comm != None and mpi_comm.Get_rank() != 0:
                     return None
             else:
                 return None
