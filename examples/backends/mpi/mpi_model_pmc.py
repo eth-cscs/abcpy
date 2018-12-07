@@ -7,6 +7,7 @@ def setup_backend():
     
     from abcpy.backends import BackendMPI as Backend
     backend = Backend(process_per_model=2)
+    #backend = Backend()
 
 def run_model():
     def square_mpi(model_comm, x):
@@ -103,7 +104,11 @@ class NestedBivariateGaussian(ProbabilisticModel):
 def infer_parameters():
     # define observation for true parameters mean=170, 65
     rng = np.random.RandomState()
-    y_obs = rng.multivariate_normal([170, 65], np.eye(2), 100)
+    y_obs = rng.multivariate_normal([170, 65], np.eye(2), 100).reshape(200)
+
+    
+
+    print("type : ", type(y_obs), " shape : ", y_obs.shape)
 
     # define prior
     from abcpy.continuousmodels import Uniform
@@ -119,8 +124,8 @@ def infer_parameters():
     statistics_calculator = Identity(degree = 2, cross = False)
 
     # define distance
-    from abcpy.distances import LogReg
-    distance_calculator = LogReg(statistics_calculator)
+    #from abcpy.distances import LogReg
+    #distance_calculator = LogReg(statistics_calculator)
 
     from abcpy.approx_lhd import SynLiklihood
     approx_lhd = SynLiklihood(statistics_calculator)
@@ -131,7 +136,7 @@ def infer_parameters():
 
     # sample from scheme
     #T, n_sample, n_samples_per_param = 3, 250, 10
-    T, n_sample, n_samples_per_param = 1, 1, 1
+    T, n_sample, n_samples_per_param = 2, 10, 10
 
     journal = sampler.sample([y_obs],  T, n_sample, n_samples_per_param)
 
