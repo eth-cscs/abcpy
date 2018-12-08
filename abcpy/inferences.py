@@ -821,11 +821,15 @@ class PMC(BaseLikelihood, InferenceMethod):
                         break
             # 2: calculate approximate lieklihood for new parameters
             self.logger.info("Calculate approximate likelihood")
+            print("Calculate approximate likelihood")
             new_parameters_pds = self.backend.parallelize(new_parameters)
             approx_likelihood_new_parameters_and_counter_pds = self.backend.map(self._approx_lik_calc, new_parameters_pds)
             self.logger.debug("collect approximate likelihood from pds")
+            print("collect approximate likelihood from pds")
             approx_likelihood_new_parameters_and_counter = self.backend.collect(approx_likelihood_new_parameters_and_counter_pds)
+            print("collect done")
             approx_likelihood_new_parameters, counter = [list(t) for t in zip(*approx_likelihood_new_parameters_and_counter)]
+            print("done")
 
             approx_likelihood_new_parameters = np.array(approx_likelihood_new_parameters).reshape(-1,1)
 
@@ -902,23 +906,35 @@ class PMC(BaseLikelihood, InferenceMethod):
 
         # Simulate the fake data from the model given the parameter value theta
         # print("DEBUG: Simulate model for parameter " + str(theta))
+
+        # Every process of the communicator executes simulate, only process 0 returns relevant data
         y_sim = self.simulate(self.n_samples_per_param, self.rng, mpi_comm=mpi_comm)
-        # print("DEBUG: Extracting observation.")
-        obs = self.accepted_parameters_manager.observations_bds.value()
-        # print("DEBUG: Computing likelihood...")
+
+        # if the mpi_comm is none or our rank is 0, we have relevant data
+        if(mpi_comm==None or mpi_comm.Get_rank()==0):
+
+            # print("DEBUG: Extracting observation.")
+            obs = self.accepted_parameters_manager.observations_bds.value()
+            # print("DEBUG: Computing likelihood...")
 
 
-        total_pdf_at_theta = 1.
+            total_pdf_at_theta = 1.
 
-        lhd = self.likfun.likelihood(obs, y_sim)
+            # trick to avoid data not of allowed type...
+            obs[0] = list(obs[0])
 
-        # print("DEBUG: Likelihood is :" + str(lhd))
-        pdf_at_theta = self.pdf_of_prior(self.model, theta)
+            # will crash inside likelihood function, approx_lhd.py line 97
+            lhd = self.likfun.likelihood(obs, y_sim)
 
-        total_pdf_at_theta*=(pdf_at_theta*lhd)
+            # print("DEBUG: Likelihood is :" + str(lhd))
+            pdf_at_theta = self.pdf_of_prior(self.model, theta)
 
-        # print("DEBUG: prior pdf evaluated at theta is :" + str(pdf_at_theta))
-        return (total_pdf_at_theta, 1)
+            total_pdf_at_theta*=(pdf_at_theta*lhd)
+
+            # print("DEBUG: prior pdf evaluated at theta is :" + str(pdf_at_theta))
+            return (total_pdf_at_theta, 1)
+        
+        return None
 
     def _calculate_weight(self, theta, mpi_comm=None):
         """

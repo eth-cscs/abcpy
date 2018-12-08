@@ -69,6 +69,8 @@ class SynLiklihood(Approx_likelihood):
     def likelihood(self, y_obs, y_sim):
         # print("DEBUG: SynLiklihood.likelihood().")
         if not isinstance(y_obs, list):
+            # print("type(y_obs) : ", type(y_obs), " , type(y_sim) : ", type(y_sim))
+            # print("y_obs : ", y_obs)
             raise TypeError('Observed data is not of allowed types')
 
         if not isinstance(y_sim, list):
@@ -81,20 +83,22 @@ class SynLiklihood(Approx_likelihood):
 
         # Extract summary statistics from the simulated data
         stat_sim = self.statistics_calc.statistics(y_sim)
-
+        
         # Compute the mean, robust precision matrix and determinant of precision matrix
-        # print("DEBUG: meansim computation.")
+        print("DEBUG: meansim computation.")
         mean_sim = np.mean(stat_sim,0)
-        # print("DEBUG: robust_precision_sim computation.")
+        print("DEBUG: robust_precision_sim computation.")
         lw_cov_, _ = ledoit_wolf(stat_sim)
         robust_precision_sim = np.linalg.inv(lw_cov_)
-        # print("DEBUG: robust_precision_sim_det computation..")
+        print("DEBUG: robust_precision_sim_det computation..")
         robust_precision_sim_det = np.linalg.det(robust_precision_sim)
-        # print("DEBUG: combining.")
+        
+        print("DEBUG: combining.")
         result = pow(np.sqrt((1/(2*np.pi))*robust_precision_sim_det),self.stat_obs.shape[0])\
         *np.exp(np.sum(-0.5*np.sum(np.array(self.stat_obs-mean_sim)* \
         np.array(np.matrix(robust_precision_sim)*np.matrix(self.stat_obs-mean_sim).T).T, axis = 1)))
 
+        print("DEBUG: done")
         return result
 
 

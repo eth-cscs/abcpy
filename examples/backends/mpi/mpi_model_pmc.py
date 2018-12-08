@@ -88,7 +88,7 @@ class NestedBivariateGaussian(ProbabilisticModel):
                 element1 = data[1][i]
                 point = np.array([element0, element1])
                 result[i] = point
-            print("Process 0 will return : ", result)
+            # print("Process 0 will return : ", result)
             return result
         else:
             return
