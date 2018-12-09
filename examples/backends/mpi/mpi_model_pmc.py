@@ -68,6 +68,8 @@ class NestedBivariateGaussian(ProbabilisticModel):
 
         rank = mpi_comm.Get_rank()
 
+        print('Hello world')
+
         # Extract the input parameters
         mu = input_values[rank]
         sigma = 1
@@ -104,11 +106,7 @@ class NestedBivariateGaussian(ProbabilisticModel):
 def infer_parameters():
     # define observation for true parameters mean=170, 65
     rng = np.random.RandomState()
-    y_obs = rng.multivariate_normal([170, 65], np.eye(2), 100).reshape(200)
-
-    
-
-    print("type : ", type(y_obs), " shape : ", y_obs.shape)
+    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2,))]
 
     # define prior
     from abcpy.continuousmodels import Uniform
@@ -122,10 +120,6 @@ def infer_parameters():
     # define statistics
     from abcpy.statistics import Identity
     statistics_calculator = Identity(degree = 2, cross = False)
-
-    # define distance
-    #from abcpy.distances import LogReg
-    #distance_calculator = LogReg(statistics_calculator)
 
     from abcpy.approx_lhd import SynLiklihood
     approx_lhd = SynLiklihood(statistics_calculator)
