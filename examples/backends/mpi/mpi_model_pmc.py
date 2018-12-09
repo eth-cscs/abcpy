@@ -68,8 +68,6 @@ class NestedBivariateGaussian(ProbabilisticModel):
 
         rank = mpi_comm.Get_rank()
 
-        print('Hello world')
-
         # Extract the input parameters
         mu = input_values[rank]
         sigma = 1
@@ -91,7 +89,7 @@ class NestedBivariateGaussian(ProbabilisticModel):
                 point = np.array([element0, element1])
                 result[i] = point
             # print("Process 0 will return : ", result)
-            return result
+            return [np.array([result[i]]).reshape(-1,) for i in range(k)]
         else:
             return
 
