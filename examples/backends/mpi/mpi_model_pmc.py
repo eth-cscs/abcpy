@@ -136,3 +136,4 @@ class ExampleMPIModelTest(unittest.TestCase):
 if __name__ == "__main__":
     setup_backend()
     print('Posterior Mean: ' + str(infer_parameters().posterior_mean()))
+    print('True Value was: ' + str([170, 65]))
