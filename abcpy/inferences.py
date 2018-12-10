@@ -757,7 +757,8 @@ class PMC(BaseLikelihood, InferenceMethod):
 
         self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights)
 
-        # The parameters relevant to each kernel have to be used to calculate n_sample times. It is therefore more efficient to broadcast these parameters once, instead of collecting them at each kernel in each step
+        # The parameters relevant to each kernel have to be used to calculate n_sample times. It is therefore more efficient
+        # to broadcast these parameters once, instead of collecting them at each kernel in each step
         kernel_parameters = []
         for kernel in self.kernel.kernels:
             kernel_parameters.append(
@@ -821,15 +822,11 @@ class PMC(BaseLikelihood, InferenceMethod):
                         break
             # 2: calculate approximate lieklihood for new parameters
             self.logger.info("Calculate approximate likelihood")
-            print("Calculate approximate likelihood")
             new_parameters_pds = self.backend.parallelize(new_parameters)
             approx_likelihood_new_parameters_and_counter_pds = self.backend.map(self._approx_lik_calc, new_parameters_pds)
             self.logger.debug("collect approximate likelihood from pds")
-            print("collect approximate likelihood from pds")
             approx_likelihood_new_parameters_and_counter = self.backend.collect(approx_likelihood_new_parameters_and_counter_pds)
-            print("collect done")
             approx_likelihood_new_parameters, counter = [list(t) for t in zip(*approx_likelihood_new_parameters_and_counter)]
-            print("done")
 
             approx_likelihood_new_parameters = np.array(approx_likelihood_new_parameters).reshape(-1,1)
 
@@ -846,7 +843,7 @@ class PMC(BaseLikelihood, InferenceMethod):
                 new_weights[i] = new_weights[i] * approx_likelihood_new_parameters[i]
                 sum_of_weights += new_weights[i]
 
-            print("new_weights : ", new_weights, ", sum_of_weights : ", sum_of_weights)
+            #print("new_weights : ", new_weights, ", sum_of_weights : ", sum_of_weights)
             new_weights = new_weights / sum_of_weights
             accepted_parameters = new_parameters
 
@@ -910,6 +907,7 @@ class PMC(BaseLikelihood, InferenceMethod):
         # print("DEBUG: Simulate model for parameter " + str(theta))
 
         # Every process of the communicator executes simulate, only process 0 returns relevant data
+        self.set_parameters(theta)
         y_sim = self.simulate(self.n_samples_per_param, self.rng, mpi_comm=mpi_comm)
 
         # if the mpi_comm is none or our rank is 0, we have relevant data

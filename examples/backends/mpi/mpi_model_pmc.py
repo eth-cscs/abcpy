@@ -35,7 +35,7 @@ class NestedBivariateGaussian(ProbabilisticModel):
             raise TypeError('Input of Normal model is of type list')
 
         if len(parameters) != 2:
-            raise RuntimeError('Input list must be of length 2, containing [mu, sigma].')
+            raise RuntimeError('Input list must be of length 2, containing [mu1, mu1].')
 
         input_connector = InputConnector.from_list(parameters)
         super().__init__(input_connector, name)
@@ -52,27 +52,21 @@ class NestedBivariateGaussian(ProbabilisticModel):
         if not isinstance(values, np.ndarray):
             raise ValueError('Output of the normal distribution is always a numpy array.')
 
-        if value.shape[0] != 2:
+        if values.shape[0] != 2:
             raise ValueError('Output shape should be of dimension 2.')
 
         return True
 
-
     def get_output_dimension(self):
         return 2
 
-
-    #def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
-    #def forward_simulate(self, mpi_comm, input_values, k, rng=np.random.RandomState()): #, mpi_comm=None):
     def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
 
-        print('Type of mpi_comm: ' + str(mpi_comm))
         rank = mpi_comm.Get_rank()
-
         # Extract the input parameters
         mu = input_values[rank]
         sigma = 1
-
+        #print(mu)
         # Do the actual forward simulation
         vector_of_k_samples = np.array(rng.normal(mu, sigma, k))
 
@@ -95,13 +89,6 @@ class NestedBivariateGaussian(ProbabilisticModel):
             return
 
 
-    def pdf(self, input_values, x):
-        mu = input_values[0]
-        sigma = input_values[1]
-        pdf = np.norm(mu,sigma).pdf(x)
-        return pdf
-
-
 def infer_parameters():
     # define observation for true parameters mean=170, 65
     rng = np.random.RandomState()
@@ -113,7 +100,6 @@ def infer_parameters():
     mu1 = Uniform([[25], [100]], )
 
     # define the model
-    from abcpy.continuousmodels import Normal
     height_weight_model = NestedBivariateGaussian([mu0, mu1])
 
     # define statistics
@@ -128,8 +114,7 @@ def infer_parameters():
     sampler = PMC([height_weight_model], [approx_lhd], backend, seed=1)
 
     # sample from scheme
-    #T, n_sample, n_samples_per_param = 3, 250, 10
-    T, n_sample, n_samples_per_param = 2, 10, 10
+    T, n_sample, n_samples_per_param = 2, 100, 100
 
     journal = sampler.sample([y_obs],  T, n_sample, n_samples_per_param)
 
@@ -150,6 +135,4 @@ class ExampleMPIModelTest(unittest.TestCase):
 
 if __name__ == "__main__":
     setup_backend()
-    #print(run_mod#print(run_model())
-    model = NestedBivariateGaussian([100,200])
-    print(infer_parameters())
+    print('Posterior Mean: ' + str(infer_parameters().posterior_mean()))

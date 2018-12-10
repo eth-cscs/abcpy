@@ -269,12 +269,8 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
             The covariance matrix corresponding to this kernel.
         """
 
-        print("in calculate_cov line 255")
-
         if(accepted_parameters_manager.accepted_weights_bds is not None):
             weights = accepted_parameters_manager.accepted_weights_bds.value()
-            print("np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float) : ", np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float).shape)
-            print("weights.reshape(-1).astype(float) : ", weights.reshape(-1).astype(float).shape)
             cov = np.cov(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float),
                          aweights=weights.reshape(-1).astype(float), rowvar=False)
         else:
@@ -282,8 +278,6 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
                 cov = np.var(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float))
             else:
                 cov = np.cov(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float), rowvar=False)
-
-        print("calculate_cov done")
 
         return cov
 
