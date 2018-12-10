@@ -845,6 +845,8 @@ class PMC(BaseLikelihood, InferenceMethod):
             for i in range(0, self.n_samples):
                 new_weights[i] = new_weights[i] * approx_likelihood_new_parameters[i]
                 sum_of_weights += new_weights[i]
+
+            print("new_weights : ", new_weights, ", sum_of_weights : ", sum_of_weights)
             new_weights = new_weights / sum_of_weights
             accepted_parameters = new_parameters
 
@@ -921,7 +923,7 @@ class PMC(BaseLikelihood, InferenceMethod):
             total_pdf_at_theta = 1.
 
             # trick to avoid data not of allowed type...
-            obs[0] = list(obs[0])
+            # obs[0] = list(obs[0])
 
             # will crash inside likelihood function, approx_lhd.py line 97
             lhd = self.likfun.likelihood(obs, y_sim)
