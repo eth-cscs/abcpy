@@ -66,6 +66,7 @@ class NestedBivariateGaussian(ProbabilisticModel):
     #def forward_simulate(self, mpi_comm, input_values, k, rng=np.random.RandomState()): #, mpi_comm=None):
     def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
 
+        print('Type of mpi_comm: ' + str(mpi_comm))
         rank = mpi_comm.Get_rank()
 
         # Extract the input parameters
