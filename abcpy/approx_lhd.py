@@ -89,12 +89,11 @@ class SynLiklihood(Approx_likelihood):
         lw_cov_, _ = ledoit_wolf(stat_sim)
         robust_precision_sim = np.linalg.inv(lw_cov_)
         robust_precision_sim_det = np.linalg.det(robust_precision_sim)
-
-        result = pow(np.sqrt((1/(2*np.pi))*robust_precision_sim_det),self.stat_obs.shape[0])\
-        *np.exp(np.sum(-0.5*np.sum(np.array(self.stat_obs-mean_sim)* \
-        np.array(np.matrix(robust_precision_sim)*np.matrix(self.stat_obs-mean_sim).T).T, axis = 1)))
-
-        return result
+        # print("DEBUG: combining.")
+        tmp1 = robust_precision_sim * np.array(self.stat_obs.reshape(-1,1) - mean_sim.reshape(-1,1)).T
+        tmp2 = np.exp(np.sum(-0.5*np.sum(np.array(self.stat_obs-mean_sim) * np.array(tmp1).T, axis = 1)))
+        tmp3 = pow(np.sqrt((1/(2*np.pi)) * robust_precision_sim_det),self.stat_obs.shape[0])
+        return tmp2 * tmp3
 
 
 class PenLogReg(Approx_likelihood, GraphTools):
