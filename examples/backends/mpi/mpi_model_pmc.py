@@ -114,7 +114,7 @@ def infer_parameters():
     sampler = PMC([height_weight_model], [approx_lhd], backend, seed=1)
 
     # sample from scheme
-    T, n_sample, n_samples_per_param = 2, 100, 100
+    T, n_sample, n_samples_per_param = 2, 10, 10
 
     journal = sampler.sample([y_obs],  T, n_sample, n_samples_per_param)
 

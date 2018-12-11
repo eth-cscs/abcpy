@@ -2,20 +2,23 @@ import numpy as np
 from mpi4py import MPI
 from abcpy.probabilisticmodels import ProbabilisticModel, InputConnector
 
+
 def setup_backend():
     global backend
-    
+
     from abcpy.backends import BackendMPI as Backend
     backend = Backend(process_per_model=2)
+    # backend = Backend()
+
 
 def run_model():
     def square_mpi(model_comm, x):
-        local_res = np.array([x**2], 'i')
+        local_res = np.array([x ** 2], 'i')
         global_res = np.array([0], 'i')
-        model_comm.Reduce([local_res,MPI.INT], [global_res,MPI.INT], op=MPI.SUM, root=0)
+        model_comm.Reduce([local_res, MPI.INT], [global_res, MPI.INT], op=MPI.SUM, root=0)
         return global_res[0]
-        
-    data = [1,2,3,4,5]
+
+    data = [1, 2, 3, 4, 5]
     pds = backend.parallelize(data)
     pds_map = backend.map(square_mpi, pds)
     res = backend.collect(pds_map)
@@ -34,11 +37,10 @@ class NestedBivariateGaussian(ProbabilisticModel):
             raise TypeError('Input of Normal model is of type list')
 
         if len(parameters) != 2:
-            raise RuntimeError('Input list must be of length 2, containing [mu, sigma].')
+            raise RuntimeError('Input list must be of length 2, containing [mu1, mu1].')
 
         input_connector = InputConnector.from_list(parameters)
         super().__init__(input_connector, name)
-
 
     def _check_input(self, input_values):
         # Check whether input has correct type or format
@@ -46,31 +48,25 @@ class NestedBivariateGaussian(ProbabilisticModel):
             raise ValueError('Number of parameters are 2 (two means).')
         return True
 
-
     def _check_output(self, values):
         if not isinstance(values, np.ndarray):
             raise ValueError('Output of the normal distribution is always a numpy array.')
 
-        if value.shape[0] != 2:
+        if values.shape[0] != 2:
             raise ValueError('Output shape should be of dimension 2.')
 
         return True
 
-
     def get_output_dimension(self):
         return 2
 
-
-    #def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
-    #def forward_simulate(self, mpi_comm, input_values, k, rng=np.random.RandomState()): #, mpi_comm=None):
     def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
 
         rank = mpi_comm.Get_rank()
-
         # Extract the input parameters
         mu = input_values[rank]
         sigma = 1
-
+        # print(mu)
         # Do the actual forward simulation
         vector_of_k_samples = np.array(rng.normal(mu, sigma, k))
 
@@ -81,29 +77,21 @@ class NestedBivariateGaussian(ProbabilisticModel):
 
         # Format the output to obey API but only on rank 0
         if rank == 0:
-            result = [None]*k
+            result = [None] * k
             for i in range(k):
                 element0 = data[0][i]
                 element1 = data[1][i]
                 point = np.array([element0, element1])
                 result[i] = point
-            print("Process 0 will return : ", result)
-            return result
+            # print("Process 0 will return : ", result)
+            return [np.array([result[i]]).reshape(-1, ) for i in range(k)]
         else:
             return
-
-
-    def pdf(self, input_values, x):
-        mu = input_values[0]
-        sigma = input_values[1]
-        pdf = np.norm(mu,sigma).pdf(x)
-        return pdf
-
 
 def infer_parameters():
     # define observation for true parameters mean=170, 65
     rng = np.random.RandomState()
-    y_obs = rng.multivariate_normal([170, 65], np.eye(2), 100)
+    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2,))]
 
     # define prior
     from abcpy.continuousmodels import Uniform
@@ -111,7 +99,6 @@ def infer_parameters():
     mu1 = Uniform([[25], [100]], )
 
     # define the model
-    from abcpy.continuousmodels import Normal
     height_weight_model = NestedBivariateGaussian([mu0, mu1])
 
     # define statistics
@@ -119,21 +106,17 @@ def infer_parameters():
     statistics_calculator = Identity(degree = 2, cross = False)
 
     # define distance
-    from abcpy.distances import LogReg
-    distance_calculator = LogReg(statistics_calculator)
-
-    from abcpy.approx_lhd import SynLiklihood
-    approx_lhd = SynLiklihood(statistics_calculator)
+    from abcpy.distances import Euclidean
+    distance_calculator = Euclidean(statistics_calculator)
 
     # define sampling scheme
     from abcpy.inferences import PMCABC
     sampler = PMCABC([height_weight_model], [distance_calculator], backend, seed=1)
-
+    print('sampling')
     # sample from scheme
-    #T, n_sample, n_samples_per_param = 3, 250, 10
-    T, n_sample, n_samples_per_param = 1, 1, 1
-    eps_arr = np.array([.75])
-    epsilon_percentile = 10
+    T, n_sample, n_samples_per_param = 2, 10, 1
+    eps_arr = np.array([10000])
+    epsilon_percentile = 90
 
     journal = sampler.sample([y_obs],  T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
 
@@ -154,6 +137,5 @@ class ExampleMPIModelTest(unittest.TestCase):
 
 if __name__ == "__main__":
     setup_backend()
-    #print(run_mod#print(run_model())
-    model = NestedBivariateGaussian([100,200])
-    print(infer_parameters())
+    print('Posterior Mean: ' + str(infer_parameters().posterior_mean()))
+    print('True Value was: ' + str([170, 65]))

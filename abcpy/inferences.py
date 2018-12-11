@@ -412,6 +412,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 raise ValueError("The length of epsilon_init can only be equal to 1 or steps.")
 
         # main PMCABC algorithm
+        print("Starting PMC iterations")
         self.logger.info("Starting PMC iterations")
         for aStep in range(steps):
             self.logger.debug("iteration {} of PMC algorithm".format(aStep))
@@ -438,21 +439,21 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             rng_pds = self.backend.parallelize(rng_arr)
 
             # 0: update remotely required variables
-            # print("INFO: Broadcasting parameters.")
+            print("INFO: Broadcasting parameters.")
             self.logger.info("Broadcasting parameters")
             self.epsilon = epsilon_arr[aStep]
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters, accepted_weights, accepted_cov_mats)
 
             # 1: calculate resample parameters
-            # print("INFO: Resampling parameters")
+            print("INFO: Resampling parameters")
             self.logger.info("Resamping parameters")
 
-            params_and_dists_and_ysim_and_counter_pds = self.backend.map(self._resample_parameter, rng_pds)
-            params_and_dists_and_ysim_and_counter = self.backend.collect(params_and_dists_and_ysim_and_counter_pds)
-            new_parameters, distances, counter = [list(t) for t in zip(*params_and_dists_and_ysim_and_counter)]
+            params_and_dists_and_counter_pds = self.backend.map(self._resample_parameter, rng_pds)
+            params_and_dists_and_counter = self.backend.collect(params_and_dists_and_counter_pds)
+            new_parameters, distances, counter = [list(t) for t in zip(*params_and_dists_and_counter)]
             new_parameters = np.array(new_parameters)
 
-            #print(new_parameters)
+            print(new_parameters)
 
             for count in counter:
                 self.simulation_counter+=count
@@ -516,9 +517,6 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
 
         return journal
 
-    # define helper functions for map step
-    #def _resample_parameter(self, rng):
-    #def _resample_parameter(self, mpi_comm, rng):
     def _resample_parameter(self, rng, mpi_comm=None):
         """
         Samples a single model parameter and simulate from it until
@@ -564,30 +562,27 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                     if(perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1])!=0):
                         theta = perturbation_output[1]
                         break
-                y_sim = self.simulate(mpi_comm, self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
+                y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
                 counter+=1
 
             if(y_sim is not None):
-                print("Will compute distance")
-                print("self.accepted_parameters_manager.observations_bds.value() : ", self.accepted_parameters_manager.observations_bds.value())
-                print("type(self.accepted_parameters_manager.observations_bds.value()) : ", type(self.accepted_parameters_manager.observations_bds.value()))
-                print("y_sim : ", y_sim)
-                print("type(y_sim) : ", type(y_sim))
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),y_sim)
                 self.logger.debug("distance after {:4d} simulations: {:e}".format(
                     counter, distance))
-                print("Distance computed")
             else:
                 distance = self.distance.dist_max()
 
-        self.logger.debug(
-                "Needed {:4d} simulations to reach distance {:e} < epsilon = {:e}".
-                format(counter, distance, float(self.epsilon))
-                )
+        if mpi_comm == None or mpi_comm.Get_rank() == 0:
+            self.logger.debug(
+                    "Needed {:4d} simulations to reach distance {:e} < epsilon = {:e}".
+                    format(counter, distance, float(self.epsilon))
+                    )
+            print(str(theta)+str(distance))
+            return (theta, distance, counter)
 
-        return (theta, distance, counter)
+        return None
 
-    def _calculate_weight(self, theta):
+    def _calculate_weight(self, theta, mpi_comm=None):
         """
         Calculates the weight for the given parameter using
         accepted_parameters, accepted_cov_mat
@@ -823,10 +818,10 @@ class PMC(BaseLikelihood, InferenceMethod):
             # 2: calculate approximate lieklihood for new parameters
             self.logger.info("Calculate approximate likelihood")
             merged_sim_data_parameter = self.flat_map(new_parameters, self.n_samples_per_param, self._simulate_data)
+
             # Compute likelihood for each parameter value
             approx_likelihood_new_parameters, counter = self.simple_map(merged_sim_data_parameter, self._approx_calc)
             approx_likelihood_new_parameters = np.array(approx_likelihood_new_parameters).reshape(-1, 1)
-
             for count in counter:
                 self.simulation_counter+=count
 
@@ -893,10 +888,18 @@ class PMC(BaseLikelihood, InferenceMethod):
         main_result, counter = [list(t) for t in zip(*result)]
         return main_result, counter
     def flat_map(self, data, n_repeat, map_function):
+        # Create an array of data, with each data repeated n_repeat many times
         repeated_data = np.repeat(data, n_repeat, axis=0)
-        repeated_data_pds = self.backend.parallelize(repeated_data)
-        repeated_data__result_pds = self.backend.map(map_function, repeated_data_pds)
-        repeated_data_result = self.backend.collect(repeated_data__result_pds)
+        # Create an see array
+        n_total = n_repeat * data.shape[0]
+        seed_arr = self.rng.randint(1, n_total * n_total, size=n_total, dtype=np.int32)
+        rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
+        # Create data and rng array
+        repeated_data_rng = [[repeated_data[ind,:],rng_arr[ind]] for ind in range(n_total)]
+        repeated_data_rng_pds = self.backend.parallelize(repeated_data_rng)
+        # Map the function on the data using the corresponding rng
+        repeated_data_result_pds = self.backend.map(map_function, repeated_data_rng_pds)
+        repeated_data_result = self.backend.collect(repeated_data_result_pds)
         repeated_data, result = [list(t) for t in zip(*repeated_data_result)]
         merged_result_data = []
         for ind in range(0, data.shape[0]):
@@ -907,7 +910,7 @@ class PMC(BaseLikelihood, InferenceMethod):
         return merged_result_data
 
     # define helper functions for map step
-    def _simulate_data(self, theta, mpi_comm=None):
+    def _simulate_data(self, data, mpi_comm=None):
         """
         Simulate n_sample_per_param many datasets for new parameter
         Parameters
@@ -922,9 +925,9 @@ class PMC(BaseLikelihood, InferenceMethod):
 
         # Simulate the fake data from the model given the parameter value theta
         # print("DEBUG: Simulate model for parameter " + str(theta))
+        theta, rng = data[0], data[1]
         self.set_parameters(theta)
-        y_sim = self.simulate(1, self.rng, mpi_comm=mpi_comm)
-
+        y_sim = self.simulate(1, rng, mpi_comm=mpi_comm)
         return (theta, y_sim)
 
     def _approx_calc(self, sim_data_parameter, mpi_comm=None):
@@ -940,26 +943,20 @@ class PMC(BaseLikelihood, InferenceMethod):
             The approximated likelihood function
         """
 
-        if mpi_comm == None or mpi_comm.Get_rank()==0:
-            # Extract data and parameter
-            y_sim, theta = sim_data_parameter[0], sim_data_parameter[1]
+        # Extract data and parameter
+        y_sim, theta = sim_data_parameter[0], sim_data_parameter[1]
 
-            # print("DEBUG: Extracting observation.")
-            obs = self.accepted_parameters_manager.observations_bds.value()
-            # print("DEBUG: Computing likelihood...")
+        obs = self.accepted_parameters_manager.observations_bds.value()
 
-            total_pdf_at_theta = 1.
+        total_pdf_at_theta = 1.
 
-            lhd = self.likfun.likelihood(obs, y_sim)
+        lhd = self.likfun.likelihood(obs, y_sim)
 
-            pdf_at_theta = self.pdf_of_prior(self.model, theta)
+        pdf_at_theta = self.pdf_of_prior(self.model, theta)
 
-            total_pdf_at_theta *= (pdf_at_theta * lhd)
+        total_pdf_at_theta *= (pdf_at_theta * lhd)
 
-            # print("DEBUG: prior pdf evaluated at theta is :" + str(pdf_at_theta))
-            return (total_pdf_at_theta, 1)
-        
-        return None
+        return (total_pdf_at_theta, 1)
 
     def _calculate_weight(self, theta, mpi_comm=None):
         """
