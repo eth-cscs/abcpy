@@ -412,7 +412,6 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 raise ValueError("The length of epsilon_init can only be equal to 1 or steps.")
 
         # main PMCABC algorithm
-        print("Starting PMC iterations")
         self.logger.info("Starting PMC iterations")
         for aStep in range(steps):
             self.logger.debug("iteration {} of PMC algorithm".format(aStep))
@@ -439,21 +438,19 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             rng_pds = self.backend.parallelize(rng_arr)
 
             # 0: update remotely required variables
-            print("INFO: Broadcasting parameters.")
+            #print("INFO: Broadcasting parameters.")
             self.logger.info("Broadcasting parameters")
             self.epsilon = epsilon_arr[aStep]
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters, accepted_weights, accepted_cov_mats)
 
             # 1: calculate resample parameters
-            print("INFO: Resampling parameters")
+            #print("INFO: Resampling parameters")
             self.logger.info("Resamping parameters")
 
             params_and_dists_and_counter_pds = self.backend.map(self._resample_parameter, rng_pds)
             params_and_dists_and_counter = self.backend.collect(params_and_dists_and_counter_pds)
             new_parameters, distances, counter = [list(t) for t in zip(*params_and_dists_and_counter)]
             new_parameters = np.array(new_parameters)
-
-            print(new_parameters)
 
             for count in counter:
                 self.simulation_counter+=count
@@ -565,19 +562,15 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
                 counter+=1
 
-            if(y_sim is not None):
-                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),y_sim)
-                self.logger.debug("distance after {:4d} simulations: {:e}".format(
-                    counter, distance))
-            else:
-                distance = self.distance.dist_max()
+            distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+            self.logger.debug("distance after {:4d} simulations: {:e}".format(
+                     counter, distance))
 
         if mpi_comm == None or mpi_comm.Get_rank() == 0:
             self.logger.debug(
                     "Needed {:4d} simulations to reach distance {:e} < epsilon = {:e}".
                     format(counter, distance, float(self.epsilon))
                     )
-            print(str(theta)+str(distance))
             return (theta, distance, counter)
 
         return None

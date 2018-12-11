@@ -114,7 +114,7 @@ def infer_parameters():
     sampler = PMCABC([height_weight_model], [distance_calculator], backend, seed=1)
     print('sampling')
     # sample from scheme
-    T, n_sample, n_samples_per_param = 2, 10, 1
+    T, n_sample, n_samples_per_param = 1, 10, 1
     eps_arr = np.array([10000])
     epsilon_percentile = 90
 
