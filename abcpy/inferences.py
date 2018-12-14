@@ -433,6 +433,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 # Since each entry of new_cov_mats is a numpy array, we can multiply like this
                 accepted_cov_mats = [covFactor * new_cov_mat for new_cov_mat in new_cov_mats]
 
+            
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
             rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
             rng_pds = self.backend.parallelize(rng_arr)
@@ -464,6 +465,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 else:
                     epsilon_arr[aStep + 1] = np.max(
                         [np.percentile(distances, epsilon_percentile), epsilon_arr[aStep + 1]])
+
             # 2: calculate weights for new parameters
             self.logger.info("Calculating weights")
 
@@ -542,8 +544,6 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         counter=0
 
         while distance > self.epsilon:
-            #print( " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
-
             if self.accepted_parameters_manager.accepted_parameters_bds == None:
                 self.sample_from_prior(rng=rng)
                 theta = self.get_parameters()
@@ -562,7 +562,12 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
                 counter+=1
 
-            distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+            distance = None
+            # y_sim valid only at rank 0
+            if mpi_comm.Get_rank() == 0:
+                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+            distance = mpi_comm.bcast(distance)
+
             self.logger.debug("distance after {:4d} simulations: {:e}".format(
                      counter, distance))
 
