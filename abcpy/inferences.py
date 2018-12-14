@@ -1404,15 +1404,15 @@ class SABC(BaseDiscrepancy, InferenceMethod):
             self.all_distances_bds = self.backend.broadcast(all_distances)
 
     # define helper functions for map step
-    def _accept_parameter(self, data):
+    def _accept_parameter(self, data, mpi_comm=None):
         """
         Samples a single model parameter and simulate from it until
         accepted with probabilty exp[-rho(x,y)/epsilon].
 
         Parameters
         ----------
-        seed: integer
-            Initial seed for the random number generator.
+        seed_and_index: list of two integers
+            Initial seed for the random number generator and the index of data to operate on
 
         Returns
         -------
@@ -1437,9 +1437,14 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 self.sample_from_prior(rng=rng)
                 new_theta = np.array(self.get_parameters()).reshape(-1,)
                 all_parameters.append(new_theta)
-                y_sim = self.simulate(self.n_samples_per_param, rng=rng)
+                y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
                 counter+=1
-                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+                distance = None
+                # As y_sim valid only at rank 0
+                if mpi_comm.Get_rank() == 0:
+                    distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+                distance = mpi_comm.bcast(distance)
+
                 all_distances.append(distance)
                 acceptance = rng.binomial(1, np.exp(-distance / self.epsilon), 1)
             acceptance = 1
@@ -1455,9 +1460,13 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                     new_theta = np.array(perturbation_output[1]).reshape(-1,)
                     break
 
-            y_sim = self.simulate(self.n_samples_per_param, rng=rng)
+            y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
             counter+=1
-            distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+            distance = None
+            # As y_sim valid only at rank 0
+            if mpi_comm.Get_rank() == 0:
+                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+            distance = mpi_comm.bcast(distance)
 
             smooth_distance = self._smoother_distance([distance], self.all_distances_bds.value())
 

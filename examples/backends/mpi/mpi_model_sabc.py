@@ -110,15 +110,14 @@ def infer_parameters():
     distance_calculator = Euclidean(statistics_calculator)
 
     # define sampling scheme
-    from abcpy.inferences import PMCABC
-    sampler = PMCABC([height_weight_model], [distance_calculator], backend, seed=1)
+    from abcpy.inferences import SABC
+    sampler = SABC([height_weight_model], [distance_calculator], backend, seed=1)
     print('sampling')
-    # sample from scheme
-    T, n_sample, n_samples_per_param = 2, 100, 1
-    eps_arr = np.array([10000])
-    epsilon_percentile = 90
-
-    journal = sampler.sample([y_obs],  T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
+    steps, epsilon, n_samples, n_samples_per_param, beta, delta, v = 2, np.array([10000]), 10, 1, 2, 0.2, 0.3
+    ar_cutoff, resample, n_update, adaptcov, full_output  = 0.1, None, None, 1, 1
+    #
+    # # print('SABC Inferring')
+    journal = sampler.sample([y_obs], steps, epsilon, n_samples, n_samples_per_param, beta, delta, v, ar_cutoff, resample, n_update, adaptcov, full_output)
 
     return journal
 
