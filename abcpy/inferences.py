@@ -2101,7 +2101,7 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
             self.accepted_dist_bds = self.backend.broadcast(accepted_dist)
 
     # define helper functions for map step
-    def _accept_parameter(self, rng):
+    def _accept_parameter(self, rng, mpi_comm=None):
         """
         Samples a single model parameter and simulate from it until
         distance between simulated outcome and the observation is
@@ -2129,9 +2129,15 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         if self.accepted_parameters_manager.accepted_parameters_bds == None:
             while distance > self.epsilon[-1]:
                 self.sample_from_prior(rng=rng)
-                y_sim = self.simulate(self.n_samples_per_param, rng=rng)
+                y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
                 counter+=1
-                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+
+                distance = None
+                # As y_sim valid only at rank 0
+                if mpi_comm.Get_rank() == 0:
+                    distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+                distance = mpi_comm.bcast(distance)
+
             index_accept = 1
         else:
             index = rng.choice(len(self.accepted_parameters_manager.accepted_parameters_bds.value()), size=1)
@@ -2142,9 +2148,15 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
                     perturbation_output = self.perturb(index[0], rng=rng)
                     if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
                         break
-                y_sim = self.simulate(self.n_samples_per_param, rng=rng)
+                y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
                 counter+=1
-                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+
+                distance = None
+                # As y_sim valid only at rank 0
+                if mpi_comm.Get_rank() == 0:
+                    distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+                distance = mpi_comm.bcast(distance)
+
                 ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model, theta)
                 kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, index[0], theta)
                 kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, index[0], perturbation_output[1])
@@ -2792,7 +2804,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
             # define helper functions for map step
 
-    def _accept_parameter(self, rng_and_index):
+    def _accept_parameter(self, rng_and_index, mpi_comm=None):
         """
         Samples a single model parameter and simulate from it until
         distance between simulated outcome and the observation is
@@ -2822,7 +2834,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
         if self.accepted_parameters_manager.accepted_parameters_bds == None:
             self.sample_from_prior(rng=rng)
-            y_sim = self.simulate(self.n_samples_per_param, rng=rng)
+            y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
             counter+=1
         else:
             if self.accepted_parameters_manager.accepted_weights_bds.value()[index] > 0:
@@ -2831,15 +2843,25 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                     perturbation_output = self.perturb(index, rng=rng)
                     if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
                         break
-                y_sim = self.simulate(self.n_samples_per_param, rng=rng)
+                y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
                 counter+=1
                 y_sim_old = self.accepted_y_sim_bds.value()[index]
                 ## Calculate acceptance probability:
                 numerator = 0.0
                 denominator = 0.0
                 for ind in range(self.n_samples_per_param):
-                    numerator += (self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), [[y_sim[0][ind]]]) < self.epsilon[-1])
-                    denominator += (self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), [[y_sim_old[0][ind]]]) < self.epsilon[-1])
+
+                    distance_new = None
+                    distance_old = None
+                    # As y_sim valid only at rank 0
+                    if mpi_comm.Get_rank() == 0:
+                        distance_new = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), [[y_sim[0][ind]]])
+                        distance_old = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), [[y_sim_old[0][ind]]])
+                    distance_new = mpi_comm.bcast(distance_new)
+                    distance_old = mpi_comm.bcast(distance_old)
+
+                    numerator += (distance_new < self.epsilon[-1])
+                    denominator += (distance_old < self.epsilon[-1])
                 if denominator == 0:
                     ratio_data_epsilon = 1
                 else:
