@@ -2397,7 +2397,7 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
             self.accepted_dist_bds = self.backend.broadcast(accepted_dist)
 
     # define helper functions for map step
-    def _accept_parameter(self, rng):
+    def _accept_parameter(self, rng, mpi_comm=None):
         """
         Samples a single model parameter and simulate from it until
         distance between simulated outcome and the observation is
@@ -2423,9 +2423,15 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
 
         if self.accepted_parameters_manager.accepted_parameters_bds == None:
             self.sample_from_prior(rng=rng)
-            y_sim = self.simulate(self.n_samples_per_param, rng=rng)
+            y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
             counter+=1
-            dist = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+
+            distance = None
+            # As y_sim valid only at rank 0
+            if mpi_comm.Get_rank() == 0:
+                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+            distance = mpi_comm.bcast(distance)
+
             weight = 1.0
         else:
             index = rng.choice(len(self.accepted_parameters_manager.accepted_weights_bds.value()), size=1,
@@ -2437,9 +2443,14 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
                 if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
                     break
 
-            y_sim = self.simulate(self.n_samples_per_param, rng=rng)
+            y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
             counter+=1
-            dist = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+
+            distance = None
+            # As y_sim valid only at rank 0
+            if mpi_comm.Get_rank() == 0:
+                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+            distance = mpi_comm.bcast(distance)
 
             prior_prob = self.pdf_of_prior(self.model, perturbation_output[1])
             denominator = 0.0
@@ -2448,7 +2459,7 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
                 denominator += self.accepted_parameters_manager.accepted_weights_bds.value()[i, 0] * pdf_value
             weight = 1.0 * prior_prob / denominator
 
-        return (self.get_parameters(self.model), dist, weight, counter)
+        return (self.get_parameters(self.model), distance, weight, counter)
 
 
 class SMCABC(BaseDiscrepancy, InferenceMethod):
