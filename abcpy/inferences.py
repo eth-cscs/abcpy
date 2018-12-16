@@ -248,7 +248,7 @@ class RejectionABC(InferenceMethod):
 
         return journal
 
-    def _sample_parameter(self, rng):
+    def _sample_parameter(self, rng, mpi_comm=None):
         """
         Samples a single model parameter and simulates from it until
         distance between simulated outcome and the observation is
@@ -276,10 +276,16 @@ class RejectionABC(InferenceMethod):
             # Accept new parameter value if the distance is less than epsilon
             self.sample_from_prior(rng=rng)
             theta = np.array(self.get_parameters(self.model)).reshape(-1,)
-            y_sim = self.simulate(self.n_samples_per_param, rng=rng)
+            y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
             counter+=1
             if(y_sim is not None):
-                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+                # y_sim valid only at rank 0, when used with nested MPI
+                if mpi_comm != None and mpi_comm.Get_rank() == 0:
+                    distance = None
+                    distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+                    distance = mpi_comm.bcast(distance)
+                else:
+                    distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
                 self.logger.debug("distance after {:4d} simulations: {:e}".format(
                     counter, distance))
             else:
@@ -562,11 +568,13 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
                 counter+=1
 
-            distance = None
-            # y_sim valid only at rank 0
-            if mpi_comm.Get_rank() == 0:
+            # y_sim valid only at rank 0, when used with nested MPI
+            if mpi_comm != None and mpi_comm.Get_rank() == 0:
+                distance = None
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
-            distance = mpi_comm.bcast(distance)
+                distance = mpi_comm.bcast(distance)
+            else:
+                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
 
             self.logger.debug("distance after {:4d} simulations: {:e}".format(
                      counter, distance))
@@ -1439,11 +1447,13 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 all_parameters.append(new_theta)
                 y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
                 counter+=1
-                distance = None
-                # As y_sim valid only at rank 0
-                if mpi_comm.Get_rank() == 0:
+
+                # y_sim valid only at rank 0, when used with nested MPI
+                if mpi_comm != None and mpi_comm.Get_rank() == 0:
                     distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
-                distance = mpi_comm.bcast(distance)
+                    distance = mpi_comm.bcast(distance)
+                else:
+                    distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
 
                 all_distances.append(distance)
                 acceptance = rng.binomial(1, np.exp(-distance / self.epsilon), 1)
@@ -1462,11 +1472,12 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
             y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
             counter+=1
-            distance = None
-            # As y_sim valid only at rank 0
-            if mpi_comm.Get_rank() == 0:
+            # y_sim valid only at rank 0, when used with nested MPI
+            if mpi_comm != None and mpi_comm.Get_rank() == 0:
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
-            distance = mpi_comm.bcast(distance)
+                distance = mpi_comm.bcast(distance)
+            else:
+                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
 
             smooth_distance = self._smoother_distance([distance], self.all_distances_bds.value())
 
@@ -1720,7 +1731,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
         return journal
 
     # define helper functions for map step
-    def _accept_parameter(self, rng_and_index):
+    def _accept_parameter(self, rng_and_index, mpi_comm=None):
         """
         Samples a single model parameter and simulate from it until
         distance between simulated outcome and the observation is
@@ -1752,17 +1763,27 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
         if self.accepted_parameters_manager.accepted_parameters_bds == None:
             self.sample_from_prior(rng=rng)
-            y_sim = self.simulate(self.n_samples_per_param, rng=rng)
+            y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
             counter+=1
-            distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+            # y_sim valid only at rank 0, when used with nested MPI
+            if mpi_comm != None and mpi_comm.Get_rank() == 0:
+                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+                distance = mpi_comm.bcast(distance)
+            else:
+                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
             result_theta.append(self.get_parameters())
             result_distance.append(distance)
         else:
             theta = np.array(self.accepted_parameters_manager.accepted_parameters_bds.value()[index]).reshape(-1,)
             self.set_parameters(theta)
-            y_sim = self.simulate(self.n_samples_per_param, rng=rng)
+            y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
             counter+=1
-            distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+            # y_sim valid only at rank 0, when used with nested MPI
+            if mpi_comm != None and mpi_comm.Get_rank() == 0:
+                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+                distance = mpi_comm.bcast(distance)
+            else:
+                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
             result_theta.append(theta)
             result_distance.append(distance)
             for ind in range(0, self.chain_length - 1):
@@ -1770,9 +1791,14 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
                     perturbation_output = self.perturb(index, rng=rng)
                     if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1])!= 0:
                         break
-                y_sim = self.simulate(self.n_samples_per_param, rng=rng)
+                y_sim = self.simulate(self.n_samples_per_param, rng=rng,mpi_comm=mpi_comm)
                 counter+=1
-                new_distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+                # y_sim valid only at rank 0, when used with nested MPI
+                if mpi_comm != None and mpi_comm.Get_rank() == 0:
+                    new_distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+                    new_distance = mpi_comm.bcast(new_distance)
+                else:
+                    new_distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
 
                 ## Calculate acceptance probability:
                 ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model, theta)
@@ -2132,11 +2158,12 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
                 y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
                 counter+=1
 
-                distance = None
-                # As y_sim valid only at rank 0
-                if mpi_comm.Get_rank() == 0:
+                # y_sim valid only at rank 0, when used with nested MPI
+                if mpi_comm != None and mpi_comm.Get_rank() == 0:
                     distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
-                distance = mpi_comm.bcast(distance)
+                    distance = mpi_comm.bcast(distance)
+                else:
+                    distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
 
             index_accept = 1
         else:
@@ -2151,11 +2178,12 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
                 y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
                 counter+=1
 
-                distance = None
-                # As y_sim valid only at rank 0
-                if mpi_comm.Get_rank() == 0:
+                # y_sim valid only at rank 0, when used with nested MPI
+                if mpi_comm != None and mpi_comm.Get_rank() == 0:
                     distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
-                distance = mpi_comm.bcast(distance)
+                    distance = mpi_comm.bcast(distance)
+                else:
+                    distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
 
                 ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model, theta)
                 kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, index[0], theta)
@@ -2438,11 +2466,12 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
             y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
             counter+=1
 
-            distance = None
-            # As y_sim valid only at rank 0
-            if mpi_comm.Get_rank() == 0:
+            # y_sim valid only at rank 0, when used with nested MPI
+            if mpi_comm != None and mpi_comm.Get_rank() == 0:
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
-            distance = mpi_comm.bcast(distance)
+                distance = mpi_comm.bcast(distance)
+            else:
+                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
 
             weight = 1.0
         else:
@@ -2458,11 +2487,12 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
             y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
             counter+=1
 
-            distance = None
-            # As y_sim valid only at rank 0
-            if mpi_comm.Get_rank() == 0:
+            # y_sim valid only at rank 0, when used with nested MPI
+            if mpi_comm != None and mpi_comm.Get_rank() == 0:
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
-            distance = mpi_comm.bcast(distance)
+                distance = mpi_comm.bcast(distance)
+            else:
+                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
 
             prior_prob = self.pdf_of_prior(self.model, perturbation_output[1])
             denominator = 0.0
@@ -2850,16 +2880,15 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 numerator = 0.0
                 denominator = 0.0
                 for ind in range(self.n_samples_per_param):
-
-                    distance_new = None
-                    distance_old = None
-                    # As y_sim valid only at rank 0
-                    if mpi_comm.Get_rank() == 0:
+                    # y_sim valid only at rank 0, when used with nested MPI
+                    if mpi_comm != None and mpi_comm.Get_rank() == 0:
                         distance_new = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), [[y_sim[0][ind]]])
                         distance_old = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), [[y_sim_old[0][ind]]])
-                    distance_new = mpi_comm.bcast(distance_new)
-                    distance_old = mpi_comm.bcast(distance_old)
-
+                        distance_new = mpi_comm.bcast(distance_new)
+                        distance_old = mpi_comm.bcast(distance_old)
+                    else:
+                        distance_new = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), [[y_sim[0][ind]]])
+                        distance_old = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), [[y_sim_old[0][ind]]])
                     numerator += (distance_new < self.epsilon[-1])
                     denominator += (distance_old < self.epsilon[-1])
                 if denominator == 0:
