@@ -92,6 +92,7 @@ class PMCTests(unittest.TestCase):
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
         self.assertLess(abs(mu_post_mean - (-3.402868)), 1e-3)
+        print(mu_post_mean)
         self.assertLess(abs(sigma_post_mean - 6.212), 1e-3)
 
         self.assertFalse(journal.number_of_simulations == 0)
