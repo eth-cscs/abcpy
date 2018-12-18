@@ -113,11 +113,10 @@ def infer_parameters_pmcabc():
     # define sampling scheme
     from abcpy.inferences import PMCABC
     sampler = PMCABC([height_weight_model], [distance_calculator], backend, seed=1)
-    print('sampling')
     # sample from scheme
-    T, n_sample, n_samples_per_param = 2, 100, 1
+    T, n_sample, n_samples_per_param = 2, 10, 1
     eps_arr = np.array([10000])
-    epsilon_percentile = 90
+    epsilon_percentile = 95
 
     journal = sampler.sample([y_obs],  T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
 
@@ -146,9 +145,8 @@ def infer_parameters_abcsubsim():
 
     # define sampling scheme
     from abcpy.inferences import ABCsubsim
-    sampler = ABCsubsim([height_weight_model], [distance_calculator], backend, seed=1)
-    steps, n_samples = 10, 1000
-    print('ABCsubsim Inferring')
+    sampler = ABCsubsim([height_weight_model], [distance_calculator], backend)
+    steps, n_samples = 2, 4
     journal = sampler.sample([y_obs], steps, n_samples)
 
     return journal
@@ -175,10 +173,10 @@ def infer_parameters_rsmcabc():
     distance_calculator = Euclidean(statistics_calculator)
 
     # define sampling scheme
-    from abcpy.inferences import SMCABC
-    sampler = SMCABC([height_weight_model], [distance_calculator], backend, seed=1)
+    from abcpy.inferences import RSMCABC
+    sampler = RSMCABC([height_weight_model], [distance_calculator], backend, seed=1)
     print('sampling')
-    steps, n_samples, n_samples_per_param, alpha, epsilon_init, epsilon_final = 2, 10, 1, 0.1, 10000, 2000
+    steps, n_samples, n_samples_per_param, alpha, epsilon_init, epsilon_final = 2, 10, 1, 0.1, 10000, 500
     print('RSMCABC Inferring')
     journal = sampler.sample([y_obs], steps, n_samples, n_samples_per_param, alpha , epsilon_init, epsilon_final,full_output=1)
 
@@ -209,43 +207,11 @@ def infer_parameters_sabc():
     from abcpy.inferences import SABC
     sampler = SABC([height_weight_model], [distance_calculator], backend, seed=1)
     print('sampling')
-    steps, epsilon, n_samples, n_samples_per_param, beta, delta, v = 2, np.array([10000]), 10, 1, 2, 0.2, 0.3
+    steps, epsilon, n_samples, n_samples_per_param, beta, delta, v = 2, np.array([40000]), 10, 1, 2, 0.2, 0.3
     ar_cutoff, resample, n_update, adaptcov, full_output  = 0.1, None, None, 1, 1
     #
     # # print('SABC Inferring')
     journal = sampler.sample([y_obs], steps, epsilon, n_samples, n_samples_per_param, beta, delta, v, ar_cutoff, resample, n_update, adaptcov, full_output)
-
-    return journal
-
-def infer_parameters_smcabc():
-    # define observation for true parameters mean=170, 65
-    rng = np.random.RandomState()
-    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2,))]
-
-    # define prior
-    from abcpy.continuousmodels import Uniform
-    mu0 = Uniform([[150], [200]], )
-    mu1 = Uniform([[25], [100]], )
-
-    # define the model
-    height_weight_model = NestedBivariateGaussian([mu0, mu1])
-
-    # define statistics
-    from abcpy.statistics import Identity
-    statistics_calculator = Identity(degree = 2, cross = False)
-
-    # define distance
-    from abcpy.distances import Euclidean
-    distance_calculator = Euclidean(statistics_calculator)
-
-    # define sampling scheme
-    from abcpy.inferences import SMCABC
-    sampler = SMCABC([height_weight_model], [distance_calculator], backend, seed=1)
-    print('sampling')
-    steps, n_samples, n_samples_per_param, epsilon = 4, 100, 1, 10000
-    print('SMCABC Inferring')
-    journal = sampler.sample([y_obs], steps, n_samples, n_samples_per_param, epsilon, full_output=1)
-    print(np.array(journal.get_parameters()))
 
     return journal
 
@@ -273,7 +239,6 @@ def infer_parameters_apmcabc():
     # define sampling scheme
     from abcpy.inferences import APMCABC
     sampler = APMCABC([height_weight_model], [distance_calculator], backend, seed=1)
-    print('sampling')
     steps, n_samples, n_samples_per_param, alpha, acceptance_cutoff, covFactor, full_output, journal_file = 2, 100, 1, 0.2, 0.03, 2.0, 1, None
     journal = sampler.sample([y_obs], steps, n_samples, n_samples_per_param, alpha, acceptance_cutoff, covFactor, full_output, journal_file)
 
@@ -303,8 +268,7 @@ def infer_parameters_rejectionabc():
     # define sampling scheme
     from abcpy.inferences import RejectionABC
     sampler = RejectionABC([height_weight_model], [distance_calculator], backend, seed=1)
-    n_samples, n_samples_per_param, epsilon = 2, 2, 20
-    print('Rejection ABC Inferring')
+    n_samples, n_samples_per_param, epsilon = 2, 1, 20000
     journal = sampler.sample([y_obs], n_samples, n_samples_per_param, epsilon)
 
     return journal
@@ -357,10 +321,10 @@ if __name__ == "__main__":
     setup_backend()
     print('True Value was: ' + str([170, 65]))
     print('Posterior Mean of PMCABC: ' + str(infer_parameters_pmcabc().posterior_mean()))
-    # print('Posterior Mean of ABCsubsim: ' + str(infer_parameters_abcsubsim().posterior_mean()))
-    # print('Posterior Mean of RSMCABC: ' + str(infer_parameters_rsmcabc().posterior_mean()))
-    # print('Posterior Mean of SABC: ' + str(infer_parameters_sabc().posterior_mean()))
-    # print('Posterior Mean of SMCABC: ' + str(infer_parameters_smcabc().posterior_mean()))
-    # print('Posterior Mean of APMCABC: ' + str(infer_parameters_apmcabc().posterior_mean()))
-    # print('Posterior Mean of RejectionABC: ' + str(infer_parameters_rejectionabc().posterior_mean()))
-    # print('Posterior Mean of PMC: ' + str(infer_parameters_pmc().posterior_mean()))
+    #print('Posterior Mean of ABCsubsim: ' + str(infer_parameters_abcsubsim().posterior_mean())) (Buggy)
+    print('Posterior Mean of RSMCABC: ' + str(infer_parameters_rsmcabc().posterior_mean()))
+    print('Posterior Mean of SABC: ' + str(infer_parameters_sabc().posterior_mean()))
+    #print('Posterior Mean of SMCABC: ' + str(infer_parameters_smcabc().posterior_mean())) (Buggy)
+    print('Posterior Mean of APMCABC: ' + str(infer_parameters_apmcabc().posterior_mean()))
+    print('Posterior Mean of RejectionABC: ' + str(infer_parameters_rejectionabc().posterior_mean()))
+    print('Posterior Mean of PMC: ' + str(infer_parameters_pmc().posterior_mean()))
