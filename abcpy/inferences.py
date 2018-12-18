@@ -568,23 +568,16 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
                 counter+=1
 
-            # y_sim valid only at rank 0, when used with nested MPI
-            if mpi_comm != None and mpi_comm.Get_rank() == 0:
-                distance = None
-                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
-                distance = mpi_comm.bcast(distance)
-            else:
-                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+            distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
 
             self.logger.debug("distance after {:4d} simulations: {:e}".format(
                      counter, distance))
 
-        if mpi_comm == None or mpi_comm.Get_rank() == 0:
-            self.logger.debug(
-                    "Needed {:4d} simulations to reach distance {:e} < epsilon = {:e}".
-                    format(counter, distance, float(self.epsilon))
-                    )
-            return (theta, distance, counter)
+        self.logger.debug(
+                "Needed {:4d} simulations to reach distance {:e} < epsilon = {:e}".
+                format(counter, distance, float(self.epsilon))
+                )
+        return (theta, distance, counter)
 
         return None
 
