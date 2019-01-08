@@ -302,5 +302,97 @@ class Poisson(Discrete, ProbabilisticModel):
         """
 
         pmf = poisson(int(input_values[0])).pmf(x)
-
+        self.calculated_pmf = pmf
         return pmf
+
+
+
+class DiscreteUniform(Discrete, ProbabilisticModel):
+    def __init__(self, parameters, name='DiscreteUniform'):
+        """This class implements a probabilistic model following a Discrete Uniform distribution.
+
+        Parameters
+        ----------
+        parameters: list
+             A list containing two entries, the upper and lower bound of the range.
+
+        name: string
+            The name that should be given to the probabilistic model in the journal file.
+        """
+
+        if not isinstance(parameters, list):
+            raise TypeError('Input for Discrete Uniform has to be of type list.')
+        if len(parameters) != 2:
+            raise ValueError('Input for Discrete Uniform has to be of length 2.')
+
+        self._dimension = 1
+        input_parameters = InputConnector.from_list(parameters)
+        super(DiscreteUniform, self).__init__(input_parameters, name)
+        self.visited = False
+
+    def _check_input(self, input_values):
+        # Check whether input has correct type or format
+        if len(input_values) != 2:
+            raise ValueError('Number of parameters of FloorField model must be 2.')
+
+        # Check whether input is from correct domain
+        lowerbound = input_values[0]  # Lower bound
+        upperbound = input_values[1]  # Upper bound
+
+        if not isinstance(lowerbound, (int, np.int64, np.int32, np.int16)) or not isinstance(upperbound, (int, np.int64, np.int32, np.int16)) or lowerbound >= upperbound:
+            return False
+        return True
+
+    def _check_output(self, parameters):
+        """
+        Checks parameter values given as fixed values. Returns False iff it is not an integer
+        """
+        if not isinstance(parameters[0], (int, np.int32, np.int64)):
+            return False
+        return True
+
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+        """
+        Samples from the Discrete Uniform distribution associated with the probabilistic model.
+
+        Parameters
+        ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
+        k: integer
+            The number of samples to be drawn.
+        rng: random number generator
+            The random number generator to be used.
+
+        Returns
+        -------
+        list: [np.ndarray]
+            A list containing the sampled values as np-array.
+        """
+
+        result = np.array(rng.randint(input_values[0], input_values[1], size=k, dtype=np.int64))
+        return [np.array([x]) for x in result]
+
+    def get_output_dimension(self):
+        return self._dimension
+
+    def pmf(self, input_values, x):
+        """Evaluates the probability mass function at point x.
+
+        Parameters
+        ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
+        x: float
+            The point at which the pmf should be evaluated.
+
+        Returns
+        -------
+        float:
+            The pmf evaluated at point x.
+        """
+        upperbound, lowerbound = input_values[0], input_values[1]
+        pmf = 1. / (upperbound - lowerbound + 1)
+        self.calculated_pmf = pmf
+        return pmf
+
