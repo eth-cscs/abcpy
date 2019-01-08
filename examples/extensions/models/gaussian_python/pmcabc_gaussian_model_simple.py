@@ -1,8 +1,11 @@
+import logging
 import numpy as np
 
 from numbers import Number
 
 from abcpy.probabilisticmodels import ProbabilisticModel, Continuous, InputConnector
+
+logging.basicConfig(level=logging.INFO)
 
 class Gaussian(ProbabilisticModel, Continuous):
     """
@@ -74,8 +77,8 @@ def infer_parameters():
     from abcpy.continuousmodels import Uniform
     mu = Uniform([[150], [200]], )
     sigma = Uniform([[5], [25]], )
-
     # define the model
+    from abcpy.continuousmodels import Normal as Gaussian
     height = Gaussian([mu, sigma], name='height')
 
     # define statistics

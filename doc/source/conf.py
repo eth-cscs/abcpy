@@ -25,13 +25,13 @@ class Mock(MagicMock):
     def __getattr__(cls, name):
             return MagicMock()
 
-MOCK_MODULES = ['numpy', 'pandas', 'glmnet', 'scipy', 'scipy.stats', 'scipy.special', 'scipy.optimize', 'sklearn', 'sklearn.covariance', 'findspark', 'coverage', 'numpy.random']
+MOCK_MODULES = ['numpy', 'pandas', 'glmnet', 'mpi4py', 'scipy', 'scipy.stats', 'scipy.special', 'scipy.optimize', 'sklearn', 'sklearn.covariance', 'findspark', 'coverage', 'numpy.random']
 sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('../..'))
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -50,6 +50,7 @@ extensions = [
 ]
 
 autodoc_member_order = 'bysource'
+autodoc_mock_imports = MOCK_MODULES
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -62,7 +63,7 @@ source_suffix = '.rst'
 # The encoding of source files.
 #source_encoding = 'utf-8-sig'
 
-# The master toctree document.
+# The master doctree document.
 master_doc = 'index'
 
 # General information about the project.

@@ -6,7 +6,7 @@
 Using Parallelization Backends
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Running ABC algorithms is often computationally expensive, thus ABCpy is build
+Running ABC algorithms is often computationally expensive, thus ABCpy is built
 with parallelization in mind. In order to run your inference schemes in parallel
 on multiple nodes (computers) you can choose from the following backends.
 
@@ -52,7 +52,7 @@ be properly installed on the cluster, such that it is available to the Python
 interpreters on the master and the worker nodes.
 
 Using the MPI Backend
-~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
 
 To run ABCpy in parallel using MPI, one only needs to use the provided MPI
 backend. Using the same example as above, the statements for the backend have to
@@ -66,7 +66,7 @@ be changed to
 In words, one only needs to initialize an instance of the MPI backend. The
 number of ranks to spawn are specified at runtime through the way the script is
 run. A minimum of two ranks is required, since rank 0 (master) is used to
-orchestrade the calculation and all other ranks (workers) actually perform the
+orchestrate the calculation and all other ranks (workers) actually perform the
 calculation.
 
 The standard way to run the script using Open MPI is directly via mpirun like below

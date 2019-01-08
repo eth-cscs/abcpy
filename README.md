@@ -1,7 +1,7 @@
 # ABCpy [![Documentation Status](https://readthedocs.org/projects/abcpy/badge/?version=latest)](http://abcpy.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.org/eth-cscs/abcpy.svg?branch=master)](https://travis-ci.org/eth-cscs/abcpy)
 
 ABCpy is a scientific library written in Python for Bayesian uncertainty quantification in
-absence of likelihood function, which parallelizes existing approaximate Bayesian computation (ABC) 
+absence of likelihood function, which parallelizes existing approximate Bayesian computation (ABC) 
 algorithms and other likelihood-free inference schemes. It presently includes:
 
 * RejectionABC
@@ -26,52 +26,37 @@ scientists by providing
 # Documentation
 For more information, check out the
 
-* [Documentation](http://abcpy.readthedocs.io/en/v0.5.0) 
-* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.5.0/examples) directory and
-* [Reference](http://abcpy.readthedocs.io/en/v0.5.0/abcpy.html)
+* [Documentation](http://abcpy.readthedocs.io/en/v0.5.3) 
+* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.5.3/examples) directory and
+* [Reference](http://abcpy.readthedocs.io/en/v0.5.3/abcpy.html)
 
 Further, we provide a
 [collection of models](https://github.com/eth-cscs/abcpy-models) for which ABCpy
 has been applied successfully. This is a good place to look at more complicated inference setups.
 
 # Author 
-ABCpy was written by [Ritabrata Dutta, Università della svizzera italiana](https://search.usi.ch/en/people/c4342228614d041dca7e2f67cbb996c9/dutta-ritabrata) 
-and [Marcel Schoengens, CSCS, ETH Zurich](schoengens@cscs.ch), and we're actively developing it. Please feel free 
-to submit any bugs or feature requests. We'd also love to hear about your experiences with ABCpy in general. Drop us an email!
+ABCpy was written by [Ritabrata Dutta, Warwick
+University](https://warwick.ac.uk/fac/sci/statistics/staff/academic-research/dutta/)
+and [Marcel Schoengens](schoengens@cscs.ch), CSCS, ETH Zurich, and we're
+actively developing it. Please feel free to submit any bugs or feature requests.
+We'd also love to hear about your experiences with ABCpy in general. Drop us an
+email!
 
-We want to thank
-[Prof. Antonietta Mira, Università della svizzera italiana](https://search.usi.ch/en/people/f8960de6d60dd08a79b6c1eb20b7442b/Mira-Antonietta),
-and
-[Prof. Jukka-Pekka Onnela, Harvard University](https://www.hsph.harvard.edu/onnela-lab/)
-for helpful contributions and advice; Avinash Ummadisinghu and Nicole Widmern
-respectively for developing dynamic-MPI backend and making ABCpy suitbale for
-hierarchical models; and finally CSCS (Swiss National Super Computing Center)
-for their generous support.
+We want to thank [Prof. Antonietta Mira, Università della svizzera
+italiana](https://search.usi.ch/en/people/f8960de6d60dd08a79b6c1eb20b7442b/Mira-Antonietta),
+and [Prof. Jukka-Pekka Onnela, Harvard
+University](https://www.hsph.harvard.edu/onnela-lab/) for helpful contributions
+and advice; Avinash Ummadisinghu and Nicole Widmern respectively for developing
+dynamic-MPI backend and making ABCpy suitable for hierarchical models; and
+finally CSCS (Swiss National Super Computing Center) for their generous support.
 
 ## Citation
 
-There is a paper in the proceedings of the 2017 PASC conference. We would appreciate a citation. 
+There is a paper in the proceedings of the 2017 PASC conference. In case you use
+ABCpy for your publication, we would appreciate a citation. You can use
+[this](https://github.com/eth-cscs/abcpy/blob/v0.5.3/doc/literature/DuttaS-ABCpy-PASC-2017.bib)
+BibTex reference.
 
-```
-@inproceedings{Dutta:2017:AUE:3093172.3093233,
- author = {Dutta, Ritabrata and Schoengens, Marcel and Onnela, Jukka-Pekka and Mira, Antonietta},
- title = {ABCpy: A User-Friendly, Extensible, and Parallel Library for Approximate Bayesian Computation},
- booktitle = {Proceedings of the Platform for Advanced Scientific Computing Conference},
- series = {PASC '17},
- year = {2017},
- isbn = {978-1-4503-5062-4},
- location = {Lugano, Switzerland},
- pages = {8:1--8:9},
- articleno = {8},
- numpages = {9},
- url = {http://doi.acm.org/10.1145/3093172.3093233},
- doi = {10.1145/3093172.3093233},
- acmid = {3093233},
- publisher = {ACM},
- address = {New York, NY, USA},
- keywords = {ABC, Library, Parallel, Spark},
-} 
-```
 
 ## Other Refernces
 
