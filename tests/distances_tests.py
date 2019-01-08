@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from abcpy.distances import Euclidean, PenLogReg, LogReg
+from abcpy.distances import Euclidean, PenLogReg, LogReg, KLdistance, Abserror
 from abcpy.statistics import Identity
 
 class EuclideanTests(unittest.TestCase):
@@ -78,8 +78,7 @@ class LogRegTests(unittest.TestCase):
         self.assertEqual(self.distancefunc.distance(d1,d1), 0.0)
         
     def test_dist_max(self):
-        self.assertTrue(self.distancefunc.dist_max() == 1.0)        
-        
+        self.assertTrue(self.distancefunc.dist_max() == 1.0)
 
 if __name__ == '__main__':
     unittest.main()
