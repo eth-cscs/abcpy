@@ -15,15 +15,16 @@ new version `M.m.b':
 1. Create a release branch `release-M.m.b`
 2. Adapt `VERSION` file in the repos root directory: `echo M.m.b > VERSION`
 3. Adapt `README.md` file: adapt links to correct version of `User Documentation` and `Reference`
-4. Merge all desired feature branches into the release branch
-5. Create a pull/ merge request: release branch -> master
+4. Adapt `doc/source/DEVELOP.rst` file: to install correct version of ABCpy
+5. Merge all desired feature branches into the release branch
+6. Create a pull/ merge request: release branch -> master
 
 After a successful merge:
 
-5. Create tag vM.m.b (`git tag vM.m.b`)
-6. Retag tag `stable` to the current version
-7. Push the tag (`git push --tags`)
-8. Create a release in GitHub
+7. Create tag vM.m.b (`git tag vM.m.b`)
+8. Retag tag `stable` to the current version
+9. Push the tag (`git push --tags`)
+10. Create a release in GitHub
 
 The new tag on master will signal Travis to deploy a new package to Pypi while
 the GitHub release is just for user documentation.
