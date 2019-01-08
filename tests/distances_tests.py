@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from abcpy.distances import Euclidean, PenLogReg, LogReg, KLdistance, Abserror
+from abcpy.distances import Euclidean, PenLogReg, LogReg
 from abcpy.statistics import Identity
 
 class EuclideanTests(unittest.TestCase):
