@@ -2792,13 +2792,14 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             self.accepted_parameters_manager.model)
 
         counter=0
-
+        print('Hello 1')
         # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
-        if self.accepted_parameters_manager.accepted_parameters_bds == None:
+        if self.accepted_parameters_manager.accepted_parameters_bds is None:
             self.sample_from_prior(rng=rng)
             y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
             counter+=1
         else:
+            print('Hello2')
             if self.accepted_parameters_manager.accepted_weights_bds.value()[index] > 0:
                 theta = np.array(self.accepted_parameters_manager.accepted_parameters_bds.value()[index]).reshape(-1,)
                 while True:
