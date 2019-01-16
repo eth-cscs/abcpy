@@ -1,3 +1,4 @@
+# noinspection PyInterpreter
 import pickle
 import time
 
@@ -353,7 +354,7 @@ class BackendMPIWorker(Backend):
         self.__worker_run()
 
     def run_function(self, function_packed, data_item):
-        """ 
+        """
         Receives a serialized function unpack it and run it
         Passes the model communicator if ther is more than one process per model
         """
