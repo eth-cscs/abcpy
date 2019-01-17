@@ -1581,7 +1581,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
 
         for aStep in range(0, steps):
-            self.logger.info("Step {}".format(aStep))
+            self.logger.info("ABCsubsim step {}".format(aStep))
 
             if aStep==0 and journal_file is not None:
                 accepted_parameters = journal.parameters[-1]
@@ -1589,7 +1589,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
                 accepted_cov_mats = journal.opt_values[-1]
 
             # main ABCsubsim algorithm
-            self.logger.info("Initializatio of ABCsubsim")
+            self.logger.info("Initialization of ABCsubsim")
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=int(n_samples / temp_chain_length),
                                         dtype=np.uint32)
             rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
@@ -1607,7 +1607,9 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             # print("INFO: Initial accepted parameter parameters")
             self.logger.info("Initial accepted parameters")
             params_and_dists_pds = self.backend.map(self._accept_parameter, rng_and_index_pds)
+            self.logger.debug("Map random number to a pseudo-observation")
             params_and_dists = self.backend.collect(params_and_dists_pds)
+            self.logger.debug("Collect results from the mapping")
             new_parameters, new_distances, counter = [list(t) for t in zip(*params_and_dists)]
 
             for count in counter:
@@ -1617,11 +1619,13 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             distances = np.concatenate(new_distances)
 
             # 2: Sort and renumber samples
+            self.logger.debug("Sort and renumber samples.")
             SortIndex = sorted(range(len(distances)), key=lambda k: distances[k])
             distances = distances[SortIndex]
             accepted_parameters = accepted_parameters[SortIndex, :]
 
             # 3: Calculate and broadcast annealling parameters
+            self.logger.debug("Calculate and broadcast annealling parameters.")
             temp_chain_length = chain_length
             if aStep > 0:
                 anneal_parameter_old = anneal_parameter
@@ -1631,6 +1635,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
 
             # 4: Update proposal covariance matrix (Parallelized)
+            self.logger.debug("Update proposal covariance matrix (Parallelized).")
             if aStep == 0:
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
 
@@ -1654,7 +1659,9 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             rng_and_index_arr = np.column_stack((rng_arr, index_arr))
             rng_and_index_pds = self.backend.parallelize(rng_and_index_arr)
 
+            self.logger.debug("Update co-variance matrix in parallel (map).")
             cov_mats_index_pds = self.backend.map(self._update_cov_mat, rng_and_index_pds)
+            self.logger.debug("Collect co-variance matrix.")
             cov_mats_index = self.backend.collect(cov_mats_index_pds)
             cov_mats, T, accept_index, counter = [list(t) for t in zip(*cov_mats_index)]
 
@@ -1666,6 +1673,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
                     accepted_cov_mats = cov_mats[ind]
                     break
 
+            self.logger.debug("Broadcast accepted parameters.")
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
 
             if full_output == 1:
@@ -1811,6 +1819,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
         counter = 0
 
         for ind in range(0, self.chain_length):
+            self.logger.debug("Parameter acceptance loop step {}.".format(ind))
             while True:
                 perturbation_output = self.perturb(0, rng=rng)
                 if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
@@ -1819,16 +1828,18 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             counter+=1
             new_distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
 
+            self.logger.debug("Calculate acceptance probability.")
             ## Calculate acceptance probability:
             ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model, theta)
             kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,0 , theta)
             kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,0 , perturbation_output[1])
             ratio_likelihood_prob = kernel_numerator / kernel_denominator
             acceptance_prob = min(1, ratio_prior_prob * ratio_likelihood_prob) * (new_distance < self.anneal_parameter)
-            ## If accepted
             if rng.binomial(1, acceptance_prob) == 1:
                 theta = perturbation_output[1]
                 acceptance = acceptance + 1
+
+        self.logger.debug("Return accepted parameters.")
         if acceptance / 10 <= 0.5 and acceptance / 10 >= 0.3:
             return (accepted_cov_mats_transformed, t, 1, counter)
         else:

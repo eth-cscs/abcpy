@@ -1,3 +1,6 @@
+import logging
+logging.basicConfig(level=logging.DEBUG)
+
 import numpy as np
 from mpi4py import MPI
 from abcpy.probabilisticmodels import ProbabilisticModel, InputConnector
@@ -304,24 +307,24 @@ def infer_parameters_pmc():
 
     return journal
 
-import unittest
-from mpi4py import MPI
+#import unittest
+#from mpi4py import MPI
 
 def setUpModule():
     setup_backend()
 
-class ExampleMPIModelTest(unittest.TestCase):
-    def test_example(self):
-        result = run_model()
-        data = [1,2,3,4,5]
-        expected_result = list(map(lambda x:2*(x**2),data))
-        assert result==expected_result
+#class ExampleMPIModelTest(unittest.TestCase):
+#    def test_example(self):
+#        result = run_model()
+#        data = [1,2,3,4,5]
+#        expected_result = list(map(lambda x:2*(x**2),data))
+#        assert result==expected_result
 
 if __name__ == "__main__":
     setup_backend()
     print('True Value was: ' + str([170, 65]))
     print('Posterior Mean of PMCABC: ' + str(infer_parameters_pmcabc().posterior_mean()))
-    #print('Posterior Mean of ABCsubsim: ' + str(infer_parameters_abcsubsim().posterior_mean())) (Buggy)
+    print('Posterior Mean of ABCsubsim: ' + str(infer_parameters_abcsubsim().posterior_mean())) (Buggy)
     print('Posterior Mean of RSMCABC: ' + str(infer_parameters_rsmcabc().posterior_mean()))
     print('Posterior Mean of SABC: ' + str(infer_parameters_sabc().posterior_mean()))
     #print('Posterior Mean of SMCABC: ' + str(infer_parameters_smcabc().posterior_mean())) (Buggy)
