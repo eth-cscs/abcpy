@@ -226,3 +226,12 @@ class BDSDummy(BDS):
     def value(self):
         return self.object
 
+
+class NestedParallelizationController():
+    @abstractmethod
+    def nested_execution(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def run_nested(self, func, *args, **kwargs):
+        raise NotImplementedError

@@ -2818,16 +2818,21 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                     if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
                         break
                 y_sim = self.simulate(self.n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
+                print('2821: ' + y_sim.__str__())
                 counter+=1
                 y_sim_old = self.accepted_y_sim_bds.value()[index]
                 ## Calculate acceptance probability:
                 numerator = 0.0
                 denominator = 0.0
                 for ind in range(self.n_samples_per_param):
-                    distance_new = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), [[y_sim[0][ind]]])
+                    print('2828: ' + y_sim.__str__())
+                    lhs = self.accepted_parameters_manager.observations_bds.value()
+                    rhs = [[y_sim[0][ind]]]
+                    distance_new = self.distance.distance(lhs, rhs)
                     distance_old = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), [[y_sim_old[0][ind]]])
                     numerator += (distance_new < self.epsilon[-1])
                     denominator += (distance_old < self.epsilon[-1])
+                print('denom')
                 if denominator == 0:
                     ratio_data_epsilon = 1
                 else:
@@ -2837,6 +2842,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, index, perturbation_output[1])
                 ratio_likelihood_prob = kernel_numerator / kernel_denominator
                 acceptance_prob = min(1, ratio_data_epsilon * ratio_prior_prob * ratio_likelihood_prob)
+                print('binom')
                 if rng.binomial(1, acceptance_prob) == 1:
                     self.set_parameters(perturbation_output[1])
                 else:

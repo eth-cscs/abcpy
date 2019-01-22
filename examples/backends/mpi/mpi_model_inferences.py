@@ -10,6 +10,7 @@ def setup_backend():
     global backend
 
     from abcpy.backends import BackendMPI as Backend
+    from abcpy.backends import NestedParallelizationController
     backend = Backend(process_per_model=2)
     # backend = Backend()
 
@@ -63,8 +64,12 @@ class NestedBivariateGaussian(ProbabilisticModel):
     def get_output_dimension(self):
         return 2
 
-    def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState(), npc=None):
+        print('before mpi part')
+        forward_simulate_mpi(input_values, k, rng=np.random.RandomState, mpi_comm=npc.get_communicator())
+        print('after mpi part')
 
+    def forward_simulate_mpi(self, input_values, k, rng=np.random.RandomState, mpi_comm=None):
         rank = mpi_comm.Get_rank()
         # Extract the input parameters
         mu = input_values[rank]
@@ -75,7 +80,7 @@ class NestedBivariateGaussian(ProbabilisticModel):
 
         # Send everything back to rank 0
         # print("Hello from forward_simulate before gather, rank = ", rank)
-        data = mpi_comm.gather(vector_of_k_samples)
+        data = mpi_comm.gather(vector_of_k_samples, root=0)
         # print("Hello from forward_simulate after gather, rank = ", rank)
 
         # Format the output to obey API and broadcast it before return
@@ -88,9 +93,10 @@ class NestedBivariateGaussian(ProbabilisticModel):
                 point = np.array([element0, element1])
                 result[i] = point
             result = [np.array([result[i]]).reshape(-1, ) for i in range(k)]
+            return result
+        else:
+            return None
 
-        result = mpi_comm.bcast(result)
-        return result
 
 def infer_parameters_pmcabc():
     # define observation for true parameters mean=170, 65
@@ -307,8 +313,36 @@ def infer_parameters_pmc():
 
     return journal
 
-#import unittest
-#from mpi4py import MPI
+
+def infer_parameters_smcabc():
+    # define observation for true parameters mean=170, 65
+    rng = np.random.RandomState()
+    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2,))]
+
+    # define prior
+    from abcpy.continuousmodels import Uniform
+    mu0 = Uniform([[150], [200]], )
+    mu1 = Uniform([[25], [100]], )
+
+    # define the model
+    height_weight_model = NestedBivariateGaussian([mu0, mu1])
+
+    # define statistics
+    from abcpy.statistics import Identity
+    statistics_calculator = Identity(degree = 2, cross = False)
+
+    # define distance
+    from abcpy.distances import Euclidean
+    distance_calculator = Euclidean(statistics_calculator)
+
+    # define sampling scheme
+    from abcpy.inferences import SMCABC
+    sampler = SMCABC([height_weight_model], [distance_calculator], backend, seed=1)
+    steps, n_samples, n_samples_per_param, epsilon = 2, 10, 1, 2000
+    journal = sampler.sample([y_obs], steps, n_samples, n_samples_per_param, epsilon, full_output=1)
+
+    return journal
+
 
 def setUpModule():
     setup_backend()
@@ -324,10 +358,10 @@ if __name__ == "__main__":
     setup_backend()
     print('True Value was: ' + str([170, 65]))
     print('Posterior Mean of PMCABC: ' + str(infer_parameters_pmcabc().posterior_mean()))
-    print('Posterior Mean of ABCsubsim: ' + str(infer_parameters_abcsubsim().posterior_mean())) (Buggy)
+    #print('Posterior Mean of ABCsubsim: ' + str(infer_parameters_abcsubsim().posterior_mean())) (Buggy)
     print('Posterior Mean of RSMCABC: ' + str(infer_parameters_rsmcabc().posterior_mean()))
     print('Posterior Mean of SABC: ' + str(infer_parameters_sabc().posterior_mean()))
-    #print('Posterior Mean of SMCABC: ' + str(infer_parameters_smcabc().posterior_mean())) (Buggy)
+    print('Posterior Mean of SMCABC: ' + str(infer_parameters_smcabc().posterior_mean())) (Buggy)
     print('Posterior Mean of APMCABC: ' + str(infer_parameters_apmcabc().posterior_mean()))
     print('Posterior Mean of RejectionABC: ' + str(infer_parameters_rejectionabc().posterior_mean()))
     print('Posterior Mean of PMC: ' + str(infer_parameters_pmc().posterior_mean()))

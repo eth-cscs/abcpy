@@ -126,6 +126,7 @@ class Euclidean(Distance):
         d1, d2: list
             A list, containing a list describing the data set
         """
+
         if not isinstance(d1, list):
             raise TypeError('Data is not of allowed types')
         if not isinstance(d2, list):

@@ -1,9 +1,9 @@
 # noinspection PyInterpreter
+import cloudpickle
+import numpy as np
 import pickle
 import time
 
-import cloudpickle
-import numpy as np
 from mpi4py import MPI
 
 from abcpy.backends import BDS, PDS, Backend
@@ -11,6 +11,40 @@ from abcpy.backends import BDS, PDS, Backend
 
 import abcpy.backends.mpimanager
 from mpi4py import MPI
+
+
+class NestedParallelizationControllerMPI(NestedParallelizationController):
+    def __init__(self, mpi_comm):
+        self.loop_workers = True
+        self.mpi_comm = mpi_comm
+        self.nested_func = None
+        self.func_args = ()
+        self.func_kwargs = {}
+
+    def get_communicator(self):
+        return mpi_comm
+
+    def nested_execution(self):
+        while loop_workers:
+            self.mpi_comm.barrier()
+            func_kwargs['mpi_comm'] = self.mpi_comm
+            self.nested_func(*func_args, **func_kwargs)
+            self.mpi_comm.barrier()
+
+    def run_nested(self, func, *args, **kwargs):
+        self.nested_func = func
+        self.func_args = args
+        self.func_kwargs = kwargs
+        nested_execution()
+        self.nested_func = None
+        self.func_args = ()
+        self.func_kwargs = {}
+
+    def stop_workers(self):
+        self.loop_workers = False
+        func = (lambda : None)
+        run_nested(func)
+
 
 class BackendMPIScheduler(Backend):
     """Defines the behavior of the scheduler process
@@ -361,11 +395,17 @@ class BackendMPIWorker(Backend):
         func = cloudpickle.loads(function_packed)
         try:
             if(self.mpimanager.get_model_size() > 1):
-                res = func(data_item, self.mpimanager.get_model_communicator())
+                npc = NestedParallelizationControllerMPI(self.mpimanager.get_model_communicator())
+                if self.mpimanager.get_model_communicator().Get_rank() == 0:
+                    res = func(data_item, npc)
+                    npc.stop_workers()
+                else:
+                    npc.nested_execution()
             else:
                 res = func(data_item)
         except Exception as e:
-            res = e
+            msg = "Exception occured while calling the map function {}: ".format(func.__name__)
+            res = type(e)(msg + str(e))
         return res
 
 
@@ -644,6 +684,18 @@ class BackendMPI(BackendMPIScheduler if abcpy.backends.mpimanager.get_mpi_manage
     def scheduler_node_ranks(self):
         """ Returns scheduler node ranks """
         return self.mpimanager.get_scheduler_node_ranks()
+
+
+    @staticmethod
+    def disable_nested(mpi_comm):
+        if mpi_comm.Get_rank() != 0:
+            mpi_comm.Barrier()
+
+
+    @staticmethod
+    def enable_nested(mpi_comm):
+        if mpi_comm.Get_rank() == 0:
+            mpi_comm.Barrier()
 
 
 
