@@ -3,10 +3,11 @@ import cloudpickle
 import numpy as np
 import pickle
 import time
+import logging
 
 from mpi4py import MPI
 
-from abcpy.backends import BDS, PDS, Backend
+from abcpy.backends import BDS, PDS, Backend, NestedParallelizationController
 
 
 import abcpy.backends.mpimanager
@@ -15,36 +16,80 @@ from mpi4py import MPI
 
 class NestedParallelizationControllerMPI(NestedParallelizationController):
     def __init__(self, mpi_comm):
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("#### Initialize NPC ####")
         self.loop_workers = True
         self.mpi_comm = mpi_comm
-        self.nested_func = None
+        self.nested_func = "NoFunction"
         self.func_args = ()
         self.func_kwargs = {}
+        self.result = None
+        if self.mpi_comm.Get_rank() != 0:
+            self.nested_execution()
 
-    def get_communicator(self):
-        return mpi_comm
+
+    def communicator(self):
+        return self.mpi_comm
+
 
     def nested_execution(self):
-        while loop_workers:
+        rank = self.mpi_comm.Get_rank()
+        self.logger.debug("Starting nested loop on rank {}".format(rank))
+        while self.loop_workers:
             self.mpi_comm.barrier()
-            func_kwargs['mpi_comm'] = self.mpi_comm
-            self.nested_func(*func_args, **func_kwargs)
+            self.loop_workers = self.mpi_comm.bcast(self.loop_workers, root=0)
+            if self.loop_workers == False:
+                return
+            func_p = None
+            func_args_p = None
+            func_kwargs_p = None
+            if self.mpi_comm.Get_rank() == 0:
+                self.logger.debug("Start pickling func on rank {}".format(rank))
+                func_p = cloudpickle.dumps(self.nested_func, pickle.HIGHEST_PROTOCOL)
+                func_args_p = cloudpickle.dumps(self.func_args, pickle.HIGHEST_PROTOCOL)
+                func_kwargs_p = cloudpickle.dumps(self.func_kwargs, pickle.HIGHEST_PROTOCOL)
+
+            self.logger.debug("Broadcasting function {} on rank {}".format(self.nested_func, rank))
+            func_p = self.mpi_comm.bcast(func_p, root=0)
+            func_args_p = self.mpi_comm.bcast(func_args_p, root=0)
+            func_kwargs_p = self.mpi_comm.bcast(func_kwargs_p, root=0)
+            self.nested_func = cloudpickle.loads(func_p)
+            self.func_args = cloudpickle.loads(func_args_p)
+            self.func_kwargs = cloudpickle.loads(func_kwargs_p)
+
+            func = self.nested_func
+            self.logger.debug("Starting map function {} on rank {}".format(func.__name__, self.mpi_comm.Get_rank()))
+            self.func_kwargs['mpi_comm'] = self.mpi_comm
             self.mpi_comm.barrier()
+            self.result = func(*(self.func_args), **(self.func_kwargs))
+            self.logger.debug("Ending map function on rank {}".format(self.mpi_comm.Get_rank()))
+            self.mpi_comm.barrier()
+            if self.mpi_comm.Get_rank() == 0:
+                return
+        self.loop_workers = True
+        self.logger.debug("Ending nested loop on rank {}".format(self.mpi_comm.Get_rank()))
 
     def run_nested(self, func, *args, **kwargs):
+        self.logger.debug("Executing nested function {}.".format(func.__name__))
         self.nested_func = func
         self.func_args = args
         self.func_kwargs = kwargs
-        nested_execution()
+        self.nested_execution()
+        self.logger.debug("Return from nested execution of master rank")
         self.nested_func = None
         self.func_args = ()
         self.func_kwargs = {}
+        self.logger.info(self.result)
+        return self.result
 
-    def stop_workers(self):
+    def __del__(self):
+        rank = self.mpi_comm.Get_rank()
+        self.logger.debug("Stopping npc on rank {}".format(rank))
         self.loop_workers = False
-        func = (lambda : None)
-        run_nested(func)
-
+        if rank == 0:
+            self.mpi_comm.barrier()
+            self.loop_workers = self.mpi_comm.bcast(self.loop_workers, root=0)
+        self.logger.debug(">>>>>>>> NPC stopped on rank {}".format(rank))
 
 class BackendMPIScheduler(Backend):
     """Defines the behavior of the scheduler process
@@ -385,6 +430,7 @@ class BackendMPIWorker(Backend):
 
     def __init__(self):
         """ No parameter, just call worker_run """
+        self.logger = logging.getLogger(__name__)
         self.__worker_run()
 
     def run_function(self, function_packed, data_item):
@@ -393,14 +439,14 @@ class BackendMPIWorker(Backend):
         Passes the model communicator if ther is more than one process per model
         """
         func = cloudpickle.loads(function_packed)
+        res = None
         try:
             if(self.mpimanager.get_model_size() > 1):
                 npc = NestedParallelizationControllerMPI(self.mpimanager.get_model_communicator())
                 if self.mpimanager.get_model_communicator().Get_rank() == 0:
-                    res = func(data_item, npc)
-                    npc.stop_workers()
-                else:
-                    npc.nested_execution()
+                    self.logger.debug("Executing map function on master rank 0.")
+                    res = func(data_item, npc=npc)
+                del(npc)
             else:
                 res = func(data_item)
         except Exception as e:
@@ -458,7 +504,7 @@ class BackendMPILeader(BackendMPIWorker):
 
     def __init__(self):
         """ No parameter, just call leader_run """
-
+        self.logger = logging.getLogger(__name__)
         self.__leader_run()
 
 
@@ -640,6 +686,7 @@ class BackendMPITeam(BackendMPILeader if abcpy.backends.mpimanager.get_mpi_manag
 
         #print("In BackendMPITeam, rank : ", self.rank, ", model_rank_global : ", globals()['model_rank_global'])
 
+        self.logger = logging.getLogger(__name__)
         super().__init__()
 
 
@@ -665,6 +712,7 @@ class BackendMPI(BackendMPIScheduler if abcpy.backends.mpimanager.get_mpi_manage
             number of MPI processes to allocate to each model
         """
         # get mpimanager instance from the mpimanager module (which has to be setup before calling the constructor)
+        self.logger = logging.getLogger(__name__)
         self.mpimanager = abcpy.backends.mpimanager.get_mpi_manager()
 
         if self.mpimanager.get_world_size() < 2:

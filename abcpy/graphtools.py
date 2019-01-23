@@ -388,7 +388,7 @@ class GraphTools():
 
         return ordered_parameters
 
-    def simulate(self, n_samples_per_param, rng=np.random.RandomState(), mpi_comm=None):
+    def simulate(self, n_samples_per_param, rng=np.random.RandomState(), npc=None):
         """Simulates data of each model using the currently sampled or perturbed parameters.
 
         Parameters
@@ -405,10 +405,8 @@ class GraphTools():
         for model in self.model:
             parameters_compatible = model._check_input(model.get_input_values())
             if parameters_compatible:
-                simulation_result = model.forward_simulate(model.get_input_values(), n_samples_per_param, rng=rng, mpi_comm=mpi_comm)
+                simulation_result = npc.run_nested(model.forward_simulate, model.get_input_values(), n_samples_per_param, rng=rng)
                 result.append(simulation_result)
-                if mpi_comm != None and mpi_comm.Get_rank() != 0:
-                    return None
             else:
                 return None
         return result

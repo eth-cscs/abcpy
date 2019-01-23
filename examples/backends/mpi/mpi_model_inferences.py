@@ -64,12 +64,9 @@ class NestedBivariateGaussian(ProbabilisticModel):
     def get_output_dimension(self):
         return 2
 
-    def forward_simulate(self, input_values, k, rng=np.random.RandomState(), npc=None):
-        print('before mpi part')
-        forward_simulate_mpi(input_values, k, rng=np.random.RandomState, mpi_comm=npc.get_communicator())
-        print('after mpi part')
 
-    def forward_simulate_mpi(self, input_values, k, rng=np.random.RandomState, mpi_comm=None):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState, mpi_comm=None):
+        print("Start Forward Simulate on rank {}".format(mpi_comm.Get_rank()))
         rank = mpi_comm.Get_rank()
         # Extract the input parameters
         mu = input_values[rank]
@@ -93,9 +90,13 @@ class NestedBivariateGaussian(ProbabilisticModel):
                 point = np.array([element0, element1])
                 result[i] = point
             result = [np.array([result[i]]).reshape(-1, ) for i in range(k)]
+            print("End forward sim on master")
             return result
         else:
+            print("End forward sim on workers")
             return None
+
+        
 
 
 def infer_parameters_pmcabc():
@@ -358,10 +359,10 @@ if __name__ == "__main__":
     setup_backend()
     print('True Value was: ' + str([170, 65]))
     print('Posterior Mean of PMCABC: ' + str(infer_parameters_pmcabc().posterior_mean()))
-    #print('Posterior Mean of ABCsubsim: ' + str(infer_parameters_abcsubsim().posterior_mean())) (Buggy)
-    print('Posterior Mean of RSMCABC: ' + str(infer_parameters_rsmcabc().posterior_mean()))
-    print('Posterior Mean of SABC: ' + str(infer_parameters_sabc().posterior_mean()))
-    print('Posterior Mean of SMCABC: ' + str(infer_parameters_smcabc().posterior_mean())) (Buggy)
-    print('Posterior Mean of APMCABC: ' + str(infer_parameters_apmcabc().posterior_mean()))
-    print('Posterior Mean of RejectionABC: ' + str(infer_parameters_rejectionabc().posterior_mean()))
-    print('Posterior Mean of PMC: ' + str(infer_parameters_pmc().posterior_mean()))
+    # print('Posterior Mean of ABCsubsim: ' + str(infer_parameters_abcsubsim().posterior_mean())) (Buggy)
+    # print('Posterior Mean of RSMCABC: ' + str(infer_parameters_rsmcabc().posterior_mean()))
+    # print('Posterior Mean of SABC: ' + str(infer_parameters_sabc().posterior_mean()))
+    # print('Posterior Mean of SMCABC: ' + str(infer_parameters_smcabc().posterior_mean())) (Buggy)
+    # print('Posterior Mean of APMCABC: ' + str(infer_parameters_apmcabc().posterior_mean()))
+    # print('Posterior Mean of RejectionABC: ' + str(infer_parameters_rejectionabc().posterior_mean()))
+    # print('Posterior Mean of PMC: ' + str(infer_parameters_pmc().posterior_mean()))
