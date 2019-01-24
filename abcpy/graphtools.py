@@ -405,7 +405,10 @@ class GraphTools():
         for model in self.model:
             parameters_compatible = model._check_input(model.get_input_values())
             if parameters_compatible:
-                simulation_result = npc.run_nested(model.forward_simulate, model.get_input_values(), n_samples_per_param, rng=rng)
+                if npc is not None:
+                    simulation_result = npc.run_nested(model.forward_simulate, model.get_input_values(), n_samples_per_param, rng=rng)
+                else:
+                    simulation_result = model.forward_simulate(model.get_input_values(),n_samples_per_param, rng=rng)
                 result.append(simulation_result)
             else:
                 return None

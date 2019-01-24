@@ -283,6 +283,35 @@ def infer_parameters_rejectionabc():
 
     return journal
 
+def infer_parameters_smcabc():
+    # define observation for true parameters mean=170, 65
+    rng = np.random.RandomState()
+    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2,))]
+
+    # define prior
+    from abcpy.continuousmodels import Uniform
+    mu0 = Uniform([[150], [200]], )
+    mu1 = Uniform([[25], [100]], )
+
+    # define the model
+    height_weight_model = NestedBivariateGaussian([mu0, mu1])
+
+    # define statistics
+    from abcpy.statistics import Identity
+    statistics_calculator = Identity(degree = 2, cross = False)
+
+    # define distance
+    from abcpy.distances import Euclidean
+    distance_calculator = Euclidean(statistics_calculator)
+
+    # define sampling scheme
+    from abcpy.inferences import SMCABC
+    sampler = SMCABC([height_weight_model], [distance_calculator], backend, seed=1)
+    steps, n_samples, n_samples_per_param, epsilon = 2, 10, 1, 2000
+    journal = sampler.sample([y_obs], steps, n_samples, n_samples_per_param, epsilon, full_output=1)
+
+    return journal
+
 def infer_parameters_pmc():
     # define observation for true parameters mean=170, 65
     rng = np.random.RandomState()
@@ -311,36 +340,6 @@ def infer_parameters_pmc():
     T, n_sample, n_samples_per_param = 2, 10, 10
 
     journal = sampler.sample([y_obs],  T, n_sample, n_samples_per_param)
-
-    return journal
-
-
-def infer_parameters_smcabc():
-    # define observation for true parameters mean=170, 65
-    rng = np.random.RandomState()
-    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2,))]
-
-    # define prior
-    from abcpy.continuousmodels import Uniform
-    mu0 = Uniform([[150], [200]], )
-    mu1 = Uniform([[25], [100]], )
-
-    # define the model
-    height_weight_model = NestedBivariateGaussian([mu0, mu1])
-
-    # define statistics
-    from abcpy.statistics import Identity
-    statistics_calculator = Identity(degree = 2, cross = False)
-
-    # define distance
-    from abcpy.distances import Euclidean
-    distance_calculator = Euclidean(statistics_calculator)
-
-    # define sampling scheme
-    from abcpy.inferences import SMCABC
-    sampler = SMCABC([height_weight_model], [distance_calculator], backend, seed=1)
-    steps, n_samples, n_samples_per_param, epsilon = 2, 10, 1, 2000
-    journal = sampler.sample([y_obs], steps, n_samples, n_samples_per_param, epsilon, full_output=1)
 
     return journal
 

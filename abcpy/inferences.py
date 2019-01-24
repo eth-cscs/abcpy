@@ -155,7 +155,7 @@ class RejectionABC(InferenceMethod):
             Distance object defining the distance measure to compare simulated and observed data sets.
         backend: abcpy.backends.Backend
             Backend object defining the backend to be used.
-        seed: integer, optional
+        seed: integer, optionaldistance
              Optional initial seed for the random number generator. The default value is generated randomly.
         """
 
@@ -533,7 +533,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             accepted parameter
         """
 
-        print(npc.communicator())
+        #print(npc.communicator())
         rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
         distance = self.distance.dist_max()
@@ -1584,7 +1584,6 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
         for aStep in range(0, steps):
             self.logger.info("ABCsubsim step {}".format(aStep))
-
             if aStep==0 and journal_file is not None:
                 accepted_parameters = journal.parameters[-1]
                 accepted_weights = journal.weights[-1]
@@ -1626,9 +1625,10 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             distances = distances[SortIndex]
             accepted_parameters = accepted_parameters[SortIndex, :]
 
+
             # 3: Calculate and broadcast annealling parameters
             self.logger.debug("Calculate and broadcast annealling parameters.")
-            temp_chain_length = chain_length
+            temp_chain_length = self.chain_length
             if aStep > 0:
                 anneal_parameter_old = anneal_parameter
             anneal_parameter = 0.5 * (
@@ -1786,7 +1786,6 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
                 else:
                     result_theta.append(theta)
                     result_distance.append(distance)
-
         return (result_theta, result_distance, counter)
 
     def _update_cov_mat(self, rng_t, npc=None):
@@ -2805,14 +2804,12 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             self.accepted_parameters_manager.model)
 
         counter=0
-        print('Hello 1')
         # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
         if self.accepted_parameters_manager.accepted_parameters_bds is None:
             self.sample_from_prior(rng=rng)
             y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
             counter+=1
         else:
-            print('Hello2')
             if self.accepted_parameters_manager.accepted_weights_bds.value()[index] > 0:
                 theta = np.array(self.accepted_parameters_manager.accepted_parameters_bds.value()[index]).reshape(-1,)
                 while True:
@@ -2820,31 +2817,27 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                     if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
                         break
                 y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
-                print('2821: ' + y_sim.__str__())
                 counter+=1
                 y_sim_old = self.accepted_y_sim_bds.value()[index]
                 ## Calculate acceptance probability:
                 numerator = 0.0
                 denominator = 0.0
                 for ind in range(self.n_samples_per_param):
-                    print('2828: ' + y_sim.__str__())
-                    lhs = self.accepted_parameters_manager.observations_bds.value()
-                    rhs = [[y_sim[0][ind]]]
-                    distance_new = self.distance.distance(lhs, rhs)
-                    distance_old = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), [[y_sim_old[0][ind]]])
-                    numerator += (distance_new < self.epsilon[-1])
-                    denominator += (distance_old < self.epsilon[-1])
-                print('denom')
+                    numerator += (self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),
+                                                         [[y_sim[0][ind]]]) < self.epsilon[-1])
+                    denominator += (self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),
+                                                           [[y_sim_old[0][ind]]]) < self.epsilon[-1])
                 if denominator == 0:
                     ratio_data_epsilon = 1
                 else:
                     ratio_data_epsilon = numerator / denominator
-                ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model, theta)
+                ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model,
+                                                                                                             theta)
                 kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, index, theta)
-                kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, index, perturbation_output[1])
+                kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, index,
+                                                     perturbation_output[1])
                 ratio_likelihood_prob = kernel_numerator / kernel_denominator
                 acceptance_prob = min(1, ratio_data_epsilon * ratio_prior_prob * ratio_likelihood_prob)
-                print('binom')
                 if rng.binomial(1, acceptance_prob) == 1:
                     self.set_parameters(perturbation_output[1])
                 else:
