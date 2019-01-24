@@ -133,10 +133,10 @@ class Euclidean(Distance):
             raise TypeError('Data is not of allowed types')
 
         if self.data_set is not None:
-            if len(d1[0]) == 1:
+            if len(np.array(d1[0]).reshape(-1,)) == 1:
                 self.data_set == d1
             else:
-                self.dataSame = all([(self.data_set[i] == d1[i]).all() for i in range(len(d1))])
+                self.dataSame = all([(np.array(self.data_set[i]) == np.array(d1[i])).all() for i in range(len(d1))])
 
         # Extract summary statistics from the dataset
         if(self.s1 is None or self.dataSame is False):
@@ -200,10 +200,10 @@ class PenLogReg(Distance):
             raise TypeError('Data is not of allowed types')
 
         if self.data_set is not None:
-            if len(d1[0]) == 1:
+            if len(np.array(d1[0]).reshape(-1,)) == 1:
                 self.data_set == d1
             else:
-                self.dataSame = all([(self.data_set[i] == d1[i]).all() for i in range(len(d1))])
+                self.dataSame = all([(np.array(self.data_set[i]) == np.array(d1[i])).all() for i in range(len(d1))])
 
         # Extract summary statistics from the dataset
         if(self.s1 is None or self.dataSame is False):
@@ -261,7 +261,7 @@ class LogReg(Distance):
             raise TypeError('Data is not of allowed types')
 
         if self.data_set is not None:
-            if len(d1[0]) == 1:
+            if len(np.array(d1[0]).reshape(-1,)) == 1:
                 self.data_set == d1
             else:
                 self.dataSame = all([(np.array(self.data_set[i]) == np.array(d1[i])).all() for i in range(len(d1))])
