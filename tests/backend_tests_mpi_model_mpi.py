@@ -26,18 +26,18 @@ class MPIBackendTests(unittest.TestCase):
     def test_parallelize(self):
         data = [0]*backend_mpi.size()
         pds = backend_mpi.parallelize(data)
-        pds_map = backend_mpi.map(lambda x, model_comm: x + MPI.COMM_WORLD.Get_rank(), pds)
+        pds_map = backend_mpi.map(lambda x, npc=None: x + MPI.COMM_WORLD.Get_rank(), pds)
         res = backend_mpi.collect(pds_map)
 
         for scheduler_index in backend_mpi.scheduler_node_ranks():
             self.assertTrue(scheduler_index not in res,"Node in scheduler_node_ranks performed map.")
 
     def test_map(self):
-        def square_mpi(x, model_comm):
-            local_res = numpy.array([x**2], 'i')
-            global_res = numpy.array([0], 'i')
-            model_comm.Reduce([local_res,MPI.INT], [global_res,MPI.INT], op=MPI.SUM, root=0)
-            return global_res[0]
+        def square_mpi(x, npc=None):
+            local_res = numpy.array([2*(x**2)], 'i')
+            #global_res = numpy.array([0], 'i')
+            #MPI.COMM_WORLD.Reduce([local_res,MPI.INT], [global_res,MPI.INT], op=MPI.SUM, root=0)
+            return local_res[0]
         
         data = [1,2,3,4,5]
         pds = backend_mpi.parallelize(data)
@@ -57,7 +57,7 @@ class MPIBackendTests(unittest.TestCase):
         for k,v in  backend_mpi.bds_store.items():
              backend_mpi.bds_store[k] = 99999
 
-        def test_map(x, model_comm):
+        def test_map(x, npc=None):
             return x + bds.value()
 
         pds_m = backend_mpi.map(test_map, pds)
@@ -65,9 +65,9 @@ class MPIBackendTests(unittest.TestCase):
 
     def test_pds_delete(self):
 
-        def check_if_exists(x, model_comm):
+        def check_if_exists(x, npc):
             obj = BackendMPITestHelper()
-            if model_comm.Get_rank() == 0:
+            if npc.communicator().Get_rank() == 0:
                 return obj.check_pds(x)
             return None
 
@@ -89,7 +89,7 @@ class MPIBackendTests(unittest.TestCase):
 
     def test_bds_delete(self):
         
-        def check_if_exists(x, model_comm):
+        def check_if_exists(x, npc=None):
             obj = BackendMPITestHelper()
             return obj.check_bds(x)
 
@@ -109,26 +109,26 @@ class MPIBackendTests(unittest.TestCase):
 
     def test_function_pickle(self):
 
-        def square_mpi(x, model_comm):
-            local_res = numpy.array([x**2], 'i')
-            global_res = numpy.array([0], 'i')
-            model_comm.Reduce([local_res,MPI.INT], [global_res,MPI.INT], op=MPI.SUM, root=0)
-            return global_res[0]
+        def square_mpi(x, npc=None):
+            local_res = numpy.array([2*(x**2)], 'i')
+            #global_res = numpy.array([0], 'i')
+            #model_comm.Reduce([local_res,MPI.INT], [global_res,MPI.INT], op=MPI.SUM, root=0)
+            return local_res[0]
 
         class staticfunctest_mpi:
             @staticmethod 
-            def square_mpi(x, model_comm):
-                local_res = numpy.array([x**2], 'i')
-                global_res = numpy.array([0], 'i')
-                model_comm.Reduce([local_res,MPI.INT], [global_res,MPI.INT], op=MPI.SUM, root=0)
-                return global_res[0]
+            def square_mpi(x, npc=None):
+                local_res = numpy.array([2*(x**2)], 'i')
+                #global_res = numpy.array([0], 'i')
+                #model_comm.Reduce([local_res,MPI.INT], [global_res,MPI.INT], op=MPI.SUM, root=0)
+                return local_res[0]
 
         class nonstaticfunctest_mpi:
-            def square_mpi(self, x, model_comm):
-                local_res = numpy.array([x**2], 'i')
-                global_res = numpy.array([0], 'i')
-                model_comm.Reduce([local_res,MPI.INT], [global_res,MPI.INT], op=MPI.SUM, root=0)
-                return global_res[0]
+            def square_mpi(self, x, npc=None):
+                local_res = numpy.array([2*(x**2)], 'i')
+                #global_res = numpy.array([0], 'i')
+                #model_comm.Reduce([local_res,MPI.INT], [global_res,MPI.INT], op=MPI.SUM, root=0)
+                return local_res[0]
 
         data = [1,2,3,4,5]
         expected_result = [2,8,18,32,50]

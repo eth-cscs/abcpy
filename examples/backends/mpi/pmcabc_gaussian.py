@@ -4,7 +4,11 @@ def setup_backend():
     global backend
     
     from abcpy.backends import BackendMPI as Backend
-    backend = Backend(process_per_model=2)
+    backend = Backend()
+    # The above line is equivalent to:
+    # backend = Backend(process_per_model=1)
+    # Notice: Models not parallelized by MPI should not be given process_per_model > 1
+
 
 
 def infer_parameters():
@@ -25,17 +29,17 @@ def infer_parameters():
     statistics_calculator = Identity(degree = 2, cross = False)
 
     # define distance
-    from abcpy.distances import LogReg
-    distance_calculator = LogReg(statistics_calculator)
+    from abcpy.distances import Euclidean
+    distance_calculator = Euclidean(statistics_calculator)
 
     # define sampling scheme
     from abcpy.inferences import PMCABC
     sampler = PMCABC([height], [distance_calculator], backend, seed=1)
     
     # sample from scheme
-    T, n_sample, n_samples_per_param = 3, 250, 10
-    eps_arr = np.array([.75])
-    epsilon_percentile = 10
+    T, n_sample, n_samples_per_param = 2, 10, 1
+    eps_arr = np.array([10000])
+    epsilon_percentile = 95
     journal = sampler.sample([y_obs],  T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
 
     return journal
@@ -62,7 +66,6 @@ def analyse_journal(journal):
 
 
 import unittest
-from mpi4py import MPI
 
 def setUpModule():
     '''
@@ -83,7 +86,7 @@ class ExampleGaussianMPITest(unittest.TestCase):
     def test_example(self):
         journal = infer_parameters()
         test_result = journal.posterior_mean()[0]
-        expected_result = 178.07690877694714
+        expected_result = 171.4343638312893
         self.assertLess(abs(test_result - expected_result), 2)
 
 

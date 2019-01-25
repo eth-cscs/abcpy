@@ -132,6 +132,7 @@ class Euclidean(Distance):
         if not isinstance(d2, list):
             raise TypeError('Data is not of allowed types')
 
+        # Check whether d1 is same as self.data_set
         if self.data_set is not None:
             if len(np.array(d1[0]).reshape(-1,)) == 1:
                 self.data_set == d1
@@ -185,6 +186,7 @@ class PenLogReg(Distance):
         # Since the observations do always stay the same, we can save the summary statistics of them and not recalculate it each time
         self.s1 = None
         self.data_set = None
+        self.dataSame = False
         
     def distance(self, d1, d2):
         """Calculates the distance between two datasets.
@@ -199,6 +201,7 @@ class PenLogReg(Distance):
         if not isinstance(d2, list):
             raise TypeError('Data is not of allowed types')
 
+        # Check whether d1 is same as self.data_set
         if self.data_set is not None:
             if len(np.array(d1[0]).reshape(-1,)) == 1:
                 self.data_set == d1
@@ -244,6 +247,7 @@ class LogReg(Distance):
         # Since the observations do always stay the same, we can save the summary statistics of them and not recalculate it each time
         self.s1 = None
         self.data_set = None
+        self.dataSame = False
         
     def distance(self, d1, d2):
         """Calculates the distance between two datasets.
@@ -260,6 +264,7 @@ class LogReg(Distance):
         if not isinstance(d2, list):
             raise TypeError('Data is not of allowed types')
 
+        # Check whether d1 is same as self.data_set
         if self.data_set is not None:
             if len(np.array(d1[0]).reshape(-1,)) == 1:
                 self.data_set == d1
