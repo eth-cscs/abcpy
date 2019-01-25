@@ -117,7 +117,7 @@ class Euclidean(Distance):
         #  summary statistics of them and not recalculate it each time
         self.s1 = None
         self.data_set = None
-
+        self.dataSame = False
         
     def distance(self, d1, d2):
         """Calculates the distance between two datasets.
@@ -127,15 +127,24 @@ class Euclidean(Distance):
         d1, d2: list
             A list, containing a list describing the data set
         """
+
         if not isinstance(d1, list):
             raise TypeError('Data is not of allowed types')
         if not isinstance(d2, list):
             raise TypeError('Data is not of allowed types')
 
+        # Check whether d1 is same as self.data_set
+        if self.data_set is not None:
+            if len(np.array(d1[0]).reshape(-1,)) == 1:
+                self.data_set == d1
+            else:
+                self.dataSame = all([(np.array(self.data_set[i]) == np.array(d1[i])).all() for i in range(len(d1))])
+
         # Extract summary statistics from the dataset
-        if(self.s1 is None or self.data_set!=d1):
+        if(self.s1 is None or self.dataSame is False):
             self.s1 = self.statistics_calc.statistics(d1)
             self.data_set = d1
+
         s2 = self.statistics_calc.statistics(d2)
 
         # compute distance between the statistics
@@ -178,6 +187,7 @@ class PenLogReg(Distance):
         # Since the observations do always stay the same, we can save the summary statistics of them and not recalculate it each time
         self.s1 = None
         self.data_set = None
+        self.dataSame = False
         
     def distance(self, d1, d2):
         """Calculates the distance between two datasets.
@@ -192,8 +202,15 @@ class PenLogReg(Distance):
         if not isinstance(d2, list):
             raise TypeError('Data is not of allowed types')
 
+        # Check whether d1 is same as self.data_set
+        if self.data_set is not None:
+            if len(np.array(d1[0]).reshape(-1,)) == 1:
+                self.data_set == d1
+            else:
+                self.dataSame = all([(np.array(self.data_set[i]) == np.array(d1[i])).all() for i in range(len(d1))])
+
         # Extract summary statistics from the dataset
-        if(self.s1 is None or self.data_set!=d1):
+        if(self.s1 is None or self.dataSame is False):
             self.s1 = self.statistics_calc.statistics(d1)
             self.data_set = d1
         s2 = self.statistics_calc.statistics(d2)
@@ -229,6 +246,7 @@ class LogReg(Distance):
         # Since the observations do always stay the same, we can save the summary statistics of them and not recalculate it each time
         self.s1 = None
         self.data_set = None
+        self.dataSame = False
         
     def distance(self, d1, d2):
         """Calculates the distance between two datasets.
@@ -238,13 +256,22 @@ class LogReg(Distance):
         d1, d2: list
             A list, containing a list describing the data set
         """
+
+
         if not isinstance(d1, list):
             raise TypeError('Data is not of allowed types')
         if not isinstance(d2, list):
             raise TypeError('Data is not of allowed types')
 
+        # Check whether d1 is same as self.data_set
+        if self.data_set is not None:
+            if len(np.array(d1[0]).reshape(-1,)) == 1:
+                self.data_set == d1
+            else:
+                self.dataSame = all([(np.array(self.data_set[i]) == np.array(d1[i])).all() for i in range(len(d1))])
+
         # Extract summary statistics from the dataset
-        if(self.s1 is None or self.data_set!=d1):
+        if(self.s1 is None or self.dataSame is False):
             self.s1 = self.statistics_calc.statistics(d1)
             self.data_set = d1
         s2 = self.statistics_calc.statistics(d2)

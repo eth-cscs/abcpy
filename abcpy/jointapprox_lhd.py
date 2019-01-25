@@ -1,9 +1,5 @@
 from abc import ABCMeta, abstractmethod
 
-import numpy as np
-from glmnet import LogitNet
-from sklearn import linear_model
-
 
 class JointApprox_likelihood(metaclass = ABCMeta):
     """This abstract base class defines how the combination of distances computed on the observed and

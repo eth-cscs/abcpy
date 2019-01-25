@@ -26,9 +26,10 @@ scientists by providing
 # Documentation
 For more information, check out the
 
-* [Documentation](http://abcpy.readthedocs.io/en/v0.5.4) 
-* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.5.4/examples) directory and
-* [Reference](http://abcpy.readthedocs.io/en/v0.5.4/abcpy.html)
+* [Documentation](http://abcpy.readthedocs.io/en/v0.5.5) 
+* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.5.5/examples) directory and
+* [Reference](http://abcpy.readthedocs.io/en/v0.5.5/abcpy.html)
+
 
 Further, we provide a
 [collection of models](https://github.com/eth-cscs/abcpy-models) for which ABCpy
@@ -54,7 +55,8 @@ finally CSCS (Swiss National Super Computing Center) for their generous support.
 
 There is a paper in the proceedings of the 2017 PASC conference. In case you use
 ABCpy for your publication, we would appreciate a citation. You can use
-[this](https://github.com/eth-cscs/abcpy/blob/v0.5.4/doc/literature/DuttaS-ABCpy-PASC-2017.bib)
+[this](https://github.com/eth-cscs/abcpy/blob/v0.5.5/doc/literature/DuttaS-ABCpy-PASC-2017.bib)
+
 BibTex reference.
 
 
@@ -62,23 +64,22 @@ BibTex reference.
 
 Publications in which ABCpy was applied:
 
-* R. Dutta, M. Schoengens, A. Ummadisingu, J. P.  Onnela, A. Mira, "ABCpy: A
-  High-Performance Computing Perspective to Approximate Bayesian Computation",
-  2017, arXiv:1711.04694
-
 * R. Dutta, J. P.  Onnela, A. Mira, "Bayesian Inference of Spreading Processes
-  on Networks", 2017, arXiv:1709.08862
+  on Networks", 2018, Proc. R. Soc. A, 474(2215), 20180129.
+
+* R. Dutta, Z. Faidon Brotzakis and A. Mira, "Bayesian Calibration of
+  Force-fields from Experimental Data: TIP4P Water", 2018, Journal of Chemical Physics 149, 154110.
   
 * R. Dutta, B. Chopard, J. Lätt, F. Dubois, K. Zouaoui Boudjeltia and A. Mira,
   "Parameter Estimation of Platelets Deposition: Approximate Bayesian
-  Computation with High Performance Computing", 2017, arXiv:1710.01054
+  Computation with High Performance Computing", 2018, Frontiers in physiology, 9.
 
 * A. Ebert, R. Dutta, P. Wu, K. Mengersen and A. Mira, "Likelihood-Free
   Parameter Estimation for Dynamic Queueing Networks", 2018, arXiv:1804.02526
 
-* R. Dutta, Z. Faidon Brotzakis and A. Mira, "Bayesian Calibration of
-  Force-fields from Experimental Data: TIP4P Water", 2018, arXiv:1804.02742
-
+* R. Dutta, M. Schoengens, A. Ummadisingu, N. Widerman, J. P.  Onnela, A. Mira, "ABCpy: A
+  High-Performance Computing Perspective to Approximate Bayesian Computation",
+  2017, arXiv:1711.04694
 
 ## License
 ABCpy is published under the BSD 3-clause license, see [here](LICENSE).

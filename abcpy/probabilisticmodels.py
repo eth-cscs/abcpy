@@ -681,7 +681,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
 
     @abstractmethod
-    def forward_simulate(self, input_values, k, rng):
+    def forward_simulate(self, input_values, k, rng, mpi_comm):
         """
         Provides the output (pseudo data) from a forward simulation of the current model.
 
@@ -843,7 +843,7 @@ class Hyperparameter(ProbabilisticModel):
         return []
 
 
-    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         return [np.array(self._fixed_values) for _ in range(k)]
 
 
@@ -889,7 +889,7 @@ class ModelResultingFromOperation(ProbabilisticModel):
         super(ModelResultingFromOperation, self).__init__(input_parameters, name)
 
 
-    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         raise NotImplementedError
 
 
@@ -971,7 +971,7 @@ class ModelResultingFromOperation(ProbabilisticModel):
 class SummationModel(ModelResultingFromOperation):
     """This class represents all probabilistic models resulting from an addition of two probabilistic models"""
 
-    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """Adds the sampled values of both parent distributions.
 
         Parameters
@@ -1015,7 +1015,7 @@ class SummationModel(ModelResultingFromOperation):
 class SubtractionModel(ModelResultingFromOperation):
     """This class represents all probabilistic models resulting from an subtraction of two probabilistic models"""
 
-    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """Adds the sampled values of both parent distributions.
 
         Parameters
@@ -1057,7 +1057,7 @@ class SubtractionModel(ModelResultingFromOperation):
 
 class MultiplicationModel(ModelResultingFromOperation):
     """This class represents all probabilistic models resulting from a multiplication of two probabilistic models"""
-    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """Multiplies the sampled values of both parent distributions element wise.
 
         Parameters
@@ -1099,7 +1099,7 @@ class MultiplicationModel(ModelResultingFromOperation):
 class DivisionModel(ModelResultingFromOperation):
     """This class represents all probabilistic models resulting from a division of two probabilistic models"""
 
-    def forward_simulate(self, input_valus, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_valus, k, rng=np.random.RandomState(), mpi_comm=None):
         """Divides the sampled values of both parent distributions.
 
         Parameters
@@ -1161,7 +1161,7 @@ class ExponentialModel(ModelResultingFromOperation):
         return True
 
 
-    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """Raises the sampled values of the base by the exponent.
 
         Parameters
@@ -1223,7 +1223,7 @@ class RExponentialModel(ModelResultingFromOperation):
         return True
 
 
-    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """Raises the base by the sampled value of the exponent.
 
         Parameters

@@ -1,9 +1,7 @@
 import unittest
-
 from mpi4py import MPI
-
-from abcpy.backends import BackendMPI, BackendMPITestHelper
-
+from abcpy.backends import BackendMPI,BackendMPITestHelper
+import numpy
 
 def setUpModule():
     '''
@@ -21,25 +19,31 @@ def setUpModule():
     global rank,backend_mpi
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
-    backend_mpi = BackendMPI()
+    backend_mpi = BackendMPI(process_per_model=2)
 
 class MPIBackendTests(unittest.TestCase):
 
     def test_parallelize(self):
         data = [0]*backend_mpi.size()
         pds = backend_mpi.parallelize(data)
-        pds_map = backend_mpi.map(lambda x: x + MPI.COMM_WORLD.Get_rank(), pds)
+        pds_map = backend_mpi.map(lambda x, npc=None: x + MPI.COMM_WORLD.Get_rank(), pds)
         res = backend_mpi.collect(pds_map)
 
         for scheduler_index in backend_mpi.scheduler_node_ranks():
             self.assertTrue(scheduler_index not in res,"Node in scheduler_node_ranks performed map.")
 
     def test_map(self):
+        def square_mpi(x, npc=None):
+            local_res = numpy.array([2*(x**2)], 'i')
+            #global_res = numpy.array([0], 'i')
+            #MPI.COMM_WORLD.Reduce([local_res,MPI.INT], [global_res,MPI.INT], op=MPI.SUM, root=0)
+            return local_res[0]
+        
         data = [1,2,3,4,5]
         pds = backend_mpi.parallelize(data)
-        pds_map = backend_mpi.map(lambda x:x**2,pds)
+        pds_map = backend_mpi.map(square_mpi, pds)
         res = backend_mpi.collect(pds_map)
-        assert res==list(map(lambda x:x**2,data))
+        assert res==list(map(lambda x:2*(x**2),data))
 
 
     def test_broadcast(self):
@@ -53,7 +57,7 @@ class MPIBackendTests(unittest.TestCase):
         for k,v in  backend_mpi.bds_store.items():
              backend_mpi.bds_store[k] = 99999
 
-        def test_map(x):
+        def test_map(x, npc=None):
             return x + bds.value()
 
         pds_m = backend_mpi.map(test_map, pds)
@@ -61,9 +65,11 @@ class MPIBackendTests(unittest.TestCase):
 
     def test_pds_delete(self):
 
-        def check_if_exists(x):
+        def check_if_exists(x, npc):
             obj = BackendMPITestHelper()
-            return obj.check_pds(x)
+            if npc.communicator().Get_rank() == 0:
+                return obj.check_pds(x)
+            return None
 
         data = [1,2,3,4,5]
         pds = backend_mpi.parallelize(data)
@@ -83,7 +89,7 @@ class MPIBackendTests(unittest.TestCase):
 
     def test_bds_delete(self):
         
-        def check_if_exists(x):
+        def check_if_exists(x, npc=None):
             obj = BackendMPITestHelper()
             return obj.check_bds(x)
 
@@ -102,51 +108,42 @@ class MPIBackendTests(unittest.TestCase):
 
 
     def test_function_pickle(self):
-        def square(x):
-            return x**2
 
-        class staticfunctest:
+        def square_mpi(x, npc=None):
+            local_res = numpy.array([2*(x**2)], 'i')
+            #global_res = numpy.array([0], 'i')
+            #model_comm.Reduce([local_res,MPI.INT], [global_res,MPI.INT], op=MPI.SUM, root=0)
+            return local_res[0]
+
+        class staticfunctest_mpi:
             @staticmethod 
-            def square(x):
-                return x**2
+            def square_mpi(x, npc=None):
+                local_res = numpy.array([2*(x**2)], 'i')
+                #global_res = numpy.array([0], 'i')
+                #model_comm.Reduce([local_res,MPI.INT], [global_res,MPI.INT], op=MPI.SUM, root=0)
+                return local_res[0]
 
-        class nonstaticfunctest:
-            def square(self,x):
-                return x**2
+        class nonstaticfunctest_mpi:
+            def square_mpi(self, x, npc=None):
+                local_res = numpy.array([2*(x**2)], 'i')
+                #global_res = numpy.array([0], 'i')
+                #model_comm.Reduce([local_res,MPI.INT], [global_res,MPI.INT], op=MPI.SUM, root=0)
+                return local_res[0]
 
         data = [1,2,3,4,5]
-        expected_result = [1,4,9,16,25]
+        expected_result = [2,8,18,32,50]
+
         pds = backend_mpi.parallelize(data)
-
-
-        pds_map1 = backend_mpi.map(square,pds)
+        pds_map1 = backend_mpi.map(square_mpi,pds)
         pds_res1 = backend_mpi.collect(pds_map1)
+        
         self.assertTrue(pds_res1==expected_result,"Failed pickle test for general function")
 
-
-        pds_map2 = backend_mpi.map(lambda x:x**2,pds)
-        pds_res2 = backend_mpi.collect(pds_map2)
-        self.assertTrue(pds_res2==expected_result,"Failed pickle test for lambda function")
-
-
-        pds_map3 = backend_mpi.map(staticfunctest.square,pds)
+        pds_map3 = backend_mpi.map(staticfunctest_mpi.square_mpi,pds)
         pds_res3 = backend_mpi.collect(pds_map3)
         self.assertTrue(pds_res3==expected_result,"Failed pickle test for static function")
 
-
-        obj = nonstaticfunctest()
-        pds_map4 = backend_mpi.map(obj.square ,pds)
+        obj = nonstaticfunctest_mpi()
+        pds_map4 = backend_mpi.map(obj.square_mpi ,pds)
         pds_res4 = backend_mpi.collect(pds_map4)
         self.assertTrue(pds_res4==expected_result,"Failed pickle test for non-static function")
-
-    def test_exception_handling(self):
-
-        def function_with_possible_zero_devision(i):
-            return 1 / i
-
-        data = [1, 2, 0]
-        pds = backend_mpi.parallelize(data)
-
-        pds_map = backend_mpi.map(function_with_possible_zero_devision, pds)
-        with self.assertRaises(ZeroDivisionError):
-            backend_mpi.collect(pds_map)

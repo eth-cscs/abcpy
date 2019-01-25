@@ -278,6 +278,7 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
                 cov = np.var(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float))
             else:
                 cov = np.cov(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float), rowvar=False)
+
         return cov
 
 
