@@ -388,7 +388,7 @@ class GraphTools():
 
         return ordered_parameters
 
-    def simulate(self, n_samples_per_param, rng=np.random.RandomState()):
+    def simulate(self, n_samples_per_param, rng=np.random.RandomState(), npc=None):
         """Simulates data of each model using the currently sampled or perturbed parameters.
 
         Parameters
@@ -405,7 +405,10 @@ class GraphTools():
         for model in self.model:
             parameters_compatible = model._check_input(model.get_input_values())
             if parameters_compatible:
-                simulation_result = model.forward_simulate(model.get_input_values(), n_samples_per_param, rng=rng)
+                if npc is not None and npc.communicator().Get_size() > 1:
+                    simulation_result = npc.run_nested(model.forward_simulate, model.get_input_values(), n_samples_per_param, rng=rng)
+                else:
+                    simulation_result = model.forward_simulate(model.get_input_values(),n_samples_per_param, rng=rng)
                 result.append(simulation_result)
             else:
                 return None

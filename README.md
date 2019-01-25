@@ -79,7 +79,6 @@ Publications in which ABCpy was applied:
   High-Performance Computing Perspective to Approximate Bayesian Computation",
   2017, arXiv:1711.04694
 
-
 ## License
 ABCpy is published under the BSD 3-clause license, see [here](LICENSE).
 

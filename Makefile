@@ -30,6 +30,7 @@ unittest:
 unittest_mpi:
 	echo "Running MPI backend unit tests.."
 	mpirun -np 2 python3 -m unittest discover -s tests -v -p "backend_tests_mpi.py" || (echo "Error in MPI unit tests."; exit 1)
+	mpirun -np 3 python3 -m unittest discover -s tests -v -p "backend_tests_mpi_model_mpi.py" || (echo "Error in MPI unit tests."; exit 1)
 
 exampletest: $(MAKEDIRS)
 	echo "Testing standard examples.."

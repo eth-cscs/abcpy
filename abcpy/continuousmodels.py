@@ -65,7 +65,7 @@ class Uniform(ProbabilisticModel, Continuous):
         return True
 
 
-    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """
         Samples from a uniform distribution using the current values for each probabilistic model from which the model derives.
 
@@ -167,7 +167,7 @@ class Normal(ProbabilisticModel, Continuous):
         return True
 
 
-    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """
         Samples from a normal distribution using the current values for each probabilistic model from which the model derives.
 
@@ -248,7 +248,7 @@ class StudentT(ProbabilisticModel, Continuous):
         super(StudentT, self).__init__(input_parameters, name)
         self.visited = False
 
-    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """
         Samples from a Student's T-distribution using the current values for each probabilistic model from which the model derives.
 
@@ -398,7 +398,7 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         return True
 
 
-    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """
         Samples from a multivariate normal distribution using the current values for each probabilistic model from which the
         model derives.
@@ -532,7 +532,7 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         """
         return True
 
-    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """
         Samples from a multivariate Student's T-distribution using the current values for each probabilistic model from
         which the model derives.

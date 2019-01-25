@@ -10,12 +10,93 @@ Running ABC algorithms is often computationally expensive, thus ABCpy is built
 with parallelization in mind. In order to run your inference schemes in parallel
 on multiple nodes (computers) you can choose from the following backends.
 
+Using the MPI Backend
+~~~~~~~~~~~~~~~~~~~~~
+
+To run ABCpy in parallel using MPI, one only needs to use the provided MPI
+backend. Using the same example as before, the statements for the backend have to
+be changed to
+
+.. literalinclude:: ../../examples/backends/mpi/pmcabc_gaussian.py
+    :language: python
+    :lines: 6-10
+    :dedent: 4
+
+In words, one only needs to initialize an instance of the MPI backend. The
+number of ranks to spawn are specified at runtime through the way the script is
+run. A minimum of two ranks is required, since rank 0 (master) is used to
+orchestrate the calculation and all other ranks (workers) actually perform the
+calculation. (The default value of `process_per_model` is 1. If your simulator 
+model is not parallelized using MPI, do not specify
+`process_per_model > 1`. The use of `process_per_model` for nested parallelization 
+will be explained below.)
+
+The standard way to run the script using MPI is directly via mpirun like below
+or on a cluster through a job scheduler like Slurm:
+
+::
+
+   mpirun -np 4 python3 pmcabc_gaussian.py
+
+
+The adapted Python code can be found in
+`examples/backend/mpi/pmcabc_gaussian.py`.
+
+Nested-MPI parallelization for MPI-parallelized simulator models
+------------------------------------------------------------------
+
+Sometimes, the simulator model itself has 
+large compute requirements and needs parallelization. To achieve this parallelization
+using threads, the MPI backend need to be configured such that each MPI
+rank can spawn multiple threads on a node. However, there might be situations
+where node-local parallelization using threads is not sufficient and
+parallelization across nodes is required.
+
+Parallelization of the forward model across nodes is possible *but limited* to
+the MPI backend. Technically, this is implemented using individual MPI
+communicators for each forward model. The number of ranks per communicator 
+(defined as: `process_per_model`)
+can be passed at the initialization of the backend as follows:
+
+.. literalinclude:: ../../examples/backends/mpi/mpi_model_inferences.py
+    :language: python
+    :lines: 10-11
+    :dedent: 4
+
+Here each model is assigned a MPI communicator with 2 ranks. Clearly, the MPI
+job has to be configured manually such that the total amount of MPI ranks is ideally
+a multiple of the ranks per communicator plus one additional rank for the
+master. For example, if we want to run n instances of a MPI model and allows m
+processes to each instance, we will have to spawn (n*m)+1 ranks.
+
+For `forward_simulation` of the MPI-parallelized simulator model has to be able 
+to take an MPI communicator as a parameter.
+
+An example of an MPI-parallelized simulator model, which can be used with ABCpy 
+nested-parallelization, can be found in `examples/backend/mpi/mpi_model_inferences.py`.
+The `forward_simulation` function of the above model is as follows:
+
+.. literalinclude:: ../../examples/backends/mpi/mpi_model_inferences.py
+    :language: python
+    :lines: 48-77
+    :dedent: 4
+
+Note that in order to run jobs in parallel you need to have MPI installed on the
+system(s) in question with the requisite Python bindings for MPI (mpi4py). The
+dependencies of the MPI backend can be install with
+`pip install -r requirements/backend-mpi.txt`.
+
+Details on the installation can be found on the official `Open MPI homepage
+<https://www.open-mpi.org/>`_ and the `mpi4py homepage
+<https://mpi4py.scipy.org/>`_. Further, keep in mind that the ABCpy library has
+to be properly installed on the cluster, such that it is available to the Python
+interpreters on the master and the worker nodes.
 
 Using the Spark Backend
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 To run ABCpy in parallel using Apache Spark, one only needs to use the provided
-Spark backend. Considering the example from above, the statements for the
+Spark backend. Considering the example from before, the statements for the
 backend have to be changed to
 
 .. literalinclude:: ../../examples/backends/apache_spark/pmcabc_gaussian.py
@@ -49,46 +130,6 @@ install with `pip install -r requirements/backend-spark.txt`.
 Details on the installation can be found on the official `homepage
 <http://spark.apache.org>`_. Further, keep in mind that the ABCpy library has to
 be properly installed on the cluster, such that it is available to the Python
-interpreters on the master and the worker nodes.
-
-Using the MPI Backend
-~~~~~~~~~~~~~~~~~~~~~
-
-To run ABCpy in parallel using MPI, one only needs to use the provided MPI
-backend. Using the same example as above, the statements for the backend have to
-be changed to
-
-.. literalinclude:: ../../examples/backends/mpi/pmcabc_gaussian.py
-    :language: python
-    :lines: 6-7
-    :dedent: 4
-
-In words, one only needs to initialize an instance of the MPI backend. The
-number of ranks to spawn are specified at runtime through the way the script is
-run. A minimum of two ranks is required, since rank 0 (master) is used to
-orchestrate the calculation and all other ranks (workers) actually perform the
-calculation.
-
-The standard way to run the script using Open MPI is directly via mpirun like below
-or on a cluster through a job scheduler like Slurm:
-
-::
-
-   mpirun -np 4 python3 pmcabc_gaussian.py
-
-
-The adapted Python code can be found in
-`examples/backend/mpi/pmcabc_gaussian.py`.
-
-Note that in order to run jobs in parallel you need to have MPI installed on the
-system(s) in question with the requisite Python bindings for MPI (mpi4py). The
-dependencies of the MPI backend can be install with
-`pip install -r requirements/backend-mpi.txt`.
-
-Details on the installation can be found on the official `Open MPI homepage
-<https://www.open-mpi.org/>`_ and the `mpi4py homepage
-<https://mpi4py.scipy.org/>`_. Further, keep in mind that the ABCpy library has
-to be properly installed on the cluster, such that it is available to the Python
 interpreters on the master and the worker nodes.
 
 Using Cluster Infrastructure
