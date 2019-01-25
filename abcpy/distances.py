@@ -3,6 +3,7 @@ from abc import ABCMeta, abstractmethod
 import numpy as np
 from glmnet import LogitNet
 from sklearn import linear_model
+from scipy import stats
 
 
 class Distance(metaclass = ABCMeta):
@@ -228,8 +229,6 @@ class PenLogReg(Distance):
 
     def dist_max(self):
         return 1.0
-         
-    
     
 
 class LogReg(Distance):
