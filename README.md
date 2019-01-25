@@ -30,6 +30,7 @@ For more information, check out the
 * [Examples](https://github.com/eth-cscs/abcpy/tree/v0.5.5/examples) directory and
 * [Reference](http://abcpy.readthedocs.io/en/v0.5.5/abcpy.html)
 
+
 Further, we provide a
 [collection of models](https://github.com/eth-cscs/abcpy-models) for which ABCpy
 has been applied successfully. This is a good place to look at more complicated inference setups.
@@ -55,6 +56,7 @@ finally CSCS (Swiss National Super Computing Center) for their generous support.
 There is a paper in the proceedings of the 2017 PASC conference. In case you use
 ABCpy for your publication, we would appreciate a citation. You can use
 [this](https://github.com/eth-cscs/abcpy/blob/v0.5.5/doc/literature/DuttaS-ABCpy-PASC-2017.bib)
+
 BibTex reference.
 
 
