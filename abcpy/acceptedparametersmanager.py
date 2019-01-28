@@ -92,7 +92,8 @@ class AcceptedParametersManager:
         Returns
         -------
         list
-            The first entry corresponds to the mapping of the root model, as well as all its parents. The second entry corresponds to the next index in depth-first search.
+            The first entry corresponds to the mapping of the root model, as well as all its parents. The second entry
+            corresponds to the next index in depth-first search.
         """
 
         # Implement a dfs to discover all nodes of the model
@@ -104,9 +105,9 @@ class AcceptedParametersManager:
 
                 # Only parameters that are neither root nor Hyperparameters are included in the mapping
                 if(not(is_root) and not(isinstance(model, ModelResultingFromOperation))):
-                    for i in range(model.get_output_dimension()):
-                        mapping.append((model, index))
-                        index+=1
+                    #for i in range(model.get_output_dimension()):
+                    mapping.append((model, index))
+                    index+=1
 
                 for parent in model.get_input_models():
                     parent_mapping, index = self.get_mapping([parent], is_root= False, index=index)

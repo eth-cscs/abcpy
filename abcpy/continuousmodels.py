@@ -346,20 +346,13 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
             raise TypeError('Input for Multivariate Normal has to be of type list.')
         if len(parameters)<2:
             raise ValueError('Input for Multivariate Normal has to be of length 2.')
-        if not isinstance(parameters[0], list):
-            raise TypeError('Input for mean of MultivarateNormal has to be of type list.')
-        if not isinstance(parameters[1], list):
-            raise TypeError('Input for covariance of MultivarateNormal has to be of type list.')
-
-        ## This part confuses me as you say mean may not be list!!
 
         mean = parameters[0]
         if isinstance(mean, list):
             self._dimension = len(mean)
-            input_parameters = InputConnector.from_list(parameters)
         elif isinstance(mean, ProbabilisticModel):
             self._dimension = mean.get_output_dimension()
-            input_parameters = parameters
+        input_parameters = InputConnector.from_list(parameters)
 
         super(MultivariateNormal, self).__init__(input_parameters, name)
         self.visited = False

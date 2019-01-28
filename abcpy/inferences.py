@@ -481,7 +481,8 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             # The calculation of cov_mats needs the new weights and new parameters
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters = new_parameters, accepted_weights=new_weights)
 
-            # The parameters relevant to each kernel have to be used to calculate n_sample times. It is therefore more efficient to broadcast these parameters once, instead of collecting them at each kernel in each step
+            # The parameters relevant to each kernel have to be used to calculate n_sample times. It is therefore more efficient to broadcast these parameters once,
+            # instead of collecting them at each kernel in each step
             kernel_parameters = []
             for kernel in self.kernel.kernels:
                 kernel_parameters.append(
