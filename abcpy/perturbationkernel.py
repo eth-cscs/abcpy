@@ -273,7 +273,7 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
             weights = accepted_parameters_manager.accepted_weights_bds.value()
             continuous_model = [[] for i in range(len(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]))]
             for i in range(len(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index])):
-                if isinstance(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i][0], np.float):
+                if isinstance(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i][0], (np.float, np.float32, np.float64, np.int, np.int32, np.int64)):
                     continuous_model[i] = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i]
                 else:
                     continuous_model[i] = np.concatenate(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i])
@@ -313,7 +313,7 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
         # Get all current parameter values relevant for this model and the structure
         continuous_model_values = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]
 
-        if isinstance(continuous_model_values[row_index][0], np.float):
+        if isinstance(continuous_model_values[row_index][0], (np.float, np.float32, np.float64, np.int, np.int32, np.int64)):
             # Perturb
             cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
             continuous_model_values = np.array(continuous_model_values).astype(float)
@@ -361,11 +361,12 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
         # Gets the relevant accepted parameters from the manager in order to calculate the pdf
         continuous_model_values = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]
 
-        if isinstance(continuous_model_values[index][0], np.float):
+        if isinstance(continuous_model_values[index][0], (np.float, np.float32, np.float64, np.int, np.int32, np.int64)):
             mean = np.array(continuous_model_values[index]).astype(float)
             cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
             return multivariate_normal(mean, cov, allow_singular=True).pdf(x)
         else:
+            print(type(continuous_model_values[index][0]))
             mean = np.array(np.concatenate(continuous_model_values[index])).astype(float)
             cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
             return multivariate_normal(mean, cov, allow_singular=True).pdf(np.concatenate(x))
