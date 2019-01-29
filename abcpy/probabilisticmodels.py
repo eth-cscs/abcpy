@@ -394,7 +394,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
         boolean
             Returns True if it was possible to set the values, false otherwise.
         """
-
         if not isinstance(values, np.ndarray):
             raise TypeError('Elements of input list are not of type numpy array.')
         if values.shape[0] != self.get_output_dimension():

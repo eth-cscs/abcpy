@@ -87,7 +87,7 @@ class Uniform(ProbabilisticModel, Continuous):
         samples = np.zeros(shape=(k, self.get_output_dimension()))
         for j in range(0, self.get_output_dimension()):
             samples[:, j] = rng.uniform(input_values[j], input_values[j+self.get_output_dimension()], k)
-        return [np.array(x) for x in samples]
+        return [np.array(x).reshape(-1,) for x in samples]
 
 
     def get_output_dimension(self):
@@ -189,7 +189,7 @@ class Normal(ProbabilisticModel, Continuous):
         mu = input_values[0]
         sigma = input_values[1]
         result = np.array(rng.normal(mu, sigma, k))
-        return [np.array([x]) for x in result]
+        return [np.array([x]).reshape(-1,) for x in result]
 
 
     def get_output_dimension(self):
@@ -270,7 +270,7 @@ class StudentT(ProbabilisticModel, Continuous):
         mean = input_values[0]
         df = input_values[1]
         result = np.array((rng.standard_t(df,k)+mean))
-        return [np.array([x]) for x in result]
+        return [np.array([x]).reshape(-1,) for x in result]
 
 
     def _check_input(self, input_values):

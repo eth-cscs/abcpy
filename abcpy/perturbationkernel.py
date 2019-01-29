@@ -201,9 +201,9 @@ class JointPerturbationKernel(PerturbationKernel):
             index=0
             for model in kernel.models:
                 model_values = []
-                for j in range(model.get_output_dimension()):
-                    model_values.append(perturbed_values[kernel_index][index])
-                    index+=1
+                #for j in range(model.get_output_dimension()):
+                model_values.append(perturbed_values[kernel_index][index])
+                index+=1
                 perturbed_values_including_models.append((model, model_values))
 
         return perturbed_values_including_models
@@ -271,8 +271,15 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
 
         if(accepted_parameters_manager.accepted_weights_bds is not None):
             weights = accepted_parameters_manager.accepted_weights_bds.value()
-            cov = np.cov(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float),
-                         aweights=weights.reshape(-1).astype(float), rowvar=False)
+            continuous_model = [[] for i in range(len(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]))]
+            for i in range(len(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index])):
+                if isinstance(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i][0], np.float):
+                    continuous_model[i] = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i]
+                else:
+                    continuous_model[i] = np.concatenate(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i])
+            cov = np.cov(np.array(continuous_model).astype(float),aweights=weights.reshape(-1).astype(float), rowvar=False)
+            #cov = np.cov(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float),
+            #             aweights=weights.reshape(-1).astype(float), rowvar=False)
         else:
             if(not(accepted_parameters_manager.accepted_parameters_bds.value().shape[1]>1)):
                 cov = np.var(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float))
@@ -303,13 +310,31 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
             The perturbed parameter values.
         """
 
-        # Get all current parameter values relevant for this model
+        # Get all current parameter values relevant for this model and the structure
         continuous_model_values = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]
 
-        # Perturb
-        continuous_model_values = np.array(continuous_model_values).astype(float)
-        cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
-        perturbed_continuous_values = rng.multivariate_normal(continuous_model_values[row_index], cov)
+        if isinstance(continuous_model_values[row_index][0], np.float):
+            # Perturb
+            cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
+            continuous_model_values = np.array(continuous_model_values).astype(float)
+
+            # Perturbed values anc split according to the structure
+            perturbed_continuous_values = rng.multivariate_normal(continuous_model_values[row_index], cov)
+        else:
+            # Learn the structure
+            struct = [[] for i in range(len(continuous_model_values[row_index]))]
+            for i in range(len(continuous_model_values[row_index])):
+                struct[i] = continuous_model_values[row_index][i].shape[0]
+            struct = np.array(struct).cumsum()
+            continuous_model_values = np.concatenate(continuous_model_values[row_index])
+
+            # Perturb
+            cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
+            continuous_model_values = np.array(continuous_model_values).astype(float)
+
+            # Perturbed values anc split according to the structure
+            perturbed_continuous_values = np.split(rng.multivariate_normal(continuous_model_values, cov), struct)[:-1]
+
         return perturbed_continuous_values
 
 
@@ -334,12 +359,16 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
         """
 
         # Gets the relevant accepted parameters from the manager in order to calculate the pdf
+        continuous_model_values = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]
 
-        mean = np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][index]).astype(float)
-
-        cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
-
-        return multivariate_normal(mean, cov, allow_singular=True).pdf(x)
+        if isinstance(continuous_model_values[index][0], np.float):
+            mean = np.array(continuous_model_values[index]).astype(float)
+            cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
+            return multivariate_normal(mean, cov, allow_singular=True).pdf(x)
+        else:
+            mean = np.array(np.concatenate(continuous_model_values[index])).astype(float)
+            cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
+            return multivariate_normal(mean, cov, allow_singular=True).pdf(np.concatenate(x))
 
 
 class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):

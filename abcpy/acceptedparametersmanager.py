@@ -140,6 +140,7 @@ class AcceptedParametersManager:
 
         # The self.accepted_parameters_bds.value() list has dimensions d x n_steps, where d is the number of free parameters
         accepted_bds_values = [[] for i in range(len(self.accepted_parameters_bds.value()))]
+
         # Add all columns that correspond to desired parameters to the list that is returned
         for model in models:
             for prob_model, index in mapping:
@@ -147,6 +148,7 @@ class AcceptedParametersManager:
                     for i in range(len(self.accepted_parameters_bds.value())):
                         accepted_bds_values[i].append(self.accepted_parameters_bds.value()[i][index])
         accepted_bds_values = [np.array(x).reshape(-1, ) for x in accepted_bds_values]
+
         return accepted_bds_values
 
     def _reset_flags(self, models=None):

@@ -574,9 +574,8 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 "Needed {:4d} simulations to reach distance {:e} < epsilon = {:e}".
                 format(counter, distance, float(self.epsilon))
                 )
-        return (theta, distance, counter)
 
-        return None
+        return (theta, distance, counter)
 
     def _calculate_weight(self, theta, npc=None):
         """
