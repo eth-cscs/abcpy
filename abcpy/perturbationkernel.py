@@ -321,6 +321,7 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
             # Perturbed values anc split according to the structure
             perturbed_continuous_values = rng.multivariate_normal(continuous_model_values[row_index], cov)
         else:
+            #print('Hello')
             # Learn the structure
             struct = [[] for i in range(len(continuous_model_values[row_index]))]
             for i in range(len(continuous_model_values[row_index])):
@@ -366,7 +367,6 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
             cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
             return multivariate_normal(mean, cov, allow_singular=True).pdf(x)
         else:
-            print(type(continuous_model_values[index][0]))
             mean = np.array(np.concatenate(continuous_model_values[index])).astype(float)
             cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
             return multivariate_normal(mean, cov, allow_singular=True).pdf(np.concatenate(x))
@@ -452,14 +452,14 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
         """
 
         # Get all parameters relevant to this kernel
-        continuous_model_values = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]
+        continuous_model_values = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][row_index]
 
-        if isinstance(continuous_model_values[row_index][0],
+        if isinstance(continuous_model_values[0],
                       (np.float, np.float32, np.float64, np.int, np.int32, np.int64)):
             # Perturb
             continuous_model_values = np.array(continuous_model_values)
             cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
-            p = len(continuous_model_values[row_index])
+            p = len(continuous_model_values)
 
             if (self.df == np.inf):
                 chisq = 1.0
@@ -468,18 +468,18 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
                 chisq = chisq.reshape(-1, 1).repeat(p, axis=1)
 
             mvn = rng.multivariate_normal(np.zeros(p), cov.astype(float), 1)
-            perturbed_continuous_values = continuous_model_values[row_index] + np.divide(mvn, np.sqrt(chisq))[0]
+            perturbed_continuous_values = continuous_model_values + np.divide(mvn, np.sqrt(chisq))[0]
         else:
             # Learn the structure
-            struct = [[] for i in range(len(continuous_model_values[row_index]))]
-            for i in range(len(continuous_model_values[row_index])):
-                struct[i] = continuous_model_values[row_index][i].shape[0]
+            struct = [[] for i in range(len(continuous_model_values))]
+            for i in range(len(continuous_model_values)):
+                struct[i] = continuous_model_values[i].shape[0]
             struct = np.array(struct).cumsum()
-            continuous_model_values = np.concatenate(continuous_model_values[row_index])
+            continuous_model_values = np.concatenate(continuous_model_values)
 
             # Perturb
             cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
-            p = len(continuous_model_values[row_index])
+            p = len(continuous_model_values)
 
             if (self.df == np.inf):
                 chisq = 1.0
@@ -488,7 +488,7 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
                 chisq = chisq.reshape(-1, 1).repeat(p, axis=1)
 
             mvn = rng.multivariate_normal(np.zeros(p), cov.astype(float), 1)
-            perturbed_continuous_values = continuous_model_values[row_index] + np.divide(mvn, np.sqrt(chisq))[0]
+            perturbed_continuous_values = continuous_model_values + np.divide(mvn, np.sqrt(chisq))[0]
 
             # Perturbed values anc split according to the structure
             perturbed_continuous_values = np.split(perturbed_continuous_values, struct)[:-1]
@@ -514,11 +514,11 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
         float
             The pdf evaluated at point x.
         """
-        continuous_model_values = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]
+        continuous_model_values = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][index]
 
-        if isinstance(continuous_model_values[index][0],
+        if isinstance(continuous_model_values[0],
                       (np.float, np.float32, np.float64, np.int, np.int32, np.int64)):
-            mean = np.array(continuous_model_values[index]).astype(float)
+            mean = np.array(continuous_model_values).astype(float)
             cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
 
             v = self.df
@@ -532,7 +532,7 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
 
             return density
         else:
-            mean = np.array(np.concatenate(continuous_model_values[index])).astype(float)
+            mean = np.array(np.concatenate(continuous_model_values)).astype(float)
             cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
 
             v = self.df

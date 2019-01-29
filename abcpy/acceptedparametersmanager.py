@@ -147,7 +147,7 @@ class AcceptedParametersManager:
                 if(model==prob_model):
                     for i in range(len(self.accepted_parameters_bds.value())):
                         accepted_bds_values[i].append(self.accepted_parameters_bds.value()[i][index])
-        accepted_bds_values = [np.array(x).reshape(-1, ) for x in accepted_bds_values]
+        #accepted_bds_values = [np.array(x).reshape(-1, ) for x in accepted_bds_values]
 
         return accepted_bds_values
 
