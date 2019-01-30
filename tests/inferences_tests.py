@@ -237,11 +237,6 @@ class SABCTests(unittest.TestCase):
         # Compute posterior mean
         mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
 
-        print(journal.get_parameters())
-        print(len(mu_post_sample))
-        print(mu_post_sample[0])
-        print(mu_post_sample[0].shape)
-
         # test shape of sample
         mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[0]), \
                                             (len(sigma_post_sample), sigma_post_sample[0].shape[1]), post_weights.shape
