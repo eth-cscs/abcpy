@@ -243,8 +243,6 @@ class GraphTools():
         for model, index in mapping:
             return_value.append((model.name, self.accepted_parameters_manager.get_accepted_parameters_bds_values([model])))
 
-        print(return_value)
-
         return return_value
 
 

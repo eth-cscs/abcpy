@@ -227,23 +227,24 @@ class RejectionABC(InferenceMethod):
         rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
         rng_pds = self.backend.parallelize(rng_arr)
 
-        accepted_parameters_and_counter_pds = self.backend.map(self._sample_parameter, rng_pds)
-        accepted_parameters_and_counter = self.backend.collect(accepted_parameters_and_counter_pds)
-        accepted_parameters, counter = [list(t) for t in zip(*accepted_parameters_and_counter)]
+        accepted_parameters_distances_counter_pds = self.backend.map(self._sample_parameter, rng_pds)
+        accepted_parameters_distances_counter = self.backend.collect(accepted_parameters_distances_counter_pds)
+        accepted_parameters, distances, counter = [list(t) for t in zip(*accepted_parameters_distances_counter)]
 
         for count in counter:
             self.simulation_counter+=count
 
         accepted_parameters = np.array(accepted_parameters)
+        distances = np.array(distances)
 
         self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
 
-        journal.add_parameters(accepted_parameters)
-        journal.add_weights(np.ones((n_samples, 1)))
+
+        journal.add_weights(copy.deepcopy(np.ones((n_samples, 1))))
+        journal.add_distances(copy.deepcopy(distances))
         self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
         names_and_parameters = self._get_names_and_parameters()
         journal.add_user_parameters(names_and_parameters)
-
         journal.number_of_simulations.append(self.simulation_counter)
 
         return journal
@@ -288,7 +289,7 @@ class RejectionABC(InferenceMethod):
                 "Needed {:4d} simulations to reach distance {:e} < epsilon = {:e}".
                 format(counter, distance, float(self.epsilon))
                 )
-        return (theta, counter)
+        return (theta, distance, counter)
 
 
 class PMCABC(BaseDiscrepancy, InferenceMethod):
@@ -452,6 +453,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             params_and_dists_and_counter = self.backend.collect(params_and_dists_and_counter_pds)
             new_parameters, distances, counter = [list(t) for t in zip(*params_and_dists_and_counter)]
             new_parameters = np.array(new_parameters)
+            distances = np.array(distances)
 
             for count in counter:
                 self.simulation_counter+=count
@@ -503,13 +505,12 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             self.logger.info("Save configuration to output journal")
 
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
-                journal.add_parameters(accepted_parameters)
-                journal.add_weights(accepted_weights)
+                journal.add_distances(copy.deepcopy(distances))
+                journal.add_weights(copy.deepcopy(accepted_weights))
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                                   accepted_weights=accepted_weights)
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)
-
                 journal.number_of_simulations.append(self.simulation_counter)
 
         # Add epsilon_arr to the journal
@@ -864,8 +865,7 @@ class PMC(BaseLikelihood, InferenceMethod):
             self.logger.info("Saving configuration to output journal")
 
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
-                journal.add_parameters(accepted_parameters)
-                journal.add_weights(accepted_weights)
+                journal.add_weights(copy.deepcopy(accepted_weights))
                 journal.add_opt_values(approx_likelihood_new_parameters)
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                                   accepted_weights=accepted_weights)
@@ -1277,7 +1277,6 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 if (full_output == 1 and aStep<= steps-1):
                     ## Saving intermediate configuration to output journal.
                     print('Saving after resampling')
-                    journal.add_parameters(copy.deepcopy(accepted_parameters))
                     journal.add_weights(copy.deepcopy(accepted_weights))
                     journal.add_distances(copy.deepcopy(distances))
                     names_and_parameters = self._get_names_and_parameters()
@@ -1306,7 +1305,6 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
                 if (full_output == 1 and aStep <= steps-1):
                     ## Saving intermediate configuration to output journal.
-                    journal.add_parameters(copy.deepcopy(accepted_parameters))
                     journal.add_weights(copy.deepcopy(accepted_weights))
                     journal.add_distances(copy.deepcopy(distances))
                     names_and_parameters = self._get_names_and_parameters()
@@ -1316,7 +1314,6 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         # Add epsilon_arr, number of final steps and final output to the journal
         # print("INFO: Saving final configuration to output journal.")
         if (full_output == 0) or (full_output ==1 and broken_preemptively and aStep<= steps-1):
-            journal.add_parameters(copy.deepcopy(accepted_parameters))
             journal.add_weights(copy.deepcopy(accepted_weights))
             journal.add_distances(copy.deepcopy(distances))
             self.accepted_parameters_manager.update_broadcast(self.backend,accepted_parameters=accepted_parameters,accepted_weights=accepted_weights)
@@ -1680,7 +1677,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
             if full_output == 1:
                 self.logger.info("Saving intermediate configuration to output journal")
-                journal.add_parameters(copy.deepcopy(accepted_parameters))
+                journal.add_distances(copy.deepcopy(distances))
                 journal.add_weights(copy.deepcopy(accepted_weights))
                 journal.add_opt_values(accepted_cov_mats)
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
@@ -1700,7 +1697,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
         # Add anneal_parameter, number of final steps and final output to the journal
         # print("INFO: Saving final configuration to output journal.")
         if full_output == 0:
-            journal.add_parameters(copy.deepcopy(accepted_parameters))
+            journal.add_distances(copy.deepcopy(distances))
             journal.add_weights(copy.deepcopy(accepted_weights))
             journal.add_opt_values(accepted_cov_mats)
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
@@ -2056,7 +2053,7 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
 
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
                 self.logger.info("Saving configuration to output journal.")
-                journal.add_parameters(copy.deepcopy(accepted_parameters))
+                journal.add_distances(copy.deepcopy(accepted_dist))
                 journal.add_weights(np.ones(shape=(len(accepted_parameters), 1)) * (1 / len(accepted_parameters)))
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
                 names_and_parameters = self._get_names_and_parameters()
@@ -2368,7 +2365,7 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
 
             # print("INFO: Saving configuration to output journal.")
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
-                journal.add_parameters(copy.deepcopy(accepted_parameters))
+                journal.add_distances(copy.deepcopy(accepted_dist))
                 journal.add_weights(copy.deepcopy(accepted_weights))
                 self.accepted_parameters_manager.update_broadcast(self.backend,
                                                                   accepted_parameters=accepted_parameters,
@@ -2637,7 +2634,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 self.logger.info("Resampling")
                 # Weighted resampling:
                 index_resampled = self.rng.choice(np.arange(n_samples), n_samples, replace=1, p=new_weights)
-                accepted_parameters = accepted_parameters[index_resampled, :]
+                print(accepted_parameters)
+                accepted_parameters = accepted_parameters[index_resampled]
                 new_weights = np.ones(shape=(n_samples), ) * (1.0 / n_samples)
 
             # Update the weights
@@ -2676,8 +2674,9 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             self.logger.info("Resampling parameters")
             params_and_ysim_pds = self.backend.map(self._accept_parameter, rng_and_index_pds)
             params_and_ysim = self.backend.collect(params_and_ysim_pds)
-            new_parameters, new_y_sim, counter = [list(t) for t in zip(*params_and_ysim)]
+            new_parameters, new_y_sim, distances, counter = [list(t) for t in zip(*params_and_ysim)]
             new_parameters = np.array(new_parameters)
+            distances = np.array(distances)
 
             for count in counter:
                 self.simulation_counter+=count
@@ -2689,7 +2688,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
                 self.logger.info("Saving configuration to output journal")
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
-                journal.add_parameters(copy.deepcopy(accepted_parameters))
+
+                journal.add_distances(copy.deepcopy(distances))
                 journal.add_weights(copy.deepcopy(accepted_weights))
                 journal.add_opt_values(copy.deepcopy(accepted_y_sim))
 
@@ -2846,5 +2846,5 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             else:
                 self.set_parameters(self.accepted_parameters_manager.accepted_parameters_bds.value()[index])
                 y_sim = self.accepted_y_sim_bds.value()[index]
-
-        return (self.get_parameters(), y_sim, counter)
+        distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+        return (self.get_parameters(), y_sim, distance, counter)
