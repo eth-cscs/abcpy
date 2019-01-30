@@ -2636,6 +2636,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 index_resampled = self.rng.choice(np.arange(n_samples), n_samples, replace=1, p=new_weights)
                 print(accepted_parameters)
                 accepted_parameters = accepted_parameters[index_resampled]
+                print(accepted_parameters)
                 new_weights = np.ones(shape=(n_samples), ) * (1.0 / n_samples)
 
             # Update the weights
@@ -2675,7 +2676,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             params_and_ysim_pds = self.backend.map(self._accept_parameter, rng_and_index_pds)
             params_and_ysim = self.backend.collect(params_and_ysim_pds)
             new_parameters, new_y_sim, distances, counter = [list(t) for t in zip(*params_and_ysim)]
-            new_parameters = np.array(new_parameters)
+            #new_parameters = np.array(new_parameters)
             distances = np.array(distances)
 
             for count in counter:
@@ -2811,7 +2812,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             counter+=1
         else:
             if self.accepted_parameters_manager.accepted_weights_bds.value()[index] > 0:
-                theta = np.array(self.accepted_parameters_manager.accepted_parameters_bds.value()[index]).reshape(-1,)
+                theta = self.accepted_parameters_manager.accepted_parameters_bds.value()[index]
+                #theta = np.array(self.accepted_parameters_manager.accepted_parameters_bds.value()[index]).reshape(-1,)
                 while True:
                     perturbation_output = self.perturb(index, rng=rng)
                     if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
@@ -2831,12 +2833,14 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                     ratio_data_epsilon = 1
                 else:
                     ratio_data_epsilon = numerator / denominator
+
                 ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model,
                                                                                                              theta)
                 kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, index, theta)
                 kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, index,
                                                      perturbation_output[1])
                 ratio_likelihood_prob = kernel_numerator / kernel_denominator
+
                 acceptance_prob = min(1, ratio_data_epsilon * ratio_prior_prob * ratio_likelihood_prob)
                 if rng.binomial(1, acceptance_prob) == 1:
                     self.set_parameters(perturbation_output[1])
