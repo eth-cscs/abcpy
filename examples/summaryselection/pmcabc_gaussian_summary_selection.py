@@ -27,13 +27,15 @@ def infer_parameters():
     summary_selection = Semiautomatic([height], statistics_calculator, backend,
                                       n_samples=1000,n_samples_per_param=1, seed=1)
 
+    print('Hello')
+
     # Redefine the statistics function
     statistics_calculator.statistics = lambda x, f2=summary_selection.transformation, \
                                               f1=statistics_calculator.statistics: f2(f1(x))
 
     # define distance
-    from abcpy.distances import LogReg
-    distance_calculator = LogReg(statistics_calculator)
+    from abcpy.distances import Euclidean
+    distance_calculator = Euclidean(statistics_calculator)
     
     # define kernel
     from abcpy.perturbationkernel import DefaultKernel
@@ -44,8 +46,8 @@ def infer_parameters():
     sampler = PMCABC([height], [distance_calculator], backend, kernel, seed=1)
     
     # sample from scheme
-    T, n_sample, n_samples_per_param = 3, 250, 10
-    eps_arr = np.array([.75])
+    T, n_sample, n_samples_per_param = 3, 10, 10
+    eps_arr = np.array([500])
     epsilon_percentile = 10
     journal = sampler.sample([height_obs],  T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
 
@@ -54,7 +56,7 @@ def infer_parameters():
 
 def analyse_journal(journal):
     # output parameters and weights
-    print(journal.get_stored_output_values())
+    print(journal.opt_values)
     print(journal.get_weights())
     
     # do post analysis
@@ -72,16 +74,7 @@ def analyse_journal(journal):
     new_journal = Journal.fromFile('experiments.jnl')
 
 
-# this code is for testing purposes only and not relevant to run the example
-import unittest
-class ExampleGaussianDummyTest(unittest.TestCase):
-    def test_example(self):
-        journal = infer_parameters()
-        test_result = journal.posterior_mean()[0]
-        expected_result = 176
-        self.assertLess(abs(test_result - expected_result), 2.)
-    
-
+# this code is for testing purposes only and not relevant to run the exampl
 if __name__  == "__main__":
     journal = infer_parameters()
     analyse_journal(journal)

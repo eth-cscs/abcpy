@@ -17,12 +17,12 @@ def infer_parameters():
 
     # define prior
     from abcpy.continuousmodels import Uniform
-    mu = Uniform([[150], [200]], )
-    sigma = Uniform([[5], [25]], )
+    mu = Uniform([[150], [200]], name='mu')
+    sigma = Uniform([[5], [25]], name='sigma')
 
     # define the model
     from abcpy.continuousmodels import Normal
-    height = Normal([mu, sigma], )
+    height = Normal([mu, sigma], name='height')
 
     # define statistics
     from abcpy.statistics import Identity
@@ -85,7 +85,7 @@ def setUpModule():
 class ExampleGaussianMPITest(unittest.TestCase):
     def test_example(self):
         journal = infer_parameters()
-        test_result = journal.posterior_mean()[0]
+        test_result = journal.posterior_mean()['mu']
         expected_result = 171.4343638312893
         self.assertLess(abs(test_result - expected_result), 2)
 

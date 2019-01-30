@@ -413,7 +413,7 @@ class APMCABCTests(unittest.TestCase):
         # use the APMCABC scheme for T = 1
         steps, n_sample, n_simulate = 1, 10, 1
         sampler = APMCABC([self.model], [self.dist_calc], self.backend, seed = 1)
-        journal = sampler.sample([self.observation], steps, n_sample, n_simulate)
+        journal = sampler.sample([self.observation], steps, n_sample, n_simulate, alpha=.9)
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
 
         # Compute posterior mean
@@ -432,7 +432,7 @@ class APMCABCTests(unittest.TestCase):
         # use the APMCABC scheme for T = 2
         T, n_sample, n_simulate = 2, 10, 1
         sampler = APMCABC([self.model], [self.dist_calc], self.backend, seed = 1)
-        journal = sampler.sample([self.observation], T, n_sample, n_simulate)
+        journal = sampler.sample([self.observation], T, n_sample, n_simulate, alpha=.9)
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
 
         # Compute posterior mean
