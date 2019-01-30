@@ -417,8 +417,8 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         for aStep in range(steps):
             self.logger.debug("iteration {} of PMC algorithm".format(aStep))
             if(aStep==0 and journal_file is not None):
-                accepted_parameters = journal.parameters[-1]
-                accepted_weights = journal.weights[-1]
+                accepted_parameters = journal.get_accepted_parameters(-1)
+                accepted_weights = journal.get_weights(-1)
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights)
 
@@ -505,6 +505,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             self.logger.info("Save configuration to output journal")
 
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
+                journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_distances(copy.deepcopy(distances))
                 journal.add_weights(copy.deepcopy(accepted_weights))
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
@@ -771,8 +772,8 @@ class PMC(BaseLikelihood, InferenceMethod):
         self.logger.info("Starting pmc iterations")
         for aStep in range(steps):
             if(aStep==0 and journal_file is not None):
-                accepted_parameters = journal.parameters[-1]
-                accepted_weights = journal.weights[-1]
+                accepted_parameters = journal.get_accepted_parameters(-1)
+                accepted_weights = journal.get_weights(-1)
                 approx_likelihood_new_parameters = journal.opt_values[-1]
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights)
@@ -865,6 +866,7 @@ class PMC(BaseLikelihood, InferenceMethod):
             self.logger.info("Saving configuration to output journal")
 
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
+                journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_weights(copy.deepcopy(accepted_weights))
                 journal.add_opt_values(approx_likelihood_new_parameters)
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
@@ -1139,8 +1141,8 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         for aStep in range(0, steps):
             self.logger.debug("step {}".format(aStep))
             if(aStep==0 and journal_file is not None):
-                accepted_parameters=journal.parameters[-1]
-                accepted_weights=journal.weights[-1]
+                accepted_parameters=journal.get_accepted_parameters(-1)
+                accepted_weights=journal.get_weights(-1)
 
                 #Broadcast Accepted parameters and Accedpted weights
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights)
@@ -1282,6 +1284,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 if (full_output == 1 and aStep<= steps-1):
                     ## Saving intermediate configuration to output journal.
                     print('Saving after resampling')
+                    journal.get_accepted_parameters(copy.deepcopy(accepted_parameters))
                     journal.add_weights(copy.deepcopy(accepted_weights))
                     journal.add_distances(copy.deepcopy(distances))
                     names_and_parameters = self._get_names_and_parameters()
@@ -1310,6 +1313,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
                 if (full_output == 1 and aStep <= steps-1):
                     ## Saving intermediate configuration to output journal.
+                    journal.get_accepted_parameters(copy.deepcopy(accepted_parameters))
                     journal.add_weights(copy.deepcopy(accepted_weights))
                     journal.add_distances(copy.deepcopy(distances))
                     names_and_parameters = self._get_names_and_parameters()
@@ -1319,6 +1323,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         # Add epsilon_arr, number of final steps and final output to the journal
         # print("INFO: Saving final configuration to output journal.")
         if (full_output == 0) or (full_output ==1 and broken_preemptively and aStep<= steps-1):
+            journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
             journal.add_weights(copy.deepcopy(accepted_weights))
             journal.add_distances(copy.deepcopy(distances))
             self.accepted_parameters_manager.update_broadcast(self.backend,accepted_parameters=accepted_parameters,accepted_weights=accepted_weights)
@@ -1587,8 +1592,8 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
         for aStep in range(0, steps):
             self.logger.info("ABCsubsim step {}".format(aStep))
             if aStep==0 and journal_file is not None:
-                accepted_parameters = journal.parameters[-1]
-                accepted_weights = journal.weights[-1]
+                accepted_parameters = journal.get_accepted_parameters(-1)
+                accepted_weights = journal.get_weights(-1)
                 accepted_cov_mats = journal.opt_values[-1]
 
             # main ABCsubsim algorithm
@@ -1684,6 +1689,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
             if full_output == 1:
                 self.logger.info("Saving intermediate configuration to output journal")
+                journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_distances(copy.deepcopy(distances))
                 journal.add_weights(copy.deepcopy(accepted_weights))
                 journal.add_opt_values(accepted_cov_mats)
@@ -1704,6 +1710,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
         # Add anneal_parameter, number of final steps and final output to the journal
         # print("INFO: Saving final configuration to output journal.")
         if full_output == 0:
+            journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
             journal.add_distances(copy.deepcopy(distances))
             journal.add_weights(copy.deepcopy(accepted_weights))
             journal.add_opt_values(accepted_cov_mats)
@@ -1979,7 +1986,8 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
             self.logger.info("RSMCABC iteration {}".format(aStep))
 
             if aStep == 0 and journal_file is not None:
-                accepted_parameters=journal.parameters[-1]
+                accepted_parameters=journal.get_accepted_parameters(-1)
+                accepted_weights = journal.get_weights(-1)
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_weights= accepted_weights, accepted_parameters=accepted_parameters)
 
@@ -2067,6 +2075,7 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
 
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
                 self.logger.info("Saving configuration to output journal.")
+                journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_distances(copy.deepcopy(accepted_dist))
                 journal.add_weights(accepted_weights)
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_weights=accepted_weights, accepted_parameters=accepted_parameters)
@@ -2300,8 +2309,8 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
         for aStep in range(steps):
             self.logger.info("APMCABC iteration {}".format(aStep))
             if(aStep==0 and journal_file is not None):
-                accepted_parameters=journal.parameters[-1]
-                accepted_weights=journal.weights[-1]
+                accepted_parameters=journal.get_accepted_parameters(-1)
+                accepted_weights=journal.get_weights(-1)
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights)
 
@@ -2389,6 +2398,7 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
 
             # print("INFO: Saving configuration to output journal.")
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
+                journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_distances(copy.deepcopy(accepted_dist))
                 journal.add_weights(copy.deepcopy(accepted_weights))
                 self.accepted_parameters_manager.update_broadcast(self.backend,
@@ -2597,8 +2607,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             self.logger.info("SMCABC iteration {}".format(aStep))
 
             if(aStep==0 and journal_file is not None):
-                accepted_parameters=journal.parameters[-1]
-                accepted_weights=journal.weights[-1]
+                accepted_parameters=journal.get_accepted_parameters(-1)
+                accepted_weights=journal.get_weights(-1)
                 accepted_y_sim = journal.opt_values[-1]
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
@@ -2713,7 +2723,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
                 self.logger.info("Saving configuration to output journal")
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
-
+                journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_distances(copy.deepcopy(distances))
                 journal.add_weights(copy.deepcopy(accepted_weights))
                 journal.add_opt_values(copy.deepcopy(accepted_y_sim))

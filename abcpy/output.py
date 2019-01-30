@@ -32,7 +32,7 @@ class Journal:
             type=1 logs all generated information (reproducibily use).
         """
         
-        #self.parameters = []
+        self.accepted_parameters = []
         self.names_and_parameters = []
         self.weights = []
         self.distances = []
@@ -90,6 +90,21 @@ class Journal:
             self.names_and_parameters = [dict(names_and_params)]
         else:
             self.names_and_parameters.append(dict(names_and_params))
+
+    def add_accepted_parameters(self, accepted_parameters):
+        """
+        Saves provided weights by appending them to the journal. If type==0, old weights get overwritten.
+
+        Parameters
+        ----------
+        accepted_parameters: list
+        """
+
+        if self._type == 0:
+            self.accepted_parameters = [accepted_parameters]
+
+        if self._type == 1:
+            self.accepted_parameters.append(accepted_parameters)
 
     def add_weights(self, weights):
         """
@@ -176,6 +191,30 @@ class Journal:
             return params
         else:
             return self.names_and_parameters[iteration]
+
+    def get_accepted_parameters(self, iteration=None):
+        """
+        Returns the accepted parameters from a sampling scheme.
+
+        For intermediate results, pass the iteration.
+
+        Parameters
+        ----------
+        iteration: int
+            specify the iteration for which to return parameters
+
+        Returns
+        -------
+        accepted_parameters: dictionary
+            Samples from the specified iteration (last, if not specified) returned as a disctionary with names of the
+            random variables
+        """
+
+        if iteration is None:
+            return self.accepted_parameters[-1]
+
+        else:
+            return self.accepted_parameters[iteration]
 
     def get_weights(self, iteration=None):
         """
@@ -271,8 +310,6 @@ class Journal:
 
         return np.cov(np.transpose(np.hstack(joined_params)), aweights = weights.reshape(len(weights),)), params.keys()
 
-
-    
     def posterior_histogram(self, iteration=None, n_bins = 10):
         """
         Computes a weighted histogram of multivariate posterior samples
@@ -298,33 +335,3 @@ class Journal:
 
         H, edges = np.histogramdd(np.hstack(joined_params), bins = n_bins, weights = weights.reshape(len(weights),))
         return [H, edges]
-
-    # def add_parameters(self, params):
-    #     """
-    #     Saves provided parameters by appending them to the journal. If type==0, old parameters get overwritten.
-    #
-    #     Parameters
-    #     ----------
-    #     params: numpy.array
-    #         nxp matrix containing n parameters of dimension p
-    #     """
-    #
-    #     if self._type == 0:
-    #         self.parameters = [params]
-    #
-    #     if self._type == 1:
-    #         self.parameters.append(params)
-    #
-    # def _get_parameter_values(self):
-    #     """
-    #     Returns the parameters in the order dictated by the graph structure.
-    #
-    #     Returns
-    #     -------
-    #     numpy.array:
-    #         The parameters of the model
-    #     """
-    #
-    #     endp = len(self.parameters) - 1
-    #     params = self.parameters[endp]
-    #     return params
