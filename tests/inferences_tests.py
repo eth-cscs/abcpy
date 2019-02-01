@@ -81,18 +81,21 @@ class PMCTests(unittest.TestCase):
         T, n_sample, n_samples_per_param = 1, 10, 100
         sampler = PMC([self.model], [likfun], backend, seed = 1)
         journal = sampler.sample([y_obs], T, n_sample, n_samples_per_param, covFactors =  np.array([.1,.1]), iniPoints = None)
-        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
+        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
+            journal.get_parameters()['sigma']), np.array(journal.get_weights())
 
         # Compute posterior mean
-        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights=post_weights, axis=0), np.average(sigma_post_sample, weights=post_weights, axis=0)
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
 
         # test shape of sample
-        mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                                                    (len(sigma_post_sample),
+                                                                     sigma_post_sample[0].shape[1]), post_weights.shape
         self.assertEqual(mu_sample_shape, (10,1))
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
-        self.assertLess(abs(mu_post_mean - (-3.56042761)), 1e-3)
-        self.assertLess(abs(sigma_post_mean - 5.7553691), 1e-3)
+        self.assertLess(abs(mu_post_mean - (-3.3711206204663764)), 1e-3)
+        self.assertLess(abs(sigma_post_mean - 6.518520667688998), 1e-3)
 
         self.assertFalse(journal.number_of_simulations == 0)
 
@@ -101,18 +104,21 @@ class PMCTests(unittest.TestCase):
         T, n_sample, n_samples_per_param = 2, 10, 100
         sampler = PMC([self.model], [likfun], backend, seed = 1)
         journal = sampler.sample([y_obs], T, n_sample, n_samples_per_param, covFactors = np.array([.1,.1]), iniPoints = None)
-        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
-        
+        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
+            journal.get_parameters()['sigma']), np.array(journal.get_weights())
+
         # Compute posterior mean
-        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights=post_weights, axis=0), np.average(sigma_post_sample, weights=post_weights, axis=0)
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
 
         # test shape of sample
-        mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                                                    (len(sigma_post_sample),
+                                                                     sigma_post_sample[0].shape[1]), post_weights.shape
         self.assertEqual(mu_sample_shape, (10,1))
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
-        self.assertLess(abs(mu_post_mean - (-3.25971092) ), 1e-3)
-        self.assertLess(abs(sigma_post_mean - 7.76172201), 1e-3)
+        self.assertLess(abs(mu_post_mean - (-2.970827684425406) ), 1e-3)
+        self.assertLess(abs(sigma_post_mean - 6.82165619013458), 1e-3)
 
         self.assertFalse(journal.number_of_simulations == 0)
 

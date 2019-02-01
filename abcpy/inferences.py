@@ -773,7 +773,6 @@ class PMC(BaseLikelihood, InferenceMethod):
             if(aStep==0 and journal_file is not None):
                 accepted_parameters = journal.get_accepted_parameters(-1)
                 accepted_weights = journal.get_weights(-1)
-                approx_likelihood_new_parameters = journal.opt_values[-1]
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights)
 
@@ -797,9 +796,10 @@ class PMC(BaseLikelihood, InferenceMethod):
 
             # 0: update remotely required variables
             self.logger.info("Broadcasting parameters")
-            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights, accepted_cov_mats=accepted_cov_mats)
+            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
+                                                              accepted_weights=accepted_weights, accepted_cov_mats=accepted_cov_mats)
 
-            # 1: calculate resample parameters
+            # 1: Resample parameters
             self.logger.info("Resample parameters")
             index = self.rng.choice(len(accepted_parameters), size=n_samples, p=accepted_weights.reshape(-1))
             # Choose a new particle using the resampled particle (make the boundary proper)
@@ -811,15 +811,26 @@ class PMC(BaseLikelihood, InferenceMethod):
                     if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1])!= 0:
                         new_parameters.append(perturbation_output[1])
                         break
+
             # 2: calculate approximate lieklihood for new parameters
             self.logger.info("Calculate approximate likelihood")
-            merged_sim_data_parameter = self.flat_map(new_parameters, self.n_samples_per_param, self._simulate_data)
+            seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=self.n_samples, dtype=np.uint32)
+            rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
+            data_arr = []
+            for i in range(len(rng_arr)):
+                data_arr.append([new_parameters[i], rng_arr[i]])
+            data_pds = self.backend.parallelize(data_arr)
 
-            # Compute likelihood for each parameter value
-            approx_likelihood_new_parameters, counter = self.simple_map(merged_sim_data_parameter, self._approx_calc)
+            approx_likelihood_new_parameters_and_counter_pds = self.backend.map(self._approx_lik_calc, data_pds)
+            self.logger.debug("collect approximate likelihood from pds")
+            approx_likelihood_new_parameters_and_counter = self.backend.collect(approx_likelihood_new_parameters_and_counter_pds)
+            approx_likelihood_new_parameters, counter = [list(t) for t in
+                                                         zip(*approx_likelihood_new_parameters_and_counter)]
+
             approx_likelihood_new_parameters = np.array(approx_likelihood_new_parameters).reshape(-1, 1)
+
             for count in counter:
-                self.simulation_counter+=count
+                self.simulation_counter += count
 
             # 3: calculate new weights for new parameters
             self.logger.info("Calculating weights")
@@ -831,9 +842,9 @@ class PMC(BaseLikelihood, InferenceMethod):
             for i in range(0, self.n_samples):
                 new_weights[i] = new_weights[i] * approx_likelihood_new_parameters[i]
                 sum_of_weights += new_weights[i]
-
-            #print("new_weights : ", new_weights, ", sum_of_weights : ", sum_of_weights)
             new_weights = new_weights / sum_of_weights
+
+            self.logger.info("new_weights : ", new_weights, ", sum_of_weights : ", sum_of_weights)
             accepted_parameters = new_parameters
 
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=new_weights)
@@ -843,8 +854,7 @@ class PMC(BaseLikelihood, InferenceMethod):
             self.logger.info("Calculating covariance matrix")
             kernel_parameters = []
             for kernel in self.kernel.kernels:
-                kernel_parameters.append(
-                    self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
+                kernel_parameters.append(self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
 
             self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
@@ -867,7 +877,6 @@ class PMC(BaseLikelihood, InferenceMethod):
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
                 journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_weights(copy.deepcopy(accepted_weights))
-                journal.add_opt_values(approx_likelihood_new_parameters)
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                                   accepted_weights=accepted_weights)
                 names_and_parameters = self._get_names_and_parameters()
@@ -876,83 +885,44 @@ class PMC(BaseLikelihood, InferenceMethod):
 
         return journal
 
-    ## Simple_map and Flat_map: Python wrapper for nested parallelization
-    def simple_map(self, data, map_function):
-        data_pds = self.backend.parallelize(data)
-        result_pds = self.backend.map(map_function, data_pds)
-        result = self.backend.collect(result_pds)
-        main_result, counter = [list(t) for t in zip(*result)]
-        return main_result, counter
-    def flat_map(self, data, n_repeat, map_function):
-        # Create an array of data, with each data repeated n_repeat many times
-        repeated_data = np.repeat(data, n_repeat, axis=0)
-        # Create an see array
-        n_total = n_repeat * data.shape[0]
-        seed_arr = self.rng.randint(1, n_total * n_total, size=n_total, dtype=np.int32)
-        rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
-        # Create data and rng array
-        repeated_data_rng = [[repeated_data[ind,:],rng_arr[ind]] for ind in range(n_total)]
-        repeated_data_rng_pds = self.backend.parallelize(repeated_data_rng)
-        # Map the function on the data using the corresponding rng
-        repeated_data_result_pds = self.backend.map(map_function, repeated_data_rng_pds)
-        repeated_data_result = self.backend.collect(repeated_data_result_pds)
-        repeated_data, result = [list(t) for t in zip(*repeated_data_result)]
-        merged_result_data = []
-        for ind in range(0, data.shape[0]):
-            merged_result_data.append([[[result[np.int(i)][0][0] \
-                                         for i in
-                                         np.where(np.mean(repeated_data == data[ind, :], axis=1) == 1)[0]]],
-                                       data[ind, :]])
-        return merged_result_data
-
     # define helper functions for map step
-    def _simulate_data(self, data, npc=None):
-        """
-        Simulate n_sample_per_param many datasets for new parameter
-        Parameters
-        ----------
-        theta: numpy.ndarray
-            1xp matrix containing the model parameters, where p is the number of parameters
-        Returns
-        -------
-        (theta, sim_data)
-            tehta and simulate data
-        """
-
-        # Simulate the fake data from the model given the parameter value theta
-        # print("DEBUG: Simulate model for parameter " + str(theta))
-        theta, rng = data[0], data[1]
-        self.set_parameters(theta)
-        y_sim = self.simulate(1, rng, npc=npc)
-        return (theta, y_sim)
-
-    def _approx_calc(self, sim_data_parameter, npc=None):
+    def _approx_lik_calc(self, data, npc=None):
         """
         Compute likelihood for new parameters using approximate likelihood function
         Parameters
         ----------
-        sim_data_parameter: list
-            First element is the parameter and the second element is the simulated data
+        data: list
+            A list containing a parameter value and a random numpy state, e.g. [theta, rng]
         Returns
         -------
         float
             The approximated likelihood function
         """
 
-        # Extract data and parameter
-        y_sim, theta = sim_data_parameter[0], sim_data_parameter[1]
+        # Extract theta and rng
+        theta, rng = data[0], data[1]
 
+        # Simulate the fake data from the model given the parameter value theta
+        self.logger.debug("Simulate model for parameter " + str(theta))
+        self.set_parameters(theta)
+        y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
+
+        self.logger.debug("Extracting observation.")
         obs = self.accepted_parameters_manager.observations_bds.value()
 
+        self.logger.debug("Computing likelihood...")
         total_pdf_at_theta = 1.
 
         lhd = self.likfun.likelihood(obs, y_sim)
 
+        self.logger.debug("Likelihood is :" + str(lhd))
         pdf_at_theta = self.pdf_of_prior(self.model, theta)
 
         total_pdf_at_theta *= (pdf_at_theta * lhd)
 
-        return (total_pdf_at_theta, 1)
+        self.logger.debug("Prior pdf evaluated at theta is :" + str(pdf_at_theta))
+
+        return (total_pdf_at_theta, self.n_samples_per_param)
 
     def _calculate_weight(self, theta, npc=None):
         """
@@ -2101,9 +2071,7 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
             accepted_dist, accepted_parameters = [list(t) for t in zip(*accepted_params_and_dist)]
 
             self.logger.info("Throw away N_alpha particles with largest dist")
-            # Throw away N_alpha particles with largest dist
-            # accepted_parameters = np.delete(accepted_parameters, np.arange(round(n_samples * alpha)) + (
-            #     self.n_samples - round(n_samples * alpha)), 0)
+            # Throw away N_alpha particles with largest distance
 
             del accepted_parameters[self.n_samples - round(n_samples * alpha):]
             accepted_dist = np.delete(accepted_dist,
