@@ -234,12 +234,11 @@ class RejectionABC(InferenceMethod):
         for count in counter:
             self.simulation_counter+=count
 
-        accepted_parameters = np.array(accepted_parameters)
         distances = np.array(distances)
 
         self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
 
-
+        journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
         journal.add_weights(copy.deepcopy(np.ones((n_samples, 1))))
         journal.add_distances(copy.deepcopy(distances))
         self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
@@ -735,10 +734,10 @@ class PMC(BaseLikelihood, InferenceMethod):
         # Initialize particles: When not supplied, randomly draw them from prior distribution
         # Weights of particles: Assign equal weights for each of the particles
         if iniPoints == None:
-            accepted_parameters = np.zeros(shape=(n_samples, dim))
+            accepted_parameters = []
             for ind in range(0, n_samples):
                 self.sample_from_prior(rng=self.rng)
-                accepted_parameters[ind, :] = self.get_parameters()
+                accepted_parameters.append(self.get_parameters())
             accepted_weights = np.ones((n_samples, 1), dtype=np.float) / n_samples
         else:
             accepted_parameters = iniPoints
@@ -802,15 +801,15 @@ class PMC(BaseLikelihood, InferenceMethod):
 
             # 1: calculate resample parameters
             self.logger.info("Resample parameters")
-            index = self.rng.choice(accepted_parameters.shape[0], size=n_samples, p=accepted_weights.reshape(-1))
+            index = self.rng.choice(len(accepted_parameters), size=n_samples, p=accepted_weights.reshape(-1))
             # Choose a new particle using the resampled particle (make the boundary proper)
             # Initialize new_parameters
-            new_parameters = np.zeros((n_samples, dim), dtype=np.float)
+            new_parameters = []
             for ind in range(0, self.n_samples):
                 while True:
                     perturbation_output = self.perturb(index[ind], rng=self.rng)
                     if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1])!= 0:
-                        new_parameters[ind, :] = perturbation_output[1]
+                        new_parameters.append(perturbation_output[1])
                         break
             # 2: calculate approximate lieklihood for new parameters
             self.logger.info("Calculate approximate likelihood")
@@ -1156,12 +1155,14 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
-
-                if accepted_parameters.shape[1] > 1:
-                    accepted_cov_mats = [beta * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(len(new_cov_mat)) for
-                                         new_cov_mat in new_cov_mats]
-                else:
-                    accepted_cov_mats = [beta*new_cov_mat + 0.0001*(new_cov_mat)*np.eye(accepted_parameters.shape[1]) for new_cov_mat in new_cov_mats]
+                accepted_cov_mats = []
+                for new_cov_mat in new_cov_mats:
+                    if new_cov_mat.shape[0] > 1:
+                        accepted_cov_mats.append(
+                            beta * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+                    else:
+                        accepted_cov_mats.append(
+                            beta * new_cov_mat + 0.0001 * (new_cov_mat) * np.eye(new_cov_mat.shape[0]))
 
                 # Broadcast Accepted Covariance Matrix
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
@@ -1272,19 +1273,21 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
                 # Compute Kernel Covariance Matrix and broadcast it
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
-                if accepted_parameters.shape[1] > 1:
-                    accepted_cov_mats = [beta * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(len(new_cov_mat))
-                                         for new_cov_mat in new_cov_mats]
-                else:
-                    accepted_cov_mats = [
-                        beta * new_cov_mat + 0.0001 * (new_cov_mat) * np.eye(accepted_parameters.shape[1])
-                        for new_cov_mat in new_cov_mats]
+                accepted_cov_mats = []
+                for new_cov_mat in new_cov_mats:
+                    if new_cov_mat.shape[0] > 1:
+                        accepted_cov_mats.append(
+                            beta * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+                    else:
+                        accepted_cov_mats.append(
+                            beta * new_cov_mat + 0.0001 * (new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
 
                 if (full_output == 1 and aStep<= steps-1):
                     ## Saving intermediate configuration to output journal.
                     print('Saving after resampling')
-                    journal.get_accepted_parameters(copy.deepcopy(accepted_parameters))
+                    journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                     journal.add_weights(copy.deepcopy(accepted_weights))
                     journal.add_distances(copy.deepcopy(distances))
                     names_and_parameters = self._get_names_and_parameters()
@@ -1302,18 +1305,18 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
                 # Compute Kernel Covariance Matrix and broadcast it
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
-                if len(accepted_parameters[0]) > 1:
-                    accepted_cov_mats = [beta * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(len(new_cov_mat))
-                                         for new_cov_mat in new_cov_mats]
-                else:
-                    accepted_cov_mats = [
-                        beta * new_cov_mat + 0.0001 * (new_cov_mat) * np.eye(accepted_parameters.shape[1])
-                        for new_cov_mat in new_cov_mats]
+                accepted_cov_mats = []
+                for new_cov_mat in new_cov_mats:
+                    if new_cov_mat.shape[0]>1:
+                        accepted_cov_mats.append(beta * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+                    else:
+                        accepted_cov_mats.append(beta * new_cov_mat + 0.0001 * (new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
 
                 if (full_output == 1 and aStep <= steps-1):
                     ## Saving intermediate configuration to output journal.
-                    journal.get_accepted_parameters(copy.deepcopy(accepted_parameters))
+                    journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                     journal.add_weights(copy.deepcopy(accepted_weights))
                     journal.add_distances(copy.deepcopy(distances))
                     names_and_parameters = self._get_names_and_parameters()
