@@ -268,24 +268,22 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
         list
             The covariance matrix corresponding to this kernel.
         """
+        continuous_model = [[] for i in
+                            range(len(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]))]
+        for i in range(len(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index])):
+            if isinstance(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i][0],
+                          (np.float, np.float32, np.float64, np.int, np.int32, np.int64)):
+                continuous_model[i] = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i]
+            else:
+                continuous_model[i] = np.concatenate(
+                    accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i])
+        continuous_model = np.array(continuous_model).astype(float)
 
         if(accepted_parameters_manager.accepted_weights_bds is not None):
             weights = accepted_parameters_manager.accepted_weights_bds.value()
-            continuous_model = [[] for i in range(len(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]))]
-            for i in range(len(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index])):
-                if isinstance(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i][0], (np.float, np.float32, np.float64, np.int, np.int32, np.int64)):
-                    continuous_model[i] = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i]
-                else:
-                    continuous_model[i] = np.concatenate(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i])
-            cov = np.cov(np.array(continuous_model).astype(float),aweights=weights.reshape(-1).astype(float), rowvar=False)
-            #cov = np.cov(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float),
-            #             aweights=weights.reshape(-1).astype(float), rowvar=False)
+            cov = np.cov(continuous_model, aweights=weights.reshape(-1).astype(float), rowvar=False)
         else:
-            if(not(accepted_parameters_manager.accepted_parameters_bds.value().shape[1]>1)):
-                cov = np.var(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float))
-            else:
-                cov = np.cov(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float), rowvar=False)
-
+            cov = np.cov(continuous_model, rowvar=False)
         return cov
 
 
@@ -404,28 +402,22 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
         list
             The covariance matrix corresponding to this kernel.
         """
+        continuous_model = [[] for i in
+                            range(len(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]))]
+        for i in range(len(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index])):
+            if isinstance(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i][0],
+                          (np.float, np.float32, np.float64, np.int, np.int32, np.int64)):
+                continuous_model[i] = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i]
+            else:
+                continuous_model[i] = np.concatenate(
+                    accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i])
+        continuous_model = np.array(continuous_model).astype(float)
 
         if(accepted_parameters_manager.accepted_weights_bds is not None):
             weights = np.array(accepted_parameters_manager.accepted_weights_bds.value())
-            continuous_model = [[] for i in
-                                range(len(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]))]
-            for i in range(len(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index])):
-                if isinstance(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i][0],
-                              (np.float, np.float32, np.float64, np.int, np.int32, np.int64)):
-                    continuous_model[i] = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i]
-                else:
-                    continuous_model[i] = np.concatenate(
-                        accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i])
-            cov = np.cov(np.array(continuous_model).astype(float), aweights=weights.reshape(-1).astype(float),
-                         rowvar=False)
-            # cov = np.cov(
-            #     np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float), aweights=weights.reshape(-1).astype(float),
-            #     rowvar=False)
+            cov = np.cov(continuous_model, aweights=weights.reshape(-1).astype(float),rowvar=False)
         else:
-            if(not(accepted_parameters_manager.accepted_parameters_bds.value().shape[1]>1)):
-                cov = np.var(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float))
-            else:
-                cov = np.cov(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float), rowvar=False)
+            cov = np.cov(continuous_model, rowvar=False)
         return cov
 
 

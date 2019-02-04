@@ -237,7 +237,6 @@ class RejectionABC(InferenceMethod):
         distances = np.array(distances)
 
         self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
-
         journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
         journal.add_weights(copy.deepcopy(np.ones((n_samples, 1))))
         journal.add_distances(copy.deepcopy(distances))
@@ -1126,12 +1125,10 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
                 accepted_cov_mats = []
                 for new_cov_mat in new_cov_mats:
-                    if new_cov_mat.shape[0] > 1:
-                        accepted_cov_mats.append(
-                            beta * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+                    if not(new_cov_mat.size == 1):
+                        accepted_cov_mats.append(beta * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
                     else:
-                        accepted_cov_mats.append(
-                            beta * new_cov_mat + 0.0001 * (new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+                        accepted_cov_mats.append((beta * new_cov_mat + 0.0001 * new_cov_mat).reshape(1,1))
 
                 # Broadcast Accepted Covariance Matrix
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
@@ -1152,7 +1149,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
             self._update_broadcasts(smooth_distances, all_distances)
 
             # 1: Calculate  parameters
-            self.logger.info("Initial accepted parameter parameters")
+            self.logger.info("Initial accepted parameters")
             params_and_dists_pds = self.backend.map(self._accept_parameter, data_pds)
             params_and_dists = self.backend.collect(params_and_dists_pds)
             new_parameters, new_distances, new_all_parameters, new_all_distances, index, acceptance, counter = [list(t) for t in
@@ -1214,11 +1211,11 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
             # 5: Resampling if number of accepted particles greater than resample
             if accept >= resample and U > 1e-100:
-                ## Weighted resampling:
+                self.logger.info("Weighted resampling")
                 weight = np.exp(-smooth_distances * delta / U)
                 weight = weight / sum(weight)
-                index_resampled = self.rng.choice(np.arange(n_samples), n_samples, replace=1, p=weight)
-                accepted_parameters = accepted_parameters[index_resampled]
+                index_resampled = self.rng.choice(np.arange(n_samples, dtype=int), n_samples, replace=1, p=weight)
+                accepted_parameters = [accepted_parameters[i] for i in index_resampled]
                 smooth_distances = smooth_distances[index_resampled]
 
                 ## Update U and epsilon:
@@ -1244,12 +1241,10 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
                 accepted_cov_mats = []
                 for new_cov_mat in new_cov_mats:
-                    if new_cov_mat.shape[0] > 1:
-                        accepted_cov_mats.append(
-                            beta * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+                    if not(new_cov_mat.size == 1):
+                        accepted_cov_mats.append(beta * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
                     else:
-                        accepted_cov_mats.append(
-                            beta * new_cov_mat + 0.0001 * (new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+                        accepted_cov_mats.append((beta * new_cov_mat + 0.0001 * new_cov_mat).reshape(1,1))
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
 
@@ -1276,10 +1271,10 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
                 accepted_cov_mats = []
                 for new_cov_mat in new_cov_mats:
-                    if new_cov_mat.shape[0]>1:
+                    if not(new_cov_mat.size == 1):
                         accepted_cov_mats.append(beta * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
                     else:
-                        accepted_cov_mats.append(beta * new_cov_mat + 0.0001 * (new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+                        accepted_cov_mats.append((beta * new_cov_mat + 0.0001 * new_cov_mat).reshape(1,1))
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
 

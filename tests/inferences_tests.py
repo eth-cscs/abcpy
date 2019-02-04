@@ -42,8 +42,11 @@ class RejectionABCTest(unittest.TestCase):
         sigma_sample = np.array(journal.get_parameters()['sigma'])
 
         # test shape of samples
-        self.assertEqual(np.shape(mu_sample), (10,1))
-        self.assertEqual(np.shape(sigma_sample), (10,1))
+        mu_shape, sigma_shape = (len(mu_sample), mu_sample[0].shape[1]), \
+                                                                    (len(sigma_sample),
+                                                                     sigma_sample[0].shape[1])
+        self.assertEqual(mu_shape, (10,1))
+        self.assertEqual(sigma_shape, (10,1))
 
         # Compute posterior mean
         #self.assertAlmostEqual(np.average(np.asarray(samples[:,0])),1.22301,10e-2)
