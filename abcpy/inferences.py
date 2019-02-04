@@ -269,13 +269,12 @@ class RejectionABC(InferenceMethod):
             self.logger.warn("initial epsilon {:e} is larger than dist_max {:e}"
                              .format(float(self.epsilon), distance))
 
-        theta = np.array(self.get_parameters(self.model)).reshape(-1,)
         counter = 0
 
         while distance > self.epsilon:
             # Accept new parameter value if the distance is less than epsilon
             self.sample_from_prior(rng=rng)
-            theta = np.array(self.get_parameters(self.model)).reshape(-1,)
+            theta = self.get_parameters(self.model)
             y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
             counter+=1
             if(y_sim is not None):
