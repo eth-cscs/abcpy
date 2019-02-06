@@ -95,7 +95,7 @@ class PdfTests(unittest.TestCase):
         mapping, mapping_index = Manager.get_mapping(Manager.model)
         covs = [[[1,0],[0,1]],[]]
         Manager.update_broadcast(backend, accepted_cov_mats=covs)
-        pdf = kernel.pdf(mapping, Manager, 1, [2,0.3,0.1])
+        pdf = kernel.pdf(mapping, Manager, Manager.accepted_parameters_bds.value()[1], [2,0.3,0.1])
         self.assertTrue(isinstance(pdf, float))
 
 

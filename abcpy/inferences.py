@@ -349,7 +349,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter=0
 
 
-    def sample(self, observations, steps, epsilon_init, n_samples = 10000, n_samples_per_param = 1, epsilon_percentile = 0, covFactor = 2, full_output=0, journal_file = None):
+    def sample(self, observations, steps, epsilon_init, n_samples = 10000, n_samples_per_param = 1, epsilon_percentile = 10, covFactor = 2, full_output=0, journal_file = None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -368,12 +368,15 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         n_samples_per_param : integer, optional
             Number of data points in each simulated data set. The default value is 1.
         epsilon_percentile : float, optional
-            A value between [0, 100]. The default value is 0, meaning the threshold value provided by the user being used.
+            A value between [0, 100]. The default value is 10.
         covFactor : float, optional
             scaling parameter of the covariance matrix. The default value is 2 as considered in [1].
         full_output: integer, optional
             If full_output==1, intermediate results are included in output journal.
             The default value is 0, meaning the intermediate results are not saved.
+        journal_file: str, optional
+            Filename of a journal file to read an already saved journal file, from which the first iteration will start.
+            The default value is None.
 
         Returns
         -------
@@ -603,7 +606,8 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(self.accepted_parameters_manager.model)
 
             for i in range(0, self.n_samples):
-                pdf_value = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, i, theta)
+                pdf_value = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
+                                            self.accepted_parameters_manager.accepted_parameters_bds.value()[i], theta)
                 denominator += self.accepted_parameters_manager.accepted_weights_bds.value()[i, 0] * pdf_value
             return 1.0 * prior_prob / denominator
 
@@ -697,6 +701,10 @@ class PMC(BaseLikelihood, InferenceMethod):
         full_output: integer, optional
             If full_output==1, intermediate results are included in output journal.
             The default value is 0, meaning the intermediate results are not saved.
+        journal_file: str, optional
+            Filename of a journal file to read an already saved journal file, from which the first iteration will start.
+            The default value is None.
+
 
         Returns
         -------
@@ -951,7 +959,8 @@ class PMC(BaseLikelihood, InferenceMethod):
                 self.accepted_parameters_manager.model)
 
             for i in range(0, self.n_samples):
-                pdf_value = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, i, theta)
+                pdf_value = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
+                                            self.accepted_parameters_manager.accepted_parameters_bds.value()[i], theta)
                 denominator+=self.accepted_parameters_manager.accepted_weights_bds.value()[i,0]*pdf_value
 
             return 1.0 * prior_prob / denominator
@@ -1019,7 +1028,8 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
 
-    def sample(self, observations, steps, epsilon, n_samples = 10000, n_samples_per_param = 1, beta = 2, delta = 0.2, v = 0.3, ar_cutoff = 0.5, resample = None, n_update = None, adaptcov = 1, full_output=0, journal_file = None):
+    def sample(self, observations, steps, epsilon, n_samples = 10000, n_samples_per_param = 1, beta = 2, delta = 0.2,
+               v = 0.3, ar_cutoff = 0.1, resample = None, n_update = None, full_output=0, journal_file = None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -1036,22 +1046,23 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         n_samples_per_param : integer, optional
             Number of data points in each simulated data set. The default value is 1.
         beta : numpy.float
-            Tuning parameter of SABC
+            Tuning parameter of SABC, default value is 2.
         delta : numpy.float
-            Tuning parameter of SABC
+            Tuning parameter of SABC, default value is 0.2.
         v : numpy.float, optional
             Tuning parameter of SABC, The default value is 0.3.
         ar_cutoff : numpy.float
-            Acceptance ratio cutoff, The default value is 0.5
+            Acceptance ratio cutoff, The default value is 0.1.
         resample: int, optional
-            Resample after this many acceptance, The default value if n_samples
+            Resample after this many acceptance, The default value is None which takes value inside n_samples
         n_update: int, optional
-            Number of perturbed parameters at each step, The default value if n_samples
-        adaptcov : boolean, optional
-            Whether we adapt the covariance matrix in iteration stage. The default value TRUE.
+            Number of perturbed parameters at each step, The default value is None which takes value inside n_samples
         full_output: integer, optional
             If full_output==1, intermediate results are included in output journal.
             The default value is 0, meaning the intermediate results are not saved.
+        journal_file: str, optional
+            Filename of a journal file to read an already saved journal file, from which the first iteration will start.
+            The default value is None.
 
         Returns
         -------
@@ -1078,7 +1089,6 @@ class SABC(BaseDiscrepancy, InferenceMethod):
             journal.configuration["ar_cutoff"] = ar_cutoff
             journal.configuration["resample"] = resample
             journal.configuration["n_update"] = n_update
-            journal.configuration["adaptcov"] = adaptcov
             journal.configuration["full_output"] = full_output
         else:
             journal = Journal.fromFile(journal_file)
@@ -1207,6 +1217,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 self.logger.debug(msg)
                 if acceptance_rate < ar_cutoff:
                     broken_preemptively = True
+                    self.logger.debug("Stopping as acceptance rate is lower than cutoff")
                     break
 
             # 5: Resampling if number of accepted particles greater than resample
@@ -1516,12 +1527,21 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             A list, containing lists describing the observed data sets
         steps : integer
             Number of iterations in the sequential algoritm ("generations")
+        n_samples : integer, optional
+            Number of samples to generate. The default value is 10000.
+        n_samples_per_param : integer, optional
+            Number of data points in each simulated data set. The default value is 1.
+        chain_length : int, optional
+            The length of chains, default value is 10. But should be checked such that this is an divisor of n_samples.
         ap_change_cutoff : float, optional
             The cutoff value for the percentage change in the anneal parameter. If the change is less than
             ap_change_cutoff the iterations are stopped. The default value is 10.
         full_output: integer, optional
             If full_output==1, intermediate results are included in output journal.
             The default value is 0, meaning the intermediate results are not saved.
+        journal_file: str, optional
+            Filename of a journal file to read an already saved journal file, from which the first iteration will start.
+            The default value is None.
 
         Returns
         -------
@@ -1749,8 +1769,8 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
                 ## Calculate acceptance probability:
                 ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model, theta)
-                kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,index, theta)
-                kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, index, perturbation_output[1])
+                kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, perturbation_output[1], theta)
+                kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, theta, perturbation_output[1])
                 ratio_likelihood_prob = kernel_numerator / kernel_denominator
                 acceptance_prob = min(1, ratio_prior_prob * ratio_likelihood_prob) * (
                 new_distance < self.anneal_parameter)
@@ -1810,8 +1830,10 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             self.logger.debug("Calculate acceptance probability.")
             ## Calculate acceptance probability:
             ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model, theta)
-            kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,0 , theta)
-            kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,0 , perturbation_output[1])
+            kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
+                                               perturbation_output[1], theta)
+            kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, theta,
+                                                 perturbation_output[1])
             ratio_likelihood_prob = kernel_numerator / kernel_denominator
             acceptance_prob = min(1, ratio_prior_prob * ratio_likelihood_prob) * (new_distance < self.anneal_parameter)
             if rng.binomial(1, acceptance_prob) == 1:
@@ -1891,7 +1913,8 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
 
-    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, alpha = 0.1, epsilon_init = 100, epsilon_final = 0.1, const = 0.01, covFactor = 2.0, full_output=0, journal_file = None):
+    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, alpha = 0.1, epsilon_init = 100,
+               epsilon_final = 0.1, const = 0.01, covFactor = 2.0, full_output=0, journal_file = None):
         """
         Samples from the posterior distribution of the model parameter given the observed
         data observations.
@@ -1913,12 +1936,15 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         epsilon_final : float, optional
             Terminal value of threshold, the default is 0.1
         const : float, optional
-             A constant to compute acceptance probabilty
+             A constant to compute acceptance probabilty, the default is 0.01.
         covFactor : float, optional
             scaling parameter of the covariance matrix. The default value is 2.
         full_output: integer, optional
             If full_output==1, intermediate results are included in output journal.
             The default value is 0, meaning the intermediate results are not saved.
+        journal_file: str, optional
+            Filename of a journal file to read an already saved journal file, from which the first iteration will start.
+            The default value is None.
 
         Returns
         -------
@@ -2138,8 +2164,8 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
                 counter+=1
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
                 ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model, theta)
-                kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, index[0], theta)
-                kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, index[0], perturbation_output[1])
+                kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, perturbation_output[1], theta)
+                kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, theta, perturbation_output[1])
                 ratio_kernel_prob = kernel_numerator / kernel_denominator
                 probability_acceptance = min(1, ratio_prior_prob * ratio_kernel_prob)
                 if distance < self.epsilon[-1] and rng.binomial(1, probability_acceptance) == 1:
@@ -2232,12 +2258,15 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
         alpha : float, optional
             A parameter taking values between [0,1], the default value is 0.1.
         acceptance_cutoff : float, optional
-            Acceptance ratio cutoff, should be chosen between 0.01 and 0.05
+            Acceptance ratio cutoff, should be chosen between 0.01 and 0.03
         covFactor : float, optional
             scaling parameter of the covariance matrix. The default value is 2.
         full_output: integer, optional
             If full_output==1, intermediate results are included in output journal.
             The default value is 0, meaning the intermediate results are not saved.
+        journal_file: str, optional
+            Filename of a journal file to read an already saved journal file, from which the first iteration will start.
+            The default value is None.
 
         Returns
         -------
@@ -2438,7 +2467,8 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
             prior_prob = self.pdf_of_prior(self.model, perturbation_output[1])
             denominator = 0.0
             for i in range(len(self.accepted_parameters_manager.accepted_weights_bds.value())):
-                pdf_value = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, index[0], perturbation_output[1])
+                pdf_value = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
+                                            self.accepted_parameters_manager.accepted_parameters_bds.value()[index[0]], perturbation_output[1])
                 denominator += self.accepted_parameters_manager.accepted_weights_bds.value()[i, 0] * pdf_value
             weight = 1.0 * prior_prob / denominator
 
@@ -2509,7 +2539,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
 
     def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, epsilon_final = 0.1, alpha = 0.95,
-               covFactor = 2, resample = None, full_output=0, journal_file=None):
+               covFactor = 2, resample = None, full_output=0, which_mcmc_kernel = 0, journal_file=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -2519,20 +2549,27 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             A list, containing lists describing the observed data sets
         steps : integer
             Number of iterations in the sequential algoritm ("generations")
-        epsilon_final : float, optional
-            The final threshold value of epsilon to be reached. The default value is 0.1.
         n_samples : integer, optional
             Number of samples to generate. The default value is 10000.
         n_samples_per_param : integer, optional
             Number of data points in each simulated data set. The default value is 1.
+        epsilon_final : float, optional
+            The final threshold value of epsilon to be reached. The default value is 0.1.
         alpha : float, optional
             A parameter taking values between [0,1], determinining the rate of change of the threshold epsilon. The
-            default value is 0.5.
+            default value is 0.95.
         covFactor : float, optional
             scaling parameter of the covariance matrix. The default value is 2.
         full_output: integer, optional
             If full_output==1, intermediate results are included in output journal.
             The default value is 0, meaning the intermediate results are not saved.
+        which_mcmc_kernel: integer, optional
+            Specifies which MCMC kernel to be used: '0' kernel suggestd in [1], any other value will use
+             r-hit kernel suggested by Anthony Lee.
+            The default value is 0.
+        journal_file: str, optional
+            Filename of a journal file to read an already saved journal file, from which the first iteration will start.
+            The default value is None.
 
         Returns
         -------
@@ -2633,9 +2670,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 self.logger.info("Resampling")
                 # Weighted resampling:
                 index_resampled = self.rng.choice(np.arange(n_samples), n_samples, replace=1, p=new_weights)
-                print(accepted_parameters)
                 accepted_parameters = accepted_parameters[index_resampled]
-                print(accepted_parameters)
                 new_weights = np.ones(shape=(n_samples), ) * (1.0 / n_samples)
 
             # Update the weights
@@ -2671,11 +2706,13 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             self._update_broadcasts(accepted_y_sim)
 
             # calculate resample parameters
-            self.logger.info("Resampling parameters")
-            params_and_ysim_pds = self.backend.map(self._accept_parameter, rng_and_index_pds)
+            self.logger.info("Drawing perturbed sampless")
+            if which_mcmc_kernel == 0:
+                params_and_ysim_pds = self.backend.map(self._accept_parameter, rng_and_index_pds)
+            else:
+                params_and_ysim_pds = self.backend.map(self._accept_parameter_r_hit_kernel, rng_and_index_pds)
             params_and_ysim = self.backend.collect(params_and_ysim_pds)
             new_parameters, new_y_sim, distances, counter = [list(t) for t in zip(*params_and_ysim)]
-            #new_parameters = np.array(new_parameters)
             distances = np.array(distances)
 
             for count in counter:
@@ -2812,7 +2849,6 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         else:
             if self.accepted_parameters_manager.accepted_weights_bds.value()[index] > 0:
                 theta = self.accepted_parameters_manager.accepted_parameters_bds.value()[index]
-                #theta = np.array(self.accepted_parameters_manager.accepted_parameters_bds.value()[index]).reshape(-1,)
                 while True:
                     perturbation_output = self.perturb(index, rng=rng)
                     if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
@@ -2835,14 +2871,99 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
                 ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model,
                                                                                                              theta)
-                kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, index, theta)
-                kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, index,
-                                                     perturbation_output[1])
+                kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, perturbation_output[1], theta)
+                kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, theta, perturbation_output[1])
                 ratio_likelihood_prob = kernel_numerator / kernel_denominator
 
                 acceptance_prob = min(1, ratio_data_epsilon * ratio_prior_prob * ratio_likelihood_prob)
                 if rng.binomial(1, acceptance_prob) == 1:
                     self.set_parameters(perturbation_output[1])
+                else:
+                    self.set_parameters(theta)
+                    y_sim = self.accepted_y_sim_bds.value()[index]
+            else:
+                self.set_parameters(self.accepted_parameters_manager.accepted_parameters_bds.value()[index])
+                y_sim = self.accepted_y_sim_bds.value()[index]
+        distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+        return (self.get_parameters(), y_sim, distance, counter)
+
+    def _accept_parameter_r_hit_kernel(self, rng_and_index, npc=None):
+        """
+        Samples a single model parameter and simulate from it until
+        distance between simulated outcome and the observation is
+        smaller than epsilon.
+
+        Parameters
+        ----------
+        seed_and_index: numpy.ndarray
+            2 dimensional array. The first entry specifies the initial seed for the random number generator.
+            The second entry defines the index in the data set.
+
+        Returns
+        -------
+        Tuple
+            The first entry of the tuple is the accepted parameters. The second entry is the simulated data set.
+        """
+
+        rng = rng_and_index[0]
+        index = rng_and_index[1]
+        rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+
+        # Set value of r for r-hit kernel
+        r = 3
+        mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(self.accepted_parameters_manager.model)
+
+        counter=0
+        # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
+        if self.accepted_parameters_manager.accepted_parameters_bds is None:
+            self.sample_from_prior(rng=rng)
+            y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
+            counter+=1
+        else:
+            if self.accepted_parameters_manager.accepted_weights_bds.value()[index] > 0:
+                theta = self.accepted_parameters_manager.accepted_parameters_bds.value()[index]
+
+                # Sample from theta until we get 'r-1' y_sim inside the epsilon ball
+                self.set_parameters(theta)
+                accept_old_arr, y_sim_old_arr, N_old = [], [], 0
+                while sum(accept_old_arr) < r-1:
+                    y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
+                    y_sim_old_arr.append(y_sim)
+                    if self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),
+                                              y_sim) < self.epsilon[-1]:
+                        accept_old_arr.append(N_old)
+                    N_old += 1
+                    counter += 1
+
+                # Perturb and sample from the perturbed theta until we get 'r' y_sim inside the epsilon ball
+                while True:
+                    perturbation_output = self.perturb(index, rng=rng)
+                    if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
+                        break
+                accept_new_arr, y_sim_new_arr, N = [], [], 0
+                while sum(accept_new_arr) < r:
+                    y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
+                    y_sim_new_arr.append(y_sim)
+                    if self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),
+                                              y_sim) < self.epsilon[-1]:
+                        accept_new_arr.append(N)
+                    counter += 1
+                    N += 1
+
+                #Calculate acceptance probability
+                ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model,
+                                                                                                             theta)
+                kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, perturbation_output[1], theta)
+                kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, theta, perturbation_output[1])
+                ratio_likelihood_prob = kernel_numerator / kernel_denominator
+
+                acceptance_prob = min(1, (N_old/(N-1)) * ratio_prior_prob * ratio_likelihood_prob)
+
+                if rng.binomial(1, acceptance_prob) == 1:
+                    self.set_parameters(perturbation_output[1])
+                    # Randomly sample index J
+                    J = rng.choice(accept_new_arr).astype(int)
+                    y_sim = y_sim_new_arr[J]
                 else:
                     self.set_parameters(theta)
                     y_sim = self.accepted_y_sim_bds.value()[index]
