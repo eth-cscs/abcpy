@@ -2564,9 +2564,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             If full_output==1, intermediate results are included in output journal.
             The default value is 0, meaning the intermediate results are not saved.
         which_mcmc_kernel: integer, optional
-            Specifies which MCMC kernel to be used: '0' kernel suggestd in [1], any other value will use
-             r-hit kernel suggested by Anthony Lee.
-            The default value is 0.
+            Specifies which MCMC kernel to be used: '0' kernel suggestd in [1], any other value will use r-hit kernel
+            suggested by Anthony Lee. The default value is 0.
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.

@@ -574,7 +574,7 @@ class RandomWalkKernel(PerturbationKernel, DiscreteKernel):
 
         # Implement a random walk for the discrete parameter values
         for discrete_value in discrete_model_values:
-            perturbed_discrete_values.append(rng.randint(discrete_value - 1, discrete_value + 2))
+            perturbed_discrete_values.append(np.array([rng.randint(discrete_value - 1, discrete_value + 2)]))
 
         return perturbed_discrete_values
 
@@ -585,10 +585,10 @@ class RandomWalkKernel(PerturbationKernel, DiscreteKernel):
         random walk, it returns an empty list.
         """
 
-        return []
+        return np.array([0]).reshape(-1,)
 
 
-    def pmf(self, accepted_parameters_manager, kernel_index, index, x):
+    def pmf(self, accepted_parameters_manager, kernel_index, mean, x):
         """
         Calculates the pmf of the kernel. Commonly used to calculate weights.
 

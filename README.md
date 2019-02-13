@@ -6,7 +6,7 @@ algorithms and other likelihood-free inference schemes. It presently includes:
 
 * RejectionABC
 * PMCABC (Population Monte Carlo ABC)
-* SMCABC (Sequential Monte Carlo ABC)
+* SMCABC (Sequential Monte Carlo ABC) 
 * RSMCABC (Replenishment SMC-ABC)
 * APMCABC (Adaptive Population Monte Carlo ABC)
 * SABC (Simulated Annealing ABC)
