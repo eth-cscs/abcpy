@@ -27,8 +27,6 @@ def infer_parameters():
     summary_selection = Semiautomatic([height], statistics_calculator, backend,
                                       n_samples=1000,n_samples_per_param=1, seed=1)
 
-    print('Hello')
-
     # Redefine the statistics function
     statistics_calculator.statistics = lambda x, f2=summary_selection.transformation, \
                                               f1=statistics_calculator.statistics: f2(f1(x))

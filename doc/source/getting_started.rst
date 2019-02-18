@@ -16,7 +16,7 @@ measurement of heights and the probabilistic model would be Gaussian.
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 72
+    :lines: 74-75, 80-82
     :dedent: 4
 
 The Gaussian or Normal model has two parameters: the mean, denoted by :math:`\mu`, and the standard deviation, denoted
@@ -29,7 +29,7 @@ between random variables or between random variables and observed data. Each of 
 variables (output of another :py:class:`ProbabilisticModel <abcpy.probabilisticmodels.ProbabilisticModel>` object) or
 constant values and considered known to the user (:py:class:`Hyperparameters
 <abcpy.probabilisticmodels.Hyperparameters>`). If you are interested in implementing your own probabilistic model,
-please check the implementing a new model section.
+please check the :ref:`implementing a new model section <user_customization>`.
 
 To define a parameter of a model as a random variable, you start by assigning a *prior* distribution on them. We can
 utilize *prior* knowledge about these parameters as *prior* distribution. In the absence of prior knowledge, we still
@@ -43,7 +43,7 @@ follows:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 74-76, 77-79
+    :lines: 76-82
     :dedent: 4
 
 We have defined the parameter :math:`\mu` and :math:`\sigma` of the Gaussian model as random variables and assigned
@@ -68,7 +68,7 @@ first define a way to extract *summary statistics* from the dataset.
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 82-83
+    :lines: 84-86
     :dedent: 4
 
 Next we define the discrepancy measure between the datasets, by defining a distance function (LogReg distance is chosen
@@ -79,7 +79,7 @@ the datasets, and then compute the distance between the two statistics.
  
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 86-87
+    :lines: 88-90
     :dedent: 4
 
 Algorithms in ABCpy often require a perturbation kernel, a tool to explore the parameter space. Here, we use the default
@@ -89,7 +89,7 @@ discrete. For a more involved example, please consult `Complex Perturbation Kern
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 90-91
+    :lines: 92-94
     :dedent: 4
 
 Finally, we need to specify a backend that determines the parallelization framework to use. The example code here uses
@@ -99,7 +99,7 @@ available in ABCpy, please consult :ref:`Using Parallelization Backends <paralle
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 95-96
+    :lines: 96-99
     :dedent: 4
 
 In this example, we choose PMCABC algorithm (inference scheme) to draw posterior samples of the parameters. Therefore,
@@ -108,7 +108,7 @@ function, backend object, perturbation kernel and a seed for the random number g
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 98-100
+    :lines: 101-103
     :dedent: 4
 
 Finally, we can parametrize the sampler and start sampling from the posterior distribution of the parameters given the
@@ -116,7 +116,7 @@ observed dataset:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 102-106
+    :lines: 105-109
     :dedent: 4
 
 The above inference scheme gives us samples from the posterior distribution of the parameter of interest *height*
@@ -258,7 +258,7 @@ parameters we would like to perturb using a multivariate Student's-T kernel. Thi
 
 .. literalinclude:: ../../examples/extensions/perturbationkernels/pmcabc_perturbation_kernels.py
     :language: python
-    :lines: 46-48
+    :lines: 46-49
     :dedent: 4
 
 We have now defined how each set of parameters is perturbed on its own. The sampler object, however, needs to be
@@ -268,7 +268,7 @@ It just needs to be provided with all the relevant kernels:
 
 .. literalinclude:: ../../examples/extensions/perturbationkernels/pmcabc_perturbation_kernels.py
     :language: python
-    :lines: 51-52
+    :lines: 51-53
     :dedent: 4
 
 This is all that needs to be changed. The rest of the implementation works the exact same as in the previous example. If
