@@ -32,13 +32,14 @@ class Journal:
             type=1 logs all generated information (reproducibily use).
         """
         
-        self.parameters = []
+        self.accepted_parameters = []
+        self.names_and_parameters = []
         self.weights = []
         self.distances = []
         self.opt_values = []
         self.configuration = {}
 
-        self.names_and_parameters = []
+
 
         if type not in [0, 1]:
             raise ValueError("Parameter type has not valid value.")
@@ -46,8 +47,6 @@ class Journal:
             self._type = type
 
         self.number_of_simulations =[]
-
-
 
     @classmethod
     def fromFile(cls, filename):
@@ -77,25 +76,6 @@ class Journal:
         with open(filename, 'rb') as input:
             journal = pickle.load(input)
         return journal
-        
-
-        
-    def add_parameters(self, params):
-        """
-        Saves provided parameters by appending them to the journal. If type==0, old parameters get overwritten.
-
-        Parameters
-        ----------
-        params: numpy.array 
-            nxp matrix containing n parameters of dimension p
-        """
-
-        if self._type == 0:
-            self.parameters = [params]
-
-        if self._type == 1:
-            self.parameters.append(params)
-
 
     def add_user_parameters(self, names_and_params):
         """
@@ -111,6 +91,81 @@ class Journal:
         else:
             self.names_and_parameters.append(dict(names_and_params))
 
+    def add_accepted_parameters(self, accepted_parameters):
+        """
+        Saves provided weights by appending them to the journal. If type==0, old weights get overwritten.
+
+        Parameters
+        ----------
+        accepted_parameters: list
+        """
+
+        if self._type == 0:
+            self.accepted_parameters = [accepted_parameters]
+
+        if self._type == 1:
+            self.accepted_parameters.append(accepted_parameters)
+
+    def add_weights(self, weights):
+        """
+        Saves provided weights by appending them to the journal. If type==0, old weights get overwritten.
+
+        Parameters
+        ----------
+        weights: numpy.array
+            vector containing n weigths
+        """
+
+        if self._type == 0:
+            self.weights = [weights]
+
+        if self._type == 1:
+            self.weights.append(weights)
+
+    def add_distances(self, distances):
+        """
+        Saves provided distances by appending them to the journal. If type==0, old weights get overwritten.
+
+        Parameters
+        ----------
+        distances: numpy.array
+            vector containing n distances
+        """
+
+        if self._type == 0:
+            self.distances = [distances]
+
+        if self._type == 1:
+            self.distances.append(distances)
+
+    def add_opt_values(self, opt_values):
+        """
+        Saves provided values of the evaluation of the schemes objective function. If type==0, old values get overwritten
+
+        Parameters
+        ----------
+        opt_value: numpy.array
+            vector containing n evaluations of the schemes objective function
+        """
+
+        if self._type == 0:
+            self.opt_values = [opt_values]
+
+        if self._type == 1:
+            self.opt_values.append(opt_values)
+
+    def save(self, filename):
+        """
+        Stores the journal to disk.
+
+        Parameters
+        ----------
+        filename: string
+            the location of the file to store the current object to.
+        """
+
+        with open(filename, 'wb') as output:
+            pickle.dump(self, output, -1)
 
     def get_parameters(self, iteration=None):
         """
@@ -122,31 +177,44 @@ class Journal:
         ----------
         iteration: int
             specify the iteration for which to return parameters
+
+        Returns
+        -------
+        names_and_parameters: dictionary
+            Samples from the specified iteration (last, if not specified) returned as a disctionary with names of the
+            random variables
         """
 
         if iteration is None:
-            endp = len(self.parameters) - 1
+            endp = len(self.names_and_parameters) - 1
             params = self.names_and_parameters[endp]
             return params
         else:
             return self.names_and_parameters[iteration]
 
-
-    def _get_parameter_values(self):
+    def get_accepted_parameters(self, iteration=None):
         """
-        Returns the parameters in the order dictated by the graph structure.
+        Returns the accepted parameters from a sampling scheme.
+
+        For intermediate results, pass the iteration.
+
+        Parameters
+        ----------
+        iteration: int
+            specify the iteration for which to return parameters
 
         Returns
         -------
-        numpy.array:
-            The parameters of the model
+        accepted_parameters: dictionary
+            Samples from the specified iteration (last, if not specified) returned as a disctionary with names of the
+            random variables
         """
 
-        endp = len(self.parameters)-1
-        params = self.parameters[endp]
-        return params
-        
+        if iteration is None:
+            return self.accepted_parameters[-1]
 
+        else:
+            return self.accepted_parameters[iteration]
 
     def get_weights(self, iteration=None):
         """
@@ -166,24 +234,6 @@ class Journal:
         else:
             return self.weights[iteration]
 
-
-    
-    def add_weights(self, weights):
-        """
-        Saves provided weights by appending them to the journal. If type==0, old weights get overwritten.
-
-        Parameters
-        ----------
-        weights: numpy.array
-            vector containing n weigths
-        """
-
-        if self._type == 0:
-            self.weights = [weights]
-
-        if self._type == 1:
-            self.weights.append(weights)
-
     def get_distances(self, iteration=None):
         """
         Returns the distances from a sampling scheme.
@@ -202,94 +252,65 @@ class Journal:
         else:
             return self.distances[iteration]
 
-    def add_distances(self, distances):
-        """
-        Saves provided distances by appending them to the journal. If type==0, old weights get overwritten.
-
-        Parameters
-        ----------
-        distances: numpy.array
-            vector containing n distances
-        """
-
-        if self._type == 0:
-            self.distances = [distances]
-
-        if self._type == 1:
-            self.distances.append(distances)
-
-
-    def add_opt_values(self, opt_values):
-        """
-        Saves provided values of the evaluation of the schemes objective function. If type==0, old values get overwritten
-
-        Parameters
-        ----------
-        opt_value: numpy.array
-            vector containing n evaluations of the schemes objective function
-        """
-
-        if self._type == 0:
-            self.opt_values = [opt_values]
-
-        if self._type == 1:
-            self.opt_values.append(opt_values)
-
-
-    def save(self, filename):
-        """
-        Stores the journal to disk.
-
-        Parameters
-        ----------
-        filename: string
-            the location of the file to store the current object to.
-        """
-        
-        with open(filename, 'wb') as output:
-            pickle.dump(self, output, -1)
-            
-
-
-    def posterior_mean(self):
+    def posterior_mean(self, iteration=None):
         """
         Computes posterior mean from the samples drawn from posterior distribution
 
+        For intermediate results, pass the iteration.
+
+        Parameters
+        ----------
+        iteration: int
+            specify the iteration for which to return posterior mean
+
         Returns
         -------
-        np.ndarray
-            posterior mean        
+        posterior mean: dictionary
+            Posterior mean from the specified iteration (last, if not specified) returned as a disctionary with names of the
+            random variables
         """
-        endp = len(self.parameters) - 1
-        endw = len(self.weights) - 1
 
-        params = self.parameters[endp]
-        weights = self.weights[endw]
+        if iteration is None:
+            endp = len(self.names_and_parameters) - 1
+            params = self.names_and_parameters[endp]
+            weights = self.weights[endp]
+        else:
+            params = self.names_and_parameters[iteration]
+            weights = self.weights[iteration]
 
-        return np.average(params, weights = weights.reshape(len(weights),), axis = 0)
+        return_value = []
+        for keyind in params.keys():
+            return_value.append((keyind, np.average(np.array(params[keyind]).squeeze(), weights = weights.reshape(len(weights),), axis = 0)))
 
-    
+        return dict(return_value)
 
-    def posterior_cov(self):
+    def posterior_cov(self, iteration=None):
         """
         Computes posterior covariance from the samples drawn from posterior distribution
 
         Returns
         -------
         np.ndarray
-            posterior covariance        
+            posterior covariance
+        dic
+            order of the variables in the covariance matrix
         """
-        endp = len(self.parameters) - 1
-        endw = len(self.weights) - 1
 
-        params = self.parameters[endp]
-        weights = self.weights[endw]
-        
-        return np.cov(np.transpose(params), aweights = weights.reshape(len(weights),))
+        if iteration is None:
+            endp = len(self.names_and_parameters) - 1
+            params = self.names_and_parameters[endp]
+            weights = self.weights[endp]
+        else:
+            params = self.names_and_parameters[iteration]
+            weights = self.weights[iteration]
 
+        joined_params = []
+        for keyind in params.keys():
+            joined_params.append(np.array(params[keyind]).squeeze(axis=1))
 
-    
-    def posterior_histogram(self, n_bins = 10):
+        return np.cov(np.transpose(np.hstack(joined_params)), aweights = weights.reshape(len(weights),)), params.keys()
+
+    def posterior_histogram(self, iteration=None, n_bins = 10):
         """
         Computes a weighted histogram of multivariate posterior samples
         andreturns histogram H and A list of p arrays describing the bin 
@@ -299,13 +320,18 @@ class Journal:
         -------
         python list 
             containing two elements (H = np.ndarray, edges = list of p arraya)
-        """        
-        endp = len(self.parameters) - 1
-        endw = len(self.weights) - 1
+        """
+        if iteration is None:
+            endp = len(self.names_and_parameters) - 1
+            params = self.names_and_parameters[endp]
+            weights = self.weights[endp]
+        else:
+            params = self.names_and_parameters[iteration]
+            weights = self.weights[iteration]
 
-        params = self.parameters[endp]
-        weights = self.weights[endw]
-        weights.shape
-        H, edges = np.histogramdd(params, bins = n_bins, weights = weights.reshape(len(weights),))
-        
+        joined_params = []
+        for keyind in params.keys():
+            joined_params.append(np.array(params[keyind]).squeeze(axis=1))
+
+        H, edges = np.histogramdd(np.hstack(joined_params), bins = n_bins, weights = weights.reshape(len(weights),))
         return [H, edges]

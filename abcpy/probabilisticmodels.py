@@ -394,7 +394,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
         boolean
             Returns True if it was possible to set the values, false otherwise.
         """
-
         if not isinstance(values, np.ndarray):
             raise TypeError('Elements of input list are not of type numpy array.')
         if values.shape[0] != self.get_output_dimension():
@@ -681,7 +680,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
 
     @abstractmethod
-    def forward_simulate(self, input_values, k, rng, mpi_comm):
+    def forward_simulate(self, input_values, k, rng, mpi_comm=None):
         """
         Provides the output (pseudo data) from a forward simulation of the current model.
 
@@ -702,6 +701,9 @@ class ProbabilisticModel(metaclass = ABCMeta):
         rng: Random number generator
             Defines the random number generator to be used. The default value uses a random seed to initialize the
             generator.
+        mpi_comm: MPI communicator object
+        	    Defines the MPI communicator object for MPI parallelization. The default value is None,
+        	    meaning the forward simulation is not MPI-parallelized.
 
         Returns
         -------
@@ -982,6 +984,9 @@ class SummationModel(ModelResultingFromOperation):
             The number of samples that should be sampled
         rng: random number generator
             The random number generator to be used.
+        mpi_comm: MPI communicator object
+            Defines the MPI communicator object for MPI parallelization. The default value is None,
+            meaning the forward simulation is not MPI-parallelized.
 
         Returns
         -------
@@ -1026,6 +1031,9 @@ class SubtractionModel(ModelResultingFromOperation):
             The number of samples that should be sampled
         rng: random number generator
             The random number generator to be used.
+        mpi_comm: MPI communicator object
+            Defines the MPI communicator object for MPI parallelization. The default value is None,
+            meaning the forward simulation is not MPI-parallelized.
 
         Returns
         -------
@@ -1068,6 +1076,9 @@ class MultiplicationModel(ModelResultingFromOperation):
             The number of samples that should be sampled
         rng: random number generator
             The random number generator to be used.
+        mpi_comm: MPI communicator object
+            Defines the MPI communicator object for MPI parallelization. The default value is None,
+            meaning the forward simulation is not MPI-parallelized.
 
         Returns
         -------
@@ -1110,6 +1121,9 @@ class DivisionModel(ModelResultingFromOperation):
             The number of samples that should be sampled
         rng: random number generator
             The random number generator to be used.
+        mpi_comm: MPI communicator object
+            Defines the MPI communicator object for MPI parallelization. The default value is None,
+            meaning the forward simulation is not MPI-parallelized.
 
         Returns
         -------
@@ -1172,6 +1186,9 @@ class ExponentialModel(ModelResultingFromOperation):
             The number of samples that should be sampled
         rng: random number generator
             The random number generator to be used.
+        mpi_comm: MPI communicator object
+            Defines the MPI communicator object for MPI parallelization. The default value is None,
+            meaning the forward simulation is not MPI-parallelized.
 
         Returns
         -------
@@ -1234,6 +1251,9 @@ class RExponentialModel(ModelResultingFromOperation):
             The number of samples that should be sampled
         rng: random number generator
             The random number generator to be used.
+        mpi_comm: MPI communicator object
+            Defines the MPI communicator object for MPI parallelization. The default value is None,
+            meaning the forward simulation is not MPI-parallelized.
 
         Returns
         -------

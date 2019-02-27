@@ -6,7 +6,7 @@ algorithms and other likelihood-free inference schemes. It presently includes:
 
 * RejectionABC
 * PMCABC (Population Monte Carlo ABC)
-* SMCABC (Sequential Monte Carlo ABC)
+* SMCABC (Sequential Monte Carlo ABC) 
 * RSMCABC (Replenishment SMC-ABC)
 * APMCABC (Adaptive Population Monte Carlo ABC)
 * SABC (Simulated Annealing ABC)
@@ -26,9 +26,9 @@ scientists by providing
 # Documentation
 For more information, check out the
 
-* [Documentation](http://abcpy.readthedocs.io/en/v0.5.5) 
-* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.5.5/examples) directory and
-* [Reference](http://abcpy.readthedocs.io/en/v0.5.5/abcpy.html)
+* [Documentation](http://abcpy.readthedocs.io/en/v0.5.6) 
+* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.5.6/examples) directory and
+* [Reference](http://abcpy.readthedocs.io/en/v0.5.6/abcpy.html)
 
 
 Further, we provide a
@@ -55,7 +55,7 @@ finally CSCS (Swiss National Super Computing Center) for their generous support.
 
 There is a paper in the proceedings of the 2017 PASC conference. In case you use
 ABCpy for your publication, we would appreciate a citation. You can use
-[this](https://github.com/eth-cscs/abcpy/blob/v0.5.5/doc/literature/DuttaS-ABCpy-PASC-2017.bib)
+[this](https://github.com/eth-cscs/abcpy/blob/v0.5.6/doc/literature/DuttaS-ABCpy-PASC-2017.bib)
 
 BibTex reference.
 

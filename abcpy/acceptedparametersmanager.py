@@ -92,7 +92,8 @@ class AcceptedParametersManager:
         Returns
         -------
         list
-            The first entry corresponds to the mapping of the root model, as well as all its parents. The second entry corresponds to the next index in depth-first search.
+            The first entry corresponds to the mapping of the root model, as well as all its parents. The second entry
+            corresponds to the next index in depth-first search.
         """
 
         # Implement a dfs to discover all nodes of the model
@@ -104,9 +105,9 @@ class AcceptedParametersManager:
 
                 # Only parameters that are neither root nor Hyperparameters are included in the mapping
                 if(not(is_root) and not(isinstance(model, ModelResultingFromOperation))):
-                    for i in range(model.get_output_dimension()):
-                        mapping.append((model, index))
-                        index+=1
+                    #for i in range(model.get_output_dimension()):
+                    mapping.append((model, index))
+                    index+=1
 
                 for parent in model.get_input_models():
                     parent_mapping, index = self.get_mapping([parent], is_root= False, index=index)
@@ -139,13 +140,15 @@ class AcceptedParametersManager:
 
         # The self.accepted_parameters_bds.value() list has dimensions d x n_steps, where d is the number of free parameters
         accepted_bds_values = [[] for i in range(len(self.accepted_parameters_bds.value()))]
+
         # Add all columns that correspond to desired parameters to the list that is returned
         for model in models:
             for prob_model, index in mapping:
                 if(model==prob_model):
                     for i in range(len(self.accepted_parameters_bds.value())):
                         accepted_bds_values[i].append(self.accepted_parameters_bds.value()[i][index])
-        accepted_bds_values = [np.array(x).reshape(-1, ) for x in accepted_bds_values]
+        #accepted_bds_values = [np.array(x).reshape(-1, ) for x in accepted_bds_values]
+
         return accepted_bds_values
 
     def _reset_flags(self, models=None):

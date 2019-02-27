@@ -369,9 +369,8 @@ class DiscreteUniform(Discrete, ProbabilisticModel):
         list: [np.ndarray]
             A list containing the sampled values as np-array.
         """
-
-        result = np.array(rng.randint(input_values[0], input_values[1], size=k, dtype=np.int64))
-        return [np.array([x]) for x in result]
+        result = np.array(rng.randint(input_values[0], input_values[1]+1, size=k, dtype=np.int64))
+        return [np.array([x]).reshape(-1,) for x in result]
 
     def get_output_dimension(self):
         return self._dimension
@@ -391,8 +390,11 @@ class DiscreteUniform(Discrete, ProbabilisticModel):
         float:
             The pmf evaluated at point x.
         """
-        upperbound, lowerbound = input_values[0], input_values[1]
-        pmf = 1. / (upperbound - lowerbound + 1)
+        lowerbound, upperbound = input_values[0], input_values[1]
+        if x >= lowerbound and x <= upperbound:
+            pmf = 1. / (upperbound - lowerbound + 1)
+        else:
+            pmf = 0
         self.calculated_pmf = pmf
         return pmf
 

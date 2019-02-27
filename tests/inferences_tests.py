@@ -42,8 +42,11 @@ class RejectionABCTest(unittest.TestCase):
         sigma_sample = np.array(journal.get_parameters()['sigma'])
 
         # test shape of samples
-        self.assertEqual(np.shape(mu_sample), (10,1))
-        self.assertEqual(np.shape(sigma_sample), (10,1))
+        mu_shape, sigma_shape = (len(mu_sample), mu_sample[0].shape[1]), \
+                                                                    (len(sigma_sample),
+                                                                     sigma_sample[0].shape[1])
+        self.assertEqual(mu_shape, (10,1))
+        self.assertEqual(sigma_shape, (10,1))
 
         # Compute posterior mean
         #self.assertAlmostEqual(np.average(np.asarray(samples[:,0])),1.22301,10e-2)
@@ -81,18 +84,21 @@ class PMCTests(unittest.TestCase):
         T, n_sample, n_samples_per_param = 1, 10, 100
         sampler = PMC([self.model], [likfun], backend, seed = 1)
         journal = sampler.sample([y_obs], T, n_sample, n_samples_per_param, covFactors =  np.array([.1,.1]), iniPoints = None)
-        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
+        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
+            journal.get_parameters()['sigma']), np.array(journal.get_weights())
 
         # Compute posterior mean
-        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights=post_weights, axis=0), np.average(sigma_post_sample, weights=post_weights, axis=0)
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
 
         # test shape of sample
-        mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                                                    (len(sigma_post_sample),
+                                                                     sigma_post_sample[0].shape[1]), post_weights.shape
         self.assertEqual(mu_sample_shape, (10,1))
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
-        self.assertLess(abs(mu_post_mean - (-3.56042761)), 1e-3)
-        self.assertLess(abs(sigma_post_mean - 5.7553691), 1e-3)
+        self.assertLess(abs(mu_post_mean - (-3.3711206204663764)), 1e-3)
+        self.assertLess(abs(sigma_post_mean - 6.518520667688998), 1e-3)
 
         self.assertFalse(journal.number_of_simulations == 0)
 
@@ -101,18 +107,21 @@ class PMCTests(unittest.TestCase):
         T, n_sample, n_samples_per_param = 2, 10, 100
         sampler = PMC([self.model], [likfun], backend, seed = 1)
         journal = sampler.sample([y_obs], T, n_sample, n_samples_per_param, covFactors = np.array([.1,.1]), iniPoints = None)
-        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
-        
+        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
+            journal.get_parameters()['sigma']), np.array(journal.get_weights())
+
         # Compute posterior mean
-        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights=post_weights, axis=0), np.average(sigma_post_sample, weights=post_weights, axis=0)
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
 
         # test shape of sample
-        mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                                                    (len(sigma_post_sample),
+                                                                     sigma_post_sample[0].shape[1]), post_weights.shape
         self.assertEqual(mu_sample_shape, (10,1))
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
-        self.assertLess(abs(mu_post_mean - (-3.25971092) ), 1e-3)
-        self.assertLess(abs(sigma_post_mean - 7.76172201), 1e-3)
+        self.assertLess(abs(mu_post_mean - (-2.970827684425406) ), 1e-3)
+        self.assertLess(abs(sigma_post_mean - 6.82165619013458), 1e-3)
 
         self.assertFalse(journal.number_of_simulations == 0)
 
@@ -171,10 +180,12 @@ class PMCABCTests(unittest.TestCase):
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
           
         # Compute posterior mean
-        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights=post_weights, axis=0), np.average(sigma_post_sample, weights=post_weights, axis=0)
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
 
         # test shape of sample
-        mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                            (len(sigma_post_sample), sigma_post_sample[0].shape[1]), post_weights.shape
+
         self.assertEqual(mu_sample_shape, (10,1))
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
@@ -189,12 +200,14 @@ class PMCABCTests(unittest.TestCase):
         sampler.sample_from_prior(rng=np.random.RandomState(1))
         journal = sampler.sample([self.observation], T, eps_arr, n_sample, n_simulate, eps_percentile)
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
-          
+
         # Compute posterior mean
-        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights=post_weights, axis=0), np.average(sigma_post_sample, weights=post_weights, axis=0)
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
 
         # test shape of sample
-        mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                            (len(sigma_post_sample), sigma_post_sample[0].shape[1]), post_weights.shape
+
         self.assertEqual(mu_sample_shape, (10,1))
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
@@ -229,12 +242,14 @@ class SABCTests(unittest.TestCase):
         sampler = SABC([self.model], [self.dist_calc], self.backend, seed = 1)
         journal = sampler.sample([self.observation], steps, epsilon, n_samples, n_samples_per_param)
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
-          
+
         # Compute posterior mean
-        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights=post_weights, axis=0), np.average(sigma_post_sample, weights=post_weights, axis=0)
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
 
         # test shape of sample
-        mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[0]), \
+                                            (len(sigma_post_sample), sigma_post_sample[0].shape[1]), post_weights.shape
+
         self.assertEqual(mu_sample_shape, (10,1))
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
@@ -245,12 +260,14 @@ class SABCTests(unittest.TestCase):
         sampler = SABC([self.model], [self.dist_calc], self.backend, seed = 1)
         journal = sampler.sample([self.observation], steps, epsilon, n_samples, n_samples_per_param)
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
-          
+
         # Compute posterior mean
-        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights=post_weights, axis=0), np.average(sigma_post_sample, weights=post_weights, axis=0)
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
 
         # test shape of sample
-        mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                            (len(sigma_post_sample), sigma_post_sample[0].shape[1]), post_weights.shape
+
         self.assertEqual(mu_sample_shape, (10,1))
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
@@ -284,14 +301,15 @@ class ABCsubsimTests(unittest.TestCase):
         steps, n_samples, n_samples_per_param = 1, 10, 1
         sampler = ABCsubsim([self.model], [self.dist_calc], self.backend, seed = 1)
         journal = sampler.sample([self.observation], steps, n_samples, n_samples_per_param)
-        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
-            journal.get_parameters()['sigma']), np.array(journal.get_weights())
-          
+        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
+
         # Compute posterior mean
-        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights=post_weights, axis=0), np.average(sigma_post_sample, weights=post_weights, axis=0)
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
 
         # test shape of sample
-        mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                            (len(sigma_post_sample), sigma_post_sample[0].shape[1]), post_weights.shape
+
         self.assertEqual(mu_sample_shape, (10,1))
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
@@ -302,14 +320,15 @@ class ABCsubsimTests(unittest.TestCase):
         sampler = ABCsubsim([self.model], [self.dist_calc], self.backend, seed = 1)
         sampler.sample_from_prior(rng=np.random.RandomState(1))
         journal = sampler.sample([self.observation], steps, n_samples, n_samples_per_param)
-        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
-            journal.get_parameters()['sigma']), np.array(journal.get_weights())
-          
+        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
+
         # Compute posterior mean
-        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights=post_weights, axis=0), np.average(sigma_post_sample, weights=post_weights, axis=0)
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
 
         # test shape of sample
-        mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                            (len(sigma_post_sample), sigma_post_sample[0].shape[1]), post_weights.shape
+
         self.assertEqual(mu_sample_shape, (10,1))
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
@@ -344,14 +363,15 @@ class SMCABCTests(unittest.TestCase):
         steps, n_sample, n_simulate = 1, 10, 1
         sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed = 1)
         journal = sampler.sample([self.observation], steps, n_sample, n_simulate)
-        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
-            journal.get_parameters()['sigma']), np.array(journal.get_weights())
-          
+        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
+
         # Compute posterior mean
-        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights=post_weights, axis=0), np.average(sigma_post_sample, weights=post_weights, axis=0)
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
 
         # test shape of sample
-        mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                            (len(sigma_post_sample), sigma_post_sample[0].shape[1]), post_weights.shape
+
         self.assertEqual(mu_sample_shape, (10,1))
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
@@ -362,14 +382,14 @@ class SMCABCTests(unittest.TestCase):
         T, n_sample, n_simulate = 2, 10, 1
         sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed = 1)
         journal = sampler.sample([self.observation], T, n_sample, n_simulate)
-        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
-            journal.get_parameters()['sigma']), np.array(journal.get_weights())
-          
+        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
+
         # Compute posterior mean
-        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights=post_weights, axis=0), np.average(sigma_post_sample, weights=post_weights, axis=0)
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
 
         # test shape of sample
-        mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                            (len(sigma_post_sample), sigma_post_sample[0].shape[1]), post_weights.shape
         self.assertEqual(mu_sample_shape, (10,1))
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
@@ -402,15 +422,15 @@ class APMCABCTests(unittest.TestCase):
         # use the APMCABC scheme for T = 1
         steps, n_sample, n_simulate = 1, 10, 1
         sampler = APMCABC([self.model], [self.dist_calc], self.backend, seed = 1)
-        journal = sampler.sample([self.observation], steps, n_sample, n_simulate)
-        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
-            journal.get_parameters()['sigma']), np.array(journal.get_weights())
+        journal = sampler.sample([self.observation], steps, n_sample, n_simulate, alpha=.9)
+        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
 
         # Compute posterior mean
-        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights=post_weights, axis=0), np.average(sigma_post_sample, weights=post_weights, axis=0)
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
 
         # test shape of sample
-        mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                            (len(sigma_post_sample), sigma_post_sample[0].shape[1]), post_weights.shape
         self.assertEqual(mu_sample_shape, (10,1))
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
@@ -421,15 +441,15 @@ class APMCABCTests(unittest.TestCase):
         # use the APMCABC scheme for T = 2
         T, n_sample, n_simulate = 2, 10, 1
         sampler = APMCABC([self.model], [self.dist_calc], self.backend, seed = 1)
-        journal = sampler.sample([self.observation], T, n_sample, n_simulate)
-        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
-            journal.get_parameters()['sigma']), np.array(journal.get_weights())
-          
+        journal = sampler.sample([self.observation], T, n_sample, n_simulate, alpha=.9)
+        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
+
         # Compute posterior mean
-        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights=post_weights, axis=0), np.average(sigma_post_sample, weights=post_weights, axis=0)
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
 
         # test shape of sample
-        mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                            (len(sigma_post_sample), sigma_post_sample[0].shape[1]), post_weights.shape
         self.assertEqual(mu_sample_shape, (10,1))
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
@@ -463,14 +483,14 @@ class RSMCABCTests(unittest.TestCase):
         steps, n_sample, n_simulate = 1, 10, 1
         sampler = RSMCABC([self.model], [self.dist_calc], self.backend, seed = 1)
         journal = sampler.sample([self.observation], steps, n_sample, n_simulate)
-        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
-            journal.get_parameters()['sigma']), np.array(journal.get_weights())
-          
+        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
+
         # Compute posterior mean
-        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights=post_weights, axis=0), np.average(sigma_post_sample, weights=post_weights, axis=0)
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
 
         # test shape of sample
-        mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                            (len(sigma_post_sample), sigma_post_sample[0].shape[1]), post_weights.shape
         self.assertEqual(mu_sample_shape, (10,1))
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
@@ -484,14 +504,14 @@ class RSMCABCTests(unittest.TestCase):
         sampler = RSMCABC([self.model], [self.dist_calc], self.backend, seed = 1)
         journal = sampler.sample([self.observation], steps, n_sample, n_simulate)
         sampler.sample_from_prior(rng=np.random.RandomState(1))
-        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
-            journal.get_parameters()['sigma']), np.array(journal.get_weights())
-          
+        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(journal.get_parameters()['sigma']), np.array(journal.get_weights())
+
         # Compute posterior mean
-        mu_post_mean, sigma_post_mean = np.average(mu_post_sample, weights=post_weights, axis=0), np.average(sigma_post_sample, weights=post_weights, axis=0)
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
 
         # test shape of sample
-        mu_sample_shape, sigma_sample_shape, weights_sample_shape = np.shape(mu_post_sample), np.shape(mu_post_sample), np.shape(post_weights)
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                            (len(sigma_post_sample), sigma_post_sample[0].shape[1]), post_weights.shape
         self.assertEqual(mu_sample_shape, (10,1))
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
