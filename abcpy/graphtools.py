@@ -134,6 +134,7 @@ class GraphTools():
         # At the beginning of calculation, obtain the mapping
         if(is_root):
             mapping, garbage_index = self._get_mapping()
+
         # The pdf of each root model is first calculated seperately
         result = [1.]*len(models)
 
@@ -146,9 +147,9 @@ class GraphTools():
                 for mapped_model, model_index in mapping:
                     if(mapped_model==model):
                         parameter_index = model_index
-                        for j in range(model.get_output_dimension()):
-                            relevant_parameters.append(parameters[parameter_index])
-                            parameter_index+=1
+                        #for j in range(model.get_output_dimension()):
+                        relevant_parameters.append(parameters[parameter_index])
+                        #parameter_index+=1
                         break
                 if(len(relevant_parameters)==1):
                     relevant_parameters = relevant_parameters[0]
@@ -210,7 +211,7 @@ class GraphTools():
             # If this model corresponds to an unvisited free parameter, add it to the mapping
             if(is_not_root and not(model.visited) and not(isinstance(model, Hyperparameter)) and not(isinstance(model, ModelResultingFromOperation))):
                 mapping.append((model, index))
-                index+=model.get_output_dimension()
+                index+= 1 #model.get_output_dimension()
             # Add all parents to the mapping, if applicable
             for parent in model.get_input_models():
                 parent_mapping, index = self._get_mapping([parent], index=index, is_not_root=True)
@@ -240,6 +241,7 @@ class GraphTools():
         return_value = []
 
         for model, index in mapping:
+
             return_value.append((model.name, self.accepted_parameters_manager.get_accepted_parameters_bds_values([model])))
 
         return return_value
@@ -318,10 +320,11 @@ class GraphTools():
         for model in models:
             # New parameters should only be set in case we are not at the root
             if not is_root and not isinstance(model, ModelResultingFromOperation):
-                new_output_values = np.array(parameters[index:index + model.get_output_dimension()])
+                #new_output_values = np.array(parameters[index:index + model.get_output_dimension()])
+                new_output_values = np.array(parameters[index]).reshape(-1,)
                 if not model.set_output_values(new_output_values):
                     return [False, index]
-                index += model.get_output_dimension()
+                index += 1 #model.get_output_dimension()
                 model.visited = True
 
             # New parameters for all parents are set using a depth-first search

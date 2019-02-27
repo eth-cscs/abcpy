@@ -11,12 +11,13 @@ through the details of such a scenario using the (already implemented) Gaussian 
 implement it from scratch.
 
 There are two scenarios to use a model: First, we want to use our probabilistic model to explain a relationship between
-parameters* (considered random variables for inference) and *observed data*.  This is for example the case when we want
-to do inference on mechanistic models that do not have a PDF. In this case, our model implementation has to derive from
-:py:class:`ProbabilisticModel <abcpy.probabilisticmodels.ProbabilisticModel>` and a few abstract methods have to be
-defined, as for example :py:meth:`forward_simulate() <abcpy.probabilisticmodels.ProbabilisticModel.forward_simulate>`.
+*parameters* (considered random variables for inference). In the second case, we use them to explain a relationship between
+*parameters* and *observed data*, as example when we want
+to do inference on mechanistic models that do not have a PDF. In both these case, our model implementation has to derive from
+:py:class:`ProbabilisticModel <abcpy.probabilisticmodels.ProbabilisticModel>` class of ABCpy and a few abstract methods have to be
+defined, as for example :py:meth:`forward_simulate() <abcpy.probabilisticmodels.ProbabilisticModel.forward_simulate>`. 
 
-In the second scenario, we want to use the model to build a relationship between *different parameters* (between
+In the first scenario, we want to use the model to build a relationship between *different parameters* (between
 different random variables). Then our model is restricted to either output continuous or discrete parameters in form of
 a vector. Consequently, the model must derive from either from :py:class:`Continuous
 <abcpy.probabilisticmodels.Continuous>` or :py:class:`Discrete <abcpy.probabilisticmodels.Discrete>` and implement the
@@ -33,24 +34,27 @@ implement at least the following methods:
 * :py:meth:`ProbabilisticModels.forward_simulate() <abcpy.probabilisticmodels.ProbabilisticModel.forward_simulate>`
 * :py:meth:`ProbabilisticModels.get_output_dimension() <abcpy.probabilisticmodels.ProbabilisticModel.get_output_dimension>`
 
-We want our model to work in both described scenarios, so our model also has to conform to the API of
+If we want our model to work in both the described scenarios, so our model also has to conform to the API of
 :py:class:`Continuous <abcpy.probabilisticmodels.Continuous>` since the model output, which is the resulting data from a
-forward simulation, is from a continuous domain. For completeness, here the abstract methods defined by
+forward simulation, is from a continuous domain. For completeness, here are the abstract methods defined by
 :py:class:`Continuous <abcpy.probabilisticmodels.Continuous>` and :py:class:`Discrete
-<abcpy.probabilisticmodels.Discrete>`:
+<abcpy.probabilisticmodels.Discrete>` correspondingly:
 
 * :py:meth:`Continuous.pdf() <abcpy.probabilisticmodels.Continuous.pdf>`
 * :py:meth:`Discrete.pmf() <abcpy.probabilisticmodels.Discrete.pmf>`
 
+If we want our model to work only for the second scenario (typically the case for mechanistic or simulator models) and not to be
+used to build priors on parameters, we do not need to write the above two abstract methods. 
+
 Initializing a New Model
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Since a Gaussian model generates continous numbers, the newly implement class derives from
+Since a Gaussian model generates continous numbers, the newly implemented class derives from
 :py:class:`Continuous <abcpy.probabilisticmodels.Continuous>` and the header look as follows:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
    :language: python
-   :lines: 7
+   :lines: 6, 10
 
 A good way to start implementing a new model is to define a convenient way to initialize it with its input parameters.
 In ABCpy all input parameters are either independent ProbabilisticModels or Hyperparameters. Thus, they should not be
@@ -65,12 +69,12 @@ object to it.
 However, it would be very inconvenient to initialize our Gaussian model with an InputConnector object. We rather like
 the init function to accept a list of parameters :code:`[mu, sigma]`, where :code:`mu` is the mean and :code:`sigma` is
 the standard deviation which are the sole two parameters of our generative Gaussian model. So the idea is to take
-a convenient input and transform it it an InputConnection object that in turn can be passed to the initializer of
+a convenient input and transform it to an InputConnection object that in turn can be passed to the initializer of
 the super class. This leads to the following implementation:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 12-21
+    :lines: 15-24
     :dedent: 4
     :linenos:
 
@@ -94,7 +98,7 @@ hyperparameters like
     model = Gaussian([0, 1])
 
 the :code:`from_list()` method will automatically create two HyperParameter objects :code:`HyperParameter(0)` and
-:code:`HyperParameter(1)` and will link the our current Gaussian model inputs to them. If we initialize :code:`mu` and
+:code:`HyperParameter(1)` and will link our current Gaussian model inputs to them. If we initialize :code:`mu` and
 :code:`sigma` with existing models like
 
 .. code-block:: python
@@ -123,7 +127,7 @@ This leads to the following implementation:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 24-35
+    :lines: 27-38
     :dedent: 4
     :linenos:
 
@@ -140,7 +144,7 @@ A proper implementation look as follows:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 50-60
+    :lines: 53-63
     :dedent: 4
     :linenos:
 
@@ -167,13 +171,13 @@ Then, this function should return :code:`False` as soon as values are out of the
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 38-43
+    :lines: 41-46
     :dedent: 4
     :linenos:
 
 Note that implementing this method is particularly important when using the current model as input for other models,
-hence in the second scenario described in `Implementing a new Model`_. In case our model should only be used for the
-first scenario, it is safe to omit the check and return true.
+hence in the first scenario described in `Implementing a new Model`_. In case our model should only be used for the
+second scenario, it is safe to omit the check and return true.
 
 
 Getting the Output Dimension
@@ -188,13 +192,13 @@ Since our model generates a single float number in one forward simulation, the i
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 46-47
+    :lines: 49-50
     :dedent: 4
     :linenos:
 
 Note that implementing this method is particularly important when using the current model as input for other models,
-hence in the second scenario described in `Implementing a new Model`_. In case our model should only be used for the
-first scenario, it is safe to return 1.
+hence in the first scenario described in `Implementing a new Model`_. In case our model should only be used for the
+second scenario, it is safe to return 1.
 
 
 Calculating the Probability Density Function
@@ -211,7 +215,7 @@ as follows:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 63-68
+    :lines: 66-71
     :dedent: 4
     :linenos:
 
@@ -363,25 +367,26 @@ calculator should be provided. The following header conforms to this idea:
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 112-118
+    :lines: 113-120
     :dedent: 4
 
 Then, we need to define how the distance is calculated. First we compute the summary statistics from the datasets and
 then compute the distance between the summary statistics. Notice, while computing the summary statistics we save the
 first dataset and the corresponding summary statistics. This is since we always pass the observed dataset first to the
 distance function. The observed dataset does not change during an inference computation and thus it is efficient to
-compute it once and store it internally.
+compute it once and store it internally. (Notice, here the first input data is considered to be the observed data. Hence, 
+to save computation time of summary statistics from observed data, we save the summary from the observed data ad reuse them.)
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 134-146
+    :lines: 122-156
     :dedent: 4
 
 Finally, we need to define the maximal distance that can be obtained from this distance measure. 
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 149-150
+    :lines: 159-160
     :dedent: 4
 
 The newly defined distance class can be used in the same way as the already existing once. The complete example for this
@@ -405,13 +410,13 @@ implemented:
 
 .. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 99
+    :lines: 101
 
 On the other hand, if the kernel is a discrete kernel, we would need the following method:
 
 .. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 107
+    :lines: 109
 
 As an example, we will implement a kernel which perturbs continuous parameters using a multivariate normal
 distribution (which is already implemented within ABCpy). First, we need to define a constructor.
@@ -450,9 +455,9 @@ the values relevant to your kernel, for example the current calculated covarianc
 
 Let us now look at the implementation of the method:
 
-.. literalinclude:: ../../examples/extensions/perturbationkernels/multivariate_normal_kernel.py
+.. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 10, 25-30
+    :lines: 254-286
     :dedent: 4
 
 Some of the implemented inference algorithms weigh different sets of parameters differently. Therefore, if such weights
@@ -479,9 +484,9 @@ pass this argument.
 
 Here the implementation for our kernel:
 
-.. literalinclude:: ../../examples/extensions/perturbationkernels/multivariate_normal_kernel.py
+.. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 32, 53, 56-60
+    :lines: 289-336
     :dedent: 4
 
 The first line shows how you obtain the values of the parameters that your kernel should perturb. These values are
@@ -496,9 +501,9 @@ Continuous Kernel or a Discrete Kernel:
 
 This method is implemented as follows for the multivariate normal:
 
-.. literalinclude:: ../../examples/extensions/perturbationkernels/multivariate_normal_kernel.py
+.. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 62, 83-87
+    :lines: 339-366
     :dedent: 4
 
 We simply obtain the parameter values and covariance matrix for this kernel and calculate the probability density

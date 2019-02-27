@@ -4,24 +4,24 @@ import numpy as np
 from abcpy.output import Journal
 
 class JournalTests(unittest.TestCase):
-    def test_add_parameters(self):
-        params1 = np.zeros((2,4))
-        params2 = np.ones((2,4))
-
-        # test whether production mode only stores the last set of parameters
-        journal_prod = Journal(0)
-        journal_prod.add_parameters(params1)
-        journal_prod.add_parameters(params2)
-        self.assertEqual(len(journal_prod.parameters), 1)
-        np.testing.assert_equal(journal_prod.parameters[0], params2)
-
-        # test whether reconstruction mode stores all parameter sets
-        journal_recon = Journal(1)
-        journal_recon.add_parameters(params1)
-        journal_recon.add_parameters(params2)
-        self.assertEqual(len(journal_recon.parameters), 2)
-        np.testing.assert_equal(journal_recon.parameters[0], params1)
-        np.testing.assert_equal(journal_recon.parameters[1], params2)
+    # def test_add_parameters(self):
+    #     params1 = np.zeros((2,4))
+    #     params2 = np.ones((2,4))
+    #
+    #     # test whether production mode only stores the last set of parameters
+    #     journal_prod = Journal(0)
+    #     journal_prod.add_parameters(params1)
+    #     journal_prod.add_parameters(params2)
+    #     self.assertEqual(len(journal_prod.parameters), 1)
+    #     np.testing.assert_equal(journal_prod.parameters[0], params2)
+    #
+    #     # test whether reconstruction mode stores all parameter sets
+    #     journal_recon = Journal(1)
+    #     journal_recon.add_parameters(params1)
+    #     journal_recon.add_parameters(params2)
+    #     self.assertEqual(len(journal_recon.parameters), 2)
+    #     np.testing.assert_equal(journal_recon.parameters[0], params1)
+    #     np.testing.assert_equal(journal_recon.parameters[1], params2)
 
 
 
@@ -72,12 +72,12 @@ class JournalTests(unittest.TestCase):
         weights1 = np.zeros((2,4))
 
         journal = Journal(0)
-        journal.add_parameters(params1)
+        #journal.add_parameters(params1)
         journal.add_weights(weights1)
         journal.save('journal_tests_testfile.pkl')
 
         new_journal = Journal.fromFile('journal_tests_testfile.pkl')
-        np.testing.assert_equal(journal.parameters, new_journal.parameters)
+        #np.testing.assert_equal(journal.parameters, new_journal.parameters)
         np.testing.assert_equal(journal.weights, new_journal.weights)
         
 

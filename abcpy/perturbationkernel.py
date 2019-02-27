@@ -201,15 +201,15 @@ class JointPerturbationKernel(PerturbationKernel):
             index=0
             for model in kernel.models:
                 model_values = []
-                for j in range(model.get_output_dimension()):
-                    model_values.append(perturbed_values[kernel_index][index])
-                    index+=1
+                #for j in range(model.get_output_dimension()):
+                model_values.append(perturbed_values[kernel_index][index])
+                index+=1
                 perturbed_values_including_models.append((model, model_values))
 
         return perturbed_values_including_models
 
 
-    def pdf(self, mapping, accepted_parameters_manager, index, x):
+    def pdf(self, mapping, accepted_parameters_manager, mean, x):
         """
         Calculates the overall pdf of the kernel. Commonly used to calculate weights.
 
@@ -231,16 +231,15 @@ class JointPerturbationKernel(PerturbationKernel):
         """
 
         result = 1.
-
         for kernel_index, kernel in enumerate(self.kernels):
             # Define a list containing the parameter values relevant to the current kernel
-            theta = []
+            mean_kernel, theta = [], []
             for kernel_model in kernel.models:
                 for model, model_output_index in mapping:
                     if(kernel_model==model):
                         theta.append(x[model_output_index])
-            theta = np.array(theta)
-            result*=kernel.pdf(accepted_parameters_manager, kernel_index, index, theta)
+                        mean_kernel.append(mean[model_output_index])
+            result*=kernel.pdf(accepted_parameters_manager, kernel_index, mean_kernel, theta)
 
         return result
 
@@ -268,17 +267,22 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
         list
             The covariance matrix corresponding to this kernel.
         """
+        continuous_model = [[] for i in
+                            range(len(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]))]
+        for i in range(len(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index])):
+            if isinstance(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i][0],
+                          (np.float, np.float32, np.float64, np.int, np.int32, np.int64)):
+                continuous_model[i] = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i]
+            else:
+                continuous_model[i] = np.concatenate(
+                    accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i])
+        continuous_model = np.array(continuous_model).astype(float)
 
         if(accepted_parameters_manager.accepted_weights_bds is not None):
             weights = accepted_parameters_manager.accepted_weights_bds.value()
-            cov = np.cov(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float),
-                         aweights=weights.reshape(-1).astype(float), rowvar=False)
+            cov = np.cov(continuous_model, aweights=weights.reshape(-1).astype(float), rowvar=False)
         else:
-            if(not(accepted_parameters_manager.accepted_parameters_bds.value().shape[1]>1)):
-                cov = np.var(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float))
-            else:
-                cov = np.cov(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float), rowvar=False)
-
+            cov = np.cov(continuous_model, rowvar=False)
         return cov
 
 
@@ -303,17 +307,36 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
             The perturbed parameter values.
         """
 
-        # Get all current parameter values relevant for this model
+        # Get all current parameter values relevant for this model and the structure
         continuous_model_values = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]
 
-        # Perturb
-        continuous_model_values = np.array(continuous_model_values).astype(float)
-        cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
-        perturbed_continuous_values = rng.multivariate_normal(continuous_model_values[row_index], cov)
+        if isinstance(continuous_model_values[row_index][0], (np.float, np.float32, np.float64, np.int, np.int32, np.int64)):
+            # Perturb
+            cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
+            continuous_model_values = np.array(continuous_model_values).astype(float)
+
+            # Perturbed values anc split according to the structure
+            perturbed_continuous_values = rng.multivariate_normal(continuous_model_values[row_index], cov)
+        else:
+            #print('Hello')
+            # Learn the structure
+            struct = [[] for i in range(len(continuous_model_values[row_index]))]
+            for i in range(len(continuous_model_values[row_index])):
+                struct[i] = continuous_model_values[row_index][i].shape[0]
+            struct = np.array(struct).cumsum()
+            continuous_model_values = np.concatenate(continuous_model_values[row_index])
+
+            # Perturb
+            cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
+            continuous_model_values = np.array(continuous_model_values).astype(float)
+
+            # Perturbed values anc split according to the structure
+            perturbed_continuous_values = np.split(rng.multivariate_normal(continuous_model_values, cov), struct)[:-1]
+
         return perturbed_continuous_values
 
 
-    def pdf(self, accepted_parameters_manager, kernel_index, index, x):
+    def pdf(self, accepted_parameters_manager, kernel_index, mean, x):
         """Calculates the pdf of the kernel.
         Commonly used to calculate weights.
 
@@ -333,13 +356,14 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
             The pdf evaluated at point x.
         """
 
-        # Gets the relevant accepted parameters from the manager in order to calculate the pdf
-
-        mean = np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][index]).astype(float)
-
-        cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
-
-        return multivariate_normal(mean, cov, allow_singular=True).pdf(x)
+        if isinstance(mean[0], (np.float, np.float32, np.float64, np.int, np.int32, np.int64)):
+            mean = np.array(mean).astype(float)
+            cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
+            return multivariate_normal(mean, cov, allow_singular=True).pdf(np.array(x).astype(float))
+        else:
+            mean = np.array(np.concatenate(mean)).astype(float)
+            cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
+            return multivariate_normal(mean, cov, allow_singular=True).pdf(np.concatenate(x))
 
 
 class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
@@ -374,17 +398,22 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
         list
             The covariance matrix corresponding to this kernel.
         """
+        continuous_model = [[] for i in
+                            range(len(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]))]
+        for i in range(len(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index])):
+            if isinstance(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i][0],
+                          (np.float, np.float32, np.float64, np.int, np.int32, np.int64)):
+                continuous_model[i] = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i]
+            else:
+                continuous_model[i] = np.concatenate(
+                    accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i])
+        continuous_model = np.array(continuous_model).astype(float)
 
         if(accepted_parameters_manager.accepted_weights_bds is not None):
             weights = np.array(accepted_parameters_manager.accepted_weights_bds.value())
-            cov = np.cov(
-                np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float), aweights=weights.reshape(-1).astype(float),
-                rowvar=False)
+            cov = np.cov(continuous_model, aweights=weights.reshape(-1).astype(float),rowvar=False)
         else:
-            if(not(accepted_parameters_manager.accepted_parameters_bds.value().shape[1]>1)):
-                cov = np.var(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float))
-            else:
-                cov = np.cov(np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]).astype(float), rowvar=False)
+            cov = np.cov(continuous_model, rowvar=False)
         return cov
 
 
@@ -411,26 +440,50 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
         """
 
         # Get all parameters relevant to this kernel
-        continuous_model_values = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]
+        continuous_model_values = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][row_index]
 
-        # Perturb
-        continuous_model_values = np.array(continuous_model_values)
-        cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index])
-        p = len(continuous_model_values[row_index])
+        if isinstance(continuous_model_values[0],
+                      (np.float, np.float32, np.float64, np.int, np.int32, np.int64)):
+            # Perturb
+            continuous_model_values = np.array(continuous_model_values)
+            cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
+            p = len(continuous_model_values)
 
-        if(self.df==np.inf):
-            chisq = 1.0
+            if (self.df == np.inf):
+                chisq = 1.0
+            else:
+                chisq = rng.chisquare(self.df, 1) / self.df
+                chisq = chisq.reshape(-1, 1).repeat(p, axis=1)
+
+            mvn = rng.multivariate_normal(np.zeros(p), cov.astype(float), 1)
+            perturbed_continuous_values = continuous_model_values + np.divide(mvn, np.sqrt(chisq))[0]
         else:
-            chisq = rng.chisquare(self.df, 1)/self.df
-            chisq = chisq.reshape(-1,1).repeat(p, axis=1)
+            # Learn the structure
+            struct = [[] for i in range(len(continuous_model_values))]
+            for i in range(len(continuous_model_values)):
+                struct[i] = continuous_model_values[i].shape[0]
+            struct = np.array(struct).cumsum()
+            continuous_model_values = np.concatenate(continuous_model_values)
 
+            # Perturb
+            cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
+            p = len(continuous_model_values)
 
-        mvn = rng.multivariate_normal(np.zeros(p), cov.astype(float), 1)
-        perturbed_continuous_values = continuous_model_values[row_index]+np.divide(mvn, np.sqrt(chisq))[0]
+            if (self.df == np.inf):
+                chisq = 1.0
+            else:
+                chisq = rng.chisquare(self.df, 1) / self.df
+                chisq = chisq.reshape(-1, 1).repeat(p, axis=1)
+
+            mvn = rng.multivariate_normal(np.zeros(p), cov.astype(float), 1)
+            perturbed_continuous_values = continuous_model_values + np.divide(mvn, np.sqrt(chisq))[0]
+
+            # Perturbed values anc split according to the structure
+            perturbed_continuous_values = np.split(perturbed_continuous_values, struct)[:-1]
+
         return perturbed_continuous_values
 
-
-    def pdf(self, accepted_parameters_manager, kernel_index, index, x):
+    def pdf(self, accepted_parameters_manager, kernel_index, mean, x):
         """Calculates the pdf of the kernel.
         Commonly used to calculate weights.
 
@@ -450,20 +503,35 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
             The pdf evaluated at point x.
         """
 
-        mean = np.array(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][index]).astype(float)
-        cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
+        if isinstance(mean[0],
+                      (np.float, np.float32, np.float64, np.int, np.int32, np.int64)):
+            mean = np.array(mean).astype(float)
+            cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
 
-        v = self.df
-        p = len(mean)
+            v = self.df
+            p = len(mean)
 
-        numerator = gamma((v + p) / 2)
-        denominator = gamma(v / 2) * pow(v * np.pi, p / 2.) * np.sqrt(abs(np.linalg.det(cov)))
-        normalizing_const = numerator / denominator
-        tmp = 1 + 1 / v * np.dot(np.dot(np.transpose(x - mean), np.linalg.inv(cov)), (x - mean))
-        density = normalizing_const * pow(tmp, -((v + p) / 2.))
+            numerator = gamma((v + p) / 2)
+            denominator = gamma(v / 2) * pow(v * np.pi, p / 2.) * np.sqrt(abs(np.linalg.det(cov)))
+            normalizing_const = numerator / denominator
+            tmp = 1 + 1 / v * np.dot(np.dot(np.transpose(x - mean), np.linalg.inv(cov)), (x - mean))
+            density = normalizing_const * pow(tmp, -((v + p) / 2.))
 
-        return density
+            return density
+        else:
+            mean = np.array(np.concatenate(mean)).astype(float)
+            cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
 
+            v = self.df
+            p = len(mean)
+
+            numerator = gamma((v + p) / 2)
+            denominator = gamma(v / 2) * pow(v * np.pi, p / 2.) * np.sqrt(abs(np.linalg.det(cov)))
+            normalizing_const = numerator / denominator
+            tmp = 1 + 1 / v * np.dot(np.dot(np.transpose(np.concatenate(x) - mean), np.linalg.inv(cov)), (np.concatenate(x) - mean))
+            density = normalizing_const * pow(tmp, -((v + p) / 2.))
+
+            return density
 
 class RandomWalkKernel(PerturbationKernel, DiscreteKernel):
     def __init__(self, models):
@@ -506,7 +574,7 @@ class RandomWalkKernel(PerturbationKernel, DiscreteKernel):
 
         # Implement a random walk for the discrete parameter values
         for discrete_value in discrete_model_values:
-            perturbed_discrete_values.append(rng.randint(discrete_value - 1, discrete_value + 2))
+            perturbed_discrete_values.append(np.array([rng.randint(discrete_value - 1, discrete_value + 2)]))
 
         return perturbed_discrete_values
 
@@ -517,10 +585,10 @@ class RandomWalkKernel(PerturbationKernel, DiscreteKernel):
         random walk, it returns an empty list.
         """
 
-        return []
+        return np.array([0]).reshape(-1,)
 
 
-    def pmf(self, accepted_parameters_manager, kernel_index, index, x):
+    def pmf(self, accepted_parameters_manager, kernel_index, mean, x):
         """
         Calculates the pmf of the kernel. Commonly used to calculate weights.
 
