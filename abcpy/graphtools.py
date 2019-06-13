@@ -411,7 +411,7 @@ class GraphTools():
                 if npc is not None and npc.communicator().Get_size() > 1:
                     simulation_result = npc.run_nested(model.forward_simulate, model.get_input_values(), n_samples_per_param, rng=rng)
                 else:
-                    simulation_result = model.forward_simulate(model.get_input_values(),n_samples_per_param, rng=rng)
+                    simulation_result = model.forward_simulate(model.get_input_values(),n_samples_per_param)
                 result.append(simulation_result)
             else:
                 return None
