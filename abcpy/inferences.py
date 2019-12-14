@@ -2468,7 +2468,7 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
             denominator = 0.0
             for i in range(len(self.accepted_parameters_manager.accepted_weights_bds.value())):
                 pdf_value = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
-                                            self.accepted_parameters_manager.accepted_parameters_bds.value()[index[0]], perturbation_output[1])
+                                            self.accepted_parameters_manager.accepted_parameters_bds.value()[i], perturbation_output[1])
                 denominator += self.accepted_parameters_manager.accepted_weights_bds.value()[i, 0] * pdf_value
             weight = 1.0 * prior_prob / denominator
 

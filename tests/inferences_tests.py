@@ -453,8 +453,8 @@ class APMCABCTests(unittest.TestCase):
         self.assertEqual(mu_sample_shape, (10,1))
         self.assertEqual(sigma_sample_shape, (10,1))
         self.assertEqual(weights_sample_shape, (10,1))
-        self.assertLess(mu_post_mean - (-2.785), 10e-2)
-        self.assertLess(sigma_post_mean - 6.2058, 10e-2)
+        self.assertLess(mu_post_mean - (-3.397848324005792), 10e-2)
+        self.assertLess(sigma_post_mean - 6.451434816944525, 10e-2)
 
         self.assertFalse(journal.number_of_simulations == 0)
 
