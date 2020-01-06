@@ -13,36 +13,45 @@ def infer_parameters():
     from abcpy.continuousmodels import Uniform
     mu = Uniform([[150], [200]], )
     sigma = Uniform([[5], [25]], )
-    
+
     # define the model
     from abcpy.continuousmodels import Normal
     height = Normal([mu, sigma], )
 
     # define statistics
     from abcpy.statistics import Identity
-    statistics_calculator = Identity(degree = 3, cross = True)
+    statistics_calculator = Identity(degree=3, cross=True)
 
     # Learn the optimal summary statistics using Semiautomatic summary selection
-    from abcpy.summaryselections import Semiautomatic
-    summary_selection = Semiautomatic([height], statistics_calculator, backend,
+    from abcpy.statisticslearning import Semiautomatic
+    statistics_learning = Semiautomatic([height], statistics_calculator, backend,
                                       n_samples=1000,n_samples_per_param=1, seed=1)
 
     # Redefine the statistics function
-    statistics_calculator.statistics = lambda x, f2=summary_selection.transformation, \
-                                              f1=statistics_calculator.statistics: f2(f1(x))
+    new_statistics_calculator = statistics_learning.get_statistics()
+
+
+    # Learn the optimal summary statistics using SemiautomaticNN summary selection
+    from abcpy.statisticslearning import SemiautomaticNN
+    statistics_learning = SemiautomaticNN([height], statistics_calculator, backend,
+                                        n_samples=1000,n_samples_per_param=1, seed=1)
+
+    # Redefine the statistics function
+    new_statistics_calculator = statistics_learning.get_statistics()
+
 
     # define distance
     from abcpy.distances import Euclidean
-    distance_calculator = Euclidean(statistics_calculator)
-    
+    distance_calculator = Euclidean(new_statistics_calculator)
+
     # define kernel
     from abcpy.perturbationkernel import DefaultKernel
     kernel = DefaultKernel([mu, sigma])
-    
+
     # define sampling scheme
     from abcpy.inferences import PMCABC
     sampler = PMCABC([height], [distance_calculator], backend, kernel, seed=1)
-    
+
     # sample from scheme
     T, n_sample, n_samples_per_param = 3, 10, 10
     eps_arr = np.array([500])
@@ -56,18 +65,18 @@ def analyse_journal(journal):
     # output parameters and weights
     print(journal.opt_values)
     print(journal.get_weights())
-    
+
     # do post analysis
     print(journal.posterior_mean())
     print(journal.posterior_cov())
     print(journal.posterior_histogram())
-    
+
     # print configuration
     print(journal.configuration)
-    
+
     # save and load journal
     journal.save("experiments.jnl")
-    
+
     from abcpy.output import Journal
     new_journal = Journal.fromFile('experiments.jnl')
 

@@ -62,6 +62,7 @@ def analyse_journal(journal):
     from abcpy.output import Journal
     new_journal = Journal.fromFile('experiments.jnl')
 
+    journal.plot_posterior_distr()
 
 # this code is for testing purposes only and not relevant to run the example
 import unittest
