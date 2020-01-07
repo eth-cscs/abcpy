@@ -7,7 +7,7 @@ addons:
     packages:
     - gfortran
     - libboost-random-dev
-    - libpython3.7-dev
+    - python3.7-dev
     - python3-numpy
     - swig
     - libmpich-dev
