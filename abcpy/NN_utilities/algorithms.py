@@ -41,8 +41,10 @@ def contrastive_training(samples, similarity_set, embedding_net, cuda, batch_siz
     else:
         loader_kwargs_2 = {}
 
+    loader_kwargs.update(loader_kwargs_2)
+
     pairs_train_loader = torch.utils.data.DataLoader(pairs_dataset, batch_size=batch_size, shuffle=True,
-                                                     **loader_kwargs, **loader_kwargs_2)
+                                                     **loader_kwargs)
 
     model_contrastive = SiameseNet(embedding_net)
 
@@ -93,8 +95,10 @@ def triplet_training(samples, similarity_set, embedding_net, cuda, batch_size=16
     else:
         loader_kwargs_2 = {}
 
+    loader_kwargs.update(loader_kwargs_2)
+
     triplets_train_loader = torch.utils.data.DataLoader(triplets_dataset, batch_size=batch_size, shuffle=True,
-                                                        **loader_kwargs, **loader_kwargs_2)
+                                                        **loader_kwargs)
 
     model_triplet = TripletNet(embedding_net)
 
@@ -146,8 +150,9 @@ def FP_nn_training(samples, target, embedding_net, cuda, batch_size=1, n_epochs=
     else:
         loader_kwargs_2 = {}
 
-    data_loader_FP_nn = torch.utils.data.DataLoader(dataset_FP_nn, batch_size=batch_size, shuffle=True, **loader_kwargs,
-                                                    **loader_kwargs_2)
+    loader_kwargs.update(loader_kwargs_2)
+
+    data_loader_FP_nn = torch.utils.data.DataLoader(dataset_FP_nn, batch_size=batch_size, shuffle=True, **loader_kwargs)
 
     if cuda:
         embedding_net.cuda()
