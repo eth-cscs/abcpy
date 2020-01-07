@@ -1,13 +1,13 @@
 dist: trusty
 language: python
 python:
-- '3.4'
+- '3.7'
 addons:
   apt:
     packages:
     - gfortran
     - libboost-random-dev
-    - libpython3.4-dev
+    - libpython3.7-dev
     - python3-numpy
     - swig
     - libmpich-dev
@@ -16,6 +16,7 @@ install:
 - pip install -r requirements.txt
 - pip install -r requirements/backend-mpi.txt
 - pip install -r requirements/backend-spark.txt
+- pip install -r requirements/optional-requirements.txt
 script:
 - make test
 before_deploy:
