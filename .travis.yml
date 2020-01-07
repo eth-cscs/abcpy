@@ -4,6 +4,8 @@ python:
 - '3.7'
 addons:
   apt:
+    sources:
+    - deadsnakes
     packages:
     - gfortran
     - libboost-random-dev
