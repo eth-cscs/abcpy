@@ -9,7 +9,7 @@ from abcpy.statisticslearning import Semiautomatic, SemiautomaticNN, TripletDist
 
 try:
     import torch
-except ModuleNotFoundError:
+except ImportError:
     has_torch = False
 else:
     has_torch = True
@@ -67,7 +67,7 @@ class SemiautomaticNNTests(unittest.TestCase):
 
     def test_initialization(self):
         if not has_torch:
-            self.assertRaises(ModuleNotFoundError, SemiautomaticNN, [self.Y], self.statistics_cal, self.backend)
+            self.assertRaises(ImportError, SemiautomaticNN, [self.Y], self.statistics_cal, self.backend)
 
     def test_transformation(self):
         if has_torch:
@@ -104,7 +104,7 @@ class ContrastiveDistanceLearningTests(unittest.TestCase):
 
     def test_initialization(self):
         if not has_torch:
-            self.assertRaises(ModuleNotFoundError, ContrastiveDistanceLearning, [self.Y], self.statistics_cal,
+            self.assertRaises(ImportError, ContrastiveDistanceLearning, [self.Y], self.statistics_cal,
                               self.backend)
 
     def test_transformation(self):
@@ -141,7 +141,7 @@ class TripletDistanceLearningTests(unittest.TestCase):
 
     def test_initialization(self):
         if not has_torch:
-            self.assertRaises(ModuleNotFoundError, TripletDistanceLearning, [self.Y], self.statistics_cal, self.backend)
+            self.assertRaises(ImportError, TripletDistanceLearning, [self.Y], self.statistics_cal, self.backend)
 
     def test_transformation(self):
         if has_torch:

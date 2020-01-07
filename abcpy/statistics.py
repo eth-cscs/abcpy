@@ -3,7 +3,7 @@ import numpy as np
 
 try:
     import torch
-except ModuleNotFoundError:
+except ImportError:
     has_torch = False
 else:
     has_torch = True
@@ -256,7 +256,7 @@ class NeuralEmbedding(Statistics):
             transformations.
         """
         if not has_torch:
-            raise ModuleNotFoundError(
+            raise ImportError(
                 "Pytorch is required to instantiate an element of the {} class, in order to handle "
                 "neural networks. Please install it. ".format(self.__class__.__name__))
 
@@ -313,7 +313,7 @@ class NeuralEmbedding(Statistics):
             the `NeuralEmbedding` object with the neural network obtained from the specified file.
         """
         if not has_torch:
-            raise ModuleNotFoundError(
+            raise ImportError(
                 "Pytorch is required to instantiate an element of the {} class, in order to handle "
                 "neural networks. Please install it. ".format(cls.__name__))
 

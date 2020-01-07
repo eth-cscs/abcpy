@@ -9,7 +9,7 @@ try:
     from abcpy.NN_utilities.losses import ContrastiveLoss, TripletLoss
     from abcpy.NN_utilities.networks import SiameseNet, TripletNet
     from abcpy.NN_utilities.trainer import fit
-except ModuleNotFoundError:
+except ImportError:
     has_torch = False
 else:
     has_torch = True

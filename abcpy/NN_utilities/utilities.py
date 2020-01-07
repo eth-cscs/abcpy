@@ -1,6 +1,6 @@
 try:
     import torch
-except ModuleNotFoundError:
+except ImportError:
     has_torch = False
 else:
     has_torch = True

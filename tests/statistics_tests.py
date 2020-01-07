@@ -4,7 +4,7 @@ from abcpy.statistics import Identity, LinearTransformation, NeuralEmbedding
 
 try:
     import torch
-except ModuleNotFoundError:
+except ImportError:
     has_torch = False
 else:
     has_torch = True
@@ -83,7 +83,7 @@ class NeuralEmbeddingTests(unittest.TestCase):
 
     def test_statistics(self):
         if not has_torch:
-            self.assertRaises(ModuleNotFoundError, NeuralEmbedding, None)
+            self.assertRaises(ImportError, NeuralEmbedding, None)
         else:
             self.stat_calc = NeuralEmbedding(self.net)
 
