@@ -6,7 +6,7 @@ from abcpy.continuousmodels import Normal
 
 from abcpy.distances import Euclidean
 
-from abcpy.approx_lhd import SynLiklihood
+from abcpy.approx_lhd import SynLikelihood
 
 from abcpy.continuousmodels import Uniform
 
@@ -77,7 +77,7 @@ class PMCTests(unittest.TestCase):
         y_obs = [np.array(9.8)]
       
         # Define the likelihood function
-        likfun = SynLiklihood(stat_calc)
+        likfun = SynLikelihood(stat_calc)
 
 
         T, n_sample, n_samples_per_param = 1, 10, 100

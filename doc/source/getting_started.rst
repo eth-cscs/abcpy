@@ -302,14 +302,14 @@ We also have implemented the population Monte Carlo :py:class:`abcpy.inferences.
 the likelihood or approximate likelihood function is available. For approximation of the likelihood function we provide
 two methods:
 
-* Synthetic likelihood approximation :py:class:`abcpy.approx_lhd.SynLiklihood`, and another method using
+* Synthetic likelihood approximation :py:class:`abcpy.approx_lhd.SynLikelihood`, and another method using
 * penalized logistic regression :py:class:`abcpy.approx_lhd.PenLogReg`.
 
 Next we explain how we can use PMC algorithm using approximation of the
 likelihood functions. As we are now considering two observed datasets
 corresponding to two root models, we need to define an approximation of
 likelihood function for each of them separately. Here, we use the
-:py:class:`abcpy.approx_lhd.SynLiklihood` for each of the root models. It is
+:py:class:`abcpy.approx_lhd.SynLikelihood` for each of the root models. It is
 also possible to use two different approximate likelihoods for two different
 root models.
 
