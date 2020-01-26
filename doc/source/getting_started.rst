@@ -365,7 +365,7 @@ the learned transformation will be a transformation applied to the original set 
 For instance, consider our initial example from `Parameters as Random Variables`_ where we model the height of humans.
 The original summary statistics were defined as follows:
 
-.. literalinclude:: ../../examples/summaryselection/pmcabc_gaussian_summary_selection.py
+.. literalinclude:: ../../examples/statisticslearning/pmcabc_gaussian_statistics_learning.py
     :language: python
     :lines: 21-23
     :dedent: 4
@@ -373,14 +373,14 @@ The original summary statistics were defined as follows:
 Then we can learn the optimized summary statistics from the above list of summary statistics using the semi-automatic
 summary selection procedure as follows:
 
-.. literalinclude:: ../../examples/summaryselection/pmcabc_gaussian_summary_selection.py
+.. literalinclude:: ../../examples/statisticslearning/pmcabc_gaussian_statistics_learning.py
     :language: python
     :lines: 25-31
     :dedent: 4
 
 We remark that the minimal amount of coding needed for using the neural network based regression does not change at all:
 
-.. literalinclude:: ../../examples/summaryselection/pmcabc_gaussian_summary_selection.py
+.. literalinclude:: ../../examples/statisticslearning/pmcabc_gaussian_statistics_learning.py
     :language: python
     :lines: 34-40
     :dedent: 4
