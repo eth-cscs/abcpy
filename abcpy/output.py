@@ -351,6 +351,9 @@ class Journal:
         marginals, while the off diagonal elements contain the contourplot for the paired marginals for each possible
         pair of parameters.
 
+        This visualization is not satisfactory for parameters that take on discrete values, specially in the case where
+        the number of values it can assume are small.
+
         Parameters
         ----------
         parameters_to_show : list, optional
@@ -548,9 +551,11 @@ class Journal:
                             axes[x, y].plot([meanpost[y], meanpost[y]], [ymin, ymax], "red", markersize='20',
                                             linestyle='solid')
                             if true_parameter_values is not None:
-                                axes[x, y].plot([xmin, xmax], [true_parameter_values[x], true_parameter_values[x]], "green",
+                                axes[x, y].plot([xmin, xmax], [true_parameter_values[x], true_parameter_values[x]],
+                                                "green",
                                                 markersize='20', linestyle='dashed')
-                                axes[x, y].plot([true_parameter_values[y], true_parameter_values[y]], [ymin, ymax], "green",
+                                axes[x, y].plot([true_parameter_values[y], true_parameter_values[y]], [ymin, ymax],
+                                                "green",
                                                 markersize='20', linestyle='dashed')
 
                             CS = axes[x, y].contour(X, Y, Z, contour_levels, linestyles='solid')
@@ -577,8 +582,9 @@ class Journal:
                 diagonal_axes[i].plot([meanpost[i], meanpost[i]], [0, 1.1 * np.max(values)], "red", alpha=1,
                                       label="Posterior mean")
                 if true_parameter_values is not None:
-                    diagonal_axes[i].plot([true_parameter_values[i], true_parameter_values[i]], [0, 1.1 * np.max(values)], "green",
-                                           alpha=1, label="True value")
+                    diagonal_axes[i].plot([true_parameter_values[i], true_parameter_values[i]],
+                                          [0, 1.1 * np.max(values)], "green",
+                                          alpha=1, label="True value")
                 if write_posterior_mean:
                     write_post_mean_function(diagonal_axes[i], meanpost[i], label)
                 diagonal_axes[i].set_xlim([xmin, xmax])
@@ -648,9 +654,11 @@ class Journal:
                     axes[ax_counter].plot([meanpost[y], meanpost[y]], [ymin, ymax], "red", markersize='20',
                                           linestyle='solid')
                     if true_parameter_values is not None:
-                        axes[ax_counter].plot([xmin, xmax], [true_parameter_values[x], true_parameter_values[x]], "green",
+                        axes[ax_counter].plot([xmin, xmax], [true_parameter_values[x], true_parameter_values[x]],
+                                              "green",
                                               markersize='20', linestyle='dashed')
-                        axes[ax_counter].plot([true_parameter_values[y], true_parameter_values[y]], [ymin, ymax], "green",
+                        axes[ax_counter].plot([true_parameter_values[y], true_parameter_values[y]], [ymin, ymax],
+                                              "green",
                                               markersize='20', linestyle='dashed')
 
                     CS = axes[ax_counter].contour(X, Y, Z, contour_levels, linestyles='solid')
