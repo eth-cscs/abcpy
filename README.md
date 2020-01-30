@@ -31,7 +31,6 @@ For more information, check out the
 * [Examples](https://github.com/eth-cscs/abcpy/tree/v0.5.7/examples) directory and
 * [Reference](http://abcpy.readthedocs.io/en/v0.5.7/abcpy.html)
 
-
 Further, we provide a
 [collection of models](https://github.com/eth-cscs/abcpy-models) for which ABCpy
 has been applied successfully. This is a good place to look at more complicated inference setups.
