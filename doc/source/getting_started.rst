@@ -85,7 +85,7 @@ the datasets, and then compute the distance between the two statistics.
 Algorithms in ABCpy often require a perturbation kernel, a tool to explore the parameter space. Here, we use the default
 kernel provided, which explores the parameter space of random variables, by using e.g. a multivariate Gaussian
 distribution or by performing a random walk depending on whether the  corresponding random variable is continuous or
-discrete. For a more involved example, please consult `Complex Perturbation Kernels`_.
+discrete. For a more involved example, please consult `Composite Perturbation Kernels`_.
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
@@ -248,10 +248,10 @@ customized combination strategies can be implemented by the user.
 The full source code can be found in `examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py`.
 
 
-Complex Perturbation Kernels
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Composite Perturbation Kernels
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-As pointed out earlier, it is possible to define complex perturbation kernels, perturbing different random variables in
+As pointed out earlier, it is possible to define composite perturbation kernels, perturbing different random variables in
 different ways. Let us take the same example as in the `Hierarchical Model`_ and assume that we want to perturb the
 schools budget, grade score and scholarship score without additional effect, using a multivariate normal kernel. However, the remaining
 parameters we would like to perturb using a multivariate Student's-T kernel. This can be implemented as follows:
@@ -302,14 +302,14 @@ We also have implemented the population Monte Carlo :py:class:`abcpy.inferences.
 the likelihood or approximate likelihood function is available. For approximation of the likelihood function we provide
 two methods:
 
-* Synthetic likelihood approximation :py:class:`abcpy.approx_lhd.SynLiklihood`, and another method using
+* Synthetic likelihood approximation :py:class:`abcpy.approx_lhd.SynLikelihood`, and another method using
 * penalized logistic regression :py:class:`abcpy.approx_lhd.PenLogReg`.
 
 Next we explain how we can use PMC algorithm using approximation of the
 likelihood functions. As we are now considering two observed datasets
 corresponding to two root models, we need to define an approximation of
 likelihood function for each of them separately. Here, we use the
-:py:class:`abcpy.approx_lhd.SynLiklihood` for each of the root models. It is
+:py:class:`abcpy.approx_lhd.SynLikelihood` for each of the root models. It is
 also possible to use two different approximate likelihoods for two different
 root models.
 
@@ -333,33 +333,61 @@ Further possibilities of combination will be made available in later versions of
 The source code can be found in `examples/approx_lhd/pmc_hierarchical_models.py`.
 
 
-Summary Selection
-~~~~~~~~~~~~~~~~~
+Statistics Learning
+~~~~~~~~~~~~~~~~~~~
 
 We have noticed in the `Parameters as Random Variables`_ Section, the discrepancy measure between two datasets is
 defined by a distance function between extracted summary statistics from the datasets. Hence, the ABC algorithms are
 subjective to the summary statistics choice. This subjectivity can be avoided by a data-driven summary statistics choice
-from the available summary statistics of the dataset. In ABCpy we provide a semi-automatic summary selection procedure in
-:py:class:`abcpy.summaryselections.Semiautomatic`
+from the available summary statistics of the dataset. In ABCpy we provide several statistics learning procedures,
+implemented in the subclasses of :py:class:`abcpy.statisticslearning.StatisticsLearning`, that generate a training
+dataset of (parameter, sample) pairs and use it to learn a transformation of the data that will be used in the inference
+step. The following techniques are available:
 
-Taking our initial example from `Parameters as Random Variables`_ where we model the height of humans, we can had summary
-statistics defined as follows:
+* Semiautomatic :py:class:`abcpy.statisticslearning.Semiautomatic`,
+* SemiautomaticNN :py:class:`abcpy.statisticslearning.SemiautomaticNN`,
+* ContrastiveDistanceLearning :py:class:`abcpy.statisticslearning.ContrastiveDistanceLearning`,
+* TripletDistanceLearning :py:class:`abcpy.statisticslearning.TripletDistanceLearning`.
 
-.. literalinclude:: ../../examples/summaryselection/pmcabc_gaussian_summary_selection.py
+The first two build a transformation that approximates the parameter that generated the corresponding observation, the
+first one by using a linear regression approach and the second one by using a neural network embedding. The other two
+use instead neural networks to learn an embedding of the data so that the distance between the embeddings is close to
+the distance between the parameter values that generated the data.
+
+We remark that the techniques using neural networks require `Pytorch <https://pytorch.org/>`_ to be installed. As this is an optional feature,
+however, Pytorch is not in the list of dependencies of ABCpy. Rather, when one of the neural network based routines is
+called, ABCpy checks if Pytorch is present and, if not, asks the user to install it. Moreover, unless the user wants to
+provide a specific form of neural network, the implementation of the neural network based ones do not require any
+explicit neural network coding, handling all the necessary definitions and training internally.
+
+We note finally that the statistics learning techniques can be applied after compute a first set of statistics; therefore,
+the learned transformation will be a transformation applied to the original set of statistics.
+For instance, consider our initial example from `Parameters as Random Variables`_ where we model the height of humans.
+The original summary statistics were defined as follows:
+
+.. literalinclude:: ../../examples/statisticslearning/pmcabc_gaussian_statistics_learning.py
     :language: python
     :lines: 21-23
     :dedent: 4
 
-Then we can learn the optimized summary statistics from the given list of summary statistics using the semi-automatic
+Then we can learn the optimized summary statistics from the above list of summary statistics using the semi-automatic
 summary selection procedure as follows:
 
-.. literalinclude:: ../../examples/summaryselection/pmcabc_gaussian_summary_selection.py
+.. literalinclude:: ../../examples/statisticslearning/pmcabc_gaussian_statistics_learning.py
     :language: python
-    :lines: 25-32
+    :lines: 25-31
     :dedent: 4
 
-Then we can perform the inference as before, but the distances will be computed on the newly learned summary statistics
-using the semi-automatic summary selection procedure.
+We remark that the minimal amount of coding needed for using the neural network based regression does not change at all:
+
+.. literalinclude:: ../../examples/statisticslearning/pmcabc_gaussian_statistics_learning.py
+    :language: python
+    :lines: 34-40
+    :dedent: 4
+
+And similarly for the other two approaches.
+
+We can then perform the inference as before, but the distances will be computed on the newly learned summary statistics.
 
 Model Selection
 ~~~~~~~~~~~~~~~

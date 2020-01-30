@@ -26,9 +26,9 @@ scientists by providing
 # Documentation
 For more information, check out the
 
-* [Documentation](http://abcpy.readthedocs.io/en/v0.5.5) 
-* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.5.5/examples) directory and
-* [Reference](http://abcpy.readthedocs.io/en/v0.5.5/abcpy.html)
+* [Documentation](http://abcpy.readthedocs.io/en/v0.5.6) 
+* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.5.6/examples) directory and
+* [Reference](http://abcpy.readthedocs.io/en/v0.5.6/abcpy.html)
 
 
 Further, we provide a
@@ -55,7 +55,7 @@ finally CSCS (Swiss National Super Computing Center) for their generous support.
 
 There is a paper in the proceedings of the 2017 PASC conference. In case you use
 ABCpy for your publication, we would appreciate a citation. You can use
-[this](https://github.com/eth-cscs/abcpy/blob/v0.5.5/doc/literature/DuttaS-ABCpy-PASC-2017.bib)
+[this](https://github.com/eth-cscs/abcpy/blob/v0.5.6/doc/literature/DuttaS-ABCpy-PASC-2017.bib)
 
 BibTex reference.
 
@@ -63,6 +63,10 @@ BibTex reference.
 ## Other Refernces
 
 Publications in which ABCpy was applied:
+
+* L. Pacchiardi, P. K&#252;nzli, M. Sch&#246;ngens, B. Chopard, R. Dutta, "Distance-Learning for Approximate Bayesian
+  Computation to Model a Volcanic Eruption", 2020, Sankhya B, ISSN 0976-8394, 
+  [DOI: 10.1007/s13571-019-00208-8](https://doi.org/10.1007/s13571-019-00208-8).
 
 * R. Dutta, J. P.  Onnela, A. Mira, "Bayesian Inference of Spreading Processes
   on Networks", 2018, Proc. R. Soc. A, 474(2215), 20180129.
