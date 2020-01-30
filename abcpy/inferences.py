@@ -1,7 +1,7 @@
 import copy
 import logging
 import numpy as np
-
+import time
 import sys
 
 from abc import ABCMeta, abstractmethod, abstractproperty
@@ -1161,12 +1161,15 @@ class SABC(BaseDiscrepancy, InferenceMethod):
             # 1: Calculate  parameters
             self.logger.info("Initial accepted parameters")
             params_and_dists_pds = self.backend.map(self._accept_parameter, data_pds)
+            self.logger.debug("Map step of parallelism is finished")
             params_and_dists = self.backend.collect(params_and_dists_pds)
+            self.logger.debug("Collect step of parallelism is finished")
             new_parameters, new_distances, new_all_parameters, new_all_distances, index, acceptance, counter = [list(t) for t in
                                                                                                        zip(
                                                                                                            *params_and_dists)]
 
             # Keeping counter of number of simulations
+            self.logger.debug("Counting number of simulations")
             for count in counter:
                 self.simulation_counter+=count
 
@@ -1183,6 +1186,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 all_distances = new_all_distances
 
             # Initialize/Update the accepted parameters and their corresponding distances
+            self.logger.info("Initialize/Update the accepted parameters and their corresponding distances")
             if accepted_parameters is None:
                 accepted_parameters = new_parameters
             else:
@@ -1192,10 +1196,12 @@ class SABC(BaseDiscrepancy, InferenceMethod):
             distances[index[acceptance == 1]] = new_distances[acceptance == 1]
 
             # 2: Smoothing of the distances
+            self.logger.info("Smoothing of the distance")
             smooth_distances[index[acceptance == 1]] = self._smoother_distance(distances[index[acceptance == 1]],
                                                                                all_distances)
 
             # 3: Initialize/Update U, epsilon and covariance of perturbation kernel
+            self.logger.info("Initialize/Update U, epsilon and covariance of perturbation kernel")
             if aStep == 0:
                 U = self._average_redefined_distance(self._smoother_distance(all_distances, all_distances), epsilon)
             else:
@@ -1214,10 +1220,10 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                             epsilon, U, acceptance_rate
                             )
                         )
-                self.logger.debug(msg)
+                self.logger.info(msg)
                 if acceptance_rate < ar_cutoff:
                     broken_preemptively = True
-                    self.logger.debug("Stopping as acceptance rate is lower than cutoff")
+                    self.logger.info("Stopping as acceptance rate is lower than cutoff")
                     break
 
             # 5: Resampling if number of accepted particles greater than resample
@@ -1235,20 +1241,23 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 epsilon = self._schedule(U, v)
 
                 ## Print effective sampling size
-                print('Resampling: Effective sampling size: ', 1 / sum(pow(weight / sum(weight), 2)))
+                self.logger.info('Resampling: Effective sampling size: '+str(1 / sum(pow(weight / sum(weight), 2))))
                 accept = 0
                 samples_until = 0
 
                 ## Compute and broadcast accepted parameters, accepted kernel parameters and accepted Covariance matrix
                 # Broadcast Accepted parameters and add to journal
+                self.logger.info("Broadcast Accepted parameters and add to journal")
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_weights=accepted_weights, accepted_parameters=accepted_parameters)
                 # Compute Accepetd Kernel parameters and broadcast them
+                self.logger.debug("Compute Accepetd Kernel parameters and broadcast them")
                 kernel_parameters = []
                 for kernel in self.kernel.kernels:
                     kernel_parameters.append(
                         self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
                 self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
                 # Compute Kernel Covariance Matrix and broadcast it
+                self.logger.debug("Compute Kernel Covariance Matrix and broadcast it")
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
                 accepted_cov_mats = []
                 for new_cov_mat in new_cov_mats:
@@ -1261,7 +1270,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
                 if (full_output == 1 and aStep<= steps-1):
                     ## Saving intermediate configuration to output journal.
-                    print('Saving after resampling')
+                    self.logger.info('Saving after resampling')
                     journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                     journal.add_weights(copy.deepcopy(accepted_weights))
                     journal.add_distances(copy.deepcopy(distances))
@@ -1419,7 +1428,9 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 self.sample_from_prior(rng=rng)
                 new_theta = self.get_parameters()
                 all_parameters.append(new_theta)
+                t0 = time.time()
                 y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
+                self.logger.debug("Simulation took " + str(time.time() - t0) + "sec")
                 counter+=1
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
                 all_distances.append(distance)
@@ -1436,13 +1447,15 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
                     new_theta = perturbation_output[1]
                     break
-
+            t0 = time.time()
             y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
+            self.logger.debug("Simulation took "+ str(time.time()-t0)+"sec")
             counter+=1
             distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
             smooth_distance = self._smoother_distance([distance], self.all_distances_bds.value())
 
             ## Calculate acceptance probability:
+            self.logger.debug("Calulate acceptance probability")
             ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model,
                 self.accepted_parameters_manager.accepted_parameters_bds.value()[index])
             ratio_likelihood_prob = np.exp((self.smooth_distances_bds.value()[index] - smooth_distance) / self.epsilon)

@@ -56,6 +56,13 @@ algorithm that created it:
     :lines: 57
     :dedent: 4
 
+Finally, you can plot the inferred posterior mean of the parameters in the following way:
+
+.. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
+    :language: python
+    :lines: 65
+    :dedent: 4
+
 And certainly, a journal can easily be saved to and loaded from disk:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py

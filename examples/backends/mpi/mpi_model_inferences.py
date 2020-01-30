@@ -306,8 +306,8 @@ def infer_parameters_pmc():
     from abcpy.statistics import Identity
     statistics_calculator = Identity(degree = 2, cross = False)
 
-    from abcpy.approx_lhd import SynLiklihood
-    approx_lhd = SynLiklihood(statistics_calculator)
+    from abcpy.approx_lhd import SynLikelihood
+    approx_lhd = SynLikelihood(statistics_calculator)
 
     # define sampling scheme
     from abcpy.inferences import PMC

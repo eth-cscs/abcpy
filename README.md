@@ -13,7 +13,8 @@ algorithms and other likelihood-free inference schemes. It presently includes:
 * ABCsubsim (ABC using subset simulation)
 * PMC (Population Monte Carlo) using approximations of likelihood functions
 * Random Forest Model Selection Scheme
-* Semi-automatic summary selection
+* Semi-automatic summary selection (with Neural networks)
+* summary selection using distance learning (with Neural networks)
 
 ABCpy addresses the needs of domain scientists and data
 scientists by providing
@@ -26,10 +27,9 @@ scientists by providing
 # Documentation
 For more information, check out the
 
-* [Documentation](http://abcpy.readthedocs.io/en/v0.5.6) 
-* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.5.6/examples) directory and
-* [Reference](http://abcpy.readthedocs.io/en/v0.5.6/abcpy.html)
-
+* [Documentation](http://abcpy.readthedocs.io/en/v0.5.7) 
+* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.5.7/examples) directory and
+* [Reference](http://abcpy.readthedocs.io/en/v0.5.7/abcpy.html)
 
 Further, we provide a
 [collection of models](https://github.com/eth-cscs/abcpy-models) for which ABCpy
@@ -63,6 +63,10 @@ BibTex reference.
 ## Other Refernces
 
 Publications in which ABCpy was applied:
+
+* L. Pacchiardi, P. K&#252;nzli, M. Sch&#246;ngens, B. Chopard, R. Dutta, "Distance-Learning for Approximate Bayesian
+  Computation to Model a Volcanic Eruption", 2020, Sankhya B, ISSN 0976-8394, 
+  [DOI: 10.1007/s13571-019-00208-8](https://doi.org/10.1007/s13571-019-00208-8).
 
 * R. Dutta, J. P.  Onnela, A. Mira, "Bayesian Inference of Spreading Processes
   on Networks", 2018, Proc. R. Soc. A, 474(2215), 20180129.
