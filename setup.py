@@ -6,15 +6,14 @@ from os import path
 try: # for pip >= 10
     from pip._internal.req import parse_requirements
     #from pip._internal.download import PipSession
-    from pip._internal.network import session()
+    from pip._internal.network.session import PipSession
 except ImportError: # for pip <= 9.0.3
     from pip.req import parse_requirements
     from pip.download import PipSession
 
 here = path.abspath(path.dirname(__file__))
 
-#install_reqs_raw = parse_requirements('requirements.txt', session=PipSession())
-install_reqs_raw = parse_requirements('requirements.txt', session=session())
+install_reqs_raw = parse_requirements('requirements.txt', session=PipSession())
 install_reqs = [str(ir.req) for ir in install_reqs_raw]
 
 with open(path.join(here, 'VERSION')) as f:
