@@ -4,7 +4,7 @@ import numpy as np
 from abcpy.continuousmodels import Normal
 from abcpy.continuousmodels import Uniform
 from abcpy.statistics import Identity
-from abcpy.approx_lhd import PenLogReg, SynLiklihood
+from abcpy.approx_lhd import PenLogReg, SynLikelihood
 
 class PenLogRegTests(unittest.TestCase):
     def setUp(self):
@@ -31,13 +31,13 @@ class PenLogRegTests(unittest.TestCase):
         # This checks whether it computes a correct value and dimension is right
         self.assertLess(comp_likelihood - expected_likelihood, 10e-2)
         
-class SynLiklihoodTests(unittest.TestCase):
+class SynLikelihoodTests(unittest.TestCase):
     def setUp(self):
         self.mu = Uniform([[-5.0], [5.0]], name='mu')
         self.sigma = Uniform([[5.0], [10.0]], name='sigma')
         self.model = Normal([self.mu,self.sigma])
         self.stat_calc = Identity(degree = 2, cross = 0)
-        self.likfun = SynLiklihood(self.stat_calc) 
+        self.likfun = SynLikelihood(self.stat_calc)
 
 
     def test_likelihood(self):

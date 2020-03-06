@@ -48,7 +48,7 @@ class Approx_likelihood(metaclass = ABCMeta):
         raise NotImplemented
 
 
-class SynLiklihood(Approx_likelihood):
+class SynLikelihood(Approx_likelihood):
     """This class implements the approximate likelihood function which computes the approximate
     likelihood using the synthetic likelihood approach described in Wood [1].
     For synthetic likelihood approximation, we compute the robust precision matrix using Ledoit and Wolf's [2]
@@ -67,7 +67,7 @@ class SynLiklihood(Approx_likelihood):
 
 
     def likelihood(self, y_obs, y_sim):
-        # print("DEBUG: SynLiklihood.likelihood().")
+        # print("DEBUG: SynLikelihood.likelihood().")
         if not isinstance(y_obs, list):
             # print("type(y_obs) : ", type(y_obs), " , type(y_sim) : ", type(y_sim))
             # print("y_obs : ", y_obs)

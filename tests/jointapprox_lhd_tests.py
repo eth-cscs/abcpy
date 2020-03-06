@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from abcpy.approx_lhd import SynLiklihood
+from abcpy.approx_lhd import SynLikelihood
 from abcpy.statistics import Identity
 from abcpy.continuousmodels import Normal, Uniform
 from abcpy.jointapprox_lhd import ProductCombination
@@ -10,8 +10,8 @@ class ProductCombinationTests(unittest.TestCase):
     def setUp(self):
         self.stat_calc1 = Identity(degree = 1, cross = 0)
         self.stat_calc2 = Identity(degree= 1, cross = 0)
-        self.likfun1 = SynLiklihood(self.stat_calc1)
-        self.likfun2 = SynLiklihood(self.stat_calc2)
+        self.likfun1 = SynLikelihood(self.stat_calc1)
+        self.likfun2 = SynLikelihood(self.stat_calc2)
         ## Define Models
         # define a uniform prior distribution
         self.mu = Uniform([[-5.0], [5.0]], name='mu')

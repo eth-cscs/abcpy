@@ -36,9 +36,9 @@ def infer_parameters():
     statistics_calculator_final_scholarship = Identity(degree = 3, cross = False)
 
     # Define a distance measure for final grade and final scholarship
-    from abcpy.approx_lhd import SynLiklihood
-    approx_lhd_final_grade = SynLiklihood(statistics_calculator_final_grade)
-    approx_lhd_final_scholarship = SynLiklihood(statistics_calculator_final_scholarship)
+    from abcpy.approx_lhd import SynLikelihood
+    approx_lhd_final_grade = SynLikelihood(statistics_calculator_final_grade)
+    approx_lhd_final_scholarship = SynLikelihood(statistics_calculator_final_scholarship)
 
     # Define a backend
     from abcpy.backends import BackendDummy as Backend
