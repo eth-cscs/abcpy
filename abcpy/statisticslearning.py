@@ -292,13 +292,13 @@ class StatisticsLearningNN(StatisticsLearning, GraphTools):
 
         if cuda is None:
             cuda = torch.cuda.is_available()
-        elif cuda and not torch.cuda.is_available:
+        elif cuda and not torch.cuda.is_available():
             # if the user requested to use GPU but no GPU is there
             cuda = False
             self.logger.warning(
                 "You requested to use GPU but no GPU is available! The computation will proceed on CPU.")
 
-        self.device = "cuda" if cuda and torch.cuda.is_available else "cpu"
+        self.device = "cuda" if cuda and torch.cuda.is_available() else "cpu"
         if self.device == "cuda":
             self.logger.debug("We are using GPU to train the network.")
         else:
