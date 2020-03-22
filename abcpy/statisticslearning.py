@@ -3,7 +3,9 @@ from abc import ABCMeta, abstractmethod
 
 import numpy as np
 from sklearn import linear_model
+from sklearn.preprocessing import MinMaxScaler
 
+from abcpy.NN_utilities.networks import ScalerAndNet
 from abcpy.acceptedparametersmanager import *
 from abcpy.graphtools import GraphTools
 # import dataset and networks definition:
@@ -285,7 +287,7 @@ class StatisticsLearningNN(StatisticsLearning, GraphTools):
 
     def __init__(self, model, statistics_calc, backend, training_routine, distance_learning, embedding_net=None,
                  n_samples=1000, n_samples_val=0, n_samples_per_param=1, parameters=None, simulations=None,
-                 parameters_val=None, simulations_val=None, seed=None, cuda=None, quantile=0.1,
+                 parameters_val=None, simulations_val=None, seed=None, cuda=None, scale_samples=True, quantile=0.1,
                  **training_routine_kwargs):
         """
         Parameters
@@ -342,12 +344,24 @@ class StatisticsLearningNN(StatisticsLearning, GraphTools):
             Optional initial seed for the random number generator. The default value is generated randomly.
         cuda: boolean, optional
              If cuda=None, it will select GPU if it is available. Or you can specify True to use GPU or False to use CPU
+        scale_samples: boolean, optional
+            If True, a scaler of the class `sklearn.preprocessing.MinMaxScaler` will be fit on the training data before 
+            neural network training, and training and validation data simulations data will be rescaled. 
+            When calling the `get_statistics` method, 
+            a network of the class `ScalerAndNet` will be used in instantiating the statistics; this network is a 
+            wrapper of a neural network and a scaler and transforms the data with the scaler before applying the neural
+            network.  
+            It is highly recommended to use a scaler, as neural networks are sensitive to the range of input data. A 
+            case in which you may not want to use a scaler is timeseries data, as the scaler works independently on each
+            feature of the data.
+            Default value is True. 
         quantile: float, optional
             quantile used to define the similarity set if distance_learning is True. Default to 0.1.
         training_routine_kwargs:
             additional kwargs to be passed to the underlying training routine.
         """
         self.logger = logging.getLogger(__name__)
+        self.scale_samples = scale_samples
 
         # Define device
         if not has_torch:
@@ -400,6 +414,13 @@ class StatisticsLearningNN(StatisticsLearning, GraphTools):
                 similarity_set_val = None
             self.logger.debug("Done")
 
+        # set up the scaler and transform the data:
+        if self.scale_samples:
+            self.scaler = MinMaxScaler().fit(simulations)
+            simulations = self.scaler.transform(simulations)
+            if has_val_set:
+                simulations_val = self.scaler.transform(simulations_val)
+
         # now setup the default neural network or not
 
         if isinstance(embedding_net, torch.nn.Module):
@@ -429,16 +450,26 @@ class StatisticsLearningNN(StatisticsLearning, GraphTools):
 
         self.logger.info("Finished learning the transformation.")
 
+        self.embedding_net.cpu()  # move back the net to CPU.
+
     def get_statistics(self):
         """
         Returns a NeuralEmbedding Statistics implementing the learned transformation.
+
+        If a scaler was used, the `net` attribute of the returned object is of the class `ScalerAndNet`, which is a
+        nn.Module object wrapping the scaler and the learned neural network and applies the scaler before the data is
+        fed through the neural network.
 
         Returns
         -------
         abcpy.statistics.NeuralEmbedding object
             a statistics object that implements the learned transformation.
         """
-        return NeuralEmbedding(net=self.embedding_net, previous_statistics=self.statistics_calc)
+        if self.scale_samples:
+            return NeuralEmbedding(net=ScalerAndNet(self.embedding_net, self.scaler),
+                                   previous_statistics=self.statistics_calc)
+        else:
+            return NeuralEmbedding(net=self.embedding_net, previous_statistics=self.statistics_calc)
 
 
 # the following classes subclass the base class StatisticsLearningNN with different training routines
@@ -456,7 +487,8 @@ class SemiautomaticNN(StatisticsLearningNN):
     def __init__(self, model, statistics_calc, backend, embedding_net=None, n_samples=1000, n_samples_val=0,
                  n_samples_per_param=1, parameters=None, simulations=None, parameters_val=None, simulations_val=None,
                  early_stopping=False, epochs_early_stopping_interval=1, start_epoch_early_stopping=10,
-                 seed=None, cuda=None, batch_size=16, n_epochs=200, load_all_data_GPU=False, lr=1e-3, optimizer=None,
+                 seed=None, cuda=None, scale_samples=True, batch_size=16, n_epochs=200, load_all_data_GPU=False,
+                 lr=1e-3, optimizer=None,
                  scheduler=None, start_epoch_training=0, optimizer_kwargs={}, scheduler_kwargs={}, loader_kwargs={}):
         """
         Parameters
@@ -519,6 +551,17 @@ class SemiautomaticNN(StatisticsLearningNN):
             Optional initial seed for the random number generator. The default value is generated randomly.
         cuda: boolean, optional
              If cuda=None, it will select GPU if it is available. Or you can specify True to use GPU or False to use CPU
+        scale_samples: boolean, optional
+            If True, a scaler of the class `sklearn.preprocessing.MinMaxScaler` will be fit on the training data before 
+            neural network training, and training and validation data simulations data will be rescaled. 
+            When calling the `get_statistics` method, 
+            a network of the class `ScalerAndNet` will be used in instantiating the statistics; this network is a 
+            wrapper of a neural network and a scaler and transforms the data with the scaler before applying the neural
+            network.  
+            It is highly recommended to use a scaler, as neural networks are sensitive to the range of input data. A 
+            case in which you may not want to use a scaler is timeseries data, as the scaler works independently on each
+            feature of the data.
+            Default value is True. 
         batch_size: integer, optional
             the batch size used for training the neural network. Default is 16
         n_epochs: integer, optional
@@ -558,7 +601,7 @@ class SemiautomaticNN(StatisticsLearningNN):
                                               early_stopping=early_stopping,
                                               epochs_early_stopping_interval=epochs_early_stopping_interval,
                                               start_epoch_early_stopping=start_epoch_early_stopping,
-                                              seed=seed, cuda=cuda, batch_size=batch_size,
+                                              seed=seed, cuda=cuda, scale_samples=scale_samples, batch_size=batch_size,
                                               n_epochs=n_epochs, load_all_data_GPU=load_all_data_GPU, lr=lr,
                                               optimizer=optimizer, scheduler=scheduler,
                                               start_epoch_training=start_epoch_training,
@@ -582,7 +625,7 @@ class TripletDistanceLearning(StatisticsLearningNN):
     def __init__(self, model, statistics_calc, backend, embedding_net=None, n_samples=1000, n_samples_val=0,
                  n_samples_per_param=1, parameters=None, simulations=None, parameters_val=None, simulations_val=None,
                  early_stopping=False, epochs_early_stopping_interval=1, start_epoch_early_stopping=10, seed=None,
-                 cuda=None,
+                 cuda=None, scale_samples=True,
                  quantile=0.1, batch_size=16, n_epochs=200, load_all_data_GPU=False, margin=1., lr=None, optimizer=None,
                  scheduler=None, start_epoch_training=0, optimizer_kwargs={}, scheduler_kwargs={}, loader_kwargs={}):
         """
@@ -646,6 +689,17 @@ class TripletDistanceLearning(StatisticsLearningNN):
             Optional initial seed for the random number generator. The default value is generated randomly.
         cuda: boolean, optional
              If cuda=None, it will select GPU if it is available. Or you can specify True to use GPU or False to use CPU
+        scale_samples: boolean, optional
+            If True, a scaler of the class `sklearn.preprocessing.MinMaxScaler` will be fit on the training data before 
+            neural network training, and training and validation data simulations data will be rescaled. 
+            When calling the `get_statistics` method, 
+            a network of the class `ScalerAndNet` will be used in instantiating the statistics; this network is a 
+            wrapper of a neural network and a scaler and transforms the data with the scaler before applying the neural
+            network.  
+            It is highly recommended to use a scaler, as neural networks are sensitive to the range of input data. A 
+            case in which you may not want to use a scaler is timeseries data, as the scaler works independently on each
+            feature of the data.
+            Default value is True. 
         quantile: float, optional
             quantile used to define the similarity set if distance_learning is True. Default to 0.1.
         batch_size: integer, optional
@@ -692,7 +746,8 @@ class TripletDistanceLearning(StatisticsLearningNN):
                                                       early_stopping=early_stopping,
                                                       epochs_early_stopping_interval=epochs_early_stopping_interval,
                                                       start_epoch_early_stopping=start_epoch_early_stopping,
-                                                      seed=seed, cuda=cuda, quantile=quantile, batch_size=batch_size,
+                                                      seed=seed, cuda=cuda, scale_samples=scale_samples,
+                                                      quantile=quantile, batch_size=batch_size,
                                                       n_epochs=n_epochs, load_all_data_GPU=load_all_data_GPU,
                                                       margin=margin, lr=lr, optimizer=optimizer, scheduler=scheduler,
                                                       start_epoch_training=start_epoch_training,
@@ -717,8 +772,8 @@ class ContrastiveDistanceLearning(StatisticsLearningNN):
     def __init__(self, model, statistics_calc, backend, embedding_net=None, n_samples=1000, n_samples_val=0,
                  n_samples_per_param=1, parameters=None, simulations=None, parameters_val=None, simulations_val=None,
                  early_stopping=False, epochs_early_stopping_interval=1, start_epoch_early_stopping=10, seed=None,
-                 cuda=None, quantile=0.1, batch_size=16, n_epochs=200, positive_weight=None, load_all_data_GPU=False,
-                 margin=1., lr=None, optimizer=None, scheduler=None,
+                 cuda=None, scale_samples=True, quantile=0.1, batch_size=16, n_epochs=200, positive_weight=None,
+                 load_all_data_GPU=False, margin=1., lr=None, optimizer=None, scheduler=None,
                  start_epoch_training=0, optimizer_kwargs={}, scheduler_kwargs={}, loader_kwargs={}):
         """
         Parameters
@@ -755,6 +810,17 @@ class ContrastiveDistanceLearning(StatisticsLearningNN):
             Optional initial seed for the random number generator. The default value is generated randomly.
         cuda: boolean, optional
              If cuda=None, it will select GPU if it is available. Or you can specify True to use GPU or False to use CPU
+        scale_samples: boolean, optional
+            If True, a scaler of the class `sklearn.preprocessing.MinMaxScaler` will be fit on the training data before 
+            neural network training, and training and validation data simulations data will be rescaled. 
+            When calling the `get_statistics` method, 
+            a network of the class `ScalerAndNet` will be used in instantiating the statistics; this network is a 
+            wrapper of a neural network and a scaler and transforms the data with the scaler before applying the neural
+            network.  
+            It is highly recommended to use a scaler, as neural networks are sensitive to the range of input data. A 
+            case in which you may not want to use a scaler is timeseries data, as the scaler works independently on each
+            feature of the data.
+            Default value is True. 
         quantile: float, optional
             quantile used to define the similarity set if distance_learning is True. Default to 0.1.
         batch_size: integer, optional
@@ -806,8 +872,8 @@ class ContrastiveDistanceLearning(StatisticsLearningNN):
                                                           early_stopping=early_stopping,
                                                           epochs_early_stopping_interval=epochs_early_stopping_interval,
                                                           start_epoch_early_stopping=start_epoch_early_stopping,
-                                                          seed=seed, cuda=cuda, quantile=quantile,
-                                                          batch_size=batch_size, n_epochs=n_epochs,
+                                                          seed=seed, cuda=cuda, scale_samples=scale_samples,
+                                                          quantile=quantile, batch_size=batch_size, n_epochs=n_epochs,
                                                           positive_weight=positive_weight,
                                                           load_all_data_GPU=load_all_data_GPU, margin=margin, lr=lr,
                                                           optimizer=optimizer, scheduler=scheduler,

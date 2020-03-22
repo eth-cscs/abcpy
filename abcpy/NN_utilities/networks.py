@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -97,3 +98,16 @@ def createDefaultNN(input_size, output_size, hidden_sizes=None, nonlinearity=Non
 
     return DefaultNN
 
+
+class ScalerAndNet(nn.Module):
+    """Defines a nn.Module class that wraps a scaler and a neural network, and applies the scaler before passing the
+    data through the neural network."""
+
+    def __init__(self, net, scaler):
+        super().__init__()
+        self.net = net
+        self.scaler = scaler
+
+    def forward(self, x):
+        x = torch.tensor(self.scaler.transform(x), dtype=torch.float32).to(next(self.net.parameters()).device)
+        return self.net(x)
