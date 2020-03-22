@@ -336,7 +336,7 @@ The source code can be found in `examples/approx_lhd/pmc_hierarchical_models.py`
 Statistics Learning
 ~~~~~~~~~~~~~~~~~~~
 
-We have noticed in the `Parameters as Random Variables`_ Section, the discrepancy measure between two datasets is
+As we have discussed in the `Parameters as Random Variables`_ Section, the discrepancy measure between two datasets is
 defined by a distance function between extracted summary statistics from the datasets. Hence, the ABC algorithms are
 subjective to the summary statistics choice. This subjectivity can be avoided by a data-driven summary statistics choice
 from the available summary statistics of the dataset. In ABCpy we provide several statistics learning procedures,
@@ -360,6 +360,12 @@ called, ABCpy checks if Pytorch is present and, if not, asks the user to install
 provide a specific form of neural network, the implementation of the neural network based ones do not require any
 explicit neural network coding, handling all the necessary definitions and training internally.
 
+It is also possible to provide a validation set to the neural network based training routines in order to monitor the
+loss on fresh samples. This can be done for instance by set the parameter `n_samples_val` to a value larger than 0.
+Moreover, it is possible to use the validation set for early stopping, ie stopping the training as soon as the loss on
+the validation set starts increasing. You can do this by setting `early_stopping=True`. Please refer to the API documentation
+(for instance :py:class:`abcpy.statisticslearning.SemiautomaticNN`) for further details.
+
 We note finally that the statistics learning techniques can be applied after compute a first set of statistics; therefore,
 the learned transformation will be a transformation applied to the original set of statistics.
 For instance, consider our initial example from `Parameters as Random Variables`_ where we model the height of humans.
@@ -382,7 +388,7 @@ We remark that the minimal amount of coding needed for using the neural network 
 
 .. literalinclude:: ../../examples/statisticslearning/pmcabc_gaussian_statistics_learning.py
     :language: python
-    :lines: 34-40
+    :lines: 34-42
     :dedent: 4
 
 And similarly for the other two approaches.

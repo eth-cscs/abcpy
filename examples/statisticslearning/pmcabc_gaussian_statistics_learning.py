@@ -25,16 +25,18 @@ def infer_parameters():
     # Learn the optimal summary statistics using Semiautomatic summary selection
     from abcpy.statisticslearning import Semiautomatic
     statistics_learning = Semiautomatic([height], statistics_calculator, backend,
-                                      n_samples=1000,n_samples_per_param=1, seed=1)
+                                        n_samples=1000, n_samples_per_param=1, seed=1)
 
     # Redefine the statistics function
     new_statistics_calculator = statistics_learning.get_statistics()
 
 
-    # Learn the optimal summary statistics using SemiautomaticNN summary selection
+    # Learn the optimal summary statistics using SemiautomaticNN summary selection;
+    # we use 200 samples as a validation set for early stopping:
     from abcpy.statisticslearning import SemiautomaticNN
     statistics_learning = SemiautomaticNN([height], statistics_calculator, backend,
-                                        n_samples=1000,n_samples_per_param=1, seed=1)
+                                          n_samples=1000, n_samples_val=200,
+                                          n_samples_per_param=1, seed=1, early_stopping=True)
 
     # Redefine the statistics function
     new_statistics_calculator = statistics_learning.get_statistics()
