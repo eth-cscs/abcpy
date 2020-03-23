@@ -43,14 +43,17 @@ def fit(train_loader, model, loss_fn, optimizer, scheduler, n_epochs, cuda, val_
             # early stopping:
             if early_stopping and (epoch + 1) % epochs_early_stopping_interval == 0:
                 validation_loss_list.append(val_loss)  # save the previous validation loss. It is actually
-                net_state_dict = model.state_dict()
-                # we need to have at least two saved test losses for performing early stopping.
+                # we need to have at least two saved test losses for performing early stopping (in which case we know
+                # we have saved the previous state_dict as well).
                 if epoch + 1 >= start_epoch_early_stopping and len(validation_loss_list) > 1:
                     if validation_loss_list[-1] > validation_loss_list[-2]:
                         logger.info("Training has been early stopped at epoch {}.".format(epoch + 1))
                         # reload the previous state dict:
                         model.load_state_dict(net_state_dict)
                         break  # stop training
+                # if we did not stop: update the state dict to the next value
+                net_state_dict = model.state_dict()
+
         scheduler.step()
 
 
