@@ -12,9 +12,6 @@ def fit(train_loader, model, loss_fn, optimizer, scheduler, n_epochs, cuda, val_
     i.e. The model should be able to process data output of loaders,
     loss function should process target output of loaders and outputs from the model
 
-    Examples: Classification: batch loader, classification model, NLL loss, accuracy metric
-    Siamese network: Siamese loader, siamese model, contrastive loss
-
     Adapted from https://github.com/adambielski/siamese-triplet
     """
 

@@ -184,7 +184,7 @@ class JointPerturbationKernel(PerturbationKernel):
         Returns
         -------
         list
-            The list contains tupels. Each tupel contains as the first entry a probabilistic model and as the second
+            The list contains tuples. Each tuple contains as the first entry a probabilistic model and as the second
             entry the perturbed parameter values corresponding to this model.
         """
 
@@ -216,7 +216,7 @@ class JointPerturbationKernel(PerturbationKernel):
         Parameters
         ----------
         mapping: list
-            Each entry is a tupel of which the first entry is a abcpy.ProbabilisticModel object, the second entry is the
+            Each entry is a tuple of which the first entry is a abcpy.ProbabilisticModel object, the second entry is the
             index in the accepted_parameters_bds list corresponding to an output of this model.
         accepted_parameters_manager: abcpy.AcceptedParametersManager object
             The AcceptedParametersManager to be used.

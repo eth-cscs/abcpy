@@ -292,7 +292,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
     def __getitem__(self, item):
         """
-        Overloads the access operator. If the access operator is called, a tupel of the ProbablisticModel that called
+        Overloads the access operator. If the access operator is called, a tuple of the ProbablisticModel that called
         the operator and the index at which it was called is returned. Commonly used at initialization of new
         probabilistic models to specify a mapping between model outputs and parameters.
 

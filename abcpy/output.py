@@ -80,12 +80,14 @@ class Journal:
 
     def add_user_parameters(self, names_and_params):
         """
-        Saves the provided parameters and names of the probabilistic models corresponding to them. If type==0, old parameters get overwritten.
+        Saves the provided parameters and names of the probabilistic models corresponding to them. If type==0, old
+        parameters get overwritten.
 
         Parameters
         ----------
         names_and_params: list
-            Each entry is a tupel, where the first entry is the name of the probabilistic model, and the second entry is the parameters associated with this model.
+            Each entry is a tuple, where the first entry is the name of the probabilistic model, and the second entry is
+            the parameters associated with this model.
         """
         if (self._type == 0):
             self.names_and_parameters = [dict(names_and_params)]
@@ -141,7 +143,8 @@ class Journal:
 
     def add_opt_values(self, opt_values):
         """
-        Saves provided values of the evaluation of the schemes objective function. If type==0, old values get overwritten
+        Saves provided values of the evaluation of the schemes objective function. If type==0, old values get
+        overwritten
 
         Parameters
         ----------
@@ -267,8 +270,8 @@ class Journal:
         Returns
         -------
         posterior mean: dictionary
-            Posterior mean from the specified iteration (last, if not specified) returned as a disctionary with names of the
-            random variables
+            Posterior mean from the specified iteration (last, if not specified) returned as a disctionary with names of
+            the random variables
         """
 
         if iteration is None:
@@ -352,13 +355,16 @@ class Journal:
         pair of parameters.
 
         This visualization is not satisfactory for parameters that take on discrete values, specially in the case where
-        the number of values it can assume are small.
+        the number of values it can assume are small, as it obtains the posterior by KDE in this case as well. We need
+        to improve on that, considering histograms.
 
         Parameters
         ----------
         parameters_to_show : list, optional
             a list of the parameters for which you want to plot the posterior distribution. For each parameter, you need
-            to provide the name string as it was defined in the model.
+            to provide the name string as it was defined in the model. For instance,
+            `jrnl.plot_posterior_distr(parameters_to_show=["mu"])` will only plot the posterior distribution for the
+            parameter named "mu" in the list of parameters.
             If `None`, then all parameters will be displayed.
         ranges_parameters : Python dictionary, optional
             a dictionary in which you can optionally provide the plotting range for the parameters that you chose to
@@ -373,8 +379,8 @@ class Journal:
             specifies if you want to show the posterior samples overimposed to the contourplots of the posterior
             distribution. If `None`, the default behaviour is the following: if the posterior samples are associated
             with importance weights, then the samples are not showed (in fact, the KDE for the posterior distribution
-            takes into account the weights, and showing the samples may be misleading). Otherwise, if the posterior #
-            samples are not associated with weights, they are displayed by defauly.
+            takes into account the weights, and showing the samples may be misleading). Otherwise, if the posterior
+            samples are not associated with weights, they are displayed by default.
         single_marginals_only : boolean, optional
             if `True`, the method does not show the paired marginals but only the single parameter marginals;
             otherwise, it shows the paired marginals as well. Default to `False`.
