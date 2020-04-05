@@ -136,7 +136,7 @@ class Euclidean(Distance):
         # Check whether d1 is same as self.data_set
         if self.data_set is not None:
             if len(np.array(d1[0]).reshape(-1,)) == 1:
-                self.data_set == d1
+                self.dataSame = self.data_set == d1
             else:
                 self.dataSame = all([(np.array(self.data_set[i]) == np.array(d1[i])).all() for i in range(len(d1))])
 
