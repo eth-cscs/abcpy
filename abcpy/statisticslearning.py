@@ -277,7 +277,6 @@ class Semiautomatic(StatisticsLearning, GraphTools):
         return LinearTransformation(np.transpose(self.coefficients_learnt), previous_statistics=self.statistics_calc)
 
 
-# TODO add scaler before applying the neural network ?
 class StatisticsLearningNN(StatisticsLearning, GraphTools):
     """This is the base class for all the statistics learning techniques involving neural networks. In most cases, you
     should not instantiate this directly. The actual classes instantiate this with the right arguments.
