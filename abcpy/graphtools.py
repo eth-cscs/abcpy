@@ -96,7 +96,7 @@ class GraphTools():
             Defines the models for which the pdf of their prior should be evaluated
         parameters: python list
             The parameters at which the pdf should be evaluated
-        mapping: list of tupels
+        mapping: list of tuples
             Defines the mapping of probabilistic models and index in a parameter list.
         is_root: boolean
             A flag specifying whether the provided models are the root models. This is to ensure that the pdf is calculated correctly.
@@ -121,7 +121,7 @@ class GraphTools():
             Defines the models for which the pdf of their prior should be evaluated
         parameters: python list
             The parameters at which the pdf should be evaluated
-        mapping: list of tupels
+        mapping: list of tuples
             Defines the mapping of probabilistic models and index in a parameter list.
         is_root: boolean
             A flag specifying whether the provided models are the root models. This is to ensure that the pdf is calculated correctly.
@@ -234,7 +234,7 @@ class GraphTools():
         Returns
         -------
         list:
-            Each entry is a tupel, the first entry of which is the name of the model and the second entry is the parameter values associated with it
+            Each entry is a tuple, the first entry of which is the name of the model and the second entry is the parameter values associated with it
         """
         mapping = self._get_mapping()[0]
 

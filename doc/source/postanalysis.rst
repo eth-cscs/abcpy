@@ -63,6 +63,16 @@ Finally, you can plot the inferred posterior mean of the parameters in the follo
     :lines: 65
     :dedent: 4
 
+The above line plots the posterior distribution for all the parameters; if you instead want to plot it for some
+parameters only, you can use the `parameters_to_show` argument; in addition, the `ranges_parameters` argument can be
+used to provide a dictionary specifying the limits for the axis in the plots:
+
+.. code-block:: python
+
+    journal.plot_posterior_distr(parameters_to_show='parameter_1',
+                                 ranges_parameters={'parameter_1': [0,2]})
+
+
 And certainly, a journal can easily be saved to and loaded from disk:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py

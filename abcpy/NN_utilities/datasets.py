@@ -37,7 +37,7 @@ class Similarities(Dataset):
 
 class SiameseSimilarities(Dataset):
     """
-    This class defines a dataset returning pairs of similar and dissimilar examples. It has to be instantiated with a
+    This class defines a dataset returning pairs of similar and dissimilar samples. It has to be instantiated with a
     dataset of the class Similarities
     """
 
@@ -88,7 +88,7 @@ class SiameseSimilarities(Dataset):
 
 class TripletSimilarities(Dataset):
     """
-    This class defines a dataset returning triplets of anchor, positive and negative examples. 
+    This class defines a dataset returning triplets of anchor, positive and negative samples.
     It has to be instantiated with a dataset of the class Similarities.
     """
 

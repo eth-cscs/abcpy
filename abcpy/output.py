@@ -80,12 +80,14 @@ class Journal:
 
     def add_user_parameters(self, names_and_params):
         """
-        Saves the provided parameters and names of the probabilistic models corresponding to them. If type==0, old parameters get overwritten.
+        Saves the provided parameters and names of the probabilistic models corresponding to them. If type==0, old
+        parameters get overwritten.
 
         Parameters
         ----------
         names_and_params: list
-            Each entry is a tupel, where the first entry is the name of the probabilistic model, and the second entry is the parameters associated with this model.
+            Each entry is a tuple, where the first entry is the name of the probabilistic model, and the second entry is
+            the parameters associated with this model.
         """
         if (self._type == 0):
             self.names_and_parameters = [dict(names_and_params)]
@@ -141,7 +143,8 @@ class Journal:
 
     def add_opt_values(self, opt_values):
         """
-        Saves provided values of the evaluation of the schemes objective function. If type==0, old values get overwritten
+        Saves provided values of the evaluation of the schemes objective function. If type==0, old values get
+        overwritten
 
         Parameters
         ----------
@@ -267,8 +270,8 @@ class Journal:
         Returns
         -------
         posterior mean: dictionary
-            Posterior mean from the specified iteration (last, if not specified) returned as a disctionary with names of the
-            random variables
+            Posterior mean from the specified iteration (last, if not specified) returned as a disctionary with names of
+            the random variables
         """
 
         if iteration is None:
@@ -339,10 +342,11 @@ class Journal:
         H, edges = np.histogramdd(np.hstack(joined_params), bins=n_bins, weights=weights.reshape(len(weights), ))
         return [H, edges]
 
+    # TODO this does not work for multidimensional parameters
     def plot_posterior_distr(self, parameters_to_show=None, ranges_parameters=None, iteration=None, show_samples=None,
                              single_marginals_only=False, double_marginals_only=False, write_posterior_mean=True,
-                             true_parameter_values=None, contour_levels=14, show_density_values=True, bw_method=None,
-                             path_to_save=None):
+                             show_posterior_mean=True, true_parameter_values=None, contour_levels=14,
+                             show_density_values=True, bw_method=None, path_to_save=None):
         """
         Produces a visualization of the posterior distribution of the parameters of the model.
 
@@ -352,13 +356,16 @@ class Journal:
         pair of parameters.
 
         This visualization is not satisfactory for parameters that take on discrete values, specially in the case where
-        the number of values it can assume are small.
+        the number of values it can assume are small, as it obtains the posterior by KDE in this case as well. We need
+        to improve on that, considering histograms.
 
         Parameters
         ----------
         parameters_to_show : list, optional
             a list of the parameters for which you want to plot the posterior distribution. For each parameter, you need
-            to provide the name string as it was defined in the model.
+            to provide the name string as it was defined in the model. For instance,
+            `jrnl.plot_posterior_distr(parameters_to_show=["mu"])` will only plot the posterior distribution for the
+            parameter named "mu" in the list of parameters.
             If `None`, then all parameters will be displayed.
         ranges_parameters : Python dictionary, optional
             a dictionary in which you can optionally provide the plotting range for the parameters that you chose to
@@ -373,8 +380,8 @@ class Journal:
             specifies if you want to show the posterior samples overimposed to the contourplots of the posterior
             distribution. If `None`, the default behaviour is the following: if the posterior samples are associated
             with importance weights, then the samples are not showed (in fact, the KDE for the posterior distribution
-            takes into account the weights, and showing the samples may be misleading). Otherwise, if the posterior #
-            samples are not associated with weights, they are displayed by defauly.
+            takes into account the weights, and showing the samples may be misleading). Otherwise, if the posterior
+            samples are not associated with weights, they are displayed by default.
         single_marginals_only : boolean, optional
             if `True`, the method does not show the paired marginals but only the single parameter marginals;
             otherwise, it shows the paired marginals as well. Default to `False`.
@@ -384,6 +391,8 @@ class Journal:
             Default to `False`.
         write_posterior_mean : boolean, optional
             Whether to write or not the posterior mean on the single marginal plots. Default to `True`.
+        show_posterior_mean: boolean, optional
+            Whether to display a line corresponding to the posterior mean value in the plot. Default to `True`.
         true_parameter_values: array-like, optional
             you can provide here the true values of the parameters, if known, and that will be displayed in the
             posterior plot. It has to be an array-like of the same length of `parameters_to_show` (if that is provided),
@@ -430,7 +439,7 @@ class Journal:
             if len(true_parameter_values) != len(parameters_to_show):
                 raise RuntimeError("You need to provide values for all the parameters to be shown.")
 
-        meanpost = np.array([self.posterior_mean()[x] for x in parameters_to_show])
+        meanpost = np.array([self.posterior_mean(iteration=iteration)[x] for x in parameters_to_show])
 
         post_samples_dict = {name: np.concatenate(self.get_parameters(iteration)[name]) for name in parameters_to_show}
 
@@ -485,8 +494,8 @@ class Journal:
                 ranges_parameters[name] = [np.min(post_samples_dict[name]) - 0.05 * difference,
                                            np.max(post_samples_dict[name]) + 0.05 * difference]
 
-        def write_post_mean_function(ax, post_mean, name):
-            ax.text(0.15, 0.06, r"Post. mean = {:.2f}".format(post_mean), size=14.5 * 2 / len(meanpost),
+        def write_post_mean_function(ax, post_mean):
+            ax.text(0.15, 0.06, r"Post. mean = {:.2f}".format(post_mean), size=16,
                     transform=ax.transAxes)
 
         def scatterplot_matrix(data, meanpost, names, single_marginals_only=False, **kwargs):
@@ -546,10 +555,11 @@ class Journal:
                             kernel = gaussian_kde(values, weights=weights, bw_method=bw_method)
                             Z = np.reshape(kernel(positions).T, X.shape)
                             # axes[x, y].plot(meanpost[y], meanpost[x], 'r+', markersize='10')
-                            axes[x, y].plot([xmin, xmax], [meanpost[x], meanpost[x]], "red", markersize='20',
-                                            linestyle='solid')
-                            axes[x, y].plot([meanpost[y], meanpost[y]], [ymin, ymax], "red", markersize='20',
-                                            linestyle='solid')
+                            if show_posterior_mean:
+                                axes[x, y].plot([xmin, xmax], [meanpost[x], meanpost[x]], "red", markersize='20',
+                                                linestyle='solid')
+                                axes[x, y].plot([meanpost[y], meanpost[y]], [ymin, ymax], "red", markersize='20',
+                                                linestyle='solid')
                             if true_parameter_values is not None:
                                 axes[x, y].plot([xmin, xmax], [true_parameter_values[x], true_parameter_values[x]],
                                                 "green",
@@ -579,14 +589,15 @@ class Journal:
                                       alpha=1, label="Density")
                 values = gaussian_kernel(positions)
                 # axes[i, i].plot([positions[np.argmax(values)], positions[np.argmax(values)]], [0, np.max(values)])
-                diagonal_axes[i].plot([meanpost[i], meanpost[i]], [0, 1.1 * np.max(values)], "red", alpha=1,
-                                      label="Posterior mean")
+                if show_posterior_mean:
+                    diagonal_axes[i].plot([meanpost[i], meanpost[i]], [0, 1.1 * np.max(values)], "red", alpha=1,
+                                          label="Posterior mean")
                 if true_parameter_values is not None:
                     diagonal_axes[i].plot([true_parameter_values[i], true_parameter_values[i]],
                                           [0, 1.1 * np.max(values)], "green",
                                           alpha=1, label="True value")
                 if write_posterior_mean:
-                    write_post_mean_function(diagonal_axes[i], meanpost[i], label)
+                    write_post_mean_function(diagonal_axes[i], meanpost[i])
                 diagonal_axes[i].set_xlim([xmin, xmax])
                 diagonal_axes[i].set_ylim([0, 1.1 * np.max(values)])
 
@@ -649,10 +660,11 @@ class Journal:
                     kernel = gaussian_kde(values, weights=weights, bw_method=bw_method)
                     Z = np.reshape(kernel(positions).T, X.shape)
                     # axes[x, y].plot(meanpost[y], meanpost[x], 'r+', markersize='10')
-                    axes[ax_counter].plot([xmin, xmax], [meanpost[x], meanpost[x]], "red", markersize='20',
-                                          linestyle='solid')
-                    axes[ax_counter].plot([meanpost[y], meanpost[y]], [ymin, ymax], "red", markersize='20',
-                                          linestyle='solid')
+                    if show_posterior_mean:
+                        axes[ax_counter].plot([xmin, xmax], [meanpost[x], meanpost[x]], "red", markersize='20',
+                                              linestyle='solid')
+                        axes[ax_counter].plot([meanpost[y], meanpost[y]], [ymin, ymax], "red", markersize='20',
+                                              linestyle='solid')
                     if true_parameter_values is not None:
                         axes[ax_counter].plot([xmin, xmax], [true_parameter_values[x], true_parameter_values[x]],
                                               "green",
