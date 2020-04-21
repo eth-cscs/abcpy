@@ -844,13 +844,13 @@ class PMC(BaseLikelihood, InferenceMethod):
             new_weights_pds = self.backend.map(self._calculate_weight, new_parameters_pds)
             new_weights = np.array(self.backend.collect(new_weights_pds)).reshape(-1, 1)
 
-            sum_of_weights = 0.0
-            for i in range(0, self.n_samples):
-                new_weights[i] = new_weights[i] * approx_likelihood_new_parameters[i]
-                sum_of_weights += new_weights[i]
+            new_weights = new_weights * approx_likelihood_new_parameters
+            sum_of_weights = np.sum(new_weights)
+
             new_weights = new_weights / sum_of_weights
 
-            self.logger.info("new_weights : ", new_weights, ", sum_of_weights : ", sum_of_weights)
+            # self.logger.info("new_weights : ", new_weights, ", sum_of_weights : ", sum_of_weights)
+            self.logger.info("sum_of_weights : {}".format(sum_of_weights))
             accepted_parameters = new_parameters
 
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=new_weights)
@@ -876,7 +876,7 @@ class PMC(BaseLikelihood, InferenceMethod):
             # 5: Update the newly computed values
             accepted_parameters = new_parameters
             accepted_weights = new_weights
-            accepted_cov_mat = new_cov_mats
+            accepted_cov_mats = new_cov_mats
 
             self.logger.info("Saving configuration to output journal")
 
