@@ -1231,7 +1231,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 self.logger.info("Weighted resampling")
                 weight = np.exp(-smooth_distances * delta / U)
                 weight = weight / sum(weight)
-                index_resampled = self.rng.choice(np.arange(n_samples, dtype=int), n_samples, replace=1, p=weight)
+                index_resampled = self.rng.choice(n_samples, n_samples, replace=True, p=weight)
                 accepted_parameters = [accepted_parameters[i] for i in index_resampled]
                 smooth_distances = smooth_distances[index_resampled]
 
@@ -2681,8 +2681,11 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             if accepted_y_sim != None and pow(sum(pow(new_weights, 2)), -1) < resample:
                 self.logger.info("Resampling")
                 # Weighted resampling:
-                index_resampled = self.rng.choice(np.arange(n_samples), n_samples, replace=1, p=new_weights)
-                accepted_parameters = accepted_parameters[index_resampled]
+                index_resampled = self.rng.choice(n_samples, n_samples, replace=True, p=new_weights)
+                # accepted_parameters is a list. Then the indexing here does not work:
+                # accepted_parameters = accepted_parameters[index_resampled]
+                # do instead:
+                accepted_parameters = [accepted_parameters[i] for i in index_resampled]  # why don't we use arrays however?
                 new_weights = np.ones(shape=(n_samples), ) * (1.0 / n_samples)
 
             # Update the weights
