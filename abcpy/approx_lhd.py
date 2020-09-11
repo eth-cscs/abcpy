@@ -27,7 +27,7 @@ class Approx_likelihood(metaclass = ABCMeta):
         raise NotImplemented
 
     @abstractmethod
-    def likelihood(y_obs, y_sim):
+    def likelihood(self, y_obs, y_sim):
         """To be overwritten by any sub-class: should compute the approximate likelihood 
         value given the observed data set y_obs and the data set y_sim simulated from
         model set at the parameter value.
