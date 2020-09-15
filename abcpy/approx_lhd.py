@@ -4,7 +4,7 @@ from abcpy.graphtools import GraphTools
 
 import numpy as np
 from sklearn.covariance import ledoit_wolf
-from glmnet import LogitNet 
+from glmnet import LogitNet
 
 
 class Approx_likelihood(metaclass = ABCMeta):
@@ -79,7 +79,7 @@ class SynLikelihood(Approx_likelihood):
         # Extract summary statistics from the observed data
         if(self.stat_obs is None or y_obs!=self.data_set):
             self.stat_obs = self.statistics_calc.statistics(y_obs)
-            self.data_set=y_obs
+            self.data_set = y_obs
 
         # Extract summary statistics from the simulated data
         stat_sim = self.statistics_calc.statistics(y_sim)
@@ -115,7 +115,7 @@ class PenLogReg(Approx_likelihood, GraphTools):
 
     Parameters
     ----------
-    statistics_calc : abcpy.stasistics.Statistics
+    statistics_calc : abcpy.statistics.Statistics
         Statistics extractor object that conforms to the Statistics class.
     model : abcpy.models.Model
         Model object that conforms to the Model class.
@@ -137,9 +137,10 @@ class PenLogReg(Approx_likelihood, GraphTools):
         self.n_folds = n_folds
         self.n_simulate = n_simulate
         self.seed = seed
+        self.rng = np.random.RandomState(seed)
         self.max_iter = max_iter
         # Simulate reference data and extract summary statistics from the reference data
-        self.ref_data_stat = self._simulate_ref_data()[0]
+        self.ref_data_stat = self._simulate_ref_data(rng=self.rng)[0]
 
         self.stat_obs = None
         self.data_set = None
