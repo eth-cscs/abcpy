@@ -188,7 +188,13 @@ class PenLogReg(Approx_likelihood, GraphTools):
             ind=0
             while(ref_data_stat[model_index][-1] is None):
                 data = model.forward_simulate(model.get_input_values(), 1, rng=rng)
-                data_stat = self.statistics_calc.statistics(data[0].tolist())
+                # this is wrong, it applies the computation of the statistic independently to the element of data[0]:
+                # print("data[0]", data[0].tolist())
+                # data_stat = self.statistics_calc.statistics(data[0].tolist())
+                # print("stat of data[0]", data_stat)
+                # print("data", data)
+                data_stat = self.statistics_calc.statistics(data)
+                # print("stat of data", data_stat)
                 ref_data_stat[model_index][ind]= data_stat
                 ind+=1
             ref_data_stat[model_index] = np.squeeze(np.asarray(ref_data_stat[model_index]))
