@@ -165,8 +165,12 @@ class PenLogReg(Approx_likelihood, GraphTools):
         # Compute the approximate likelihood for the y_obs given theta
         y = np.append(np.zeros(self.n_simulate),np.ones(self.n_simulate))
         X = np.array(np.concatenate((stat_sim,self.ref_data_stat),axis=0))
-        m = LogitNet(alpha = 1, n_splits = self.n_folds, max_iter = self.max_iter, random_state= self.seed)
-        m = m.fit(X, y)
+        # define here groups for cross-validation:
+        groups = np.repeat(np.arange(self.n_folds), np.int(np.ceil(self.n_simulate / self.n_folds)))
+        groups = groups[:self.n_simulate].tolist()
+        groups += groups  # duplicate it as groups need to be defined for both datasets
+        m = LogitNet(alpha=1, n_splits=self.n_folds, max_iter=self.max_iter, random_state=self.seed)
+        m = m.fit(X, y, groups=groups)
         result = np.exp(-np.sum((m.intercept_+np.sum(np.multiply(m.coef_,self.stat_obs),axis=1)),axis=0))
         
         return result

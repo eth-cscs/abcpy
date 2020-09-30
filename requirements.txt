@@ -1,7 +1,7 @@
 numpy
 scipy
-sklearn
-glmnet
+scikit-learn>=0.23.1
+glmnet>=2.2.1
 sphinx
 sphinx_rtd_theme 
 coverage
