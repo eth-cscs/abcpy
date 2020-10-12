@@ -169,7 +169,7 @@ class PenLogReg(Approx_likelihood, GraphTools):
         groups = np.repeat(np.arange(self.n_folds), np.int(np.ceil(self.n_simulate / self.n_folds)))
         groups = groups[:self.n_simulate].tolist()
         groups += groups  # duplicate it as groups need to be defined for both datasets
-        m = LogitNet(alpha=1, n_splits=self.n_folds, max_iter=self.max_iter, random_state=self.seed)
+        m = LogitNet(alpha=1, n_splits=self.n_folds, max_iter=self.max_iter, random_state=self.seed, scoring="log_loss")
         m = m.fit(X, y, groups=groups)
         result = np.exp(-np.sum((m.intercept_+np.sum(np.multiply(m.coef_,self.stat_obs),axis=1)),axis=0))
         

@@ -29,7 +29,7 @@ class PenLogRegTests(unittest.TestCase):
         self.sigma._fixed_values = [1.0]
         y_sim = self.model.forward_simulate(self.model.get_input_values(), 100, rng=np.random.RandomState(1))
         comp_likelihood = self.likfun.likelihood(y_obs, y_sim)
-        expected_likelihood = 7.075779289371343e-07
+        expected_likelihood = 9.77317308598673e-08
         # This checks whether it computes a correct value and dimension is right. Not correct as it does not check the
         # absolute value:
         # self.assertLess(comp_likelihood - expected_likelihood, 10e-2)
