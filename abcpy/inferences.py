@@ -1234,6 +1234,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 index_resampled = self.rng.choice(np.arange(n_samples, dtype=int), n_samples, replace=1, p=weight)
                 accepted_parameters = [accepted_parameters[i] for i in index_resampled]
                 smooth_distances = smooth_distances[index_resampled]
+                distances = distances[index_resampled]
 
                 ## Update U and epsilon:
                 epsilon = epsilon * (1 - delta)
