@@ -41,7 +41,7 @@ class PenLogRegTests(unittest.TestCase):
         y_sim_bivariate = self.model_bivariate.forward_simulate(self.model_bivariate.get_input_values(), 100,
                                                                 rng=np.random.RandomState(1))
         comp_likelihood_biv = self.likfun_bivariate.likelihood(y_obs_bivariate, y_sim_bivariate)
-        expected_likelihood_biv = 0.9364479566809435
+        expected_likelihood_biv = 0.999999999999999
         self.assertAlmostEqual(comp_likelihood_biv, expected_likelihood_biv)
 
 
