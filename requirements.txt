@@ -1,6 +1,6 @@
 numpy
 scipy
-sklearn
+scikit-learn==0.22.0
 glmnet==2.0.0
 sphinx
 sphinx_rtd_theme 
