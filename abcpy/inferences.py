@@ -476,9 +476,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             self.logger.info("Calculate weights")
             new_weights_pds = self.backend.map(self._calculate_weight, new_parameters_pds)
             new_weights = np.array(self.backend.collect(new_weights_pds)).reshape(-1, 1)
-            sum_of_weights = 0.0
-            for w in new_weights:
-                sum_of_weights += w
+            sum_of_weights = np.sum(new_weights)
             new_weights = new_weights / sum_of_weights
 
             # The calculation of cov_mats needs the new weights and new parameters
@@ -601,15 +599,13 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         else:
             prior_prob = self.pdf_of_prior(self.model, theta, 0)
 
-            denominator = 0.0
-
             # Get the mapping of the models to be used by the kernels
             mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(self.accepted_parameters_manager.model)
+            pdf_values = np.array([self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
+                                                   self.accepted_parameters_manager.accepted_parameters_bds.value()[i],
+                                                   theta) for i in range(self.n_samples)])
+            denominator = np.sum(self.accepted_parameters_manager.accepted_weights_bds.value().reshape(-1) * pdf_values)
 
-            for i in range(0, self.n_samples):
-                pdf_value = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
-                                            self.accepted_parameters_manager.accepted_parameters_bds.value()[i], theta)
-                denominator += self.accepted_parameters_manager.accepted_weights_bds.value()[i, 0] * pdf_value
             return 1.0 * prior_prob / denominator
 
     def _compute_accepted_cov_mats(self, covFactor, new_cov_mats):
@@ -835,8 +831,7 @@ class PMC(BaseLikelihood, InferenceMethod):
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=self.n_samples, dtype=np.uint32)
             rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
             data_arr = []
-            for i in range(len(rng_arr)):
-                data_arr.append([new_parameters[i], rng_arr[i]])
+            data_arr = list(zip(new_parameters, rng_arr))
             data_pds = self.backend.parallelize(data_arr)
 
             approx_likelihood_new_parameters_and_counter_pds = self.backend.map(self._approx_lik_calc, data_pds)
@@ -871,8 +866,7 @@ class PMC(BaseLikelihood, InferenceMethod):
             # The parameters relevant to each kernel have to be used to calculate n_sample times. It is therefore more efficient to broadcast these parameters once, instead of collecting them at each kernel in each step
             self.logger.info("Calculating covariance matrix")
             kernel_parameters = []
-            for kernel in self.kernel.kernels:
-                kernel_parameters.append(self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
+            kernel_parameters = [self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models) for kernel in self.kernel.kernels]
 
             self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
