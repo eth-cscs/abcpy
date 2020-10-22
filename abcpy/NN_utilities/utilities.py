@@ -5,8 +5,9 @@ except ImportError:
 else:
     has_torch = True
 
-import numpy as np
 import logging
+
+import numpy as np
 
 
 def dist2(x, y):

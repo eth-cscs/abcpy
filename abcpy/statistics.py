@@ -78,7 +78,7 @@ class Statistics(metaclass=ABCMeta):
         Returns
         -------
         numpy.ndarray
-            nx(p+degree*p+cross*nchoosek(p,2)) matrix where for each of the n pointss with
+            nx(p+degree*p+cross*nchoosek(p,2)) matrix where for each of the n points with
             p statistics, degree*p polynomial expansion term and cross*nchoosek(p,2) many
             cross-product terms are calculated.
 

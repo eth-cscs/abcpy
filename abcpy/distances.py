@@ -3,14 +3,13 @@ from abc import ABCMeta, abstractmethod
 import numpy as np
 from glmnet import LogitNet
 from sklearn import linear_model
-from scipy import stats
 
 
 class Distance(metaclass = ABCMeta):
     """This abstract base class defines how the distance between the observed and
     simulated data should be implemented.    
     """
-    
+
     @abstractmethod
     def __init__(self, statistics_calc):
         """The constructor of a sub-class must accept a non-optional statistics
@@ -22,10 +21,10 @@ class Distance(metaclass = ABCMeta):
         statistics_calc : abcpy.stasistics.Statistics 
             Statistics extractor object that conforms to the Statistics class.
         """
-        
+
         raise NotImplementedError
 
-    
+
     @abstractmethod
     def distance(d1, d2):
         """To be overwritten by any sub-class: should calculate the distance between two
@@ -41,7 +40,7 @@ class Distance(metaclass = ABCMeta):
         ..., sXn] using the statistics object. See _calculate_summary_stat method.
         
         2. Calculate the mutual desired distance, here denoted by -, between the
-        statstics dist = [s11 - s21, s12 - s22, ..., s1n - s2n].
+        statistics dist = [s11 - s21, s12 - s22, ..., s1n - s2n].
         
         Important: any sub-class must not calculate the distance between data sets
         d1 and d2 directly. This is the reason why any sub-class must be
@@ -59,10 +58,10 @@ class Distance(metaclass = ABCMeta):
         numpy.ndarray
             The distance between the two input data sets.
         """
-                
+
         raise NotImplementedError
 
-    
+
     @abstractmethod
     def dist_max(self):
         """To be overwritten by sub-class: should return maximum possible value of the
@@ -77,7 +76,7 @@ class Distance(metaclass = ABCMeta):
         numpy.float
             The maximal possible value of the desired distance function.
         """
-        
+
         raise NotImplementedError
 
 
@@ -109,7 +108,7 @@ class Euclidean(Distance):
 
     The maximum value of the distance is np.inf.
     """
-    
+
     def __init__(self, statistics):
         self.statistics_calc = statistics
 
@@ -118,7 +117,7 @@ class Euclidean(Distance):
         self.s1 = None
         self.data_set = None
         self.dataSame = False
-        
+
     def distance(self, d1, d2):
         """Calculates the distance between two datasets.
 
@@ -155,7 +154,7 @@ class Euclidean(Distance):
 
         return dist.mean()
 
-    
+
     def dist_max(self):
         return np.inf
 
@@ -244,7 +243,7 @@ class LogReg(Distance):
     [1] Gutmann, M., Dutta, R., Kaski, S., and Corander, J. (2014). Statistical 
     inference of intractable generative models via classification. arXiv:1407.4981.
     """
-    
+
     def __init__(self, statistics):
         self.statistics_calc = statistics
 
@@ -252,7 +251,7 @@ class LogReg(Distance):
         self.s1 = None
         self.data_set = None
         self.dataSame = False
-        
+
     def distance(self, d1, d2):
         """Calculates the distance between two datasets.
 
@@ -280,7 +279,7 @@ class LogReg(Distance):
             self.s1 = self.statistics_calc.statistics(d1)
             self.data_set = d1
         s2 = self.statistics_calc.statistics(d2)
-        
+
         # compute distance between the statistics
         training_set_features = np.concatenate((self.s1, s2), axis=0)
         label_s1 = np.zeros(shape=(len(self.s1), 1))

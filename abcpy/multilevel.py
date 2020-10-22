@@ -1,8 +1,6 @@
 from abc import ABCMeta, abstractmethod
 
 import numpy as np
-from glmnet import LogitNet
-from sklearn import linear_model
 
 
 class Multilevel(metaclass=ABCMeta):
@@ -82,7 +80,7 @@ class Multilevel(metaclass=ABCMeta):
         seed_arr = self.rng.randint(1, n_total * n_total, size=n_total, dtype=np.int32)
         rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
         # Create data and rng array
-        repeated_data_rng = [[repeated_data[ind,:],rng_arr[ind]] for ind in range(n_total)]
+        repeated_data_rng = [[repeated_data[ind, :], rng_arr[ind]] for ind in range(n_total)]
         repeated_data_rng_pds = self.backend.parallelize(repeated_data_rng)
         # Map the function on the data using the corresponding rng
         repeated_data_result_pds = self.backend.map(map_function, repeated_data_rng_pds)
@@ -98,4 +96,3 @@ class Multilevel(metaclass=ABCMeta):
 
 
 class Prototype(Multilevel):
-    

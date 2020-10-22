@@ -1,9 +1,12 @@
-from abcpy.perturbationkernel import PerturbationKernel, ContinuousKernel
 import numpy as np
 from scipy.stats import multivariate_normal
 
+from abcpy.perturbationkernel import PerturbationKernel, ContinuousKernel
+
+
 class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
     """This class defines a kernel perturbing the parameters using a multivariate normal distribution."""
+
     def __init__(self, models):
         self.models = models
 
@@ -22,9 +25,10 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
         list
             The covariance matrix corresponding to this kernel.
         """
-        if(accepted_parameters_manager.accepted_weights_bds is not None):
+        if accepted_parameters_manager.accepted_weights_bds is not None:
             weights = accepted_parameters_manager.accepted_weights_bds.value()
-            cov = np.cov(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], aweights=weights.reshape(-1), rowvar=False)
+            cov = np.cov(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index],
+                         aweights=weights.reshape(-1), rowvar=False)
         else:
             cov = np.cov(accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index], rowvar=False)
         return cov

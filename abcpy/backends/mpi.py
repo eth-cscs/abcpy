@@ -1,17 +1,14 @@
 # noinspection PyInterpreter
-import cloudpickle
-import numpy as np
+import logging
 import pickle
 import time
-import logging
 
+import cloudpickle
+import numpy as np
 from mpi4py import MPI
-
-from abcpy.backends import BDS, PDS, Backend, NestedParallelizationController
-
 
 import abcpy.backends.mpimanager
-from mpi4py import MPI
+from abcpy.backends import BDS, PDS, Backend, NestedParallelizationController
 
 
 class NestedParallelizationControllerMPI(NestedParallelizationController):
@@ -27,10 +24,8 @@ class NestedParallelizationControllerMPI(NestedParallelizationController):
         if self.mpi_comm.Get_rank() != 0:
             self.nested_execution()
 
-
     def communicator(self):
         return self.mpi_comm
-
 
     def nested_execution(self):
         rank = self.mpi_comm.Get_rank()
@@ -61,7 +56,7 @@ class NestedParallelizationControllerMPI(NestedParallelizationController):
             self.logger.debug("Starting map function {} on rank {}".format(func.__name__, self.mpi_comm.Get_rank()))
             self.func_kwargs['mpi_comm'] = self.mpi_comm
             self.mpi_comm.barrier()
-            self.result = func(*(self.func_args), **(self.func_kwargs))
+            self.result = func(*self.func_args, **self.func_kwargs)
             self.logger.debug("Ending map function on rank {}".format(self.mpi_comm.Get_rank()))
             self.mpi_comm.barrier()
             if self.mpi_comm.Get_rank() == 0:
@@ -91,6 +86,7 @@ class NestedParallelizationControllerMPI(NestedParallelizationController):
             self.loop_workers = self.mpi_comm.bcast(self.loop_workers, root=0)
         self.logger.debug(">>>>>>>> NPC stopped on rank {}".format(rank))
 
+
 class BackendMPIScheduler(Backend):
     """Defines the behavior of the scheduler process
 
@@ -99,7 +95,7 @@ class BackendMPIScheduler(Backend):
 
     """
 
-    #Define some operation codes to make it more readable
+    # Define some operation codes to make it more readable
     OP_PARALLELIZE, OP_MAP, OP_COLLECT, OP_BROADCAST, OP_DELETEPDS, OP_DELETEBDS, OP_FINISH = [1, 2, 3, 4, 5, 6, 7]
     finalized = False
 
@@ -112,20 +108,19 @@ class BackendMPIScheduler(Backend):
             execution teams
        """
 
-        #Initialize the current_pds_id and bds_id
+        # Initialize the current_pds_id and bds_id
         self.__current_pds_id = 0
         self.__current_bds_id = 0
 
-        #Initialize a BDS store for both scheduler & team.
+        # Initialize a BDS store for both scheduler & team.
         self.bds_store = {}
         self.pds_store = {}
 
-        #Initialize a store for the pds data that 
-        #.. hasn't been sent to the teams yet
+        # Initialize a store for the pds data that
+        # .. hasn't been sent to the teams yet
         self.pds_pending_store = {}
 
         self.chunk_size = chunk_size
-
 
     def __command_teams(self, command, data):
         """Tell teams to enter relevant execution block
@@ -143,32 +138,30 @@ class BackendMPIScheduler(Backend):
         """
 
         if command == self.OP_PARALLELIZE:
-            #In parallelize we receive data as (pds_id)
+            # In parallelize we receive data as (pds_id)
             data_packet = (command, data[0])
 
         elif command == self.OP_MAP:
-            #In map we receive data as (pds_id,pds_id_new,func)
-            #Use cloudpickle to dump the function into a string.
-            function_packed = cloudpickle.dumps(data[2],pickle.HIGHEST_PROTOCOL)
+            # In map we receive data as (pds_id,pds_id_new,func)
+            # Use cloudpickle to dump the function into a string.
+            function_packed = cloudpickle.dumps(data[2], pickle.HIGHEST_PROTOCOL)
             data_packet = (command, data[0], data[1], function_packed)
 
         elif command == self.OP_BROADCAST:
             data_packet = (command, data[0])
 
         elif command == self.OP_COLLECT:
-            #In collect we receive data as (pds_id)
+            # In collect we receive data as (pds_id)
             data_packet = (command, data[0])
 
         elif command == self.OP_DELETEPDS or command == self.OP_DELETEBDS:
-            #In deletepds we receive data as (pds_id) or bds_id
+            # In deletepds we receive data as (pds_id) or bds_id
             data_packet = (command, data[0])
 
         elif command == self.OP_FINISH:
             data_packet = (command,)
 
         _ = self.mpimanager.get_scheduler_communicator().bcast(data_packet, root=0)
-
-
 
     def __generate_new_pds_id(self):
         """
@@ -184,7 +177,6 @@ class BackendMPIScheduler(Backend):
         self.__current_pds_id += 1
         return self.__current_pds_id
 
-
     def __generate_new_bds_id(self):
         """
         This method generates a new bds_id to associate a BDS with it's remote counterpart
@@ -198,7 +190,6 @@ class BackendMPIScheduler(Backend):
 
         self.__current_bds_id += 1
         return self.__current_bds_id
-
 
     def parallelize(self, python_list):
         """
@@ -225,14 +216,14 @@ class BackendMPIScheduler(Backend):
         pds_id = self.__generate_new_pds_id()
         self.__command_teams(self.OP_PARALLELIZE, (pds_id,))
 
-        #Don't send any data. Just keep it as a queue we're going to pop.
+        # Don't send any data. Just keep it as a queue we're going to pop.
         self.pds_store[pds_id] = list(python_list)
 
         pds = PDSMPI([], pds_id, self)
 
         return pds
 
-    def orchestrate_map(self,pds_id):
+    def orchestrate_map(self, pds_id):
         """Orchestrates the teams to perform a map function
         
         This works by keeping track of the teams who haven't finished executing,
@@ -240,16 +231,17 @@ class BackendMPIScheduler(Backend):
         responding to them with the data and then sending them a Sentinel
         signalling that they can exit.
         """
-        is_map_done = [True if i in self.mpimanager.get_scheduler_node_ranks() else False for i in range(self.mpimanager.get_scheduler_size())]
+        is_map_done = [True if i in self.mpimanager.get_scheduler_node_ranks() else False for i in
+                       range(self.mpimanager.get_scheduler_size())]
         status = MPI.Status()
 
-        #Copy it to the pending. This is so when scheduler accesses
-        #the PDS data it's not empty.
+        # Copy it to the pending. This is so when scheduler accesses
+        # the PDS data it's not empty.
         self.pds_pending_store[pds_id] = list(self.pds_store[pds_id])
 
-        #While we have some ranks that haven't finished
-        while sum(is_map_done)<self.mpimanager.get_scheduler_size():
-            #Wait for a reqest from anyone
+        # While we have some ranks that haven't finished
+        while sum(is_map_done) < self.mpimanager.get_scheduler_size():
+            # Wait for a reqest from anyone
             data_request = self.mpimanager.get_scheduler_communicator().recv(
                 source=MPI.ANY_SOURCE,
                 tag=MPI.ANY_TAG,
@@ -257,26 +249,26 @@ class BackendMPIScheduler(Backend):
             )
             request_from_rank = status.source
 
-            if data_request!=pds_id:
+            if data_request != pds_id:
                 print("Ignoring stale PDS data request from",
-                    request_from_rank,":",data_request,"/",pds_id)
+                      request_from_rank, ":", data_request, "/", pds_id)
                 continue
 
-            #Pointer so we don't have to keep doing dict lookups
+            # Pointer so we don't have to keep doing dict lookups
             current_pds_items = self.pds_pending_store[pds_id]
             num_current_pds_items = len(current_pds_items)
 
-            #Everyone's already exhausted all the data.
+            # Everyone's already exhausted all the data.
             # Send a sentinel and mark the node as finished
             if num_current_pds_items == 0:
                 self.mpimanager.get_scheduler_communicator().send(None, dest=request_from_rank, tag=pds_id)
                 is_map_done[request_from_rank] = True
             else:
-                #Create the chunk of data to send. Pop off items and tag them with an id.
+                # Create the chunk of data to send. Pop off items and tag them with an id.
                 # so we can sort them later
                 chunk_to_send = []
                 for i in range(self.chunk_size):
-                    chunk_to_send+=[(num_current_pds_items-i,current_pds_items.pop())]
+                    chunk_to_send += [(num_current_pds_items - i, current_pds_items.pop())]
                     self.mpimanager.get_scheduler_communicator().send(chunk_to_send, dest=request_from_rank, tag=pds_id)
 
     def map(self, func, pds):
@@ -299,10 +291,10 @@ class BackendMPIScheduler(Backend):
         """
 
         # Tell the teams to enter the map() with the current pds_id & func.
-        #Get pds_id of dataset we want to operate on
+        # Get pds_id of dataset we want to operate on
         pds_id = pds.pds_id
 
-        #Generate a new pds_id to be used by the teams for the resultant PDS
+        # Generate a new pds_id to be used by the teams for the resultant PDS
         pds_id_new = self.__generate_new_pds_id()
 
         data = (pds_id, pds_id_new, func)
@@ -312,7 +304,6 @@ class BackendMPIScheduler(Backend):
         pds_res = PDSMPI([], pds_id_new, self)
 
         return pds_res
-
 
     def collect(self, pds):
         """
@@ -333,11 +324,11 @@ class BackendMPIScheduler(Backend):
         # Tell the teams to enter collect with the pds's pds_id
         self.__command_teams(self.OP_COLLECT, (pds.pds_id,))
 
-        #all_data = self.world_communicator.gather(pds.python_list, root=0)
+        # all_data = self.world_communicator.gather(pds.python_list, root=0)
         all_data = self.mpimanager.get_scheduler_communicator().gather(pds.python_list, root=0)
 
-        #Initialize lists to accumulate results
-        all_data_indices,all_data_items = [],[]
+        # Initialize lists to accumulate results
+        all_data_indices, all_data_items = [], []
 
         for node_data in all_data:
             for index, item in node_data:
@@ -346,11 +337,10 @@ class BackendMPIScheduler(Backend):
                 all_data_indices.append(index)
                 all_data_items.append(item)
 
-        #Sort the accumulated data according to the indices we tagged
-        #them with when distributing 
+        # Sort the accumulated data according to the indices we tagged
+        # them with when distributing
         rdd_sorted = [all_data_items[i] for i in np.argsort(all_data_indices)]
         return rdd_sorted
-
 
     def broadcast(self, value):
         """
@@ -367,7 +357,6 @@ class BackendMPIScheduler(Backend):
         bds = BDSMPI(value, bds_id, self)
         return bds
 
-
     def delete_remote_pds(self, pds_id):
         """
         A public function for the PDS objects on the scheduler to call when they go out of
@@ -379,9 +368,8 @@ class BackendMPIScheduler(Backend):
             A pds_id identifying the remote PDS on the teams to delete.
         """
 
-        if  not self.finalized:
+        if not self.finalized:
             self.__command_teams(self.OP_DELETEPDS, (pds_id,))
-
 
     def delete_remote_bds(self, bds_id):
         """
@@ -395,12 +383,11 @@ class BackendMPIScheduler(Backend):
             A bds_id identifying the remote BDS on the teams to delete.
         """
 
-        if  not self.finalized:
-            #The scheduler deallocates it's BDS data. Explicit because
-            #.. bds_store and BDSMPI object are disconnected.
+        if not self.finalized:
+            # The scheduler deallocates it's BDS data. Explicit because
+            # .. bds_store and BDSMPI object are disconnected.
             del backend.bds_store[bds_id]
             self.__command_teams(self.OP_DELETEBDS, (bds_id,))
-
 
     def __del__(self):
         """
@@ -410,10 +397,10 @@ class BackendMPIScheduler(Backend):
         finalize when they die.
         """
 
-        #Tell the teams they can exit gracefully.
+        # Tell the teams they can exit gracefully.
         self.__command_teams(self.OP_FINISH, None)
 
-        #Finalize the connection because the teams should have finished.
+        # Finalize the connection because the teams should have finished.
         MPI.Finalize()
         self.finalized = True
 
@@ -441,19 +428,18 @@ class BackendMPIWorker(Backend):
         func = cloudpickle.loads(function_packed)
         res = None
         try:
-            if(self.mpimanager.get_model_size() > 1):
+            if self.mpimanager.get_model_size() > 1:
                 npc = NestedParallelizationControllerMPI(self.mpimanager.get_model_communicator())
                 if self.mpimanager.get_model_communicator().Get_rank() == 0:
                     self.logger.debug("Executing map function on master rank 0.")
                     res = func(data_item, npc=npc)
-                del(npc)
+                del npc
             else:
                 res = func(data_item)
         except Exception as e:
             msg = "Exception occured while calling the map function {}: ".format(func.__name__)
             res = type(e)(msg + str(e))
         return res
-
 
     def __worker_run(self):
         """
@@ -463,14 +449,14 @@ class BackendMPIWorker(Backend):
             data = self.mpimanager.get_model_communicator().bcast(None, root=0)
             op = data[0]
             if op == self.OP_MAP:
-                #Receive data from scheduler of the model
+                # Receive data from scheduler of the model
                 function_packed = self.mpimanager.get_model_communicator().bcast(None, root=0)[0]
                 data_item = self.mpimanager.get_model_communicator().bcast(None, root=0)[0]
                 self.run_function(function_packed, data_item)
             elif op == self.OP_BROADCAST:
                 self._bds_id = data[1]
                 self.broadcast(None)
-            elif op == self.OP_FINISH:  
+            elif op == self.OP_FINISH:
                 quit()
             else:
                 raise Exception("worker model received unknown command code")
@@ -501,13 +487,10 @@ class BackendMPILeader(BackendMPIWorker):
 
     OP_PARALLELIZE, OP_MAP, OP_COLLECT, OP_BROADCAST, OP_DELETEPDS, OP_DELETEBDS, OP_FINISH = [1, 2, 3, 4, 5, 6, 7]
 
-
     def __init__(self):
         """ No parameter, just call leader_run """
         self.logger = logging.getLogger(__name__)
         self.__leader_run()
-
-
 
     def __leader_run(self):
         """
@@ -548,8 +531,8 @@ class BackendMPILeader(BackendMPIWorker):
                 pds_id, pds_id_result, function_packed = data[1:]
                 self._rec_pds_id, self._rec_pds_id_result = pds_id, pds_id_result
 
-                #Enter the map so we can grab data and perform the func.
-                #Func sent before and not during for performance reasons
+                # Enter the map so we can grab data and perform the func.
+                # Func sent before and not during for performance reasons
                 pds_res = self.map(function_packed)
 
                 # Store the result in a newly gnerated PDS pds_id
@@ -557,7 +540,7 @@ class BackendMPILeader(BackendMPIWorker):
 
             elif op == self.OP_BROADCAST:
                 self._bds_id = data[1]
-                #relay command and data into model communicator
+                # relay command and data into model communicator
                 self.mpimanager.get_model_communicator().bcast(data, root=0)
                 self.broadcast(None)
 
@@ -584,7 +567,6 @@ class BackendMPILeader(BackendMPIWorker):
             else:
                 raise Exception("team received unknown command code")
 
-
     def __get_received_pds_id(self):
         """
         Function to retrieve the pds_id(s) we received from the scheduler to associate
@@ -601,7 +583,6 @@ class BackendMPILeader(BackendMPIWorker):
         self.mpimanager.get_model_communicator().bcast([function_packed], root=0)
         self.mpimanager.get_model_communicator().bcast([data_item], root=0)
         return self.run_function(function_packed, data_item)
-
 
     def parallelize(self):
         pass
@@ -625,28 +606,27 @@ class BackendMPILeader(BackendMPIWorker):
 
         map_start = time.time()
 
-        #Get the PDS id we operate on and the new one to store the result in
+        # Get the PDS id we operate on and the new one to store the result in
         pds_id, pds_id_new = self.__get_received_pds_id()
 
         rdd = []
         while True:
-            #Ask for a chunk of data since it's free
+            # Ask for a chunk of data since it's free
             data_chunks = self.mpimanager.get_scheduler_communicator().sendrecv(pds_id, 0, pds_id)
-            
-            #If it receives a sentinel, it's done and it can exit
+
+            # If it receives a sentinel, it's done and it can exit
             if data_chunks is None:
                 break
 
-            #Accumulate the indicess and *processed* chunks
+            # Accumulate the indicess and *processed* chunks
             for chunk in data_chunks:
-                data_index,data_item = chunk
+                data_index, data_item = chunk
                 res = self.__leader_run_function(function_packed, data_item)
-                rdd+=[(data_index,res)]
+                rdd += [(data_index, res)]
 
         pds_res = PDSMPI(rdd, pds_id_new, self)
 
         return pds_res
-
 
     def collect(self, pds):
         """
@@ -664,12 +644,11 @@ class BackendMPILeader(BackendMPIWorker):
             all elements of pds as a list
         """
 
-        #Send the data we have back to the scheduler
+        # Send the data we have back to the scheduler
         _ = self.mpimanager.get_scheduler_communicator().gather(pds.python_list, root=0)
 
 
-
-class BackendMPITeam(BackendMPILeader if abcpy.backends.mpimanager.get_mpi_manager().is_leader() else  BackendMPIWorker):
+class BackendMPITeam(BackendMPILeader if abcpy.backends.mpimanager.get_mpi_manager().is_leader() else BackendMPIWorker):
     """
     A team is compounded by workers and a leader. One process per team is a leader, others are workers
     """
@@ -677,18 +656,17 @@ class BackendMPITeam(BackendMPILeader if abcpy.backends.mpimanager.get_mpi_manag
     OP_PARALLELIZE, OP_MAP, OP_COLLECT, OP_BROADCAST, OP_DELETEPDS, OP_DELETEBDS, OP_FINISH = [1, 2, 3, 4, 5, 6, 7]
 
     def __init__(self):
-        #Define the vars that will hold the pds ids received from scheduler to operate on
+        # Define the vars that will hold the pds ids received from scheduler to operate on
         self._rec_pds_id = None
         self._rec_pds_id_result = None
 
-        #Initialize a BDS store for both scheduler & team.
+        # Initialize a BDS store for both scheduler & team.
         self.bds_store = {}
 
-        #print("In BackendMPITeam, rank : ", self.rank, ", model_rank_global : ", globals()['model_rank_global'])
+        # print("In BackendMPITeam, rank : ", self.rank, ", model_rank_global : ", globals()['model_rank_global'])
 
         self.logger = logging.getLogger(__name__)
         super().__init__()
-
 
 
 class BackendMPI(BackendMPIScheduler if abcpy.backends.mpimanager.get_mpi_manager().is_scheduler() else BackendMPITeam):
@@ -718,12 +696,11 @@ class BackendMPI(BackendMPIScheduler if abcpy.backends.mpimanager.get_mpi_manage
         if self.mpimanager.get_world_size() < 2:
             raise ValueError('A minimum of 2 ranks are required for the MPI backend')
 
-        #Set the global backend
+        # Set the global backend
         globals()['backend'] = self
 
-        #Call the appropriate constructors and pass the required data
+        # Call the appropriate constructors and pass the required data
         super().__init__()
-
 
     def size(self):
         """ Returns world size """
@@ -733,18 +710,15 @@ class BackendMPI(BackendMPIScheduler if abcpy.backends.mpimanager.get_mpi_manage
         """ Returns scheduler node ranks """
         return self.mpimanager.get_scheduler_node_ranks()
 
-
     @staticmethod
     def disable_nested(mpi_comm):
         if mpi_comm.Get_rank() != 0:
             mpi_comm.Barrier()
 
-
     @staticmethod
     def enable_nested(mpi_comm):
         if mpi_comm.Get_rank() == 0:
             mpi_comm.Barrier()
-
 
 
 class PDSMPI(PDS):
@@ -765,7 +739,7 @@ class PDSMPI(PDS):
         try:
             self.backend_obj.delete_remote_pds(self.pds_id)
         except AttributeError:
-            #Catch "delete_remote_pds not defined" for teams and ignore.
+            # Catch "delete_remote_pds not defined" for teams and ignore.
             pass
 
 
@@ -775,8 +749,8 @@ class BDSMPI(BDS):
     """
 
     def __init__(self, object, bds_id, backend_obj):
-        #The BDS data is no longer saved in the BDS object.
-        #It will access & store the data only from the current backend
+        # The BDS data is no longer saved in the BDS object.
+        # It will access & store the data only from the current backend
         self.bds_id = bds_id
         backend.bds_store[self.bds_id] = object
 
@@ -795,13 +769,15 @@ class BDSMPI(BDS):
         try:
             backend.delete_remote_bds(self.bds_id)
         except AttributeError:
-            #Catch "delete_remote_pds not defined" for teams and ignore.
+            # Catch "delete_remote_pds not defined" for teams and ignore.
             pass
+
 
 class BackendMPITestHelper:
     """
     Helper function for some of the test cases to be able to access and verify class members.
     """
+
     def check_pds(self, k):
         """Checks if a PDS exists in the pds data store. Used to verify deletion and creation
         """

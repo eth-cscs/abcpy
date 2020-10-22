@@ -1,9 +1,11 @@
 import unittest
+
 import numpy as np
-from abcpy.continuousmodels import Uniform
-from abcpy.continuousmodels import Normal
-from abcpy.statistics import Identity
+
 from abcpy.backends import BackendDummy as Backend
+from abcpy.continuousmodels import Normal
+from abcpy.continuousmodels import Uniform
+from abcpy.statistics import Identity
 from abcpy.statisticslearning import Semiautomatic, SemiautomaticNN, TripletDistanceLearning, \
     ContrastiveDistanceLearning
 
@@ -162,8 +164,9 @@ class TripletDistanceLearningTests(unittest.TestCase):
                                                               n_samples=100, n_samples_per_param=1, seed=1, n_epochs=10)
             # with sample scaler:
             self.statisticslearning_with_scaler = TripletDistanceLearning([self.Y], self.statistics_cal, self.backend,
-                                                              scale_samples=True,
-                                                              n_samples=100, n_samples_per_param=1, seed=1, n_epochs=10)
+                                                                          scale_samples=True,
+                                                                          n_samples=100, n_samples_per_param=1, seed=1,
+                                                                          n_epochs=10)
 
     def test_initialization(self):
         if not has_torch:

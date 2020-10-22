@@ -1,26 +1,28 @@
 import unittest
+
 import numpy as np
 
+from abcpy.approx_lhd import PenLogReg, SynLikelihood
 from abcpy.continuousmodels import Normal
 from abcpy.continuousmodels import Uniform
 from abcpy.statistics import Identity
-from abcpy.approx_lhd import PenLogReg, SynLikelihood
+
 
 class PenLogRegTests(unittest.TestCase):
     def setUp(self):
         self.mu = Uniform([[-5.0], [5.0]], name='mu')
         self.sigma = Uniform([[5.0], [10.0]], name='sigma')
-        self.model = Normal([self.mu,self.sigma])
+        self.model = Normal([self.mu, self.sigma])
         self.model_bivariate = Uniform([[0, 0], [1, 1]], name="model")
-        self.stat_calc = Identity(degree = 2, cross = 1)
-        self.likfun = PenLogReg(self.stat_calc, [self.model], n_simulate = 100, n_folds = 10, max_iter = 100000, seed = 1)
-        self.likfun_bivariate = PenLogReg(self.stat_calc, [self.model_bivariate], n_simulate = 100, n_folds = 10, max_iter = 100000, seed = 1)
+        self.stat_calc = Identity(degree=2, cross=1)
+        self.likfun = PenLogReg(self.stat_calc, [self.model], n_simulate=100, n_folds=10, max_iter=100000, seed=1)
+        self.likfun_bivariate = PenLogReg(self.stat_calc, [self.model_bivariate], n_simulate=100, n_folds=10,
+                                          max_iter=100000, seed=1)
 
     def test_likelihood(self):
-
-        #Checks whether wrong input type produces error message
-        self.assertRaises(TypeError, self.likfun.likelihood, 3.4, [2,1])
-        self.assertRaises(TypeError, self.likfun.likelihood, [2,4], 3.4)
+        # Checks whether wrong input type produces error message
+        self.assertRaises(TypeError, self.likfun.likelihood, 3.4, [2, 1])
+        self.assertRaises(TypeError, self.likfun.likelihood, [2, 4], 3.4)
 
         # create observed data
         y_obs = self.model.forward_simulate(self.model.get_input_values(), 1, rng=np.random.RandomState(1))
@@ -45,21 +47,19 @@ class PenLogRegTests(unittest.TestCase):
         self.assertAlmostEqual(comp_likelihood_biv, expected_likelihood_biv)
 
 
-
 class SynLikelihoodTests(unittest.TestCase):
     def setUp(self):
         self.mu = Uniform([[-5.0], [5.0]], name='mu')
         self.sigma = Uniform([[5.0], [10.0]], name='sigma')
-        self.model = Normal([self.mu,self.sigma])
-        self.stat_calc = Identity(degree = 2, cross = 0)
+        self.model = Normal([self.mu, self.sigma])
+        self.stat_calc = Identity(degree=2, cross=0)
         self.likfun = SynLikelihood(self.stat_calc)
 
-
     def test_likelihood(self):
-        #Checks whether wrong input type produces error message
-        self.assertRaises(TypeError, self.likfun.likelihood, 3.4, [2,1])
-        self.assertRaises(TypeError, self.likfun.likelihood, [2,4], 3.4)
-               
+        # Checks whether wrong input type produces error message
+        self.assertRaises(TypeError, self.likfun.likelihood, 3.4, [2, 1])
+        self.assertRaises(TypeError, self.likfun.likelihood, [2, 4], 3.4)
+
         # create observed data
         y_obs = [9.8]
         # create fake simulated data
@@ -74,4 +74,3 @@ class SynLikelihoodTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-        

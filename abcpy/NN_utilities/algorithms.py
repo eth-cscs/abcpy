@@ -16,7 +16,8 @@ else:
 
 
 def contrastive_training(samples, similarity_set, embedding_net, cuda, batch_size=16, n_epochs=200,
-                         samples_val=None, similarity_set_val=None, early_stopping=False, epochs_early_stopping_interval=1,
+                         samples_val=None, similarity_set_val=None, early_stopping=False,
+                         epochs_early_stopping_interval=1,
                          start_epoch_early_stopping=10, positive_weight=None, load_all_data_GPU=False, margin=1.,
                          lr=None, optimizer=None, scheduler=None, start_epoch_training=0,
                          optimizer_kwargs={}, scheduler_kwargs={}, loader_kwargs={}):
@@ -39,7 +40,7 @@ def contrastive_training(samples, similarity_set, embedding_net, cuda, batch_siz
 
     if samples_val is not None:
         similarities_dataset_val = Similarities(samples_val, similarity_set_val,
-                                                 "cuda" if cuda and load_all_data_GPU else "cpu")
+                                                "cuda" if cuda and load_all_data_GPU else "cpu")
         pairs_dataset_val = SiameseSimilarities(similarities_dataset_val, positive_weight=positive_weight)
 
     if cuda:
@@ -56,7 +57,7 @@ def contrastive_training(samples, similarity_set, embedding_net, cuda, batch_siz
                                                      **loader_kwargs)
     if samples_val is not None:
         pairs_train_loader_val = torch.utils.data.DataLoader(pairs_dataset_val, batch_size=batch_size, shuffle=False,
-                                                              **loader_kwargs)
+                                                             **loader_kwargs)
     else:
         pairs_train_loader_val = None
 
@@ -112,7 +113,7 @@ def triplet_training(samples, similarity_set, embedding_net, cuda, batch_size=16
 
     if samples_val is not None:
         similarities_dataset_val = Similarities(samples_val, similarity_set_val,
-                                                 "cuda" if cuda and load_all_data_GPU else "cpu")
+                                                "cuda" if cuda and load_all_data_GPU else "cpu")
         triplets_dataset_val = TripletSimilarities(similarities_dataset_val)
 
     if cuda:
@@ -129,7 +130,7 @@ def triplet_training(samples, similarity_set, embedding_net, cuda, batch_size=16
                                                         **loader_kwargs)
     if samples_val is not None:
         triplets_train_loader_val = torch.utils.data.DataLoader(triplets_dataset_val, batch_size=batch_size,
-                                                                 shuffle=False, **loader_kwargs)
+                                                                shuffle=False, **loader_kwargs)
     else:
         triplets_train_loader_val = None
 
@@ -162,7 +163,8 @@ def triplet_training(samples, similarity_set, embedding_net, cuda, batch_size=16
 
 
 def FP_nn_training(samples, target, embedding_net, cuda, batch_size=1, n_epochs=50, samples_val=None, target_val=None,
-                   early_stopping=False, epochs_early_stopping_interval=1, start_epoch_early_stopping=10, load_all_data_GPU=False,
+                   early_stopping=False, epochs_early_stopping_interval=1, start_epoch_early_stopping=10,
+                   load_all_data_GPU=False,
                    lr=1e-3, optimizer=None, scheduler=None, start_epoch_training=0, optimizer_kwargs={},
                    scheduler_kwargs={}, loader_kwargs={}):
     """ Implements the algorithm for the training of a neural network based on regressing the values of the parameters
@@ -184,7 +186,7 @@ def FP_nn_training(samples, target, embedding_net, cuda, batch_size=1, n_epochs=
 
     if samples_val is not None:
         dataset_FP_nn_val = ParameterSimulationPairs(samples_val, target_val,
-                                                      "cuda" if cuda and load_all_data_GPU else "cpu")
+                                                     "cuda" if cuda and load_all_data_GPU else "cpu")
 
     if cuda:
         if load_all_data_GPU:
@@ -200,7 +202,7 @@ def FP_nn_training(samples, target, embedding_net, cuda, batch_size=1, n_epochs=
 
     if samples_val is not None:
         data_loader_FP_nn_val = torch.utils.data.DataLoader(dataset_FP_nn_val, batch_size=batch_size,
-                                                             shuffle=False, **loader_kwargs)
+                                                            shuffle=False, **loader_kwargs)
     else:
         data_loader_FP_nn_val = None
 

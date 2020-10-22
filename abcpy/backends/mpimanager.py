@@ -1,7 +1,7 @@
 from mpi4py import MPI
-import sys
 
 __mpimanager = None
+
 
 class MPIManager(object):
     """Defines the behavior of the slaves/worker processes
@@ -28,13 +28,14 @@ class MPIManager(object):
         self._size = self._world_communicator.Get_size()
         self._rank = self._world_communicator.Get_rank()
 
-        #Construct the appropriate communicators for resource allocation to models
-        #There is one communicator for scheduler nodes
-        #And one communicator per model
+        # Construct the appropriate communicators for resource allocation to models
+        # There is one communicator for scheduler nodes
+        # And one communicator per model
         self._scheduler_node_ranks = scheduler_node_ranks
         self._process_per_model = process_per_model
-        self._model_color = int(((self._rank - sum(i < self._rank for i in scheduler_node_ranks)) / process_per_model) + 1)
-        if(self._rank in scheduler_node_ranks):
+        self._model_color = int(
+            ((self._rank - sum(i < self._rank for i in scheduler_node_ranks)) / process_per_model) + 1)
+        if self._rank in scheduler_node_ranks:
             self._model_color = 0
         self._model_communicator = MPI.COMM_WORLD.Split(self._model_color, self._rank)
         self._model_size = self._model_communicator.Get_size()
@@ -42,7 +43,7 @@ class MPIManager(object):
 
         # create a communicator to broadcast instructions to slaves
         self._scheduler_color = 1
-        if(self._model_color == 0 or self._model_rank == 0):
+        if self._model_color == 0 or self._model_rank == 0:
             self._scheduler_color = 0
         self._scheduler_communicator = MPI.COMM_WORLD.Split(self._scheduler_color, self._rank)
         self._scheduler_size = self._scheduler_communicator.Get_size()
@@ -61,7 +62,6 @@ class MPIManager(object):
         else:
             self._team = True
             self._worker = True
-
 
     def is_scheduler(self):
         ''' Tells if the process is a scheduler '''
@@ -119,13 +119,15 @@ class MPIManager(object):
         ''' Returns the scheduler communicator '''
         return self._scheduler_communicator
 
+
 def get_mpi_manager():
     ''' Return the instance of mpimanager
     Creates one with default parameters is not already existing '''
     global mpimanager
-    if mpimanager == None :
+    if mpimanager == None:
         create_mpi_manager([0], 1)
     return mpimanager
+
 
 def create_mpi_manager(scheduler_node_ranks, process_per_model):
     ''' Creates the instance of mpimanager with given parameters '''

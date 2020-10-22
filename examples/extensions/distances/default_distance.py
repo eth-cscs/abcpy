@@ -1,4 +1,5 @@
 import numpy as np
+
 from abcpy.distances import Distance, Euclidean
 
 

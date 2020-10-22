@@ -1,5 +1,7 @@
 import unittest
+
 import numpy as np
+
 from abcpy.statistics import Identity, LinearTransformation, NeuralEmbedding
 
 try:

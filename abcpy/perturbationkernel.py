@@ -7,7 +7,7 @@ from scipy.stats import multivariate_normal
 from abcpy.probabilisticmodels import Continuous
 
 
-class PerturbationKernel(metaclass = ABCMeta):
+class PerturbationKernel(metaclass=ABCMeta):
     """This abstract base class represents all perturbation kernels"""
 
     @abstractmethod
@@ -20,7 +20,6 @@ class PerturbationKernel(metaclass = ABCMeta):
         """
 
         raise NotImplementedError
-
 
     @abstractmethod
     def calculate_cov(self, accepted_parameters_manager, kernel_index):
@@ -41,7 +40,6 @@ class PerturbationKernel(metaclass = ABCMeta):
         """
 
         raise NotImplementedError
-
 
     @abstractmethod
     def update(self, accepted_parameters_manager, row_index, rng):
@@ -65,7 +63,6 @@ class PerturbationKernel(metaclass = ABCMeta):
 
         raise NotImplementedError
 
-
     def pdf(self, accepted_parameters_manager, kernel_index, row_index, x):
         """
         Calculates the pdf of the kernel at point x.
@@ -88,13 +85,13 @@ class PerturbationKernel(metaclass = ABCMeta):
 
         """
 
-        if(isinstance(self, DiscreteKernel)):
+        if isinstance(self, DiscreteKernel):
             return self.pmf(accepted_parameters_manager, kernel_index, row_index, x)
         else:
             raise NotImplementedError
 
 
-class ContinuousKernel(metaclass = ABCMeta):
+class ContinuousKernel(metaclass=ABCMeta):
     """This abstract base class represents all perturbation kernels acting on continuous parameters."""
 
     @abstractmethod
@@ -102,7 +99,7 @@ class ContinuousKernel(metaclass = ABCMeta):
         raise NotImplementedError
 
 
-class DiscreteKernel(metaclass = ABCMeta):
+class DiscreteKernel(metaclass=ABCMeta):
     """This abstract base class represents all perturbation kernels acting on discrete parameters."""
 
     @abstractmethod
@@ -126,7 +123,6 @@ class JointPerturbationKernel(PerturbationKernel):
         self._check_kernels(kernels)
         self.kernels = kernels
 
-
     def calculate_cov(self, accepted_parameters_manager):
         """
         Calculates the covariance matrix corresponding to each kernel. Commonly used before calculating weights to avoid
@@ -148,7 +144,6 @@ class JointPerturbationKernel(PerturbationKernel):
             all_covs.append(kernel.calculate_cov(accepted_parameters_manager, kernel_index))
         return all_covs
 
-
     def _check_kernels(self, kernels):
         """
         Checks whether each model is only used in one perturbation kernel. Commonly called from the constructor.
@@ -163,10 +158,9 @@ class JointPerturbationKernel(PerturbationKernel):
         for kernel in kernels:
             for model in kernel.models:
                 for already_contained_model in models:
-                    if(already_contained_model==model):
+                    if already_contained_model == model:
                         raise ValueError("No two kernels can perturb the same probabilistic model.")
                 models.append(model)
-
 
     def update(self, accepted_parameters_manager, row_index, rng=np.random.RandomState()):
         """
@@ -198,16 +192,15 @@ class JointPerturbationKernel(PerturbationKernel):
 
         # Match the results from the perturbations and their models
         for kernel_index, kernel in enumerate(self.kernels):
-            index=0
+            index = 0
             for model in kernel.models:
                 model_values = []
-                #for j in range(model.get_output_dimension()):
+                # for j in range(model.get_output_dimension()):
                 model_values.append(perturbed_values[kernel_index][index])
-                index+=1
+                index += 1
                 perturbed_values_including_models.append((model, model_values))
 
         return perturbed_values_including_models
-
 
     def pdf(self, mapping, accepted_parameters_manager, mean, x):
         """
@@ -236,10 +229,10 @@ class JointPerturbationKernel(PerturbationKernel):
             mean_kernel, theta = [], []
             for kernel_model in kernel.models:
                 for model, model_output_index in mapping:
-                    if(kernel_model==model):
+                    if kernel_model == model:
                         theta.append(x[model_output_index])
                         mean_kernel.append(mean[model_output_index])
-            result*=kernel.pdf(accepted_parameters_manager, kernel_index, mean_kernel, theta)
+            result *= kernel.pdf(accepted_parameters_manager, kernel_index, mean_kernel, theta)
 
         return result
 
@@ -278,13 +271,12 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
                     accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i])
         continuous_model = np.array(continuous_model).astype(float)
 
-        if(accepted_parameters_manager.accepted_weights_bds is not None):
+        if accepted_parameters_manager.accepted_weights_bds is not None:
             weights = accepted_parameters_manager.accepted_weights_bds.value()
             cov = np.cov(continuous_model, aweights=weights.reshape(-1).astype(float), rowvar=False)
         else:
             cov = np.cov(continuous_model, rowvar=False)
         return cov
-
 
     def update(self, accepted_parameters_manager, kernel_index, row_index, rng=np.random.RandomState()):
         """
@@ -310,7 +302,8 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
         # Get all current parameter values relevant for this model and the structure
         continuous_model_values = accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index]
 
-        if isinstance(continuous_model_values[row_index][0], (np.float, np.float32, np.float64, np.int, np.int32, np.int64)):
+        if isinstance(continuous_model_values[row_index][0],
+                      (np.float, np.float32, np.float64, np.int, np.int32, np.int64)):
             # Perturb
             cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
             continuous_model_values = np.array(continuous_model_values).astype(float)
@@ -318,7 +311,7 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
             # Perturbed values anc split according to the structure
             perturbed_continuous_values = rng.multivariate_normal(continuous_model_values[row_index], cov)
         else:
-            #print('Hello')
+            # print('Hello')
             # Learn the structure
             struct = [[] for i in range(len(continuous_model_values[row_index]))]
             for i in range(len(continuous_model_values[row_index])):
@@ -334,7 +327,6 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
             perturbed_continuous_values = np.split(rng.multivariate_normal(continuous_model_values, cov), struct)[:-1]
 
         return perturbed_continuous_values
-
 
     def pdf(self, accepted_parameters_manager, kernel_index, mean, x):
         """Calculates the pdf of the kernel.
@@ -381,7 +373,6 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
         self.models = models
         self.df = df
 
-
     def calculate_cov(self, accepted_parameters_manager, kernel_index):
         """
         Calculates the covariance matrix relevant to this kernel.
@@ -409,13 +400,12 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
                     accepted_parameters_manager.kernel_parameters_bds.value()[kernel_index][i])
         continuous_model = np.array(continuous_model).astype(float)
 
-        if(accepted_parameters_manager.accepted_weights_bds is not None):
+        if accepted_parameters_manager.accepted_weights_bds is not None:
             weights = np.array(accepted_parameters_manager.accepted_weights_bds.value())
-            cov = np.cov(continuous_model, aweights=weights.reshape(-1).astype(float),rowvar=False)
+            cov = np.cov(continuous_model, aweights=weights.reshape(-1).astype(float), rowvar=False)
         else:
             cov = np.cov(continuous_model, rowvar=False)
         return cov
-
 
     def update(self, accepted_parameters_manager, kernel_index, row_index, rng=np.random.RandomState()):
         """
@@ -449,7 +439,7 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
             cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
             p = len(continuous_model_values)
 
-            if (self.df == np.inf):
+            if self.df == np.inf:
                 chisq = 1.0
             else:
                 chisq = rng.chisquare(self.df, 1) / self.df
@@ -469,7 +459,7 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
             cov = np.array(accepted_parameters_manager.accepted_cov_mats_bds.value()[kernel_index]).astype(float)
             p = len(continuous_model_values)
 
-            if (self.df == np.inf):
+            if self.df == np.inf:
                 chisq = 1.0
             else:
                 chisq = rng.chisquare(self.df, 1) / self.df
@@ -528,10 +518,12 @@ class MultivariateStudentTKernel(PerturbationKernel, ContinuousKernel):
             numerator = gamma((v + p) / 2)
             denominator = gamma(v / 2) * pow(v * np.pi, p / 2.) * np.sqrt(abs(np.linalg.det(cov)))
             normalizing_const = numerator / denominator
-            tmp = 1 + 1 / v * np.dot(np.dot(np.transpose(np.concatenate(x) - mean), np.linalg.inv(cov)), (np.concatenate(x) - mean))
+            tmp = 1 + 1 / v * np.dot(np.dot(np.transpose(np.concatenate(x) - mean), np.linalg.inv(cov)),
+                                     (np.concatenate(x) - mean))
             density = normalizing_const * pow(tmp, -((v + p) / 2.))
 
             return density
+
 
 class RandomWalkKernel(PerturbationKernel, DiscreteKernel):
     def __init__(self, models):
@@ -578,15 +570,13 @@ class RandomWalkKernel(PerturbationKernel, DiscreteKernel):
 
         return perturbed_discrete_values
 
-
     def calculate_cov(self, accepted_parameters_manager, kernel_index):
         """
         Calculates the covariance matrix of this kernel. Since there is no covariance matrix associated with this
         random walk, it returns an empty list.
         """
 
-        return np.array([0]).reshape(-1,)
-
+        return np.array([0]).reshape(-1, )
 
     def pmf(self, accepted_parameters_manager, kernel_index, mean, x):
         """
@@ -610,7 +600,7 @@ class RandomWalkKernel(PerturbationKernel, DiscreteKernel):
             The pmf evaluated at point x.
         """
 
-        return 1./3
+        return 1. / 3
 
 
 class DefaultKernel(JointPerturbationKernel):
@@ -628,16 +618,15 @@ class DefaultKernel(JointPerturbationKernel):
         continuous_models = []
         discrete_models = []
         for model in models:
-            if(isinstance(model, Continuous)):
+            if isinstance(model, Continuous):
                 continuous_models.append(model)
             else:
                 discrete_models.append(model)
         continuous_kernel = MultivariateNormalKernel(continuous_models)
         discrete_kernel = RandomWalkKernel(discrete_models)
-        if(not(continuous_models)):
+        if not continuous_models:
             super(DefaultKernel, self).__init__([discrete_kernel])
-        elif(not(discrete_models)):
+        elif not discrete_models:
             super(DefaultKernel, self).__init__([continuous_kernel])
         else:
             super(DefaultKernel, self).__init__([continuous_kernel, discrete_kernel])
-

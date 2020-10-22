@@ -1,19 +1,20 @@
 from abc import ABCMeta, abstractmethod
+
 import numpy as np
 from sklearn import ensemble
+
 from abcpy.graphtools import *
 
 
-
-class ModelSelections(metaclass = ABCMeta):
+class ModelSelections(metaclass=ABCMeta):
     """This abstract base class defines a model selection rule of how to choose a model from a set of models
     given an observation. 
  
             
     """
-    
+
     @abstractmethod
-    def __init__(self, model_array, statistics_calc, backend, seed = None):
+    def __init__(self, model_array, statistics_calc, backend, seed=None):
         """Constructor that must be overwritten by the sub-class.
 
         The constructor of a sub-class must accept an array of models to choose the model 
@@ -31,13 +32,12 @@ class ModelSelections(metaclass = ABCMeta):
             Backend object that conforms to the Backend class.
         seed: integer, optional
             Optional initial seed for the random number generator. The default value is generated randomly.    
-        """   
+        """
         self.model_array = model_array
         self.statistics_calc = statistics_calc
         self.backend = backend
         self.rng = np.random.RandomState(seed)
         self.reference_table_calculated = None
-        
 
         raise NotImplementedError
 
@@ -45,10 +45,9 @@ class ModelSelections(metaclass = ABCMeta):
         state = self.__dict__.copy()
         del state['backend']
         return state
-        
-        
+
     @abstractmethod
-    def select_model(self, observations, n_samples = 1000, n_samples_per_param = 100):
+    def select_model(self, observations, n_samples=1000, n_samples_per_param=100):
         """To be overwritten by any sub-class: returns a model selected by the modelselection
         procedure most suitable to the obersved data set observations. Further two optional integer arguments n_samples
         and n_samples_per_param is supplied denoting the number of samples in the refernce table and the data points in
@@ -68,7 +67,7 @@ class ModelSelections(metaclass = ABCMeta):
             A model which are of type abcpy.probabilisticmodels
             
         """
-        
+
         raise NotImplementedError
 
     @abstractmethod
@@ -85,9 +84,10 @@ class ModelSelections(metaclass = ABCMeta):
         np.ndarray
             A vector containing the approximate posterior probability of the model chosen.                
         """
-        
+
         raise NotImplementedError
-        
+
+
 class RandomForest(ModelSelections, GraphTools):
     """
     This class implements the model selection procedure based on the Random Forest ensemble learner
@@ -96,7 +96,8 @@ class RandomForest(ModelSelections, GraphTools):
     [1] Pudlo, P., Marin, J.-M., Estoup, A., Cornuet, J.-M., Gautier, M. and Robert, C.
     (2016). Reliable ABC model choice via random forests. Bioinformatics, 32 859–866.
     """
-    def __init__(self, model_array, statistics_calc, backend, N_tree = 100, n_try_fraction = 0.5, seed = None):
+
+    def __init__(self, model_array, statistics_calc, backend, N_tree=100, n_try_fraction=0.5, seed=None):
         """        
         Parameters
         ----------
@@ -107,7 +108,7 @@ class RandomForest(ModelSelections, GraphTools):
             the number of covariates randomly sampled at each node by the randomised CART.
             The default value is 0.5.           
         """
-        
+
         self.model_array = model_array
         self.statistics_calc = statistics_calc
         self.backend = backend
@@ -122,7 +123,7 @@ class RandomForest(ModelSelections, GraphTools):
 
         self.observations_bds = None
 
-    def select_model(self, observations, n_samples = 1000, n_samples_per_param = 1):
+    def select_model(self, observations, n_samples=1000, n_samples_per_param=1):
         """        
         Parameters
         ----------
@@ -142,10 +143,10 @@ class RandomForest(ModelSelections, GraphTools):
         self.observations_bds = self.backend.broadcast(observations)
 
         # Creation of reference table
-        if self.reference_table_calculated is 0:        
+        if self.reference_table_calculated is 0:
             # Simulating the data, distance and statistics
-            seed_arr = self.rng.randint(1, n_samples*n_samples, size=n_samples, dtype=np.int32)
-            seed_pds = self.backend.parallelize(seed_arr)     
+            seed_arr = self.rng.randint(1, n_samples * n_samples, size=n_samples, dtype=np.int32)
+            seed_pds = self.backend.parallelize(seed_arr)
 
             model_data_pds = self.backend.map(self._simulate_model_data, seed_pds)
             model_data = self.backend.collect(model_data_pds)
@@ -157,19 +158,21 @@ class RandomForest(ModelSelections, GraphTools):
 
         # Construct a label for the model_array
         label = np.zeros(shape=(len(self.reference_table_models)))
-        for ind1 in range(len(self.reference_table_models)):  
+        for ind1 in range(len(self.reference_table_models)):
             for ind2 in range(len(self.model_array)):
                 if self.reference_table_models[ind1] == self.model_array[ind2]:
-                    label[ind1] = ind2 
+                    label[ind1] = ind2
 
-        # Define the classifier 
-        classifier = ensemble.RandomForestClassifier(n_estimators = self.N_tree, \
-        max_features=int(self.n_try_fraction*self.reference_table_statistics.shape[1]), bootstrap=True, random_state=self.seed)
-        classifier.fit(self.reference_table_statistics, label)            
+                    # Define the classifier
+        classifier = ensemble.RandomForestClassifier(n_estimators=self.N_tree, \
+                                                     max_features=int(
+                                                         self.n_try_fraction * self.reference_table_statistics.shape[
+                                                             1]), bootstrap=True, random_state=self.seed)
+        classifier.fit(self.reference_table_statistics, label)
 
-        return(self.model_array[int(classifier.predict(self.statistics_calc.statistics(observations)))])
+        return self.model_array[int(classifier.predict(self.statistics_calc.statistics(observations)))]
 
-    def posterior_probability(self, observations, n_samples = 1000, n_samples_per_param = 1):
+    def posterior_probability(self, observations, n_samples=1000, n_samples_per_param=1):
 
         """
         Parameters
@@ -185,10 +188,10 @@ class RandomForest(ModelSelections, GraphTools):
         self.n_samples_per_param = 1
         self.observations_bds = self.backend.broadcast(observations)
         # Creation of reference table
-        if self.reference_table_calculated is 0:        
+        if self.reference_table_calculated is 0:
             # Simulating the data, distance and statistics
-            seed_arr = self.rng.randint(1, n_samples*n_samples, size=n_samples, dtype=np.int32)
-            seed_pds = self.backend.parallelize(seed_arr)     
+            seed_arr = self.rng.randint(1, n_samples * n_samples, size=n_samples, dtype=np.int32)
+            seed_pds = self.backend.parallelize(seed_arr)
 
             model_data_pds = self.backend.map(self._simulate_model_data, seed_pds)
             model_data = self.backend.collect(model_data_pds)
@@ -197,29 +200,33 @@ class RandomForest(ModelSelections, GraphTools):
             self.reference_table_data = data
             self.reference_table_statistics = np.concatenate(statistics)
             self.reference_table_calculated = 1
-        
+
         # Construct a label for the model_array
         label = np.zeros(shape=(len(self.reference_table_models)))
-        for ind1 in range(len(self.reference_table_models)):  
+        for ind1 in range(len(self.reference_table_models)):
             for ind2 in range(len(self.model_array)):
                 if self.reference_table_models[ind1] == self.model_array[ind2]:
-                    label[ind1] = ind2 
+                    label[ind1] = ind2
 
-        # Define the classifier 
-        classifier = ensemble.RandomForestClassifier(n_estimators = self.N_tree, \
-        max_features=int(self.n_try_fraction*self.reference_table_statistics.shape[1]), bootstrap=True, random_state=self.seed)
-        classifier.fit(self.reference_table_statistics, label)  
+                    # Define the classifier
+        classifier = ensemble.RandomForestClassifier(n_estimators=self.N_tree, \
+                                                     max_features=int(
+                                                         self.n_try_fraction * self.reference_table_statistics.shape[
+                                                             1]), bootstrap=True, random_state=self.seed)
+        classifier.fit(self.reference_table_statistics, label)
 
-        pred_error = np.zeros(len(self.reference_table_models),)
+        pred_error = np.zeros(len(self.reference_table_models), )
         # Compute missclassification error rate
         for ind in range(len(self.reference_table_models)):
-            pred_error[ind] = 1 - classifier.predict_proba(self.statistics_calc.statistics(self.reference_table_data[ind]))[0][int(label[ind])] 
+            pred_error[ind] = 1 - \
+                              classifier.predict_proba(self.statistics_calc.statistics(self.reference_table_data[ind]))[
+                                  0][int(label[ind])]
 
-        # Estimate a regression function with prediction error as response on summary statitistics of the reference table                
-        regressor = ensemble.RandomForestRegressor(n_estimators = self.N_tree)
-        regressor.fit(self.reference_table_statistics,pred_error)
+            # Estimate a regression function with prediction error as response on summary statitistics of the reference table
+        regressor = ensemble.RandomForestRegressor(n_estimators=self.N_tree)
+        regressor.fit(self.reference_table_statistics, pred_error)
 
-        return(1-regressor.predict(self.statistics_calc.statistics(observations)))
+        return 1 - regressor.predict(self.statistics_calc.statistics(observations))
 
     def _simulate_model_data(self, seed):
         """
@@ -243,9 +250,9 @@ class RandomForest(ModelSelections, GraphTools):
                                          * rng.multinomial(1, (1 / len_model_array) * np.ones(len_model_array))))]
         self.sample_from_prior([model], rng=rng)
         y_sim = model.forward_simulate(model.get_input_values(), self.n_samples_per_param, rng=rng)
-        while(y_sim[0] is False):
-            y_sim = model.forward_simulate(model.get_input_values() ,self.n_samples_per_param, rng=rng)
+        while y_sim[0] is False:
+            y_sim = model.forward_simulate(model.get_input_values(), self.n_samples_per_param, rng=rng)
         y_sim = y_sim[0].tolist()
         statistics = self.statistics_calc.statistics(y_sim)
 
-        return (model, y_sim, statistics)
+        return model, y_sim, statistics

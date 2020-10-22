@@ -89,7 +89,7 @@ class Journal:
             Each entry is a tuple, where the first entry is the name of the probabilistic model, and the second entry is
             the parameters associated with this model.
         """
-        if (self._type == 0):
+        if self._type == 0:
             self.names_and_parameters = [dict(names_and_params)]
         else:
             self.names_and_parameters.append(dict(names_and_params))

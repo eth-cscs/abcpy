@@ -99,7 +99,7 @@ class StatisticsLearning(metaclass=ABCMeta):
 
         n_samples_to_generate = n_samples * (parameters is None) + n_samples_val * (parameters_val is None)
 
-        if n_samples_to_generate > 0:  # need to generate some data 
+        if n_samples_to_generate > 0:  # need to generate some data
             self.logger.info('Generation of data...')
 
             self.logger.debug("Definitions for parallelization.")

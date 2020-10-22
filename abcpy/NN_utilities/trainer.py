@@ -1,6 +1,7 @@
-from tqdm import tqdm
 import logging
+
 import torch
+from tqdm import tqdm
 
 
 def fit(train_loader, model, loss_fn, optimizer, scheduler, n_epochs, cuda, val_loader=None, early_stopping=False,

@@ -1,13 +1,13 @@
 from abc import ABCMeta, abstractmethod
 
+import numpy as np
+from glmnet import LogitNet
+from sklearn.covariance import ledoit_wolf
+
 from abcpy.graphtools import GraphTools
 
-import numpy as np
-from sklearn.covariance import ledoit_wolf
-from glmnet import LogitNet
 
-
-class Approx_likelihood(metaclass = ABCMeta):
+class Approx_likelihood(metaclass=ABCMeta):
     """This abstract base class defines the approximate likelihood 
     function.
     """
@@ -60,9 +60,10 @@ class SynLikelihood(Approx_likelihood):
     [2] O. Ledoit and M. Wolf, A Well-Conditioned Estimator for Large-Dimensional Covariance Matrices,
     Journal of Multivariate Analysis, Volume 88, Issue 2, pages 365-411, February 2004.
     """
+
     def __init__(self, statistics_calc):
         self.stat_obs = None
-        self.data_set=None
+        self.data_set = None
         self.statistics_calc = statistics_calc
 
     def likelihood(self, y_obs, y_sim):
@@ -77,27 +78,28 @@ class SynLikelihood(Approx_likelihood):
 
         # Check whether y_obs is same as the stored dataset.
         if self.data_set is not None:
-            if len(np.array(y_obs[0]).reshape(-1,)) == 1:
+            if len(np.array(y_obs[0]).reshape(-1, )) == 1:
                 self.dataSame = self.data_set == y_obs
             else:  # otherwise it fails when y_obs[0] is array
-                self.dataSame = all([(np.array(self.data_set[i]) == np.array(y_obs[i])).all() for i in range(len(y_obs))])
+                self.dataSame = all(
+                    [(np.array(self.data_set[i]) == np.array(y_obs[i])).all() for i in range(len(y_obs))])
 
-        if(self.stat_obs is None or self.dataSame is False):
+        if self.stat_obs is None or self.dataSame is False:
             self.stat_obs = self.statistics_calc.statistics(y_obs)
             self.data_set = y_obs
 
         # Extract summary statistics from the simulated data
         stat_sim = self.statistics_calc.statistics(y_sim)
-        
+
         # Compute the mean, robust precision matrix and determinant of precision matrix
-        mean_sim = np.mean(stat_sim,0)
+        mean_sim = np.mean(stat_sim, 0)
         lw_cov_, _ = ledoit_wolf(stat_sim)
         robust_precision_sim = np.linalg.inv(lw_cov_)
         robust_precision_sim_det = np.linalg.det(robust_precision_sim)
         # print("DEBUG: combining.")
-        tmp1 = robust_precision_sim * np.array(self.stat_obs.reshape(-1,1) - mean_sim.reshape(-1,1)).T
-        tmp2 = np.exp(np.sum(-0.5*np.sum(np.array(self.stat_obs-mean_sim) * np.array(tmp1).T, axis = 1)))
-        tmp3 = pow(np.sqrt((1/(2*np.pi)) * robust_precision_sim_det),self.stat_obs.shape[0])
+        tmp1 = robust_precision_sim * np.array(self.stat_obs.reshape(-1, 1) - mean_sim.reshape(-1, 1)).T
+        tmp2 = np.exp(np.sum(-0.5 * np.sum(np.array(self.stat_obs - mean_sim) * np.array(tmp1).T, axis=1)))
+        tmp3 = pow(np.sqrt((1 / (2 * np.pi)) * robust_precision_sim_det), self.stat_obs.shape[0])
         return tmp2 * tmp3
 
 
@@ -111,7 +113,7 @@ class PenLogReg(Approx_likelihood, GraphTools):
     function. For lasso penalized logistic regression we use glmnet of Friedman et.
     al. [2].
     
-    [1] Reference: R. Dutta, J. Corander, S. Kaski, and M. U. Gutmann. Likelihood-free 
+    [1] Reference: R. Dutta, J. Corander, S. Kaski, and M. U. Gutmann. Likelihood-free
     inference by penalised logistic regression. arXiv:1611.10242, Nov. 2016.
     
     [2] Friedman, J., Hastie, T., and Tibshirani, R. (2010). Regularization 
@@ -135,7 +137,8 @@ class PenLogReg(Approx_likelihood, GraphTools):
         deterministic, this seed is used for determining the cv folds. The default value is
         None.
     """
-    def __init__(self, statistics_calc, model, n_simulate, n_folds=10, max_iter = 100000, seed = None):
+
+    def __init__(self, statistics_calc, model, n_simulate, n_folds=10, max_iter=100000, seed=None):
 
         self.model = model
         self.statistics_calc = statistics_calc
@@ -155,27 +158,28 @@ class PenLogReg(Approx_likelihood, GraphTools):
     def likelihood(self, y_obs, y_sim):
         if not isinstance(y_obs, list):
             raise TypeError('Observed data is not of allowed types')
-        
+
         if not isinstance(y_sim, list):
             raise TypeError('simulated data is not of allowed types')
 
         # Check whether y_obs is same as the stored dataset.
         if self.data_set is not None:
-            if len(np.array(y_obs[0]).reshape(-1,)) == 1:
+            if len(np.array(y_obs[0]).reshape(-1, )) == 1:
                 self.dataSame = self.data_set == y_obs
             else:  # otherwise it fails when y_obs[0] is array
-                self.dataSame = all([(np.array(self.data_set[i]) == np.array(y_obs[i])).all() for i in range(len(y_obs))])
+                self.dataSame = all(
+                    [(np.array(self.data_set[i]) == np.array(y_obs[i])).all() for i in range(len(y_obs))])
 
-        if(self.stat_obs is None or self.dataSame is False):
+        if self.stat_obs is None or self.dataSame is False:
             self.stat_obs = self.statistics_calc.statistics(y_obs)
-            self.data_set=y_obs
-                
+            self.data_set = y_obs
+
         # Extract summary statistics from the simulated data
         stat_sim = self.statistics_calc.statistics(y_sim)
-        
+
         # Compute the approximate likelihood for the y_obs given theta
-        y = np.append(np.zeros(self.n_simulate),np.ones(self.n_simulate))
-        X = np.array(np.concatenate((stat_sim,self.ref_data_stat),axis=0))
+        y = np.append(np.zeros(self.n_simulate), np.ones(self.n_simulate))
+        X = np.array(np.concatenate((stat_sim, self.ref_data_stat), axis=0))
         # define here groups for cross-validation:
         groups = np.repeat(np.arange(self.n_folds), np.int(np.ceil(self.n_simulate / self.n_folds)))
         groups = groups[:self.n_simulate].tolist()
@@ -193,11 +197,11 @@ class PenLogReg(Approx_likelihood, GraphTools):
         Penlogreg
         """
 
-        ref_data_stat = [[None]*self.n_simulate for i in range(len(self.model))]
+        ref_data_stat = [[None] * self.n_simulate for i in range(len(self.model))]
         self.sample_from_prior(rng=rng)
         for model_index, model in enumerate(self.model):
-            ind=0
-            while(ref_data_stat[model_index][-1] is None):
+            ind = 0
+            while ref_data_stat[model_index][-1] is None:
                 data = model.forward_simulate(model.get_input_values(), 1, rng=rng)
                 # this is wrong, it applies the computation of the statistic independently to the element of data[0]:
                 # print("data[0]", data[0].tolist())
@@ -206,7 +210,7 @@ class PenLogReg(Approx_likelihood, GraphTools):
                 # print("data", data)
                 data_stat = self.statistics_calc.statistics(data)
                 # print("stat of data", data_stat)
-                ref_data_stat[model_index][ind]= data_stat
-                ind+=1
+                ref_data_stat[model_index][ind] = data_stat
+                ind += 1
             ref_data_stat[model_index] = np.squeeze(np.asarray(ref_data_stat[model_index]))
         return ref_data_stat
