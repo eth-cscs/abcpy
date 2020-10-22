@@ -172,8 +172,8 @@ class PenLogReg(Distance):
     the most relevant summary statistics as explained in Gutmann et. al. [1].
     The maximum value of the distance is 1.0.
        
-    [1] Gutmann, M., Dutta, R., Kaski, S., and Corander, J. (2014). Statistical 
-    inference of intractable generative models via classification. arXiv:1407.4981.
+    [1] Gutmann, M. U., Dutta, R., Kaski, S., & Corander, J. (2018). Likelihood-free inference via classification.
+    Statistics and Computing, 28(2), 411-425.
     
     [2] Friedman, J., Hastie, T., and Tibshirani, R. (2010). Regularization 
     paths for generalized linear models via coordinate descent. Journal of Statistical 
@@ -240,8 +240,8 @@ class LogReg(Distance):
     accuracy [1]. The classification accuracy is calculated between two dataset d1 and d2 using 
     logistics regression and return it as a distance. The maximum value of the distance is 1.0.
 
-    [1] Gutmann, M., Dutta, R., Kaski, S., and Corander, J. (2014). Statistical 
-    inference of intractable generative models via classification. arXiv:1407.4981.
+    [1] Gutmann, M. U., Dutta, R., Kaski, S., & Corander, J. (2018). Likelihood-free inference via classification.
+    Statistics and Computing, 28(2), 411-425.
     """
 
     def __init__(self, statistics):

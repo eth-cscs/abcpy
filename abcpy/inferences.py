@@ -141,7 +141,7 @@ class BaseDiscrepancy(InferenceMethod, BaseMethodsWithKernel, metaclass=ABCMeta)
 
 
 class RejectionABC(InferenceMethod):
-    """This base class implements the rejection algorithm based inference scheme [1] for
+    """This class implements the rejection algorithm based inference scheme [1] for
         Approximate Bayesian Computation.
 
         [1] Tavaré, S., Balding, D., Griffith, R., Donnelly, P.: Inferring coalescence
@@ -259,8 +259,10 @@ class RejectionABC(InferenceMethod):
             The random number generator to be used.
         Returns
         -------
-        np.array
-            accepted parameter
+        Tuple
+            The first entry of the tuple is the accepted parameters.
+            The second entry is the distance between the simulated data set and the observation, while the third one is
+            the number of simulations needed to obtain the accepted parameter.
         """
         distance = self.distance.dist_max()
 
@@ -290,7 +292,7 @@ class RejectionABC(InferenceMethod):
 
 class PMCABC(BaseDiscrepancy, InferenceMethod):
     """
-    This base class implements a modified version of Population Monte Carlo based inference scheme for Approximate
+    This class implements a modified version of Population Monte Carlo based inference scheme for Approximate
     Bayesian computation of Beaumont et. al. [1]. Here the threshold value at `t`-th generation are adaptively chosen by
     taking the maximum between the epsilon_percentile-th value of discrepancies of the accepted parameters at `t-1`-th
     generation and the threshold value provided for this generation by the user. If we take the value of
@@ -531,8 +533,10 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
 
         Returns
         -------
-        np.array
-            accepted parameter
+        Tuple
+            The first entry of the tuple is the accepted parameters.
+            The second entry is the distance between the simulated data set and the observation, while the third one is
+            the number of simulations needed to obtain the accepted parameter.
         """
 
         # print(npc.communicator())
@@ -609,6 +613,21 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             return 1.0 * prior_prob / denominator
 
     def _compute_accepted_cov_mats(self, covFactor, new_cov_mats):
+        """
+        Update the covariance matrices computed from data by multiplying them with covFactor and adding a small term in
+        the diagonal for numerical stability.
+
+        Parameters
+        ----------
+        covFactor : float
+            factor to correct the covariance matrices
+        new_cov_mats : list
+            list of covariance matrices computed from data
+        Returns
+        -------
+        list
+            List of new accepted covariance matrices
+        """
         # accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
         accepted_cov_mats = []
         for new_cov_mat in new_cov_mats:
@@ -973,6 +992,21 @@ class PMC(BaseLikelihood, InferenceMethod):
             return 1.0 * prior_prob / denominator
 
     def _compute_accepted_cov_mats(self, covFactors, new_cov_mats):
+        """
+        Update the covariance matrices computed from data by multiplying them with covFactors and adding a small term in
+        the diagonal for numerical stability.
+
+        Parameters
+        ----------
+        covFactors : list of float
+            factors to correct the covariance matrices
+        new_cov_mats : list
+            list of covariance matrices computed from data
+        Returns
+        -------
+        list
+            List of new accepted covariance matrices
+        """
         accepted_cov_mats = []
         for covFactor, new_cov_mat in zip(covFactors, new_cov_mats):
             if not (new_cov_mat.size == 1):
@@ -984,7 +1018,8 @@ class PMC(BaseLikelihood, InferenceMethod):
 
 class SABC(BaseDiscrepancy, InferenceMethod):
     """
-    This base class implements a modified version of Simulated Annealing Approximate Bayesian Computation (SABC) of [1] when the prior is non-informative.
+    This class implements a modified version of Simulated Annealing Approximate Bayesian Computation (SABC) of [1]
+    when the prior is non-informative.
 
     [1] C. Albert, H. R. Kuensch and A. Scheidegger. A Simulated Annealing Approach to
     Approximate Bayes Computations. Statistics and Computing, (2014).
@@ -1060,16 +1095,18 @@ class SABC(BaseDiscrepancy, InferenceMethod):
             Number of samples to generate. The default value is 10000.
         n_samples_per_param : integer, optional
             Number of data points in each simulated data set. The default value is 1.
-        beta : numpy.float
-            Tuning parameter of SABC, default value is 2.
-        delta : numpy.float
+        beta : numpy.float, optional
+            Tuning parameter of SABC, default value is 2. Used to scale up the covariance matrices obtained from data.
+        delta : numpy.float, optional
             Tuning parameter of SABC, default value is 0.2.
         v : numpy.float, optional
             Tuning parameter of SABC, The default value is 0.3.
-        ar_cutoff : numpy.float
-            Acceptance ratio cutoff, The default value is 0.1.
+        ar_cutoff : numpy.float, optional
+            Acceptance ratio cutoff: if the acceptance rate at some iteration of the algorithm is lower than that, the
+            algorithm will stop. The default value is 0.1.
         resample: int, optional
-            Resample after this many acceptance, The default value is None which takes value inside n_samples
+            At any iteration, perform a resampling step if the number of accepted particles is larger than resample.
+            When not provided, it assumes resample to be equal to n_samples.
         n_update: int, optional
             Number of perturbed parameters at each step, The default value is None which takes value inside n_samples
         full_output: integer, optional
@@ -1471,6 +1508,21 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         return new_theta, distance, all_parameters, all_distances, index, acceptance, counter
 
     def _compute_accepted_cov_mats(self, beta, new_cov_mats):
+        """
+        Update the covariance matrices computed from data by multiplying them with beta and adding a small term in
+        the diagonal for numerical stability.
+
+        Parameters
+        ----------
+        beta : float
+            factor to correct the covariance matrices
+        new_cov_mats : list
+            list of covariance matrices computed from data
+        Returns
+        -------
+        list
+            List of new accepted covariance matrices
+        """
         accepted_cov_mats = []
         for new_cov_mat in new_cov_mats:
             if not (new_cov_mat.size == 1):
@@ -1482,7 +1534,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
 
 class ABCsubsim(BaseDiscrepancy, InferenceMethod):
-    """This base class implements Approximate Bayesian Computation by subset simulation (ABCsubsim) algorithm of [1].
+    """This class implements Approximate Bayesian Computation by subset simulation (ABCsubsim) algorithm of [1].
 
     [1] M. Chiachio, J. L. Beck, J. Chiachio, and G. Rus., Approximate Bayesian computation by subset
     simulation. SIAM J. Sci. Comput., 36(3):A1339–A1358, 2014/10/03 2014.
@@ -1876,7 +1928,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
 
 class RSMCABC(BaseDiscrepancy, InferenceMethod):
-    """This base class implements Replenishment Sequential Monte Carlo Approximate Bayesian computation of
+    """This class implements Replenishment Sequential Monte Carlo Approximate Bayesian computation of
     Drovandi and Pettitt [1].
 
     [1] CC. Drovandi CC and AN. Pettitt, Estimation of parameters for macroparasite population evolution using
@@ -2207,6 +2259,21 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         return self.get_parameters(self.model), distance, index_accept, counter
 
     def _compute_accepted_cov_mats(self, covFactor, new_cov_mats):
+        """
+        Update the covariance matrices computed from data by multiplying them with covFactor and adding a small term in
+        the diagonal for numerical stability.
+
+        Parameters
+        ----------
+        covFactor : float
+            factor to correct the covariance matrices
+        new_cov_mats : list
+            list of covariance matrices computed from data
+        Returns
+        -------
+        list
+            List of new accepted covariance matrices
+        """
         # accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
         accepted_cov_mats = []
         for new_cov_mat in new_cov_mats:
@@ -2219,7 +2286,7 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
 
 
 class APMCABC(BaseDiscrepancy, InferenceMethod):
-    """This base class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
+    """This class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
     M. Lenormand et al. [1].
 
     [1] M. Lenormand, F. Jabot and G. Deffuant, Adaptive approximate Bayesian computation
@@ -2525,6 +2592,21 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
         return self.get_parameters(self.model), distance, weight, counter
 
     def _compute_accepted_cov_mats(self, covFactor, new_cov_mats):
+        """
+        Update the covariance matrices computed from data by multiplying them with covFactor and adding a small term in
+        the diagonal for numerical stability.
+
+        Parameters
+        ----------
+        covFactor : float
+            factor to correct the covariance matrices
+        new_cov_mats : list
+            list of covariance matrices computed from data
+        Returns
+        -------
+        list
+            List of new accepted covariance matrices
+        """
         # accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
         accepted_cov_mats = []
         for new_cov_mat in new_cov_mats:
@@ -2536,11 +2618,14 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
         return accepted_cov_mats
 
 class SMCABC(BaseDiscrepancy, InferenceMethod):
-    """This base class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
+    """This class implements Sequential Monte Carlo Approximate Bayesian computation of
     Del Moral et al. [1].
 
     [1] P. Del Moral, A. Doucet, A. Jasra, An adaptive sequential Monte Carlo method for approximate
     Bayesian computation. Statistics and Computing, 22(5):1009–1020, 2012.
+
+    [2] Lee, Anthony. "n the choice of MCMC kernels for approximate Bayesian computation with SMC samplers.
+    Proceedings of the 2012 Winter Simulation Conference (WSC). IEEE, 2012.
 
     Parameters
     ----------
@@ -2613,18 +2698,23 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         n_samples_per_param : integer, optional
             Number of data points in each simulated data set. The default value is 1.
         epsilon_final : float, optional
-            The final threshold value of epsilon to be reached. The default value is 0.1.
+            The final threshold value of epsilon to be reached; if at some iteration you reach a lower epsilon than
+            epsilon_final, the algorithm will stop and not proceed with further iterations. The default value is 0.1.
         alpha : float, optional
             A parameter taking values between [0,1], determinining the rate of change of the threshold epsilon. The
             default value is 0.95.
         covFactor : float, optional
             scaling parameter of the covariance matrix. The default value is 2.
+        resample  : float, optional
+            It defines the resample step: introduce a resample step, after the particles have been
+            perturbed and the new weights have been computed, if the effective sample size is smaller than resample. If
+            not provided, resample is set to 0.5 * n_samples.
         full_output: integer, optional
             If full_output==1, intermediate results are included in output journal.
             The default value is 0, meaning the intermediate results are not saved.
         which_mcmc_kernel: integer, optional
-            Specifies which MCMC kernel to be used: '0' kernel suggestd in [1], any other value will use r-hit kernel
-            suggested by Anthony Lee. The default value is 0.
+            Specifies which MCMC kernel to be used: '0' kernel suggested in [1], any other value will use r-hit kernel
+            suggested by Anthony Lee [2]. The default value is 0.
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
@@ -2726,7 +2816,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 new_weights = np.ones(shape=n_samples, ) * (1.0 / n_samples)
 
             # 2: Resample
-            if accepted_y_sim != None and pow(sum(pow(new_weights, 2)), -1) < resample:
+            if accepted_y_sim is not None and pow(sum(pow(new_weights, 2)), -1) < resample:
                 self.logger.info("Resampling")
                 # Weighted resampling:
                 index_resampled = self.rng.choice(n_samples, n_samples, replace=True, p=new_weights)
@@ -2956,20 +3046,21 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
     def _accept_parameter_r_hit_kernel(self, rng_and_index, npc=None):
         """
-        Samples a single model parameter and simulate from it until
-        distance between simulated outcome and the observation is
-        smaller than epsilon.
+        This implements algorithm 5 in Lee (2012) [2] which is used as an MCMC kernel in SMCABC. This implementation
+        uses r=3.
 
         Parameters
         ----------
-        seed_and_index: numpy.ndarray
-            2 dimensional array. The first entry specifies the initial seed for the random number generator.
+        rng_and_index: numpy.ndarray
+            2 dimensional array. The first entry is a random number generator.
             The second entry defines the index in the data set.
 
         Returns
         -------
         Tuple
             The first entry of the tuple is the accepted parameters. The second entry is the simulated data set.
+            The third one is the distance between the simulated data set and the observation, while the fourth one is
+            the number of simulations needed to obtain the accepted parameter.
         """
 
         rng = rng_and_index[0]
@@ -3044,6 +3135,21 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         return self.get_parameters(), y_sim, distance, counter
 
     def _compute_accepted_cov_mats(self, covFactor, new_cov_mats):
+        """
+        Update the covariance matrices computed from data by multiplying them with covFactor and adding a small term in
+        the diagonal for numerical stability.
+
+        Parameters
+        ----------
+        covFactor : float
+            factor to correct the covariance matrices
+        new_cov_mats : list
+            list of covariance matrices computed from data
+        Returns
+        -------
+        list
+            List of new accepted covariance matrices
+        """
         # accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
         accepted_cov_mats = []
         for new_cov_mat in new_cov_mats:
