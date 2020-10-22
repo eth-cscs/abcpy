@@ -24,7 +24,7 @@ class JointApprox_likelihood(metaclass = ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def likelihood(d1, d2):
+    def likelihood(self, d1, d2):
         """To be overwritten by any sub-class: should calculate the distance between two
         sets of data d1 and d2.
 

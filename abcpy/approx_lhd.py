@@ -4,7 +4,7 @@ from abcpy.graphtools import GraphTools
 
 import numpy as np
 from sklearn.covariance import ledoit_wolf
-from glmnet import LogitNet 
+from glmnet import LogitNet
 
 
 class Approx_likelihood(metaclass = ABCMeta):
@@ -27,7 +27,7 @@ class Approx_likelihood(metaclass = ABCMeta):
         raise NotImplemented
 
     @abstractmethod
-    def likelihood(y_obs, y_sim):
+    def likelihood(self, y_obs, y_sim):
         """To be overwritten by any sub-class: should compute the approximate likelihood 
         value given the observed data set y_obs and the data set y_sim simulated from
         model set at the parameter value.
@@ -79,7 +79,7 @@ class SynLikelihood(Approx_likelihood):
         # Extract summary statistics from the observed data
         if(self.stat_obs is None or y_obs!=self.data_set):
             self.stat_obs = self.statistics_calc.statistics(y_obs)
-            self.data_set=y_obs
+            self.data_set = y_obs
 
         # Extract summary statistics from the simulated data
         stat_sim = self.statistics_calc.statistics(y_sim)
@@ -115,7 +115,7 @@ class PenLogReg(Approx_likelihood, GraphTools):
 
     Parameters
     ----------
-    statistics_calc : abcpy.stasistics.Statistics
+    statistics_calc : abcpy.statistics.Statistics
         Statistics extractor object that conforms to the Statistics class.
     model : abcpy.models.Model
         Model object that conforms to the Model class.
@@ -137,9 +137,10 @@ class PenLogReg(Approx_likelihood, GraphTools):
         self.n_folds = n_folds
         self.n_simulate = n_simulate
         self.seed = seed
+        self.rng = np.random.RandomState(seed)
         self.max_iter = max_iter
         # Simulate reference data and extract summary statistics from the reference data
-        self.ref_data_stat = self._simulate_ref_data()[0]
+        self.ref_data_stat = self._simulate_ref_data(rng=self.rng)[0]
 
         self.stat_obs = None
         self.data_set = None
@@ -164,8 +165,12 @@ class PenLogReg(Approx_likelihood, GraphTools):
         # Compute the approximate likelihood for the y_obs given theta
         y = np.append(np.zeros(self.n_simulate),np.ones(self.n_simulate))
         X = np.array(np.concatenate((stat_sim,self.ref_data_stat),axis=0))
-        m = LogitNet(alpha = 1, n_splits = self.n_folds, max_iter = self.max_iter, random_state= self.seed)
-        m = m.fit(X, y)
+        # define here groups for cross-validation:
+        groups = np.repeat(np.arange(self.n_folds), np.int(np.ceil(self.n_simulate / self.n_folds)))
+        groups = groups[:self.n_simulate].tolist()
+        groups += groups  # duplicate it as groups need to be defined for both datasets
+        m = LogitNet(alpha=1, n_splits=self.n_folds, max_iter=self.max_iter, random_state=self.seed, scoring="log_loss")
+        m = m.fit(X, y, groups=groups)
         result = np.exp(-np.sum((m.intercept_+np.sum(np.multiply(m.coef_,self.stat_obs),axis=1)),axis=0))
         
         return result
@@ -183,7 +188,13 @@ class PenLogReg(Approx_likelihood, GraphTools):
             ind=0
             while(ref_data_stat[model_index][-1] is None):
                 data = model.forward_simulate(model.get_input_values(), 1, rng=rng)
-                data_stat = self.statistics_calc.statistics(data[0].tolist())
+                # this is wrong, it applies the computation of the statistic independently to the element of data[0]:
+                # print("data[0]", data[0].tolist())
+                # data_stat = self.statistics_calc.statistics(data[0].tolist())
+                # print("stat of data[0]", data_stat)
+                # print("data", data)
+                data_stat = self.statistics_calc.statistics(data)
+                # print("stat of data", data_stat)
                 ref_data_stat[model_index][ind]= data_stat
                 ind+=1
             ref_data_stat[model_index] = np.squeeze(np.asarray(ref_data_stat[model_index]))

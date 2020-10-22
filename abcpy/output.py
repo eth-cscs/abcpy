@@ -345,7 +345,7 @@ class Journal:
     # TODO this does not work for multidimensional parameters
     def plot_posterior_distr(self, parameters_to_show=None, ranges_parameters=None, iteration=None, show_samples=None,
                              single_marginals_only=False, double_marginals_only=False, write_posterior_mean=True,
-                             show_posterior_mean=True, true_parameter_values=None, contour_levels=14,
+                             show_posterior_mean=True, true_parameter_values=None, contour_levels=14, figsize=None,
                              show_density_values=True, bw_method=None, path_to_save=None):
         """
         Produces a visualization of the posterior distribution of the parameters of the model.
@@ -401,6 +401,9 @@ class Journal:
             the same order the model `forward_simulate` step takes.
         contour_levels: integer, optional
             The number of levels to be used in the contour plots. Default to 14.
+        figsize: float, optional
+            Denotes the size (in inches) of the smaller dimension of the plot; the other dimension is automatically
+            determined. If None, then figsize is chosen automatically. Default to `None`.
         show_density_values: boolean, optional
             If `True`, the method displays the value of the density at each contour level in the contour plot. Default
             to `True`.
@@ -494,8 +497,8 @@ class Journal:
                 ranges_parameters[name] = [np.min(post_samples_dict[name]) - 0.05 * difference,
                                            np.max(post_samples_dict[name]) + 0.05 * difference]
 
-        def write_post_mean_function(ax, post_mean):
-            ax.text(0.15, 0.06, r"Post. mean = {:.2f}".format(post_mean), size=16,
+        def write_post_mean_function(ax, post_mean, size):
+            ax.text(0.15, 0.06, r"Post. mean = {:.2f}".format(post_mean), size=size,
                     transform=ax.transAxes)
 
         def scatterplot_matrix(data, meanpost, names, single_marginals_only=False, **kwargs):
@@ -506,11 +509,15 @@ class Journal:
             passed on to matplotlib's "plot" command. Returns the matplotlib figure
             object containg the subplot grid.
             """
+            if figsize is None:
+                figsize_actual = 4 * len(names)
+            else:
+                figsize_actual = figsize
             numvars, numdata = data.shape
             if single_marginals_only:
-                fig, axes = plt.subplots(nrows=1, ncols=numvars, figsize=(4 * len(names), 4))
+                fig, axes = plt.subplots(nrows=1, ncols=numvars, figsize=(figsize_actual, figsize_actual / len(names)))
             else:
-                fig, axes = plt.subplots(nrows=numvars, ncols=numvars, figsize=(8, 8))
+                fig, axes = plt.subplots(nrows=numvars, ncols=numvars, figsize=(figsize_actual, figsize_actual))
                 fig.subplots_adjust(hspace=0.08, wspace=0.08)
 
             # if we have to plot 1 single parameter value, envelop the ax in an array, so that it gives no troubles:
@@ -570,7 +577,7 @@ class Journal:
 
                             CS = axes[x, y].contour(X, Y, Z, contour_levels, linestyles='solid')
                             if show_density_values:
-                                axes[x, y].clabel(CS, fontsize=9, inline=1)
+                                axes[x, y].clabel(CS, fontsize=figsize_actual / len(names) * 2.25, inline=1)
                             axes[x, y].set_xlim([xmin, xmax])
                             axes[x, y].set_ylim([ymin, ymax])
 
@@ -580,6 +587,10 @@ class Journal:
                 diagonal_axes = np.array([axes[i, i] for i in range(len(axes))])
             else:
                 diagonal_axes = axes
+            label_size = figsize_actual / len(names) * 4
+            title_size = figsize_actual / len(names) * 4.25
+            post_mean_size = figsize_actual / len(names) * 4
+            ticks_size = figsize_actual / len(names) * 3
 
             for i, label in enumerate(names):
                 xmin, xmax = ranges_parameters[names[i]]
@@ -597,32 +608,38 @@ class Journal:
                                           [0, 1.1 * np.max(values)], "green",
                                           alpha=1, label="True value")
                 if write_posterior_mean:
-                    write_post_mean_function(diagonal_axes[i], meanpost[i])
+                    write_post_mean_function(diagonal_axes[i], meanpost[i], size=post_mean_size)
                 diagonal_axes[i].set_xlim([xmin, xmax])
                 diagonal_axes[i].set_ylim([0, 1.1 * np.max(values)])
 
             # labels and ticks:
             if not single_marginals_only:
                 for j, label in enumerate(names):
-                    axes[0, j].set_title(label, size=17)
+                    axes[0, j].set_title(label, size=title_size)
 
                     if len(names) > 1:
-                        axes[j, 0].set_ylabel(label)
-                        axes[-1, j].set_xlabel(label)
+                        axes[j, 0].set_ylabel(label, size=label_size)
+                        axes[-1, j].set_xlabel(label, size=label_size)
                     else:
-                        axes[j, 0].set_ylabel("Density")
+                        axes[j, 0].set_ylabel("Density", size=label_size)
 
+                    axes[j, 0].tick_params(axis='both', which='major', labelsize=ticks_size)
                     axes[j, 0].ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+                    axes[j, 0].yaxis.offsetText.set_fontsize(ticks_size)
                     axes[j, 0].yaxis.set_visible(True)
 
+                    axes[-1, j].tick_params(axis='both', which='major', labelsize=ticks_size)
                     axes[-1, j].ticklabel_format(style='sci', axis='x')  # , scilimits=(0, 0))
+                    axes[-1, j].xaxis.offsetText.set_fontsize(ticks_size)
                     axes[-1, j].xaxis.set_visible(True)
+                    axes[j, -1].tick_params(axis='both', which='major', labelsize=ticks_size)
+                    axes[j, -1].yaxis.offsetText.set_fontsize(ticks_size)
                     axes[j, -1].ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
                     axes[j, -1].yaxis.set_visible(True)
 
             else:
                 for j, label in enumerate(names):
-                    axes[j].set_title(label, size=17)
+                    axes[j].set_title(label, size=figsize_actual / len(names) * 4.25)
                 axes[0].set_ylabel("Density")
 
             return fig, axes
@@ -635,7 +652,12 @@ class Journal:
             """
             numvars, numdata = data.shape
             numplots = np.int(numvars * (numvars - 1) / 2)
-            fig, axes = plt.subplots(nrows=1, ncols=numplots, figsize=(4 * numplots, 4))
+            if figsize is None:
+                figsize_actual = 4 * numplots
+            else:
+                figsize_actual = figsize
+
+            fig, axes = plt.subplots(nrows=1, ncols=numplots, figsize=(figsize_actual, figsize_actual / numplots))
 
             if numplots == 1:  # in this case you will only have one plot. Envelop it to avoid problems.
                 axes = [axes]
@@ -675,16 +697,21 @@ class Journal:
 
                     CS = axes[ax_counter].contour(X, Y, Z, contour_levels, linestyles='solid')
                     if show_density_values:
-                        axes[ax_counter].clabel(CS, fontsize=9, inline=1)
+                        axes[ax_counter].clabel(CS, fontsize=figsize_actual / numplots * 2.25, inline=1)
                     axes[ax_counter].set_xlim([xmin, xmax])
                     axes[ax_counter].set_ylim([ymin, ymax])
 
-                    axes[ax_counter].set_ylabel(names[x])
-                    axes[ax_counter].set_xlabel(names[y])
+                    label_size = figsize_actual / numplots * 4
+                    ticks_size = figsize_actual / numplots * 3
+                    axes[ax_counter].set_ylabel(names[x], size=label_size)
+                    axes[ax_counter].set_xlabel(names[y], size=label_size)
 
+                    axes[ax_counter].tick_params(axis='both', which='major', labelsize=ticks_size)
                     axes[ax_counter].ticklabel_format(style='sci', axis='y', scilimits=(0, 0))
+                    axes[ax_counter].yaxis.offsetText.set_fontsize(ticks_size)
                     axes[ax_counter].yaxis.set_visible(True)
                     axes[ax_counter].ticklabel_format(style='sci', axis='x', scilimits=(0, 0))
+                    axes[ax_counter].yaxis.offsetText.set_fontsize(ticks_size)
                     axes[ax_counter].xaxis.set_visible(True)
 
                     ax_counter += 1

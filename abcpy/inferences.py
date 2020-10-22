@@ -432,7 +432,8 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 self.logger.info("Calculateing covariance matrix")
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
                 # Since each entry of new_cov_mats is a numpy array, we can multiply like this
-                accepted_cov_mats = [covFactor * new_cov_mat for new_cov_mat in new_cov_mats]
+                # accepted_cov_mats = [covFactor * new_cov_mat for new_cov_mat in new_cov_mats]
+                accepted_cov_mats = self._compute_accepted_cov_mats(covFactor, accepted_cov_mats)
 
             
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
@@ -611,6 +612,16 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 denominator += self.accepted_parameters_manager.accepted_weights_bds.value()[i, 0] * pdf_value
             return 1.0 * prior_prob / denominator
 
+    def _compute_accepted_cov_mats(self, covFactor, new_cov_mats):
+        # accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
+        accepted_cov_mats = []
+        for new_cov_mat in new_cov_mats:
+            if not (new_cov_mat.size == 1):
+                accepted_cov_mats.append(
+                    covFactor * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+            else:
+                accepted_cov_mats.append((covFactor * new_cov_mat + 0.0001 * new_cov_mat).reshape(1, 1))
+        return accepted_cov_mats
 
 class PMC(BaseLikelihood, InferenceMethod):
     """
@@ -768,8 +779,8 @@ class PMC(BaseLikelihood, InferenceMethod):
 
         new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
         # Since each entry of new_cov_mats is a numpy array, we can multiply like this
-
-        accepted_cov_mats = [covFactor * new_cov_mat for covFactor, new_cov_mat in zip(covFactors,new_cov_mats)]
+        accepted_cov_mats = self._compute_accepted_cov_mats(covFactors, new_cov_mats)
+        # accepted_cov_mats = [covFactor * new_cov_mat for covFactor, new_cov_mat in zip(covFactors,new_cov_mats)]
 
         self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
 
@@ -796,7 +807,8 @@ class PMC(BaseLikelihood, InferenceMethod):
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
                 # Since each entry of new_cov_mats is a numpy array, we can multiply like this
 
-                accepted_cov_mats = [covFactor * new_cov_mat for covFactor, new_cov_mat in zip(covFactors, new_cov_mats)]
+                accepted_cov_mats = self._compute_accepted_cov_mats(covFactors, new_cov_mats)
+                # accepted_cov_mats = [covFactor * new_cov_mat for covFactor, new_cov_mat in zip(covFactors, new_cov_mats)]
 
             self.logger.info("Iteration {} of PMC algorithm".format(aStep))
 
@@ -818,7 +830,7 @@ class PMC(BaseLikelihood, InferenceMethod):
                         new_parameters.append(perturbation_output[1])
                         break
 
-            # 2: calculate approximate lieklihood for new parameters
+            # 2: calculate approximate likelihood for new parameters
             self.logger.info("Calculate approximate likelihood")
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=self.n_samples, dtype=np.uint32)
             rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
@@ -844,13 +856,13 @@ class PMC(BaseLikelihood, InferenceMethod):
             new_weights_pds = self.backend.map(self._calculate_weight, new_parameters_pds)
             new_weights = np.array(self.backend.collect(new_weights_pds)).reshape(-1, 1)
 
-            sum_of_weights = 0.0
-            for i in range(0, self.n_samples):
-                new_weights[i] = new_weights[i] * approx_likelihood_new_parameters[i]
-                sum_of_weights += new_weights[i]
+            new_weights = new_weights * approx_likelihood_new_parameters
+            sum_of_weights = np.sum(new_weights)
+
             new_weights = new_weights / sum_of_weights
 
-            self.logger.info("new_weights : ", new_weights, ", sum_of_weights : ", sum_of_weights)
+            # self.logger.info("new_weights : ", new_weights, ", sum_of_weights : ", sum_of_weights)
+            self.logger.info("sum_of_weights : {}".format(sum_of_weights))
             accepted_parameters = new_parameters
 
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=new_weights)
@@ -869,14 +881,13 @@ class PMC(BaseLikelihood, InferenceMethod):
 
             new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
             # Since each entry of new_cov_mats is a numpy array, we can multiply like this
-
-            new_cov_mats = [covFactor * new_cov_mat for covFactor, new_cov_mat in zip(covFactors, new_cov_mats)]
-
+            accepted_cov_mats = self._compute_accepted_cov_mats(covFactors, new_cov_mats)
+            # new_cov_mats = [covFactor * new_cov_mat for covFactor, new_cov_mat in zip(covFactors, new_cov_mats)]
 
             # 5: Update the newly computed values
             accepted_parameters = new_parameters
             accepted_weights = new_weights
-            accepted_cov_mat = new_cov_mats
+            # accepted_cov_mats = new_cov_mats
 
             self.logger.info("Saving configuration to output journal")
 
@@ -965,6 +976,15 @@ class PMC(BaseLikelihood, InferenceMethod):
 
             return 1.0 * prior_prob / denominator
 
+    def _compute_accepted_cov_mats(self, covFactors, new_cov_mats):
+        accepted_cov_mats = []
+        for covFactor, new_cov_mat in zip(covFactors, new_cov_mats):
+            if not (new_cov_mat.size == 1):
+                accepted_cov_mats.append(
+                    covFactor * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+            else:
+                accepted_cov_mats.append((covFactor * new_cov_mat + 0.0001 * new_cov_mat).reshape(1, 1))
+        return accepted_cov_mats
 
 class SABC(BaseDiscrepancy, InferenceMethod):
     """
@@ -1133,12 +1153,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
-                accepted_cov_mats = []
-                for new_cov_mat in new_cov_mats:
-                    if not(new_cov_mat.size == 1):
-                        accepted_cov_mats.append(beta * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
-                    else:
-                        accepted_cov_mats.append((beta * new_cov_mat + 0.0001 * new_cov_mat).reshape(1,1))
+                accepted_cov_mats = self._compute_accepted_cov_mats(beta, new_cov_mats)
 
                 # Broadcast Accepted Covariance Matrix
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
@@ -1231,7 +1246,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 self.logger.info("Weighted resampling")
                 weight = np.exp(-smooth_distances * delta / U)
                 weight = weight / sum(weight)
-                index_resampled = self.rng.choice(np.arange(n_samples, dtype=int), n_samples, replace=1, p=weight)
+                index_resampled = self.rng.choice(n_samples, n_samples, replace=True, p=weight)
                 accepted_parameters = [accepted_parameters[i] for i in index_resampled]
                 smooth_distances = smooth_distances[index_resampled]
                 distances = distances[index_resampled]
@@ -1260,12 +1275,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 # Compute Kernel Covariance Matrix and broadcast it
                 self.logger.debug("Compute Kernel Covariance Matrix and broadcast it")
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
-                accepted_cov_mats = []
-                for new_cov_mat in new_cov_mats:
-                    if not(new_cov_mat.size == 1):
-                        accepted_cov_mats.append(beta * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
-                    else:
-                        accepted_cov_mats.append((beta * new_cov_mat + 0.0001 * new_cov_mat).reshape(1,1))
+                accepted_cov_mats = self._compute_accepted_cov_mats(beta, new_cov_mats)
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
 
@@ -1290,12 +1300,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
                 # Compute Kernel Covariance Matrix and broadcast it
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
-                accepted_cov_mats = []
-                for new_cov_mat in new_cov_mats:
-                    if not(new_cov_mat.size == 1):
-                        accepted_cov_mats.append(beta * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
-                    else:
-                        accepted_cov_mats.append((beta * new_cov_mat + 0.0001 * new_cov_mat).reshape(1,1))
+                accepted_cov_mats = self._compute_accepted_cov_mats(beta, new_cov_mats)
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
 
@@ -1469,6 +1474,18 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 distance = np.inf
 
         return (new_theta, distance, all_parameters, all_distances, index, acceptance, counter)
+
+    def _compute_accepted_cov_mats(self, beta, new_cov_mats):
+        accepted_cov_mats = []
+        for new_cov_mat in new_cov_mats:
+            if not (new_cov_mat.size == 1):
+                accepted_cov_mats.append(
+                    beta * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+            else:
+                accepted_cov_mats.append((beta * new_cov_mat + 0.0001 * new_cov_mat).reshape(1, 1))
+        return accepted_cov_mats
+
+
 
 
 class ABCsubsim(BaseDiscrepancy, InferenceMethod):
@@ -2006,8 +2023,8 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
                 self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
                 accepted_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
-
-                accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
+                accepted_cov_mats = self._compute_accepted_cov_mats(covFactor, accepted_cov_mats)
+                # accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
 
@@ -2035,8 +2052,8 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
                 self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
                 accepted_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
-
-                accepted_cov_mats = [covFactor*cov_mat for cov_mat in accepted_cov_mats]
+                accepted_cov_mats = self._compute_accepted_cov_mats(covFactor, accepted_cov_mats)
+                # accepted_cov_mats = [covFactor*cov_mat for cov_mat in accepted_cov_mats]
 
             if epsilon[-1] < epsilon_final:
                 self.logger("accepted epsilon {:e} < {:e}"
@@ -2190,6 +2207,16 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
 
         return (self.get_parameters(self.model), distance, index_accept, counter)
 
+    def _compute_accepted_cov_mats(self, covFactor, new_cov_mats):
+        # accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
+        accepted_cov_mats = []
+        for new_cov_mat in new_cov_mats:
+            if not (new_cov_mat.size == 1):
+                accepted_cov_mats.append(
+                    covFactor * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+            else:
+                accepted_cov_mats.append((covFactor * new_cov_mat + 0.0001 * new_cov_mat).reshape(1, 1))
+        return accepted_cov_mats
 
 class APMCABC(BaseDiscrepancy, InferenceMethod):
     """This base class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
@@ -2331,7 +2358,8 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
 
                 accepted_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
 
-                accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
+                accepted_cov_mats = self._compute_accepted_cov_mats(covFactor, accepted_cov_mats)
+                # accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights)
 
@@ -2401,8 +2429,8 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
             self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
             accepted_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
-
-            accepted_cov_mats = [covFactor*cov_mat for cov_mat in accepted_cov_mats]
+            accepted_cov_mats = self._compute_accepted_cov_mats(covFactor, accepted_cov_mats)
+            # accepted_cov_mats = [covFactor*cov_mat for cov_mat in accepted_cov_mats]
 
             # print("INFO: Saving configuration to output journal.")
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
@@ -2488,6 +2516,16 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
 
         return (self.get_parameters(self.model), distance, weight, counter)
 
+    def _compute_accepted_cov_mats(self, covFactor, new_cov_mats):
+        # accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
+        accepted_cov_mats = []
+        for new_cov_mat in new_cov_mats:
+            if not (new_cov_mat.size == 1):
+                accepted_cov_mats.append(
+                    covFactor * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+            else:
+                accepted_cov_mats.append((covFactor * new_cov_mat + 0.0001 * new_cov_mat).reshape(1, 1))
+        return accepted_cov_mats
 
 class SMCABC(BaseDiscrepancy, InferenceMethod):
     """This base class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
@@ -2637,8 +2675,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
                 accepted_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
-
-                accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
+                accepted_cov_mats = self._compute_accepted_cov_mats(covFactor, accepted_cov_mats)
+                # accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
 
@@ -2682,8 +2720,11 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             if accepted_y_sim != None and pow(sum(pow(new_weights, 2)), -1) < resample:
                 self.logger.info("Resampling")
                 # Weighted resampling:
-                index_resampled = self.rng.choice(np.arange(n_samples), n_samples, replace=1, p=new_weights)
-                accepted_parameters = accepted_parameters[index_resampled]
+                index_resampled = self.rng.choice(n_samples, n_samples, replace=True, p=new_weights)
+                # accepted_parameters is a list. Then the indexing here does not work:
+                # accepted_parameters = accepted_parameters[index_resampled]
+                # do instead:
+                accepted_parameters = [accepted_parameters[i] for i in index_resampled]  # why don't we use arrays however?
                 new_weights = np.ones(shape=(n_samples), ) * (1.0 / n_samples)
 
             # Update the weights
@@ -2700,8 +2741,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
                 accepted_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
-
-                accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
+                accepted_cov_mats = self._compute_accepted_cov_mats(covFactor, accepted_cov_mats)
+                # accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
 
             # 3: Drawing new perturbed samples using MCMC Kernel
             self.logger.debug("drawing new pertubated samples using mcmc kernel")
@@ -2985,3 +3026,14 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 y_sim = self.accepted_y_sim_bds.value()[index]
         distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
         return (self.get_parameters(), y_sim, distance, counter)
+
+    def _compute_accepted_cov_mats(self, covFactor, new_cov_mats):
+        # accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
+        accepted_cov_mats = []
+        for new_cov_mat in new_cov_mats:
+            if not (new_cov_mat.size == 1):
+                accepted_cov_mats.append(
+                    covFactor * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+            else:
+                accepted_cov_mats.append((covFactor * new_cov_mat + 0.0001 * new_cov_mat).reshape(1, 1))
+        return accepted_cov_mats

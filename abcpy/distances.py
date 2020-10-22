@@ -188,7 +188,8 @@ class PenLogReg(Distance):
         self.s1 = None
         self.data_set = None
         self.dataSame = False
-        
+        self.n_folds = 10  # for cross validation in PenLogReg
+
     def distance(self, d1, d2):
         """Calculates the distance between two datasets.
 
@@ -221,8 +222,12 @@ class PenLogReg(Distance):
         label_s2 = np.ones(shape=(len(s2), 1))
         training_set_labels = np.concatenate((label_s1, label_s2), axis=0).ravel()
 
-        m = LogitNet(alpha = 1, n_splits = 10)
-        m = m.fit(training_set_features, training_set_labels)
+        n_simulate = self.s1.shape[0]
+        groups = np.repeat(np.arange(self.n_folds), np.int(np.ceil(n_simulate / self.n_folds)))
+        groups = groups[:n_simulate].tolist()
+        groups += groups  # duplicate it as groups need to be defined for both datasets
+        m = LogitNet(alpha=1, n_splits=self.n_folds)  # note we are not using random seed here!
+        m = m.fit(training_set_features, training_set_labels, groups=groups)
         distance = 2.0 * (m.cv_mean_score_[np.where(m.lambda_path_== m.lambda_max_)[0][0]] - 0.5)
     
         return distance

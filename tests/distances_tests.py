@@ -38,9 +38,11 @@ class PenLogRegTests(unittest.TestCase):
     def test_distance(self):
         d1 = 0.5 * np.random.randn(100,2) - 10
         d2 = 0.5 * np.random.randn(100,2) + 10
+        d3 = 0.5 * np.random.randn(95,2) + 10
 
         d1=d1.tolist()
         d2=d2.tolist()
+        d3=d3.tolist()
         #Checks whether wrong input type produces error message
         self.assertRaises(TypeError, self.distancefunc.distance, 3.4, d2)
         self.assertRaises(TypeError, self.distancefunc.distance, d1, 3.4)
@@ -51,6 +53,10 @@ class PenLogRegTests(unittest.TestCase):
         # equal data sets should have a distance of 0.0
         self.assertEqual(self.distancefunc.distance(d1,d1), 0.0)
         
+        # equal data sets should have a distance of 0.0; check that in case where n_samples is not a multiple of n_folds
+        # in cross validation (10)
+        self.assertEqual(self.distancefunc.distance(d3,d3), 0.0)
+
     def test_dist_max(self):
         self.assertTrue(self.distancefunc.dist_max() == 1.0)
 
