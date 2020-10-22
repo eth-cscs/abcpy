@@ -962,15 +962,13 @@ class PMC(BaseLikelihood, InferenceMethod):
         else:
             prior_prob = self.pdf_of_prior(self.model, theta)
 
-            denominator = 0.0
-
             mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(
                 self.accepted_parameters_manager.model)
 
-            for i in range(0, self.n_samples):
-                pdf_value = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
-                                            self.accepted_parameters_manager.accepted_parameters_bds.value()[i], theta)
-                denominator+=self.accepted_parameters_manager.accepted_weights_bds.value()[i,0]*pdf_value
+            pdf_values = np.array([self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
+                                                   self.accepted_parameters_manager.accepted_parameters_bds.value()[i],
+                                                   theta) for i in range(self.n_samples)])
+            denominator = np.sum(self.accepted_parameters_manager.accepted_weights_bds.value().reshape(-1) * pdf_values)
 
             return 1.0 * prior_prob / denominator
 
