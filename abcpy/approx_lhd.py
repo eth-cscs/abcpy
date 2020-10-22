@@ -13,7 +13,7 @@ class Approx_likelihood(metaclass = ABCMeta):
     """
 
     @abstractmethod
-    def __init__(self, statistics_calc):       
+    def __init__(self, statistics_calc):
         """
         The constructor of a sub-class must accept a non-optional statistics
         calculator, which is stored to self.statistics_calc.
@@ -23,7 +23,7 @@ class Approx_likelihood(metaclass = ABCMeta):
         statistics_calc : abcpy.stasistics.Statistics
             Statistics extractor object that conforms to the Statistics class.
         """
-        
+
         raise NotImplemented
 
     @abstractmethod
@@ -44,7 +44,7 @@ class Approx_likelihood(metaclass = ABCMeta):
         float
             Computed approximate likelihood.
         """
-        
+
         raise NotImplemented
 
 
@@ -65,7 +65,6 @@ class SynLikelihood(Approx_likelihood):
         self.data_set=None
         self.statistics_calc = statistics_calc
 
-
     def likelihood(self, y_obs, y_sim):
         # print("DEBUG: SynLikelihood.likelihood().")
         if not isinstance(y_obs, list):
@@ -76,8 +75,14 @@ class SynLikelihood(Approx_likelihood):
         if not isinstance(y_sim, list):
             raise TypeError('simulated data is not of allowed types')
 
-        # Extract summary statistics from the observed data
-        if(self.stat_obs is None or y_obs!=self.data_set):
+        # Check whether y_obs is same as the stored dataset.
+        if self.data_set is not None:
+            if len(np.array(y_obs[0]).reshape(-1,)) == 1:
+                self.dataSame = self.data_set == y_obs
+            else:  # otherwise it fails when y_obs[0] is array
+                self.dataSame = all([(np.array(self.data_set[i]) == np.array(y_obs[i])).all() for i in range(len(y_obs))])
+
+        if(self.stat_obs is None or self.dataSame is False):
             self.stat_obs = self.statistics_calc.statistics(y_obs)
             self.data_set = y_obs
 
@@ -152,10 +157,16 @@ class PenLogReg(Approx_likelihood, GraphTools):
             raise TypeError('Observed data is not of allowed types')
         
         if not isinstance(y_sim, list):
-            raise TypeError('simulated data is not of allowed types')            
-        
-        # Extract summary statistics from the observed data
-        if(self.stat_obs is None or self.data_set!=y_obs):
+            raise TypeError('simulated data is not of allowed types')
+
+        # Check whether y_obs is same as the stored dataset.
+        if self.data_set is not None:
+            if len(np.array(y_obs[0]).reshape(-1,)) == 1:
+                self.dataSame = self.data_set == y_obs
+            else:  # otherwise it fails when y_obs[0] is array
+                self.dataSame = all([(np.array(self.data_set[i]) == np.array(y_obs[i])).all() for i in range(len(y_obs))])
+
+        if(self.stat_obs is None or self.dataSame is False):
             self.stat_obs = self.statistics_calc.statistics(y_obs)
             self.data_set=y_obs
                 
