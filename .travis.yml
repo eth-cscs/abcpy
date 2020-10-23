@@ -19,8 +19,12 @@ install:
 - pip install -r requirements/backend-mpi.txt
 - pip install -r requirements/backend-spark.txt
 - pip install -r requirements/optional-requirements.txt
+- pip install -r requirements/coverage.txt
 script:
-- make test
+# - make test
+- make coveragetest
+after_success:
+- bash <(curl -s https://codecov.io/bash)
 before_deploy:
 - make clean
 - mkdir dist
