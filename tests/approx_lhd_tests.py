@@ -52,7 +52,7 @@ class SynLikelihoodTests(unittest.TestCase):
         self.mu = Uniform([[-5.0], [5.0]], name='mu')
         self.sigma = Uniform([[5.0], [10.0]], name='sigma')
         self.model = Normal([self.mu, self.sigma])
-        self.stat_calc = Identity(degree=2, cross=0)
+        self.stat_calc = Identity(degree=2, cross=False)
         self.likfun = SynLikelihood(self.stat_calc)
 
     def test_likelihood(self):
@@ -61,16 +61,17 @@ class SynLikelihoodTests(unittest.TestCase):
         self.assertRaises(TypeError, self.likfun.likelihood, [2, 4], 3.4)
 
         # create observed data
-        y_obs = [9.8]
+        y_obs = [1.8]
         # create fake simulated data
         self.mu._fixed_values = [1.1]
         self.sigma._fixed_values = [1.0]
         y_sim = self.model.forward_simulate(self.model.get_input_values(), 100, rng=np.random.RandomState(1))
         # calculate the statistics of the observed data
         comp_likelihood = self.likfun.likelihood(y_obs, y_sim)
-        expected_likelihood = 0.00924953470649
+        expected_likelihood = 0.20963610211945238
         # This checks whether it computes a correct value and dimension is right
-        self.assertLess(comp_likelihood - expected_likelihood, 10e-2)
+        self.assertAlmostEqual(comp_likelihood, expected_likelihood)
+
 
 if __name__ == '__main__':
     unittest.main()
