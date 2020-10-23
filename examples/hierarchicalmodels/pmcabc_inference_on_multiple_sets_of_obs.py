@@ -1,6 +1,8 @@
 import numpy as np
 
-"""An example showing how to implement a bayesian network in ABCpy"""
+"""An example showing how to implement a bayesian network in ABCpy. We consider here two hierarchical models which 
+depend on a common set of parameters (with prior distributions) and for which we get two sets of observations. Inference
+on the parameters can be performed jointly."""
 
 
 def infer_parameters():
@@ -20,7 +22,8 @@ def infer_parameters():
                   4.109184340976979, 4.132424805281853, 4.444358334346812, 4.097211737683927, 4.288553086265748,
                   3.8668863066511303, 3.8837108501541007]
 
-    # The prior information changing the class size and the teacher student ratio, depending on the yearly budget of the school 
+    # The prior information changing the class size and the teacher student ratio, depending on the yearly budget of
+    # the school
     from abcpy.continuousmodels import Uniform, Normal
     school_budget = Uniform([[1], [10]], name='school_budget')
 
@@ -74,7 +77,7 @@ def infer_parameters():
 
     # Define a perturbation kernel
     from abcpy.perturbationkernel import DefaultKernel
-    kernel = DefaultKernel([school_budget, class_size, grade_without_additional_effects, \
+    kernel = DefaultKernel([school_budget, class_size, grade_without_additional_effects,
                             no_teacher, scholarship_without_additional_effects])
 
     # Define sampling parameters
@@ -82,15 +85,16 @@ def infer_parameters():
     eps_arr = np.array([.75])
     epsilon_percentile = 10
 
-    # Define sampler
+    # Define sampler; note here how the two models are passed in a list, as well as the two corresponding distance
+    # calculators
     from abcpy.inferences import PMCABC
-    sampler = PMCABC([final_grade, final_scholarship], \
+    sampler = PMCABC([final_grade, final_scholarship],
                      [distance_calculator_final_grade, distance_calculator_final_scholarship], backend, kernel)
 
-    # Sample
-    journal = sampler.sample([grades_obs, scholarship_obs], \
+    # Sample; again, here we pass the two observations in a list
+    journal = sampler.sample([grades_obs, scholarship_obs],
                              T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
-
+    return journal
 
 def analyse_journal(journal):
     # output parameters and weights

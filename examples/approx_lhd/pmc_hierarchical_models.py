@@ -1,8 +1,9 @@
-"""An example showing how to implement a bayesian network in ABCpy"""
+"""An example showing how to implement a bayesian network in ABCpy. We consider here a model of school grades which
+depend on some variables."""
 
 
 def infer_parameters():
-    # The data corresponding to model_1 defined below
+    # Observed data corresponding to model_1 defined below
     grades_obs = [3.872486707973337, 4.6735380808674405, 3.9703538990858376, 4.11021272048805, 4.211048655421368,
                   4.154817956586653, 4.0046893064392695, 4.01891381384729, 4.123804757702919, 4.014941267301294,
                   3.888174595940634, 4.185275142948246, 4.55148774469135, 3.8954427675259016, 4.229264035335705,
@@ -31,10 +32,10 @@ def infer_parameters():
     # The grade a student would receive without any bias
     grade_without_additional_effects = Normal([[4.5], [0.25]], )
 
-    # The grade a student of a certain school receives
+    # The grade a student of a certain school receives; this defined a new random variable by subtraction
     final_grade = grade_without_additional_effects - class_size - background
 
-    # The data corresponding to model_2 defined below
+    # Observed data corresponding to model_2 defined below
     scholarship_obs = [2.7179657436207805, 2.124647285937229, 3.07193407853297, 2.335024761813643, 2.871893855192,
                        3.4332002458233837, 3.649996835818173, 3.50292335102711, 2.815638168018455, 2.3581613289315992,
                        2.2794821846395568, 2.8725835459926503, 3.5588573782815685, 2.26053126526137, 1.8998143530749971,
@@ -61,7 +62,7 @@ def infer_parameters():
     statistics_calculator_final_grade = Identity(degree=2, cross=False)
     statistics_calculator_final_scholarship = Identity(degree=3, cross=False)
 
-    # Define a distance measure for final grade and final scholarship
+    # Define an approximate likelihood for final grade and final scholarship
     from abcpy.approx_lhd import SynLikelihood
     approx_lhd_final_grade = SynLikelihood(statistics_calculator_final_grade)
     approx_lhd_final_scholarship = SynLikelihood(statistics_calculator_final_scholarship)
@@ -70,22 +71,22 @@ def infer_parameters():
     from abcpy.backends import BackendDummy as Backend
     backend = Backend()
 
-    # Define a perturbation kernel
+    # Define a perturbation kernel to explore parameter space
     from abcpy.perturbationkernel import DefaultKernel
-    kernel = DefaultKernel([school_location, class_size, grade_without_additional_effects, \
+    kernel = DefaultKernel([school_location, class_size, grade_without_additional_effects,
                             background, scholarship_without_additional_effects])
 
     # Define sampling parameters
     T, n_sample, n_samples_per_param = 3, 250, 10
 
-    # Define sampler
+    # Define sampler to use with the
     from abcpy.inferences import PMC
-    sampler = PMC([final_grade, final_scholarship], \
+    sampler = PMC([final_grade, final_scholarship],
                   [approx_lhd_final_grade, approx_lhd_final_scholarship], backend, kernel)
 
     # Sample
     journal = sampler.sample([grades_obs, scholarship_obs], T, n_sample, n_samples_per_param)
-
+    return journal
 
 def analyse_journal(journal):
     # output parameters and weights

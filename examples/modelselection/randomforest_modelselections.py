@@ -5,7 +5,7 @@ def infer_model():
     # define observation for true parameters mean=170, std=15
     y_obs = [160.82499176]
 
-    ## Create a array of models
+    # Create a array of models
     from abcpy.continuousmodels import Uniform, Normal, StudentT
     model_array = [None] * 2
 
@@ -35,3 +35,9 @@ def infer_model():
 
     # Compute the posterior probability of each of the models
     model_prob = modelselection.posterior_probability(y_obs)
+
+    return model, model_prob
+
+if __name__ == "__main__":
+    model, model_prob = infer_model()
+    print(f"The correct model is {model.name} with estimated posterior probability {model_prob[0]}.")
