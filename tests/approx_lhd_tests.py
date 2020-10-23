@@ -16,6 +16,8 @@ class PenLogRegTests(unittest.TestCase):
         self.model_bivariate = Uniform([[0, 0], [1, 1]], name="model")
         self.stat_calc = Identity(degree=2, cross=1)
         self.likfun = PenLogReg(self.stat_calc, [self.model], n_simulate=100, n_folds=10, max_iter=100000, seed=1)
+        self.likfun_wrong_n_sim = PenLogReg(self.stat_calc, [self.model], n_simulate=10, n_folds=10, max_iter=100000,
+                                            seed=1)
         self.likfun_bivariate = PenLogReg(self.stat_calc, [self.model_bivariate], n_simulate=100, n_folds=10,
                                           max_iter=100000, seed=1)
 
@@ -36,6 +38,9 @@ class PenLogRegTests(unittest.TestCase):
         # absolute value:
         # self.assertLess(comp_likelihood - expected_likelihood, 10e-2)
         self.assertAlmostEqual(comp_likelihood, expected_likelihood)
+
+        # check if it returns the correct error when n_samples does not match:
+        self.assertRaises(RuntimeError, self.likfun_wrong_n_sim.likelihood, y_obs, y_sim)
 
         # try now with the bivariate uniform model:
         y_obs_bivariate = self.model_bivariate.forward_simulate(self.model_bivariate.get_input_values(), 1,

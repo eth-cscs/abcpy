@@ -178,6 +178,10 @@ class PenLogReg(Approx_likelihood, GraphTools):
 
         # Extract summary statistics from the simulated data
         stat_sim = self.statistics_calc.statistics(y_sim)
+        if not stat_sim.shape[0] == self.n_simulate:
+            raise RuntimeError("The number of samples in the reference data set is not the same as the number of "
+                               "samples in the generated data. Please check that `n_samples` in the `sample()` method"
+                               "for the sampler is equal to `n_simulate` in PenLogReg.")
 
         # Compute the approximate likelihood for the y_obs given theta
         y = np.append(np.zeros(self.n_simulate), np.ones(self.n_simulate))
