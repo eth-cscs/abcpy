@@ -49,8 +49,8 @@ def save_net(path, net):
     torch.save(net.state_dict(), path)
 
 
-def load_net(path, network_class):
+def load_net(path, network_class, *network_args, **network_kwargs):
     """Function to load a network from a Pytorch state_dict, given the corresponding network_class."""
-    net = network_class()
+    net = network_class(*network_args, **network_kwargs)
     net.load_state_dict(torch.load(path))
     return net.eval()  # call the network to eval model. Needed with batch normalization and dropout layers.
