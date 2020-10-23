@@ -21,7 +21,7 @@ install:
 - pip install -r requirements/optional-requirements.txt
 - pip install -r requirements/coverage.txt
 script:
-- make test
+# - make test
 - make coveragetest
 after_success:
 - bash <(curl -s https://codecov.io/bash)
