@@ -1,4 +1,4 @@
-# ABCpy [![Documentation Status](https://readthedocs.org/projects/abcpy/badge/?version=latest)](http://abcpy.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.org/eth-cscs/abcpy.svg?branch=master)](https://travis-ci.org/eth-cscs/abcpy) [![codecov](https://codecov.io/gh/LoryPack/abcpy/branch/coverage/graph/badge.svg)](https://codecov.io/gh/LoryPack/abcpy)
+# ABCpy [![Documentation Status](https://readthedocs.org/projects/abcpy/badge/?version=latest)](http://abcpy.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.org/eth-cscs/abcpy.svg?branch=master)](https://travis-ci.org/eth-cscs/abcpy) [![codecov](https://codecov.io/gh/eth-cscs/abcpy/branch/master/graph/badge.svg)](https://codecov.io/gh/eth-cscs/abcpy)
 
 ABCpy is a scientific library written in Python for Bayesian uncertainty quantification in
 absence of likelihood function, which parallelizes existing approximate Bayesian computation (ABC) 
