@@ -353,6 +353,7 @@ class NeuralEmbedding(Statistics):
         """Method to save the neural network state dict to a file. If the network is of the class ScalerAndNet, ie a
         scaler is applied before the data is fed through the network, then you are required to pass the path where you
         want the scaler to be saved.
+
         Parameters
         ----------
         path_to_net_state_dict: basestring

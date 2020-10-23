@@ -12,7 +12,7 @@ weights using:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
-    :lines: 48-49
+    :lines: 60-61
     :dedent: 4
 
 The output of `get_parameters()` is a Python dictionary. The keys for this dictionary are the names you specified for the parameters. The corresponding values are the marginal posterior samples of that parameter. Here is a short example of what you would specify, and what would be the output in the end:
@@ -45,7 +45,7 @@ For the post analysis basic functions are provided:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
-    :lines: 51-54
+    :lines: 63-66
     :dedent: 4
 
 Also, to ensure reproducibility, every journal stores the parameters of the
@@ -53,14 +53,14 @@ algorithm that created it:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
-    :lines: 57
+    :lines: 69
     :dedent: 4
 
 Finally, you can plot the inferred posterior mean of the parameters in the following way:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
-    :lines: 65
+    :lines: 77
     :dedent: 4
 
 The above line plots the posterior distribution for all the parameters; if you instead want to plot it for some
@@ -77,5 +77,5 @@ And certainly, a journal can easily be saved to and loaded from disk:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
-    :lines: 60, 63
+    :lines: 72, 75
     :dedent: 4

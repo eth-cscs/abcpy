@@ -19,7 +19,7 @@ be changed to
 
 .. literalinclude:: ../../examples/backends/mpi/pmcabc_gaussian.py
     :language: python
-    :lines: 6-10
+    :lines: 7-11
     :dedent: 4
 
 In words, one only needs to initialize an instance of the MPI backend. The
@@ -60,7 +60,7 @@ can be passed at the initialization of the backend as follows:
 
 .. literalinclude:: ../../examples/backends/mpi/mpi_model_inferences.py
     :language: python
-    :lines: 10-11
+    :lines: 12-13
     :dedent: 4
 
 Here each model is assigned a MPI communicator with 2 ranks. Clearly, the MPI
@@ -78,7 +78,7 @@ The `forward_simulation` function of the above model is as follows:
 
 .. literalinclude:: ../../examples/backends/mpi/mpi_model_inferences.py
     :language: python
-    :lines: 48-77
+    :lines: 51-80
     :dedent: 4
 
 Note that in order to run jobs in parallel you need to have MPI installed on the
@@ -101,7 +101,7 @@ backend have to be changed to
 
 .. literalinclude:: ../../examples/backends/apache_spark/pmcabc_gaussian.py
     :language: python
-    :lines: 6-9
+    :lines: 7-10
     :dedent: 4
 
 In words, a Spark context has to be created and passed to the Spark

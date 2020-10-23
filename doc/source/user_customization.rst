@@ -54,7 +54,7 @@ Since a Gaussian model generates continous numbers, the newly implemented class 
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
    :language: python
-   :lines: 6, 10
+   :lines: 6, 11
 
 A good way to start implementing a new model is to define a convenient way to initialize it with its input parameters.
 In ABCpy all input parameters are either independent ProbabilisticModels or Hyperparameters. Thus, they should not be
@@ -74,7 +74,7 @@ the super class. This leads to the following implementation:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 15-24
+    :lines: 16-25
     :dedent: 4
     :linenos:
 
@@ -144,7 +144,7 @@ A proper implementation look as follows:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 53-63
+    :lines: 50-60
     :dedent: 4
     :linenos:
 
@@ -171,7 +171,7 @@ Then, this function should return :code:`False` as soon as values are out of the
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 41-46
+    :lines: 40-45
     :dedent: 4
     :linenos:
 
@@ -192,7 +192,7 @@ Since our model generates a single float number in one forward simulation, the i
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 49-50
+    :lines: 47-48
     :dedent: 4
     :linenos:
 
@@ -215,7 +215,7 @@ as follows:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 66-71
+    :lines: 62-66
     :dedent: 4
     :linenos:
 
@@ -298,7 +298,7 @@ can write a Python model which uses our C++ code:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_cpp/pmcabc-gaussian_model_simple.py
    :language: python
-   :lines: 3 - 60
+   :lines: 1,4,6,8-62
    :linenos:
 
 The important lines are where we import the wrapper code as a module (line 3) and call
@@ -328,17 +328,17 @@ within ABCpy we include the following code at the beginning of our Python file:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
     :language: python
-    :lines: 6 - 14
+    :lines: 4-5, 9-15
     :linenos:
 
 This imports the R function :code:`simple_gaussian` into the Python environment.
 We need to build our own model to incorporate this R function as in the previous
 section. The only difference is in the :code:`forward_simulate` method of the
-class :code:`Gaussian'.
+class :code:`Gaussian`.
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
     :language: python
-    :lines: 59
+    :lines: 61
     :dedent: 8
     :linenos:
 
@@ -367,7 +367,7 @@ calculator should be provided. The following header conforms to this idea:
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 113-120
+    :lines: 112-119
     :dedent: 4
 
 Then, we need to define how the distance is calculated. First we compute the summary statistics from the datasets and
@@ -379,14 +379,14 @@ to save computation time of summary statistics from observed data, we save the s
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 122-156
+    :lines: 121-155
     :dedent: 4
 
 Finally, we need to define the maximal distance that can be obtained from this distance measure. 
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 159-160
+    :lines: 158-159
     :dedent: 4
 
 The newly defined distance class can be used in the same way as the already existing once. The complete example for this
@@ -410,13 +410,13 @@ implemented:
 
 .. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 101
+    :lines: 98
 
 On the other hand, if the kernel is a discrete kernel, we would need the following method:
 
 .. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 109
+    :lines: 106
 
 As an example, we will implement a kernel which perturbs continuous parameters using a multivariate normal
 distribution (which is already implemented within ABCpy). First, we need to define a constructor.
@@ -430,7 +430,7 @@ this kernel. All these models should be saved on the kernel for future reference
 
 .. literalinclude:: ../../examples/extensions/perturbationkernels/multivariate_normal_kernel.py
     :language: python
-    :lines: 5, 7,8
+    :lines: 7,10-11
 
 Next, we need the following method:
 
@@ -457,7 +457,7 @@ Let us now look at the implementation of the method:
 
 .. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 254-286
+    :lines: 247-279
     :dedent: 4
 
 Some of the implemented inference algorithms weigh different sets of parameters differently. Therefore, if such weights
@@ -486,7 +486,7 @@ Here the implementation for our kernel:
 
 .. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 289-336
+    :lines: 281-329
     :dedent: 4
 
 The first line shows how you obtain the values of the parameters that your kernel should perturb. These values are
@@ -503,7 +503,7 @@ This method is implemented as follows for the multivariate normal:
 
 .. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 339-366
+    :lines: 331-358
     :dedent: 4
 
 We simply obtain the parameter values and covariance matrix for this kernel and calculate the probability density
