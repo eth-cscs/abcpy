@@ -143,7 +143,7 @@ class RandomForest(ModelSelections, GraphTools):
         self.observations_bds = self.backend.broadcast(observations)
 
         # Creation of reference table
-        if self.reference_table_calculated is 0:
+        if self.reference_table_calculated == 0:
             # Simulating the data, distance and statistics
             seed_arr = self.rng.randint(1, n_samples * n_samples, size=n_samples, dtype=np.int32)
             seed_pds = self.backend.parallelize(seed_arr)
@@ -188,7 +188,7 @@ class RandomForest(ModelSelections, GraphTools):
         self.n_samples_per_param = 1
         self.observations_bds = self.backend.broadcast(observations)
         # Creation of reference table
-        if self.reference_table_calculated is 0:
+        if self.reference_table_calculated == 0:
             # Simulating the data, distance and statistics
             seed_arr = self.rng.randint(1, n_samples * n_samples, size=n_samples, dtype=np.int32)
             seed_pds = self.backend.parallelize(seed_arr)
