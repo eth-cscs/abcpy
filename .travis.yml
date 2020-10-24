@@ -15,11 +15,9 @@ addons:
 matrix:
     include:
         # Unit tests on different python versions, all on Ubuntu
-        - python: "3.5"
         - python: "3.6"
         - python: "3.7"
         - python: "3.8"
-        - python: "3.9"
 
       # Test coverage and without Pytorch for a single version
         - python: "3.8"
