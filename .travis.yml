@@ -14,17 +14,27 @@ addons:
     - swig
     - libmpich-dev
     - mpich
+matrix:
+    # Always put true env variable first, for nicer overview on travis website
+    include:
+        - env:
+            - COVER=true
+            - PYTORCH=true
+        - env:
+            - COVER=false
+            - PYTORCH=false
+
 install:
 - pip install -r requirements.txt
 - pip install -r requirements/backend-mpi.txt
 - pip install -r requirements/backend-spark.txt
-- pip install -r requirements/optional-requirements.txt
+- if [[ $PYTORCH == true ]]; then pip install -r requirements/optional-requirements.txt; fi;
 - pip install -r requirements/coverage.txt
 script:
-# - make test
-- make coveragetest
+- make test
+- if [[ $COVER == true ]]; then make coveragetest; fi;
 after_success:
-- bash <(curl -s https://codecov.io/bash)
+- if [[ $COVER == true ]]; then bash <(curl -s https://codecov.io/bash); fi;
 before_deploy:
 - make clean
 - mkdir dist
