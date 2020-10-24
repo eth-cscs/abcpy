@@ -16,8 +16,14 @@ matrix:
     include:
         # Unit tests on different python versions, all on Ubuntu
         - python: "3.6"
+          env:
+            - UNIT_TEST=true
         - python: "3.7"
+          env:
+            - UNIT_TEST=true
         - python: "3.8"
+          env:
+            - UNIT_TEST=true
 
       # Test coverage and without Pytorch for a single version
         - python: "3.8"
@@ -32,11 +38,11 @@ install:
 - pip install -r requirements/backend-mpi.txt
 - pip install -r requirements/backend-spark.txt
 - if [[ ! $NO_PYTORCH == true ]]; then pip install -r requirements/optional-requirements.txt; fi;
-- if [[ ! $NO_PYTORCH == true ]]; then pip install -r requirements/coverage.txt; fi;
+- if [[ $COVERAGE == true ]]; then pip install -r requirements/coverage.txt; fi;
 before_script:
 - python --version
 script:
-- make test
+- if [[ $UNIT_TEST == true ]]; then make test; fi;
 - if [[ $COVERAGE == true ]]; then make coveragetest; fi;
 after_success:
 - if [[ $COVERAGE == true ]]; then bash <(curl -s https://codecov.io/bash); fi;
