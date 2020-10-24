@@ -35,6 +35,8 @@ install:
 - pip install -r requirements/backend-spark.txt
 - if [[ ! $NO_PYTORCH == true ]]; then pip install -r requirements/optional-requirements.txt; fi;
 - if [[ ! $NO_PYTORCH == true ]]; then pip install -r requirements/coverage.txt; fi;
+before_script:
+- python --version
 script:
 - make test
 - if [[ $COVERAGE == true ]]; then make coveragetest; fi;
