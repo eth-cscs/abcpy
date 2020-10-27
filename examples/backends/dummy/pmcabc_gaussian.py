@@ -1,4 +1,8 @@
+import logging
+
 import numpy as np
+
+logging.basicConfig(level=logging.INFO)
 
 
 def infer_parameters():
@@ -18,12 +22,12 @@ def infer_parameters():
 
     # define prior
     from abcpy.continuousmodels import Uniform
-    mu = Uniform([[150], [200]], )
-    sigma = Uniform([[5], [25]], )
+    mu = Uniform([[150], [200]], name='mu')
+    sigma = Uniform([[5], [25]], name='sigma')
 
     # define the model
     from abcpy.continuousmodels import Normal
-    height = Normal([mu, sigma], )
+    height = Normal([mu, sigma], name='height')
 
     # define statistics
     from abcpy.statistics import Identity
@@ -57,16 +61,19 @@ def infer_parameters():
 
 def analyse_journal(journal):
     # output parameters and weights
-    journal.get_parameters()
-    journal.get_weights()
+    print(journal.get_parameters())
+    print(journal.get_weights())
 
     # do post analysis
-    journal.posterior_mean()
-    journal.posterior_cov()
-    journal.posterior_histogram()
+    print(journal.posterior_mean())
+    print(journal.posterior_cov())
+    print(journal.posterior_histogram())
 
     # print configuration
     print(journal.configuration)
+
+    # plot posterior
+    journal.plot_posterior_distr(path_to_save="posterior.png")
 
     # save and load journal
     journal.save("experiments.jnl")
@@ -74,19 +81,17 @@ def analyse_journal(journal):
     from abcpy.output import Journal
     new_journal = Journal.fromFile('experiments.jnl')
 
-    journal.plot_posterior_distr()
-
 
 # this code is for testing purposes only and not relevant to run the example
-import unittest
-
-
-class ExampleGaussianDummyTest(unittest.TestCase):
-    def test_example(self):
-        journal = infer_parameters()
-        test_result = journal.posterior_mean()[0]
-        expected_result = 176
-        self.assertLess(abs(test_result - expected_result), 2.)
+# import unittest
+#
+#
+# class ExampleGaussianDummyTest(unittest.TestCase):
+#     def test_example(self):
+#         journal = infer_parameters()
+#         test_result = journal.posterior_mean()[0]
+#         expected_result = 176
+#         self.assertLess(abs(test_result - expected_result), 2.)
 
 
 if __name__ == "__main__":

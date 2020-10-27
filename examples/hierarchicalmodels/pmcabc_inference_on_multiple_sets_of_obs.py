@@ -1,4 +1,8 @@
+import logging
+
 import numpy as np
+
+logging.basicConfig(level=logging.INFO)
 
 """An example showing how to implement a bayesian network in ABCpy. We consider here two hierarchical models which 
 depend on a common set of parameters (with prior distributions) and for which we get two sets of observations. Inference
@@ -80,9 +84,12 @@ def infer_parameters():
     kernel = DefaultKernel([school_budget, class_size, grade_without_additional_effects,
                             no_teacher, scholarship_without_additional_effects])
 
-    # Define sampling parameters
-    T, n_sample, n_samples_per_param = 3, 250, 10
-    eps_arr = np.array([.75])
+    # Define sampling parameters: T is the number of iterations of PMCABC; n_sample is the number of posterior samples;
+    # n_samples_per_param is the number of simulated datasets for each posterior sample.
+    T, n_sample, n_samples_per_param = 3, 50, 10
+    eps_arr = np.array([30])  # starting value of epsilon; the smaller, the slower the algorithm.
+    # at each iteration, take as epsilon the epsilon_percentile of the distances obtained by simulations at previous
+    # iteration from the observation
     epsilon_percentile = 10
 
     # Define sampler; note here how the two models are passed in a list, as well as the two corresponding distance
@@ -91,15 +98,16 @@ def infer_parameters():
     sampler = PMCABC([final_grade, final_scholarship],
                      [distance_calculator_final_grade, distance_calculator_final_scholarship], backend, kernel)
 
-    # Sample; again, here we pass the two observations in a list
+    # Sample; again, here we pass the two sets of observations in a list
     journal = sampler.sample([grades_obs, scholarship_obs],
                              T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
     return journal
 
+
 def analyse_journal(journal):
     # output parameters and weights
-    print(journal.get_stored_output_values())
-    print(journal.weights)
+    print(journal.get_parameters())
+    print(journal.get_weights())
 
     # do post analysis
     print(journal.posterior_mean())
@@ -108,6 +116,9 @@ def analyse_journal(journal):
 
     # print configuration
     print(journal.configuration)
+
+    # plot posterior
+    journal.plot_posterior_distr(path_to_save="posterior.png")
 
     # save and load journal
     journal.save("experiments.jnl")

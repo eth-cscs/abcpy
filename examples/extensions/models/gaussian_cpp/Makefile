@@ -12,7 +12,7 @@ PYTHONLIBS=$(shell python3-config --libs)
 cpp_simple: _gaussian_model_simple.so gaussian_model_simple.py
 
 clean:
-	rm gaussian_model_simple.o gaussian_model_simple.py gaussian_model_simple_wrap.cpp
+	rm _gaussian_model_simple.so gaussian_model_simple.py
 
 %.py: %.i
 	$(SWIG) $(SWIGFLAGS) -o $@ $<
@@ -21,10 +21,10 @@ clean:
 	$(SWIG) $(SWIGFLAGS) -o $@ $<
 
 %.o: %.cpp
-	$(CC) $(CPPFLAGS) -I $(INCLUDEPATHNUMPY) $(INCLUDEPATH) -c $< -o $@
+	$(CC) $(CPPFLAGS) -I $(INCLUDEPATHNUMPY) $(INCLUDEPATH) -fno-lto -c $< -o $@
 
 _%.so: %.o %_wrap.o
-	$(CC) -shared $^ $(PYTHONLINKERSETTINGS) $(PYTHONLIBS) -o $@
+	$(CC) -shared $^ $(PYTHONLINKERSETTINGS) $(PYTHONLIBS) -fno-lto -o  $@
 
 %.i:
 	$(WGET) "https://raw.githubusercontent.com/numpy/numpy/master/tools/swig/numpy.i"

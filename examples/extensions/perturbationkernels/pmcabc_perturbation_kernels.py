@@ -1,4 +1,11 @@
+import logging
+
 import numpy as np
+
+logging.basicConfig(level=logging.INFO)
+
+
+# we show here how to choose explicitly the perturbation kernel for the PMCABC algorithm
 
 
 def infer_parameters():
@@ -70,34 +77,39 @@ def infer_parameters():
     from abcpy.backends import BackendDummy as Backend
     backend = Backend()
 
-    # Define kernels
+    # Define kernels: we use two different kernels for two sets of parameters
     from abcpy.perturbationkernel import MultivariateNormalKernel, MultivariateStudentTKernel
-    kernel_1 = MultivariateNormalKernel([school_budget, \
-                                         scholarship_without_additional_effects, grade_without_additional_effects])
+    kernel_1 = MultivariateNormalKernel(
+        [school_budget, scholarship_without_additional_effects, grade_without_additional_effects])
     kernel_2 = MultivariateStudentTKernel([class_size, no_teacher], df=3)
 
     # Join the defined kernels
     from abcpy.perturbationkernel import JointPerturbationKernel
     kernel = JointPerturbationKernel([kernel_1, kernel_2])
 
-    # Define sampling parameters
-    T, n_sample, n_samples_per_param = 3, 250, 10
-    eps_arr = np.array([.75])
+    # Define sampling parameters: T is the number of iterations of PMCABC; n_sample is the number of posterior samples;
+    # n_samples_per_param is the number of simulated datasets for each posterior sample.
+    T, n_sample, n_samples_per_param = 3, 50, 10
+    eps_arr = np.array([30])  # starting value of epsilon; the smaller, the slower the algorithm.
+    # at each iteration, take as epsilon the epsilon_percentile of the distances obtained by simulations at previous
+    # iteration from the observation
     epsilon_percentile = 10
 
     # Define sampler
     from abcpy.inferences import PMCABC
-    sampler = PMCABC([final_grade, final_scholarship], [distance_calculator, distance_calculator], backend, kernel)
+    sampler = PMCABC([final_grade, final_scholarship],
+                     [distance_calculator_final_grade, distance_calculator_final_scholarship], backend, kernel)
 
     # Sample
-    journal = sampler.sample([y_obs_grades, y_obs_scholarship], T, eps_arr, n_sample, n_samples_per_param,
+    journal = sampler.sample([grades_obs, scholarship_obs], T, eps_arr, n_sample, n_samples_per_param,
                              epsilon_percentile)
+    return journal
 
 
 def analyse_journal(journal):
     # output parameters and weights
-    print(journal.get_stored_output_values())
-    print(journal.weights)
+    print(journal.get_parameters())
+    print(journal.get_weights())
 
     # do post analysis
     print(journal.posterior_mean())
@@ -106,6 +118,9 @@ def analyse_journal(journal):
 
     # print configuration
     print(journal.configuration)
+
+    # plot posterior
+    journal.plot_posterior_distr(path_to_save="posterior.png")
 
     # save and load journal
     journal.save("experiments.jnl")

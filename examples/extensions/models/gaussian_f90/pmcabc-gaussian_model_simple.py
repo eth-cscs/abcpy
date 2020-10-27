@@ -1,35 +1,67 @@
-import numpy as np
+import logging
+from numbers import Number
 
-from abcpy.models import Model
+import numpy as np
 from gaussian_model_simple import gaussian_model
 
+from abcpy.probabilisticmodels import ProbabilisticModel, Continuous, InputConnector
 
-class Gaussian(Model):
-    def __init__(self, prior, seed=None):
-        self.prior = prior
-        self.sample_from_prior()
-        self.rng = np.random.RandomState(seed)
+logging.basicConfig(level=logging.INFO)
 
-    def set_parameters(self, theta):
-        theta = np.array(theta)
-        if theta.shape[0] > 2: return False
-        if theta[1] <= 0: return False
 
-        self.mu = theta[0]
-        self.sigma = theta[1]
+class Gaussian(ProbabilisticModel, Continuous):
+    def __init__(self, parameters, seed=None, name="gaussian"):
+        if not isinstance(parameters, list):
+            raise TypeError('Input of Normal model is of type list')
+
+        if len(parameters) != 2:
+            raise RuntimeError('Input list must be of length 2, containing [mu, sigma].')
+
+        input_connector = InputConnector.from_list(parameters)
+        super().__init__(input_connector, name)
+
+    def _check_input(self, input_values):
+        # Check whether input has correct type or format
+        if len(input_values) != 2:
+            raise ValueError('Number of parameters of Normal model must be 2.')
+
+        # Check whether input is from correct domain
+        mu = input_values[0]
+        sigma = input_values[1]
+        if sigma < 0:
+            return False
+
         return True
 
-    def get_parameters(self):
-        return np.array([self.mu, self.sigma])
+    def _check_output(self, values):
+        if not isinstance(values, Number):
+            raise ValueError('Output of the normal distribution is always a number.')
 
-    def sample_from_prior(self):
-        sample = self.prior.sample(1, ).reshape(-1)
-        self.set_parameters(sample)
+        # At this point values is a number (int, float); full domain for Normal is allowed
+        return True
 
-    def simulate(self, k):
-        seed = self.rng.randint(np.iinfo(np.int32).max)
-        result = gaussian_model(self.mu, self.sigma, k, seed)
-        return list(result)
+    def get_output_dimension(self):
+        return 1
+
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState()):
+        # Extract the input parameters
+        mu = input_values[0]
+        sigma = input_values[1]
+
+        seed = rng.randint(100000)
+
+        # Do the actual forward simulation
+        vector_of_k_samples = np.array(gaussian_model(mu, sigma, k, seed))
+
+        # Format the output to obey API
+        result = [np.array([x]) for x in vector_of_k_samples]
+        return result
+
+    def pdf(self, input_values, x):
+        mu = input_values[0]
+        sigma = input_values[1]
+        pdf = np.norm(mu, sigma).pdf(x)
+        return pdf
 
 
 def infer_parameters():
@@ -48,11 +80,12 @@ def infer_parameters():
              202.67075179617672, 211.75963110985992, 217.45423324370509]
 
     # define prior
-    from abcpy.distributions import Uniform
-    prior = Uniform([150, 5], [200, 25])
+    from abcpy.continuousmodels import Uniform
+    mu = Uniform([[150], [200]], name="mu")
+    sigma = Uniform([[5], [25]], name="sigma")
 
     # define the model
-    model = Gaussian(prior)
+    model = Gaussian([mu, sigma], name='height')
 
     # define statistics
     from abcpy.statistics import Identity
@@ -63,9 +96,8 @@ def infer_parameters():
     distance_calculator = LogReg(statistics_calculator)
 
     # define kernel
-    from abcpy.distributions import MultiStudentT
-    mean, cov, df = np.array([.0, .0]), np.eye(2), 3.
-    kernel = MultiStudentT(mean, cov, df)
+    from abcpy.perturbationkernel import DefaultKernel
+    kernel = DefaultKernel([mu, sigma])
 
     # define backend
     from abcpy.backends import BackendDummy as Backend
@@ -73,21 +105,21 @@ def infer_parameters():
 
     # define sampling scheme
     from abcpy.inferences import PMCABC
-    sampler = PMCABC(model, distance_calculator, kernel, backend)
+    sampler = PMCABC([model], [distance_calculator], backend, kernel, seed=1)
 
     # sample from scheme
     T, n_sample, n_samples_per_param = 3, 100, 10
     eps_arr = np.array([.75])
     epsilon_percentile = 10
-    journal = sampler.sample(y_obs, T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
+    journal = sampler.sample([y_obs], T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
 
     return journal
 
 
 def analyse_journal(journal):
     # output parameters and weights
-    print(journal.parameters)
-    print(journal.weights)
+    print(journal.get_parameters())
+    print(journal.get_weights())
 
     # do post analysis
     print(journal.posterior_mean())
@@ -96,6 +128,9 @@ def analyse_journal(journal):
 
     # print configuration
     print(journal.configuration)
+
+    # plot posterior
+    journal.plot_posterior_distr(path_to_save="posterior.png")
 
     # save and load journal
     journal.save("experiments.jnl")

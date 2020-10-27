@@ -1,3 +1,4 @@
+import logging
 from numbers import Number
 
 import numpy as np
@@ -5,6 +6,8 @@ import rpy2.robjects as robjects
 import rpy2.robjects.numpy2ri
 
 from abcpy.probabilisticmodels import ProbabilisticModel, Continuous, InputConnector
+
+logging.basicConfig(level=logging.INFO)
 
 rpy2.robjects.numpy2ri.activate()
 
@@ -87,11 +90,12 @@ def infer_parameters():
              202.67075179617672, 211.75963110985992, 217.45423324370509]
 
     # define prior
-    from abcpy.continousmodels import Uniform
-    prior = Uniform([[150, 5], [200, 25]])
+    from abcpy.continuousmodels import Uniform
+    mu = Uniform([[150], [200]], name="mu")
+    sigma = Uniform([[5], [25]], name="sigma")
 
     # define the model
-    model = Gaussian([prior])
+    model = Gaussian([mu, sigma], name='height')
 
     # define statistics
     from abcpy.statistics import Identity
@@ -107,7 +111,7 @@ def infer_parameters():
 
     # define sampling scheme
     from abcpy.inferences import PMCABC
-    sampler = PMCABC([model], distance_calculator, backend)
+    sampler = PMCABC([model], [distance_calculator], backend)
 
     # sample from scheme
     T, n_sample, n_samples_per_param = 3, 250, 10
@@ -120,8 +124,8 @@ def infer_parameters():
 
 def analyse_journal(journal):
     # output parameters and weights
-    print(journal.parameters)
-    print(journal.weights)
+    print(journal.get_parameters())
+    print(journal.get_weights())
 
     # do post analysis
     print(journal.posterior_mean())
@@ -130,6 +134,9 @@ def analyse_journal(journal):
 
     # print configuration
     print(journal.configuration)
+
+    # plot posterior
+    journal.plot_posterior_distr(path_to_save="posterior.png")
 
     # save and load journal
     journal.save("experiments.jnl")

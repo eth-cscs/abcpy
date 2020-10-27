@@ -1,5 +1,8 @@
 """An example showing how to implement a bayesian network in ABCpy. We consider here a model of school grades which
 depend on some variables."""
+import logging
+
+logging.basicConfig(level=logging.INFO)
 
 
 def infer_parameters():
@@ -21,16 +24,16 @@ def infer_parameters():
 
     # The prior information changing the class size and social background, depending on school location
     from abcpy.continuousmodels import Uniform, Normal
-    school_location = Uniform([[0.2], [0.3]], )
+    school_location = Uniform([[0.2], [0.3]], name="school_location")
 
     # The average class size of a certain school
-    class_size = Normal([[school_location], [0.1]], )
+    class_size = Normal([[school_location], [0.1]], name="class_size")
 
     # The social background of a student
-    background = Normal([[school_location], [0.1]], )
+    background = Normal([[school_location], [0.1]], name="background")
 
     # The grade a student would receive without any bias
-    grade_without_additional_effects = Normal([[4.5], [0.25]], )
+    grade_without_additional_effects = Normal([[4.5], [0.25]], name="grade_without_additional_effects")
 
     # The grade a student of a certain school receives; this defined a new random variable by subtraction
     final_grade = grade_without_additional_effects - class_size - background
@@ -52,7 +55,7 @@ def infer_parameters():
                        1.0893224045062178, 0.8032302688764734, 2.868438615047827]
 
     # A quantity that determines whether a student will receive a scholarship
-    scholarship_without_additional_effects = Normal([[2], [0.5]], )
+    scholarship_without_additional_effects = Normal([[2], [0.5]], name="scholarship_without_additional_effects")
 
     # A quantity determining whether a student receives a scholarship, including his social background
     final_scholarship = scholarship_without_additional_effects + 3 * background
@@ -77,7 +80,7 @@ def infer_parameters():
                             background, scholarship_without_additional_effects])
 
     # Define sampling parameters
-    T, n_sample, n_samples_per_param = 3, 250, 10
+    T, n_sample, n_samples_per_param = 3, 250, 20
 
     # Define sampler to use with the
     from abcpy.inferences import PMC
@@ -88,9 +91,10 @@ def infer_parameters():
     journal = sampler.sample([grades_obs, scholarship_obs], T, n_sample, n_samples_per_param)
     return journal
 
+
 def analyse_journal(journal):
     # output parameters and weights
-    print(journal.get_stored_output_values())
+    print(journal.get_parameters())
     print(journal.weights)
 
     # do post analysis
@@ -100,6 +104,9 @@ def analyse_journal(journal):
 
     # print configuration
     print(journal.configuration)
+
+    # plot posterior
+    journal.plot_posterior_distr(path_to_save="posterior.png")
 
     # save and load journal
     journal.save("experiments.jnl")

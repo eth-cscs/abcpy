@@ -1,9 +1,12 @@
+import logging
 from numbers import Number
 
 import numpy as np
-from gaussian_model_simple import gaussian_model
+from gaussian_model_simple import gaussian_model  # this is the file produced upon compiling
 
 from abcpy.probabilisticmodels import ProbabilisticModel, Continuous, InputConnector
+
+logging.basicConfig(level=logging.INFO)
 
 
 class Gaussian(ProbabilisticModel, Continuous):
@@ -49,7 +52,7 @@ class Gaussian(ProbabilisticModel, Continuous):
         seed = rng.randint(np.iinfo(np.int32).max)
 
         # Do the actual forward simulation
-        vector_of_k_samples = gaussian_model(k, mu, sigma, seed)
+        vector_of_k_samples = gaussian_model(k, mu, sigma, seed)  # call the C++ code
 
         # Format the output to obey API
         result = [np.array([x]) for x in vector_of_k_samples]
@@ -79,10 +82,11 @@ def infer_parameters():
 
     # define prior
     from abcpy.continuousmodels import Uniform
-    prior = Uniform([[150, 5], [200, 25]], )
+    mu = Uniform([[150], [200]], name="mu")
+    sigma = Uniform([[5], [25]], name="sigma")
 
     # define the model
-    model = Gaussian([prior], )
+    model = Gaussian([mu, sigma], name='height')
 
     # define statistics
     from abcpy.statistics import Identity
@@ -111,8 +115,8 @@ def infer_parameters():
 
 def analyse_journal(journal):
     # output parameters and weights
-    print(journal.parameters)
-    print(journal.weights)
+    print(journal.get_parameters())
+    print(journal.get_weights())
 
     # do post analysis
     print(journal.posterior_mean())
@@ -121,6 +125,9 @@ def analyse_journal(journal):
 
     # print configuration
     print(journal.configuration)
+
+    # plot posterior
+    journal.plot_posterior_distr(path_to_save="posterior.png")
 
     # save and load journal
     journal.save("experiments.jnl")

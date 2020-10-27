@@ -5,7 +5,7 @@ from abcpy.distances import Distance, Euclidean
 
 class DefaultJointDistance(Distance):
     """
-    This class shocases how to implement a distance. It is actually a wrapper of the Euclidean distance, which is
+    This class showcases how to implement a distance. It is actually a wrapper of the Euclidean distance, which is
     applied on each component of the provided datasets and summed.
 
     Parameters

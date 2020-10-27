@@ -1,4 +1,8 @@
+import logging
+
 import numpy as np
+
+logging.basicConfig(level=logging.INFO)
 
 
 def infer_parameters():
@@ -23,8 +27,8 @@ def infer_parameters():
 
     # define prior
     from abcpy.continuousmodels import Uniform
-    mu = Uniform([[150], [200]], )
-    sigma = Uniform([[5], [25]], )
+    mu = Uniform([[150], [200]], name="mu")
+    sigma = Uniform([[5], [25]], name="sigma")
 
     # define the model
     from abcpy.continuousmodels import Normal
@@ -64,9 +68,12 @@ def infer_parameters():
     from abcpy.inferences import PMCABC
     sampler = PMCABC([height], [distance_calculator], backend, kernel, seed=1)
 
-    # sample from scheme
+    # Define sampling parameters: T is the number of iterations of PMCABC; n_sample is the number of posterior samples;
+    # n_samples_per_param is the number of simulated datasets for each posterior sample.
     T, n_sample, n_samples_per_param = 3, 10, 10
-    eps_arr = np.array([500])
+    eps_arr = np.array([500])  # starting value of epsilon; the smaller, the slower the algorithm.
+    # at each iteration, take as epsilon the epsilon_percentile of the distances obtained by simulations at previous
+    # iteration from the observation
     epsilon_percentile = 10
     journal = sampler.sample([height_obs], T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
 
@@ -86,6 +93,9 @@ def analyse_journal(journal):
     # print configuration
     print(journal.configuration)
 
+    # plot posterior
+    journal.plot_posterior_distr(path_to_save="posterior.png")
+
     # save and load journal
     journal.save("experiments.jnl")
 
@@ -93,7 +103,6 @@ def analyse_journal(journal):
     new_journal = Journal.fromFile('experiments.jnl')
 
 
-# this code is for testing purposes only and not relevant to run the exampl
 if __name__ == "__main__":
     journal = infer_parameters()
     analyse_journal(journal)

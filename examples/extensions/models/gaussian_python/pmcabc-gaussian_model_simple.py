@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 
 class Gaussian(ProbabilisticModel, Continuous):
     """
-    This class is an re-implementation of the `abcpy.continousmodels.Normal` for documentation purposes.
+    This class is an re-implementation of the `abcpy.continuousmodels.Normal` for documentation purposes.
     """
 
     def __init__(self, parameters, name='Gaussian'):
@@ -82,8 +82,8 @@ def infer_parameters():
                   188.27229523693822, 202.67075179617672, 211.75963110985992, 217.45423324370509]
     # define prior
     from abcpy.continuousmodels import Uniform
-    mu = Uniform([[150], [200]], )
-    sigma = Uniform([[5], [25]], )
+    mu = Uniform([[150], [200]], name="mu")
+    sigma = Uniform([[5], [25]], name="sigma")
     # define the model
     from abcpy.continuousmodels import Normal as Gaussian
     height = Gaussian([mu, sigma], name='height')
@@ -120,8 +120,8 @@ def infer_parameters():
 
 def analyse_journal(journal):
     # output parameters and weights
-    print(journal.parameters)
-    print(journal.weights)
+    print(journal.get_parameters())
+    print(journal.get_weights())
 
     # do post analysis
     print(journal.posterior_mean())
@@ -131,6 +131,9 @@ def analyse_journal(journal):
     # print configuration
     print(journal.configuration)
 
+    # plot posterior
+    journal.plot_posterior_distr(path_to_save="posterior.png")
+
     # save and load journal
     journal.save("experiments.jnl")
 
@@ -139,15 +142,15 @@ def analyse_journal(journal):
 
 
 # this code is for testing purposes only and not relevant to run the example
-import unittest
-
-
-class ExampleExtendModelGaussianPython(unittest.TestCase):
-    def test_example(self):
-        journal = infer_parameters()
-        test_result = journal.posterior_mean()[0]
-        expected_result = 177.02
-        self.assertLess(abs(test_result - expected_result), 2.)
+# import unittest
+#
+#
+# class ExampleExtendModelGaussianPython(unittest.TestCase):
+#     def test_example(self):
+#         journal = infer_parameters()
+#         test_result = journal.posterior_mean()[0]
+#         expected_result = 177.02
+#         self.assertLess(abs(test_result - expected_result), 2.)
 
 
 if __name__ == "__main__":
