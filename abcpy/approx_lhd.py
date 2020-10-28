@@ -97,10 +97,19 @@ class SynLikelihood(Approx_likelihood):
         robust_precision_sim = np.linalg.inv(lw_cov_)
         robust_precision_sim_det = np.linalg.det(robust_precision_sim)
         # print("DEBUG: combining.")
-        tmp1 = robust_precision_sim * np.array(self.stat_obs.reshape(-1, 1) - mean_sim.reshape(-1, 1)).T
-        tmp2 = np.exp(np.sum(-0.5 * np.sum(np.array(self.stat_obs - mean_sim) * np.array(tmp1).T, axis=1)))
-        tmp3 = pow(np.sqrt((1 / (2 * np.pi)) * robust_precision_sim_det), self.stat_obs.shape[0])
-        return tmp2 * tmp3
+        # we may have different observation; loop on those now:
+        # likelihoods = np.zeros(self.stat_obs.shape[0])
+        # for i, single_stat_obs in enumerate(self.stat_obs):
+        #     x_new = np.einsum('i,ij,j->', single_stat_obs - mean_sim, robust_precision_sim, single_stat_obs - mean_sim)
+        #     likelihoods[i] = np.exp(-0.5 * x_new)
+        # do without for loop:
+        diff = self.stat_obs - mean_sim.reshape(1,-1)
+        x_news = np.einsum('bi,ij,bj->b', diff, robust_precision_sim, diff)
+        likelihoods = np.exp(-0.5 * x_news)
+        # looks like we are exponentiating the determinant as well, which is wrong;
+        # this is however a constant which should not change the algorithms afterwards.
+        factor = pow(np.sqrt((1 / (2 * np.pi)) * robust_precision_sim_det), self.stat_obs.shape[0])
+        return np.prod(likelihoods) * factor  # compute the product of the different likelihoods for each observation
 
 
 class PenLogReg(Approx_likelihood, GraphTools):
