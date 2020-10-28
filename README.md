@@ -35,6 +35,22 @@ Further, we provide a
 [collection of models](https://github.com/eth-cscs/abcpy-models) for which ABCpy
 has been applied successfully. This is a good place to look at more complicated inference setups.
 
+# Quick installation and requirements
+
+
+ABCpy can be installed from `pip`: 
+
+    pip install abcpy
+
+Check [here](https://abcpy.readthedocs.io/en/latest/installation.html) for more details.
+
+Basic requirements are listed in `requirements.txt`. Additional packages are required for additional features: 
+
+- `torch` is needed in order to use neural networks to learn summary statistics. It can be installed by running `pip install -r requirements/optional-requirements.txt`
+- In order to use MPI for parallelization, `mpi4py` and `cloudpickle` are required; install them by `pip install -r requirements/backend-mpi.txt`  
+- In order to use Apache Spark for parallelization, `findspark` and `pyspark` are required; install them by `pip install -r requirements/backend-spark.txt`  
+
+
 # Author 
 ABCpy was written by [Ritabrata Dutta, Warwick
 University](https://warwick.ac.uk/fac/sci/statistics/staff/academic-research/dutta/)
