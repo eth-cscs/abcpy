@@ -50,6 +50,22 @@ Basic requirements are listed in `requirements.txt`. Additional packages are req
 - In order to use MPI for parallelization, `mpi4py` and `cloudpickle` are required; install them by `pip install -r requirements/backend-mpi.txt`  
 - In order to use Apache Spark for parallelization, `findspark` and `pyspark` are required; install them by `pip install -r requirements/backend-spark.txt`  
 
+## Troubleshooting `mpi4py` installation
+
+`mpi4py` requires a working MPI implementation to be installed; check the [official docs]((https://mpi4py.readthedocs.io/en/stable/install.html)) for more info. On Ubuntu, that can be installed with:
+
+    sudo apt-get install libopenmpi-dev
+
+Even when that is present, running `pip install mpi4py` can sometimes lead to errors. In fact, as specified in the [official docs]((https://mpi4py.readthedocs.io/en/stable/install.html)), the `mpicc` compiler needs to be in the search path. If that is not the case, a workaround is: 
+
+    env MPICC=/path/to/mpicc pip install mpi4py
+
+In some cases, even the above may not be enough. A possibility is using `conda` (`conda install mpi4py`) which usually handles package dependencies better than `pip`. Alternatively, you can try by installing directly `mpi4py` from the package manager; in Ubuntu, you can do:
+
+    sudo apt install python3-mpi4py 
+
+which however does not work with virtual environments.
+
 
 # Author 
 ABCpy was written by [Ritabrata Dutta, Warwick
