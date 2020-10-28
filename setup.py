@@ -23,7 +23,7 @@ install_reqs_raw = parse_requirements('requirements.txt', session=PipSession())
 try:
     install_reqs = [str(ir.req) for ir in install_reqs_raw]
 except AttributeError:
-    requirements = [str(ir.requirement) for ir in install_reqs_raw]
+    install_reqs = [str(ir.requirement) for ir in install_reqs_raw]
 
 with open(path.join(here, 'VERSION')) as f:
     version = f.readline().strip()
