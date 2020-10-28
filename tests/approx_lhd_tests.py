@@ -20,6 +20,13 @@ class PenLogRegTests(unittest.TestCase):
                                             seed=1)
         self.likfun_bivariate = PenLogReg(self.stat_calc, [self.model_bivariate], n_simulate=100, n_folds=10,
                                           max_iter=100000, seed=1)
+
+        self.y_obs = self.model.forward_simulate(self.model.get_input_values(), 1, rng=np.random.RandomState(1))
+        self.y_obs_bivariate = self.model_bivariate.forward_simulate(self.model_bivariate.get_input_values(), 1,
+                                                                     rng=np.random.RandomState(1))
+        self.y_obs_double = self.model.forward_simulate(self.model.get_input_values(), 2, rng=np.random.RandomState(1))
+        self.y_obs_bivariate_double = self.model_bivariate.forward_simulate(self.model_bivariate.get_input_values(), 2,
+                                                                            rng=np.random.RandomState(1))
         # create fake simulated data
         self.mu._fixed_values = [1.1]
         self.sigma._fixed_values = [1.0]
@@ -33,8 +40,7 @@ class PenLogRegTests(unittest.TestCase):
         self.assertRaises(TypeError, self.likfun.likelihood, [2, 4], 3.4)
 
         # create observed data
-        y_obs = self.model.forward_simulate(self.model.get_input_values(), 1, rng=np.random.RandomState(1))
-        comp_likelihood = self.likfun.likelihood(y_obs, self.y_sim)
+        comp_likelihood = self.likfun.likelihood(self.y_obs, self.y_sim)
         expected_likelihood = 9.77317308598673e-08
         # This checks whether it computes a correct value and dimension is right. Not correct as it does not check the
         # absolute value:
@@ -42,25 +48,20 @@ class PenLogRegTests(unittest.TestCase):
         self.assertAlmostEqual(comp_likelihood, expected_likelihood)
 
         # check if it returns the correct error when n_samples does not match:
-        self.assertRaises(RuntimeError, self.likfun_wrong_n_sim.likelihood, y_obs, self.y_sim)
+        self.assertRaises(RuntimeError, self.likfun_wrong_n_sim.likelihood, self.y_obs, self.y_sim)
 
         # try now with the bivariate uniform model:
-        y_obs_bivariate = self.model_bivariate.forward_simulate(self.model_bivariate.get_input_values(), 1,
-                                                                rng=np.random.RandomState(1))
-        comp_likelihood_biv = self.likfun_bivariate.likelihood(y_obs_bivariate, self.y_sim_bivariate)
+        comp_likelihood_biv = self.likfun_bivariate.likelihood(self.y_obs_bivariate, self.y_sim_bivariate)
         expected_likelihood_biv = 0.999999999999999
         self.assertAlmostEqual(comp_likelihood_biv, expected_likelihood_biv)
 
     def test_likelihood_multiple_observations(self):
-        y_obs = self.model.forward_simulate(self.model.get_input_values(), 2, rng=np.random.RandomState(1))
-        comp_likelihood = self.likfun.likelihood(y_obs, self.y_sim)
-        expected_likelihood = 6.547737649959798
+        comp_likelihood = self.likfun.likelihood(self.y_obs, self.y_sim)
+        expected_likelihood = 9.77317308598673e-08
         self.assertAlmostEqual(comp_likelihood, expected_likelihood)
 
-        y_obs_bivariate = self.model_bivariate.forward_simulate(self.model_bivariate.get_input_values(), 2,
-                                                                rng=np.random.RandomState(1))
         expected_likelihood_biv = 0.9999999999999979
-        comp_likelihood_biv = self.likfun_bivariate.likelihood(y_obs_bivariate, self.y_sim_bivariate)
+        comp_likelihood_biv = self.likfun_bivariate.likelihood(self.y_obs_bivariate, self.y_sim_bivariate)
         self.assertAlmostEqual(comp_likelihood_biv, expected_likelihood_biv)
 
 
