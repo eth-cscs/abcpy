@@ -124,7 +124,6 @@ def analyse_journal(journal):
     # do post analysis
     print(journal.posterior_mean())
     print(journal.posterior_cov())
-    print(journal.posterior_histogram())
 
     # print configuration
     print(journal.configuration)

@@ -1,7 +1,9 @@
 import logging
+
 from abcpy.modelselections import RandomForest
 
 logging.basicConfig(level=logging.INFO)
+
 
 def infer_model():
     # define observation for true parameters mean=170, std=15
@@ -39,6 +41,7 @@ def infer_model():
     model_prob = modelselection.posterior_probability(y_obs)
 
     return model, model_prob
+
 
 if __name__ == "__main__":
     model, model_prob = infer_model()
