@@ -47,9 +47,10 @@ coveragetest:
 	command -v coverage >/dev/null 2>&1 || { echo >&2 "Python package 'coverage' has to been installed. Please, run 'pip3 install coverage'."; exit;}
 	@- $(foreach TEST, $(UNITTESTS), \
 		echo === Testing code coverage: $(TEST); \
-		python3 -m unittest $(TEST); \
 		coverage run -a --branch --source abcpy --omit \*__init__.py -m unittest $(TEST); \
 	)
+	mpirun -np 2 coverage run -a --branch --source abcpy --omit \*__init__.py -m unittest tests/backend_tests_mpi.py
+	mpirun -np 3 python3 -m unittest discover -s tests -v -p "backend_tests_mpi_model_mpi.py" || (echo "Error in MPI unit tests."; exit 1)
 	coverage html -d build/testcoverage
 	coverage report
 	@echo
