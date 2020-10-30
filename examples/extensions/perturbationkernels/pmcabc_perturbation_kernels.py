@@ -2,13 +2,28 @@ import logging
 
 import numpy as np
 
-logging.basicConfig(level=logging.INFO)
-
 
 # we show here how to choose explicitly the perturbation kernel for the PMCABC algorithm
 
 
-def infer_parameters():
+def infer_parameters(steps=3, n_sample=50, n_samples_per_param=10, logging_level=logging.WARN):
+    """Perform inference for this example.
+
+    Parameters
+    ----------
+    steps : integer, optional
+        Number of iterations in the sequential PMCABC algoritm ("generations"). The default value is 3
+    n_samples : integer, optional
+        Number of posterior samples to generate. The default value is 50.
+    n_samples_per_param : integer, optional
+        Number of data points in each simulated data set. The default value is 10.
+
+    Returns
+    -------
+    abcpy.output.Journal
+        A journal containing simulation results, metadata and optionally intermediate results.
+    """
+    logging.basicConfig(level=logging_level)
     # The data corresponding to model_1 defined below
     grades_obs = [3.872486707973337, 4.6735380808674405, 3.9703538990858376, 4.11021272048805, 4.211048655421368,
                   4.154817956586653, 4.0046893064392695, 4.01891381384729, 4.123804757702919, 4.014941267301294,
@@ -87,9 +102,6 @@ def infer_parameters():
     from abcpy.perturbationkernel import JointPerturbationKernel
     kernel = JointPerturbationKernel([kernel_1, kernel_2])
 
-    # Define sampling parameters: T is the number of iterations of PMCABC; n_sample is the number of posterior samples;
-    # n_samples_per_param is the number of simulated datasets for each posterior sample.
-    T, n_sample, n_samples_per_param = 3, 50, 10
     eps_arr = np.array([30])  # starting value of epsilon; the smaller, the slower the algorithm.
     # at each iteration, take as epsilon the epsilon_percentile of the distances obtained by simulations at previous
     # iteration from the observation
@@ -98,10 +110,10 @@ def infer_parameters():
     # Define sampler
     from abcpy.inferences import PMCABC
     sampler = PMCABC([final_grade, final_scholarship],
-                     [distance_calculator_final_grade, distance_calculator_final_scholarship], backend, kernel)
+                     [distance_calculator_final_grade, distance_calculator_final_scholarship], backend, kernel, seed=1)
 
     # Sample
-    journal = sampler.sample([grades_obs, scholarship_obs], T, eps_arr, n_sample, n_samples_per_param,
+    journal = sampler.sample([grades_obs, scholarship_obs], steps, eps_arr, n_sample, n_samples_per_param,
                              epsilon_percentile)
     return journal
 
@@ -129,5 +141,5 @@ def analyse_journal(journal):
 
 
 if __name__ == "__main__":
-    journal = infer_parameters()
+    journal = infer_parameters(logging_level=logging.INFO)
     analyse_journal(journal)

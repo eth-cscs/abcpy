@@ -7,13 +7,15 @@ import rpy2.robjects.numpy2ri
 
 from abcpy.probabilisticmodels import ProbabilisticModel, Continuous, InputConnector
 
-logging.basicConfig(level=logging.INFO)
-
 rpy2.robjects.numpy2ri.activate()
-
-robjects.r('''
-       source('gaussian_model.R')
-''')
+try:
+    robjects.r('''
+       source('examples/extensions/models/gaussian_R/gaussian_model.R')
+    ''')
+except:
+    robjects.r('''
+           source('gaussian_model.R')
+    ''')
 
 r_simple_gaussian = robjects.globalenv['simple_gaussian']
 
@@ -61,7 +63,7 @@ class Gaussian(ProbabilisticModel, Continuous):
         seed = rng.randint(np.iinfo(np.int32).max)
 
         # Do the actual forward simulation
-        vector_of_k_samples = list(r_simple_gaussian(mu, sigma, k))
+        vector_of_k_samples = list(r_simple_gaussian(mu, sigma, k, seed=seed))
 
         # Format the output to obey API
         result = [np.array([x]) for x in vector_of_k_samples]
@@ -74,7 +76,24 @@ class Gaussian(ProbabilisticModel, Continuous):
         return pdf
 
 
-def infer_parameters():
+def infer_parameters(steps=3, n_sample=250, n_samples_per_param=10, logging_level=logging.WARN):
+    """Perform inference for this example.
+
+    Parameters
+    ----------
+    steps : integer, optional
+        Number of iterations in the sequential PMCABC algoritm ("generations"). The default value is 3
+    n_samples : integer, optional
+        Number of posterior samples to generate. The default value is 250.
+    n_samples_per_param : integer, optional
+        Number of data points in each simulated data set. The default value is 10.
+
+    Returns
+    -------
+    abcpy.output.Journal
+        A journal containing simulation results, metadata and optionally intermediate results.
+    """
+    logging.basicConfig(level=logging_level)
     # define observation for true parameters mean=170, std=15
     y_obs = [160.82499176, 167.24266737, 185.71695756, 153.7045709, 163.40568812, 140.70658699, 169.59102084,
              172.81041696, 187.38782738, 179.66358934, 176.63417241, 189.16082803, 181.98288443, 170.18565017,
@@ -111,13 +130,12 @@ def infer_parameters():
 
     # define sampling scheme
     from abcpy.inferences import PMCABC
-    sampler = PMCABC([model], [distance_calculator], backend)
+    sampler = PMCABC([model], [distance_calculator], backend, seed=1)
 
     # sample from scheme
-    T, n_sample, n_samples_per_param = 3, 250, 10
     eps_arr = np.array([.75])
     epsilon_percentile = 10
-    journal = sampler.sample([y_obs], T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
+    journal = sampler.sample([y_obs], steps, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
 
     return journal
 
@@ -145,5 +163,5 @@ def analyse_journal(journal):
 
 
 if __name__ == "__main__":
-    journal = infer_parameters()
+    journal = infer_parameters(logging_level=logging.INFO)
     analyse_journal(journal)

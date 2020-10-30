@@ -2,10 +2,9 @@ import logging
 
 from abcpy.modelselections import RandomForest
 
-logging.basicConfig(level=logging.INFO)
 
-
-def infer_model():
+def infer_model(logging_level=logging.WARN):
+    logging.basicConfig(level=logging_level)
     # define observation for true parameters mean=170, std=15
     y_obs = [160.82499176]
 
@@ -35,7 +34,7 @@ def infer_model():
     modelselection = RandomForest(model_array, statistics_calculator, backend, seed=1)
 
     # Choose the correct model
-    model = modelselection.select_model(y_obs, n_samples=100, n_samples_per_param=1)
+    model = modelselection.select_model(y_obs, n_samples=100, n_samples_per_param=1, )
 
     # Compute the posterior probability of the chosen model
     model_prob = modelselection.posterior_probability(y_obs)
@@ -44,5 +43,5 @@ def infer_model():
 
 
 if __name__ == "__main__":
-    model, model_prob = infer_model()
+    model, model_prob = infer_model(logging_level=logging.INFO)
     print(f"The correct model is {model.name} with estimated posterior probability {model_prob[0]}.")

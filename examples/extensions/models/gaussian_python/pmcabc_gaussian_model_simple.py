@@ -5,12 +5,11 @@ import numpy as np
 
 from abcpy.probabilisticmodels import ProbabilisticModel, Continuous, InputConnector
 
-logging.basicConfig(level=logging.INFO)
-
 
 class Gaussian(ProbabilisticModel, Continuous):
     """
-    This class is an re-implementation of the `abcpy.continuousmodels.Normal` for documentation purposes.
+    logging.basicConfig(level=logging_level)
+This class is an re-implementation of the `abcpy.continuousmodels.Normal` for documentation purposes.
     """
 
     def __init__(self, parameters, name='Gaussian'):
@@ -66,7 +65,24 @@ class Gaussian(ProbabilisticModel, Continuous):
         return pdf
 
 
-def infer_parameters():
+def infer_parameters(steps=3, n_sample=250, n_samples_per_param=10, logging_level=logging.WARN):
+    """Perform inference for this example.
+
+    Parameters
+    ----------
+    steps : integer, optional
+        Number of iterations in the sequential PMCABC algoritm ("generations"). The default value is 3
+    n_samples : integer, optional
+        Number of posterior samples to generate. The default value is 250.
+    n_samples_per_param : integer, optional
+        Number of data points in each simulated data set. The default value is 10.
+
+    Returns
+    -------
+    abcpy.output.Journal
+        A journal containing simulation results, metadata and optionally intermediate results.
+    """
+    logging.basicConfig(level=logging_level)
     # define observation for true parameters mean=170, std=15
     height_obs = [160.82499176, 167.24266737, 185.71695756, 153.7045709, 163.40568812, 140.70658699, 169.59102084,
                   172.81041696, 187.38782738, 179.66358934, 176.63417241, 189.16082803, 181.98288443, 170.18565017,
@@ -110,10 +126,9 @@ def infer_parameters():
     sampler = PMCABC([height], [distance_calculator], backend, kernel, seed=1)
 
     # sample from scheme
-    T, n_sample, n_samples_per_param = 3, 250, 10
     eps_arr = np.array([.75])
     epsilon_percentile = 10
-    journal = sampler.sample([height_obs], T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
+    journal = sampler.sample([height_obs], steps, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
 
     return journal
 
@@ -140,18 +155,6 @@ def analyse_journal(journal):
     new_journal = Journal.fromFile('experiments.jnl')
 
 
-# this code is for testing purposes only and not relevant to run the example
-import unittest
-
-
-class ExampleExtendModelGaussianPython(unittest.TestCase):
-    def test_example(self):
-        journal = infer_parameters()
-        test_result = journal.posterior_mean()[0]
-        expected_result = 177.02
-        self.assertLess(abs(test_result - expected_result), 2.)
-
-
 if __name__ == "__main__":
-    journal = infer_parameters()
+    journal = infer_parameters(logging_level=logging.INFO)
     analyse_journal(journal)

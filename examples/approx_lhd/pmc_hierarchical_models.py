@@ -2,10 +2,25 @@
 depend on some variables."""
 import logging
 
-logging.basicConfig(level=logging.INFO)
 
+def infer_parameters(steps=3, n_sample=250, n_samples_per_param=10, logging_level=logging.WARN):
+    """Perform inference for this example.
 
-def infer_parameters():
+    Parameters
+    ----------
+    steps : integer, optional
+        Number of iterations in the sequential PMCABC algoritm ("generations"). The default value is 3
+    n_samples : integer, optional
+        Number of posterior samples to generate. The default value is 250.
+    n_samples_per_param : integer, optional
+        Number of data points in each simulated data set. The default value is 10.
+
+    Returns
+    -------
+    abcpy.output.Journal
+        A journal containing simulation results, metadata and optionally intermediate results.
+    """
+    logging.basicConfig(level=logging_level)
     # Observed data corresponding to model_1 defined below
     grades_obs = [3.872486707973337, 4.6735380808674405, 3.9703538990858376, 4.11021272048805, 4.211048655421368,
                   4.154817956586653, 4.0046893064392695, 4.01891381384729, 4.123804757702919, 4.014941267301294,
@@ -79,16 +94,13 @@ def infer_parameters():
     kernel = DefaultKernel([school_location, class_size, grade_without_additional_effects,
                             background, scholarship_without_additional_effects])
 
-    # Define sampling parameters
-    T, n_sample, n_samples_per_param = 3, 250, 20
-
     # Define sampler to use with the
     from abcpy.inferences import PMC
     sampler = PMC([final_grade, final_scholarship],
-                  [approx_lhd_final_grade, approx_lhd_final_scholarship], backend, kernel)
+                  [approx_lhd_final_grade, approx_lhd_final_scholarship], backend, kernel, seed=1)
 
     # Sample
-    journal = sampler.sample([grades_obs, scholarship_obs], T, n_sample, n_samples_per_param)
+    journal = sampler.sample([grades_obs, scholarship_obs], steps, n_sample, n_samples_per_param)
     return journal
 
 
@@ -115,5 +127,5 @@ def analyse_journal(journal):
 
 
 if __name__ == "__main__":
-    journal = infer_parameters()
+    journal = infer_parameters(logging_level=logging.INFO)
     analyse_journal(journal)

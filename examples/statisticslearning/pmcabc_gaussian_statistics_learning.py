@@ -2,10 +2,25 @@ import logging
 
 import numpy as np
 
-logging.basicConfig(level=logging.INFO)
 
+def infer_parameters(steps=3, n_sample=250, n_samples_per_param=10, logging_level=logging.WARN):
+    """Perform inference for this example.
 
-def infer_parameters():
+    Parameters
+    ----------
+    steps : integer, optional
+        Number of iterations in the sequential PMCABC algoritm ("generations"). The default value is 3
+    n_samples : integer, optional
+        Number of posterior samples to generate. The default value is 250.
+    n_samples_per_param : integer, optional
+        Number of data points in each simulated data set. The default value is 10.
+
+    Returns
+    -------
+    abcpy.output.Journal
+        A journal containing simulation results, metadata and optionally intermediate results.
+    """
+    logging.basicConfig(level=logging_level)
     # define backend
     # Note, the dummy backend does not parallelize the code!
     from abcpy.backends import BackendDummy as Backend
@@ -68,14 +83,11 @@ def infer_parameters():
     from abcpy.inferences import PMCABC
     sampler = PMCABC([height], [distance_calculator], backend, kernel, seed=1)
 
-    # Define sampling parameters: T is the number of iterations of PMCABC; n_sample is the number of posterior samples;
-    # n_samples_per_param is the number of simulated datasets for each posterior sample.
-    T, n_sample, n_samples_per_param = 3, 10, 10
     eps_arr = np.array([500])  # starting value of epsilon; the smaller, the slower the algorithm.
     # at each iteration, take as epsilon the epsilon_percentile of the distances obtained by simulations at previous
     # iteration from the observation
     epsilon_percentile = 10
-    journal = sampler.sample([height_obs], T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
+    journal = sampler.sample([height_obs], steps, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
 
     return journal
 
@@ -103,5 +115,5 @@ def analyse_journal(journal):
 
 
 if __name__ == "__main__":
-    journal = infer_parameters()
+    journal = infer_parameters(logging_level=logging.INFO)
     analyse_journal(journal)

@@ -2,20 +2,36 @@ import logging
 
 import numpy as np
 
-logging.basicConfig(level=logging.INFO)
-
 
 def setup_backend():
-    global backend
-
     from abcpy.backends import BackendMPI as Backend
     backend = Backend()
     # The above line is equivalent to:
     # backend = Backend(process_per_model=1)
     # Notice: Models not parallelized by MPI should not be given process_per_model > 1
+    return backend
 
 
-def infer_parameters():
+def infer_parameters(backend, steps=3, n_sample=250, n_samples_per_param=10, logging_level=logging.WARN):
+    """Perform inference for this example.
+
+    Parameters
+    ----------
+    backend
+        The parallelization backend
+    steps : integer, optional
+        Number of iterations in the sequential PMCABC algoritm ("generations"). The default value is 3
+    n_samples : integer, optional
+        Number of posterior samples to generate. The default value is 250.
+    n_samples_per_param : integer, optional
+        Number of data points in each simulated data set. The default value is 10.
+
+    Returns
+    -------
+    abcpy.output.Journal
+        A journal containing simulation results, metadata and optionally intermediate results.
+    """
+    logging.basicConfig(level=logging_level)
     # define observation for true parameters mean=170, std=15
     height_obs = [160.82499176, 167.24266737, 185.71695756, 153.7045709, 163.40568812, 140.70658699, 169.59102084,
                   172.81041696, 187.38782738, 179.66358934, 176.63417241, 189.16082803, 181.98288443, 170.18565017,
@@ -45,17 +61,16 @@ def infer_parameters():
 
     # define distance
     from abcpy.distances import LogReg
-    distance_calculator = LogReg(statistics_calculator)
+    distance_calculator = LogReg(statistics_calculator, seed=42)
 
     # define sampling scheme
     from abcpy.inferences import PMCABC
     sampler = PMCABC([height], [distance_calculator], backend, seed=1)
 
     # sample from scheme
-    T, n_sample, n_samples_per_param = 3, 250, 10
     eps_arr = np.array([.75])
     epsilon_percentile = 10
-    journal = sampler.sample([height_obs], T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
+    journal = sampler.sample([height_obs], steps, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
 
     return journal
 
@@ -98,15 +113,7 @@ def setUpModule():
     setup_backend()
 
 
-# class ExampleGaussianMPITest(unittest.TestCase):
-#     def test_example(self):
-#         journal = infer_parameters()
-#         test_result = journal.posterior_mean()['mu']
-#         expected_result = 171.4343638312893
-#         self.assertLess(abs(test_result - expected_result), 2)
-
-
 if __name__ == "__main__":
-    setup_backend()
-    journal = infer_parameters()
+    backend = setup_backend()
+    journal = infer_parameters(backend, logging_level=logging.INFO)
     analyse_journal(journal)

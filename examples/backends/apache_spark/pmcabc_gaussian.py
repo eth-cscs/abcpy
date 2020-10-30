@@ -2,19 +2,17 @@ import logging
 
 import numpy as np
 
-logging.basicConfig(level=logging.INFO)
-
 
 def setup_backend():
-    global backend
-
     import pyspark
     sc = pyspark.SparkContext()
     from abcpy.backends import BackendSpark as Backend
     backend = Backend(sc, parallelism=4)
+    return backend
 
 
-def infer_parameters():
+def infer_parameters(backend, steps=3, n_sample=250, n_samples_per_param=10, logging_level=logging.WARN):
+    logging.basicConfig(level=logging_level)
     # define observation for true parameters mean=170, std=15
     height_obs = [160.82499176, 167.24266737, 185.71695756, 153.7045709, 163.40568812, 140.70658699, 169.59102084,
                   172.81041696, 187.38782738, 179.66358934, 176.63417241, 189.16082803, 181.98288443, 170.18565017,
@@ -44,17 +42,16 @@ def infer_parameters():
 
     # define distance
     from abcpy.distances import LogReg
-    distance_calculator = LogReg(statistics_calculator)
+    distance_calculator = LogReg(statistics_calculator, seed=42)
 
     # define sampling scheme
     from abcpy.inferences import PMCABC
     sampler = PMCABC([height], [distance_calculator], backend, seed=1)
 
     # sample from scheme
-    T, n_sample, n_samples_per_param = 3, 250, 10
     eps_arr = np.array([.75])
     epsilon_percentile = 10
-    journal = sampler.sample([height_obs], T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
+    journal = sampler.sample([height_obs], steps, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
 
     return journal
 
@@ -81,23 +78,7 @@ def analyse_journal(journal):
     new_journal = Journal.fromFile('experiments.jnl')
 
 
-import unittest
-import findspark
-
-
-class ExampleGaussianSparkTest(unittest.TestCase):
-    def setUp(self):
-        findspark.init()
-
-    def test_example(self):
-        setup_backend()
-        journal = infer_parameters()
-        test_result = journal.posterior_mean()[0]
-        expected_result = 176.0
-        self.assertLess(abs(test_result - expected_result), 2.)
-
-
 if __name__ == "__main__":
-    setup_backend()
-    journal = infer_parameters()
+    backend = setup_backend()
+    journal = infer_parameters(backend, steps=1, logging_level=logging.INFO)
     analyse_journal(journal)

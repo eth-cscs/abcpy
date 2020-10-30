@@ -257,7 +257,8 @@ class LogReg(Distance):
         self.s1 = None
         self.data_set = None
         self.dataSame = False
-        self.seed = seed  # optional seed for the random split in the LogisticRegression classifier.
+        # seed is used for a RandomState for the random split in the LogisticRegression classifier:
+        self.rng = np.random.RandomState(seed=seed)
 
     def distance(self, d1, d2):
         """Calculates the distance between two datasets.
@@ -297,7 +298,7 @@ class LogReg(Distance):
 
         reg_inv = 1e5
         log_reg_model = linear_model.LogisticRegression(C=reg_inv, penalty='l1', max_iter=1000, solver='liblinear',
-                                                        random_state=self.seed)
+                                                        random_state=self.rng.randint(0, np.iinfo(np.uint32).max))
         log_reg_model.fit(training_set_features, training_set_labels)
         score = log_reg_model.score(training_set_features, training_set_labels)
         distance = 2.0 * (score - 0.5)

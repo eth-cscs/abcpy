@@ -14,7 +14,7 @@ In this setup, the number of parallel processes is defined inside the Python cod
 
 Then, the parallel script can be run with: 
 
-    PYSPARK_PYTHON=python3 spark-submit pmcabc_gaussian.py 
+    PYSPARK_PYTHON=python3 spark-submit apache_spark/pmcabc_gaussian.py 
 
 where the environment variable `PYSPARK_PYTHON` is set as often Spark installations use Python2 by default.    
 
@@ -39,7 +39,7 @@ To run the files with MPI, the following command is required:
 
 For instance, to run `pmcabc_gaussian.py` with 4 tasks, we can run: 
 
-    mpirun -n 4 python3 pmcabc_gaussian.py
+    mpirun -n 4 python3 mpi/pmcabc_gaussian.py
 
 ### Nested parallelization with MPI
 
@@ -52,6 +52,6 @@ backend = Backend(process_per_model=2)
 
 Let's say we want to parallelize the model _n=3_ times. Therefore, we use the following command:
 
-    mpirun -n 7 python3 mpi_model_inferences.py
+    mpirun -n 7 python3 mpi/mpi_model_inferences.py
 
 as _(3*2) + 1 = 7_. Note that, in this scenario, using only 6 tasks overall leads to failure of the script due to how the tasks are assigned to the model instances.  
