@@ -24,33 +24,43 @@ $(MAKEDIRS):
 test: unittest unittest_mpi exampletest exampletest_mpi doctest
 
 unittest:
-	echo "Running standard unit tests.."
+	@echo "Running standard unit tests.."
 	python3 -m unittest discover -s tests -v -p "*_tests.py" || (echo "Error in standard unit tests."; exit 1)
 
 unittest_mpi:
-	echo "Running MPI backend unit tests.."
+	@echo "Running MPI backend unit tests.."
 	mpirun -np 2 python3 -m unittest discover -s tests -v -p "backend_tests_mpi.py" || (echo "Error in MPI unit tests."; exit 1)
 	mpirun -np 3 python3 -m unittest discover -s tests -v -p "backend_tests_mpi_model_mpi.py" || (echo "Error in MPI unit tests."; exit 1)
 
 exampletest: $(MAKEDIRS)
-	echo "Testing standard examples.."
-	python3 -m unittest discover -s examples -v -p "*.py" || (echo "Error in example tests."; exit 1)
+	@echo "Testing standard examples.."
+	python3 -m unittest -v tests/test_examples.py || (echo "Error in example tests."; exit 1)
 
 exampletest_mpi:
-	echo "Testing MPI backend examples.."
-	mpirun -np 2 python3 -m unittest -v examples/backends/mpi/pmcabc_gaussian.py || (echo "Error in MPI example tests."; exit 1)
+	@echo "Testing MPI backend examples.."
+	mpirun -np 2 python3 -m unittest -v tests/test_examples_mpi.py || (echo "Error in MPI example tests."; exit 1)
 
 doctest:
 	make -C doc html || (echo "Error in documentation generator."; exit 1)
 
-coveragetest:
+coveragetest: $(MAKEDIRS)  # compile models here as well as we check them for codecov as well.
 	command -v coverage >/dev/null 2>&1 || { echo >&2 "Python package 'coverage' has to been installed. Please, run 'pip3 install coverage'."; exit;}
+	# unittests
 	@- $(foreach TEST, $(UNITTESTS), \
 		echo === Testing code coverage: $(TEST); \
 		coverage run -a --branch --source abcpy --omit \*__init__.py -m unittest $(TEST); \
 	)
+#	 unittest_mpi
+	@echo === Testing code coverage: tests/backend_tests_mpi.py
 	mpirun -np 2 coverage run -a --branch --source abcpy --omit \*__init__.py -m unittest tests/backend_tests_mpi.py
-	mpirun -np 3 python3 -m unittest discover -s tests -v -p "backend_tests_mpi_model_mpi.py" || (echo "Error in MPI unit tests."; exit 1)
+	@echo === Testing code coverage: tests/backend_tests_mpi_model_mpi.py
+	mpirun -np 3 coverage run -a --branch --source abcpy --omit \*__init__.py -m unittest tests/backend_tests_mpi_model_mpi.py
+	# exampletest
+	@echo === Testing code coverage: tests/test_examples.py
+	@coverage run -a --branch --source abcpy --omit \*__init__.py -m unittest tests/test_examples.py
+	# exampletest_mpi
+	@echo === Testing code coverage: tests/examples_tests_mpi.py
+	mpirun -np 2 coverage run -a --branch --source abcpy --omit \*__init__.py -m unittest -v tests/test_examples_mpi.py
 	coverage html -d build/testcoverage
 	coverage report
 	@echo
