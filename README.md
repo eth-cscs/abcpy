@@ -44,10 +44,11 @@ ABCpy can be installed from `pip`:
 
 Check [here](https://abcpy.readthedocs.io/en/latest/installation.html) for more details.
 
-Basic requirements are listed in `requirements.txt`. Additional packages are required for additional features: 
+Basic requirements are listed in `requirements.txt`. That also includes packages required for MPI parallelization there, which is very often used. However, we also provide support for parallelization with Apache Spark (see below).
+ 
+ Additional packages are required for additional features: 
 
-- `torch` is needed in order to use neural networks to learn summary statistics. It can be installed by running `pip install -r requirements/optional-requirements.txt`
-- In order to use MPI for parallelization, `mpi4py` and `cloudpickle` are required; install them by `pip install -r requirements/backend-mpi.txt`  
+- `torch` is needed in order to use neural networks to learn summary statistics. It can be installed by running `pip install -r requirements/neural_networks_requirements.txt`
 - In order to use Apache Spark for parallelization, `findspark` and `pyspark` are required; install them by `pip install -r requirements/backend-spark.txt`  
 
 ## Troubleshooting `mpi4py` installation
