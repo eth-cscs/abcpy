@@ -134,7 +134,10 @@ class Euclidean(Distance):
 
         # Check whether d1 is same as self.data_set
         if self.data_set is not None:
-            if len(np.array(d1[0]).reshape(-1,)) == 1:
+            # check that the the observations have the same length; if not, they can't be the same:
+            if len(d1) != len(self.data_set):
+                self.dataSame = False
+            elif len(np.array(d1[0]).reshape(-1, )) == 1:
                 self.dataSame = self.data_set == d1
             else:
                 self.dataSame = all([(np.array(self.data_set[i]) == np.array(d1[i])).all() for i in range(len(d1))])
@@ -204,8 +207,11 @@ class PenLogReg(Distance):
 
         # Check whether d1 is same as self.data_set
         if self.data_set is not None:
-            if len(np.array(d1[0]).reshape(-1,)) == 1:
-                self.data_set == d1
+            # check that the the observations have the same length; if not, they can't be the same:
+            if len(d1) != len(self.data_set):
+                self.dataSame = False
+            elif len(np.array(d1[0]).reshape(-1, )) == 1:
+                self.dataSame = self.data_set == d1
             else:
                 self.dataSame = all([(np.array(self.data_set[i]) == np.array(d1[i])).all() for i in range(len(d1))])
 
@@ -269,8 +275,11 @@ class LogReg(Distance):
 
         # Check whether d1 is same as self.data_set
         if self.data_set is not None:
-            if len(np.array(d1[0]).reshape(-1,)) == 1:
-                self.data_set == d1
+            # check that the the observations have the same length; if not, they can't be the same:
+            if len(d1) != len(self.data_set):
+                self.dataSame = False
+            elif len(np.array(d1[0]).reshape(-1, )) == 1:
+                self.dataSame = self.data_set == d1
             else:
                 self.dataSame = all([(np.array(self.data_set[i]) == np.array(d1[i])).all() for i in range(len(d1))])
 

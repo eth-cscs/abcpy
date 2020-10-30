@@ -78,7 +78,9 @@ class SynLikelihood(Approx_likelihood):
 
         # Check whether y_obs is same as the stored dataset.
         if self.data_set is not None:
-            if len(np.array(y_obs[0]).reshape(-1, )) == 1:
+            if len(y_obs) != len(self.data_set):
+                self.dataSame = False
+            elif len(np.array(y_obs[0]).reshape(-1, )) == 1:
                 self.dataSame = self.data_set == y_obs
             else:  # otherwise it fails when y_obs[0] is array
                 self.dataSame = all(
@@ -175,7 +177,10 @@ class PenLogReg(Approx_likelihood, GraphTools):
 
         # Check whether y_obs is same as the stored dataset.
         if self.data_set is not None:
-            if len(np.array(y_obs[0]).reshape(-1, )) == 1:
+            # check that the the observations have the same length; if not, they can't be the same:
+            if len(y_obs) != len(self.data_set):
+                self.dataSame = False
+            elif len(np.array(y_obs[0]).reshape(-1, )) == 1:
                 self.dataSame = self.data_set == y_obs
             else:  # otherwise it fails when y_obs[0] is array
                 self.dataSame = all(
