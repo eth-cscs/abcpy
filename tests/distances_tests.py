@@ -34,13 +34,14 @@ class EuclideanTests(unittest.TestCase):
 
 class PenLogRegTests(unittest.TestCase):
     def setUp(self):
-        self.stat_calc = Identity(degree=1, cross=0)
+        self.stat_calc = Identity(degree=1, cross=False)
         self.distancefunc = PenLogReg(self.stat_calc)
+        self.rng = np.random.RandomState(1)
 
     def test_distance(self):
-        d1 = 0.5 * np.random.randn(100, 2) - 10
-        d2 = 0.5 * np.random.randn(100, 2) + 10
-        d3 = 0.5 * np.random.randn(95, 2) + 10
+        d1 = 0.5 * self.rng.randn(100, 2) - 10
+        d2 = 0.5 * self.rng.randn(100, 2) + 10
+        d3 = 0.5 * self.rng.randn(95, 2) + 10
 
         d1 = d1.tolist()
         d2 = d2.tolist()
@@ -59,18 +60,22 @@ class PenLogRegTests(unittest.TestCase):
         # in cross validation (10)
         self.assertEqual(self.distancefunc.distance(d3, d3), 0.0)
 
+        # check if it returns the correct error when the number of datasets:
+        self.assertRaises(RuntimeError, self.distancefunc.distance, d1, d3)
+
     def test_dist_max(self):
         self.assertTrue(self.distancefunc.dist_max() == 1.0)
 
 
 class LogRegTests(unittest.TestCase):
     def setUp(self):
-        self.stat_calc = Identity(degree=1, cross=0)
+        self.stat_calc = Identity(degree=2, cross=False)
         self.distancefunc = LogReg(self.stat_calc)
+        self.rng = np.random.RandomState(1)
 
     def test_distance(self):
-        d1 = 0.5 * np.random.randn(100, 2) - 10
-        d2 = 0.5 * np.random.randn(100, 2) + 10
+        d1 = 0.5 * self.rng.randn(100, 2) - 10
+        d2 = 0.5 * self.rng.randn(100, 2) + 10
 
         d1 = d1.tolist()
         d2 = d2.tolist()

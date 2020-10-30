@@ -213,17 +213,23 @@ class PenLogReg(Distance):
         if self.s1 is None or self.dataSame is False:
             self.s1 = self.statistics_calc.statistics(d1)
             self.data_set = d1
+            self.n_simulate = self.s1.shape[0]
         s2 = self.statistics_calc.statistics(d2)
 
-        # compute distnace between the statistics 
+        if not s2.shape[0] == self.n_simulate:
+            raise RuntimeError("The number of simulations in the two data sets should be the same in order for "
+                               "the classification accuracy implemented in PenLogReg to be a proper distance. Please "
+                               "check that `n_samples` in the `sample()` method for the sampler is equal to "
+                               "the number of datasets in the observations.")
+
+        # compute distance between the statistics
         training_set_features = np.concatenate((self.s1, s2), axis=0)
         label_s1 = np.zeros(shape=(len(self.s1), 1))
         label_s2 = np.ones(shape=(len(s2), 1))
         training_set_labels = np.concatenate((label_s1, label_s2), axis=0).ravel()
 
-        n_simulate = self.s1.shape[0]
-        groups = np.repeat(np.arange(self.n_folds), np.int(np.ceil(n_simulate / self.n_folds)))
-        groups = groups[:n_simulate].tolist()
+        groups = np.repeat(np.arange(self.n_folds), np.int(np.ceil(self.n_simulate / self.n_folds)))
+        groups = groups[:self.n_simulate].tolist()
         groups += groups  # duplicate it as groups need to be defined for both datasets
         m = LogitNet(alpha=1, n_splits=self.n_folds)  # note we are not using random seed here!
         m = m.fit(training_set_features, training_set_labels, groups=groups)
