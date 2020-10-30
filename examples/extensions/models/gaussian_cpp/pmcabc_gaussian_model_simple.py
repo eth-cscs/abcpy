@@ -94,7 +94,7 @@ def infer_parameters():
 
     # define distance
     from abcpy.distances import LogReg
-    distance_calculator = LogReg(statistics_calculator)
+    distance_calculator = LogReg(statistics_calculator, seed=42)
 
     # define backend
     from abcpy.backends import BackendDummy as Backend
