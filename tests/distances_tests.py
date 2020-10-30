@@ -70,7 +70,7 @@ class PenLogRegTests(unittest.TestCase):
 class LogRegTests(unittest.TestCase):
     def setUp(self):
         self.stat_calc = Identity(degree=2, cross=False)
-        self.distancefunc = LogReg(self.stat_calc)
+        self.distancefunc = LogReg(self.stat_calc, seed=1)
         self.rng = np.random.RandomState(1)
 
     def test_distance(self):
