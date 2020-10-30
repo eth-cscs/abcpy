@@ -449,7 +449,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
 
             # 1: calculate resample parameters
             # print("INFO: Resampling parameters")
-            self.logger.info("Resamping parameters")
+            self.logger.info("Resampling parameters")
 
             params_and_dists_and_counter_pds = self.backend.map(self._resample_parameter, rng_pds)
             params_and_dists_and_counter = self.backend.collect(params_and_dists_and_counter_pds)

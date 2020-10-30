@@ -5,9 +5,9 @@ from glmnet import LogitNet
 from sklearn import linear_model
 
 
-class Distance(metaclass = ABCMeta):
+class Distance(metaclass=ABCMeta):
     """This abstract base class defines how the distance between the observed and
-    simulated data should be implemented.    
+    simulated data should be implemented.
     """
 
     @abstractmethod
@@ -18,12 +18,11 @@ class Distance(metaclass = ABCMeta):
 
         Parameters
         ----------
-        statistics_calc : abcpy.stasistics.Statistics 
+        statistics_calc : abcpy.stasistics.Statistics
             Statistics extractor object that conforms to the Statistics class.
         """
 
         raise NotImplementedError
-
 
     @abstractmethod
     def distance(d1, d2):
@@ -35,24 +34,24 @@ class Distance(metaclass = ABCMeta):
         The data sets d1 and d2 are array-like structures that contain n1 and n2 data
         points each.  An implementation of the distance function should work along
         the following steps:
-        
+
         1. Transform both input sets dX = [ dX1, dX2, ..., dXn ] to sX = [sX1, sX2,
         ..., sXn] using the statistics object. See _calculate_summary_stat method.
-        
+
         2. Calculate the mutual desired distance, here denoted by -, between the
         statistics dist = [s11 - s21, s12 - s22, ..., s1n - s2n].
-        
+
         Important: any sub-class must not calculate the distance between data sets
         d1 and d2 directly. This is the reason why any sub-class must be
         initialized with a statistics object.
-        
+
         Parameters
         ----------
         d1: Python list
             Contains n1 data points.
         d2: Python list
             Contains n2 data points.
-        
+
         Returns
         -------
         numpy.ndarray
@@ -61,12 +60,11 @@ class Distance(metaclass = ABCMeta):
 
         raise NotImplementedError
 
-
     @abstractmethod
     def dist_max(self):
         """To be overwritten by sub-class: should return maximum possible value of the
         desired distance function.
- 
+
         Examples
         --------
         If the desired distance maps to :math:`\mathbb{R}`, this method should return numpy.inf.
@@ -79,8 +77,7 @@ class Distance(metaclass = ABCMeta):
 
         raise NotImplementedError
 
-
-    def _calculate_summary_stat(self,d1,d2):
+    def _calculate_summary_stat(self, d1, d2):
         """Helper function that extracts the summary statistics s1 and s2 from d1 and
         d2 using the statistics object stored in self.statistics_calc.
 
@@ -99,7 +96,7 @@ class Distance(metaclass = ABCMeta):
         """
         s1 = self.statistics_calc.statistics(d1)
         s2 = self.statistics_calc.statistics(d2)
-        return (s1,s2)
+        return (s1, s2)
 
 
 class Euclidean(Distance):
@@ -143,43 +140,40 @@ class Euclidean(Distance):
                 self.dataSame = all([(np.array(self.data_set[i]) == np.array(d1[i])).all() for i in range(len(d1))])
 
         # Extract summary statistics from the dataset
-        if(self.s1 is None or self.dataSame is False):
+        if self.s1 is None or self.dataSame is False:
             self.s1 = self.statistics_calc.statistics(d1)
             self.data_set = d1
 
         s2 = self.statistics_calc.statistics(d2)
 
         # compute distance between the statistics
-        dist = np.zeros(shape=(self.s1.shape[0],s2.shape[0]))
+        dist = np.zeros(shape=(self.s1.shape[0], s2.shape[0]))
         for ind1 in range(0, self.s1.shape[0]):
             for ind2 in range(0, s2.shape[0]):
-                dist[ind1,ind2] = np.sqrt(np.sum(pow(self.s1[ind1,:]-s2[ind2,:],2)))
+                dist[ind1, ind2] = np.sqrt(np.sum(pow(self.s1[ind1, :] - s2[ind2, :], 2)))
 
         return dist.mean()
 
-
     def dist_max(self):
         return np.inf
-
-
 
 
 class PenLogReg(Distance):
     """
     This class implements a distance mesure based on the classification accuracy.
 
-    The classification accuracy is calculated between two dataset d1 and d2 using 
-    lasso penalized logistics regression and return it as a distance. The lasso 
+    The classification accuracy is calculated between two dataset d1 and d2 using
+    lasso penalized logistics regression and return it as a distance. The lasso
     penalized logistic regression is done using glmnet package of Friedman et. al.
-    [2]. While computing the distance, the algorithm automatically chooses 
+    [2]. While computing the distance, the algorithm automatically chooses
     the most relevant summary statistics as explained in Gutmann et. al. [1].
     The maximum value of the distance is 1.0.
-       
+
     [1] Gutmann, M. U., Dutta, R., Kaski, S., & Corander, J. (2018). Likelihood-free inference via classification.
     Statistics and Computing, 28(2), 411-425.
-    
-    [2] Friedman, J., Hastie, T., and Tibshirani, R. (2010). Regularization 
-    paths for generalized linear models via coordinate descent. Journal of Statistical 
+
+    [2] Friedman, J., Hastie, T., and Tibshirani, R. (2010). Regularization
+    paths for generalized linear models via coordinate descent. Journal of Statistical
     Software, 33(1), 1–22.
     """
 
@@ -216,7 +210,7 @@ class PenLogReg(Distance):
                 self.dataSame = all([(np.array(self.data_set[i]) == np.array(d1[i])).all() for i in range(len(d1))])
 
         # Extract summary statistics from the dataset
-        if(self.s1 is None or self.dataSame is False):
+        if self.s1 is None or self.dataSame is False:
             self.s1 = self.statistics_calc.statistics(d1)
             self.data_set = d1
         s2 = self.statistics_calc.statistics(d2)
@@ -233,17 +227,17 @@ class PenLogReg(Distance):
         groups += groups  # duplicate it as groups need to be defined for both datasets
         m = LogitNet(alpha=1, n_splits=self.n_folds)  # note we are not using random seed here!
         m = m.fit(training_set_features, training_set_labels, groups=groups)
-        distance = 2.0 * (m.cv_mean_score_[np.where(m.lambda_path_== m.lambda_max_)[0][0]] - 0.5)
-    
+        distance = 2.0 * (m.cv_mean_score_[np.where(m.lambda_path_ == m.lambda_max_)[0][0]] - 0.5)
+
         return distance
 
     def dist_max(self):
         return 1.0
-    
+
 
 class LogReg(Distance):
     """This class implements a distance measure based on the classification
-    accuracy [1]. The classification accuracy is calculated between two dataset d1 and d2 using 
+    accuracy [1]. The classification accuracy is calculated between two dataset d1 and d2 using
     logistics regression and return it as a distance. The maximum value of the distance is 1.0.
 
     [1] Gutmann, M. U., Dutta, R., Kaski, S., & Corander, J. (2018). Likelihood-free inference via classification.
@@ -267,7 +261,6 @@ class LogReg(Distance):
             A list, containing a list describing the data set
         """
 
-
         if not isinstance(d1, list):
             raise TypeError('Data is not of allowed types')
         if not isinstance(d2, list):
@@ -284,7 +277,7 @@ class LogReg(Distance):
                 self.dataSame = all([(np.array(self.data_set[i]) == np.array(d1[i])).all() for i in range(len(d1))])
 
         # Extract summary statistics from the dataset
-        if(self.s1 is None or self.dataSame is False):
+        if self.s1 is None or self.dataSame is False:
             self.s1 = self.statistics_calc.statistics(d1)
             self.data_set = d1
         s2 = self.statistics_calc.statistics(d2)
