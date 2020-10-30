@@ -19,7 +19,7 @@ install:
 - pip install rpy2  # put this somewhere better
 - pip install -r requirements.txt
 - pip install -r requirements/backend-spark.txt
-- pip install -r requirements/optional-requirements.txt
+- pip install -r requirements/neural_networks_requirements.txt
 script:
 - make test
 before_deploy:
