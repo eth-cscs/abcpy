@@ -19,7 +19,10 @@ except ImportError:
 here = path.abspath(path.dirname(__file__))
 
 install_reqs_raw = parse_requirements('requirements.txt', session=PipSession())
-install_reqs = [str(ir.req) for ir in install_reqs_raw]
+try:
+    install_reqs = [str(ir.req) for ir in install_reqs_raw]
+except AttributeError:
+    install_reqs = [str(ir.requirement) for ir in install_reqs_raw]
 
 with open(path.join(here, 'VERSION')) as f:
     version = f.readline().strip()
