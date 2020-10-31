@@ -1,7 +1,9 @@
 dist: xenial
 language: python
-python:
-- '3.7'
+stages:
+  - name: test
+  - name: deploy
+    if: tag IS present AND branch = master
 addons:
   apt:
     sources:
@@ -14,26 +16,59 @@ addons:
     - swig
     - libmpich-dev
     - mpich
+jobs:
+    include:
+        # Unit tests on different python versions, all on Ubuntu
+        - stage: test
+          name: "Python 3.6"
+          python: "3.6"
+          env:
+            - UNIT_TEST=true
+        - name: "Python 3.7"
+          python: "3.7"
+          env:
+            - UNIT_TEST=true
+        - name: "Python 3.8"
+          python: "3.8"
+          env:
+            - UNIT_TEST=true
+      # Test coverage and without Pytorch for a single version
+        - name: "Coverage"
+          python: "3.8"
+          env:
+            - COVERAGE=true
+        - name: "No pytorch"
+          python: "3.8"
+          env:
+            - NO_PYTORCH=true
+        - stage: deploy
+          script:
+            - echo "Required dummy override of default 'script' in .travis.yml."
+          after_success:
+            - echo "Required dummy override of default 'after_success' in .travis.yml."
+          before_deploy:
+          - make clean
+          - mkdir dist
+          deploy:
+          - provider: pypi
+            user: mschoengens
+            password:
+              secure: tLopsTVkRfraHb/T1qfNvXk4L3StqpqFTflK0iAq/V+WSdARy7PDccj3P13aDo+Qvd2XYDPTSIVTveTOSHj46oser7+OmqrUYH9jQt681bmJ5aooHhw+3+NHa+fVBxMgzvCqJ+4Gvbf+3eDKowXICfPlTj5UrEil7s1jv91bSIm0HdI+mLyg1YstHOGt0O2Y6QEDPyEVRmFtyq7hB7EPheUvaJAfEl70LxV9fHiOuuQNcp9pnGRO6t9Sx4NIfIPIYzSdBoLaMSwgjy6ua1wF4iyMdKaDhMSajYb2+fWY1iyDJnmFj0/olpYUiZTrfWfQqz2j+uGT/YbmfZmSCcBTQI9ixJCtawqExoZODSq34uzc+N61riXdLEMOroxMobeBhuNj+bykp1IKaE99vYL/q8ta5dID15MtWIjWbLDVYQTQPkJ7fWllyxqOVRwa2rN37QbCctPbKpCs7WvEE7mJAaWJuOprw0AYjd2IH76YULkzbk3nR/v1nwyM2hGTYjePAy6Ue9jPgfeu9jEWu23O4u7+KMa1+scuLRP4DB1nlMStixjAJdiPMIo4OrvAiC8+ocntgi8t9+Quu5N8deyr9nM1pvWQyaNuHt3Yxd5oey3Q5UMtQFRCl5IyQKMTKttBg2p2L4wd0RdfrLgJXWkw/s6SBIyylCCDROr5gMEnPfY=
+            distributions: "sdist bdist_wheel"
+            on:
+              tags: true
+              branch: master
+
 install:
 - pip install -r requirements.txt
 - pip install -r requirements/backend-mpi.txt
 - pip install -r requirements/backend-spark.txt
-- pip install -r requirements/optional-requirements.txt
-- pip install -r requirements/coverage.txt
+- if [[ ! $NO_PYTORCH == true ]]; then pip install -r requirements/optional-requirements.txt; fi;
+- if [[ $COVERAGE == true ]]; then pip install -r requirements/coverage.txt; fi;
+before_script:
+- python --version
 script:
-# - make test
-- make coveragetest
+- if [[ $UNIT_TEST == true ]]; then make test; fi;
+- if [[ $COVERAGE == true ]]; then make coveragetest; fi;
 after_success:
-- bash <(curl -s https://codecov.io/bash)
-before_deploy:
-- make clean
-- mkdir dist
-deploy:
-- provider: pypi
-  user: mschoengens
-  password:
-    secure: tLopsTVkRfraHb/T1qfNvXk4L3StqpqFTflK0iAq/V+WSdARy7PDccj3P13aDo+Qvd2XYDPTSIVTveTOSHj46oser7+OmqrUYH9jQt681bmJ5aooHhw+3+NHa+fVBxMgzvCqJ+4Gvbf+3eDKowXICfPlTj5UrEil7s1jv91bSIm0HdI+mLyg1YstHOGt0O2Y6QEDPyEVRmFtyq7hB7EPheUvaJAfEl70LxV9fHiOuuQNcp9pnGRO6t9Sx4NIfIPIYzSdBoLaMSwgjy6ua1wF4iyMdKaDhMSajYb2+fWY1iyDJnmFj0/olpYUiZTrfWfQqz2j+uGT/YbmfZmSCcBTQI9ixJCtawqExoZODSq34uzc+N61riXdLEMOroxMobeBhuNj+bykp1IKaE99vYL/q8ta5dID15MtWIjWbLDVYQTQPkJ7fWllyxqOVRwa2rN37QbCctPbKpCs7WvEE7mJAaWJuOprw0AYjd2IH76YULkzbk3nR/v1nwyM2hGTYjePAy6Ue9jPgfeu9jEWu23O4u7+KMa1+scuLRP4DB1nlMStixjAJdiPMIo4OrvAiC8+ocntgi8t9+Quu5N8deyr9nM1pvWQyaNuHt3Yxd5oey3Q5UMtQFRCl5IyQKMTKttBg2p2L4wd0RdfrLgJXWkw/s6SBIyylCCDROr5gMEnPfY=
-  distributions: "sdist bdist_wheel"
-  on:
-    tags: true
-    branch: master
+- if [[ $COVERAGE == true ]]; then bash <(curl -s https://codecov.io/bash); fi;

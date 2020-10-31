@@ -5,7 +5,6 @@ import numpy as np
 from sklearn import linear_model
 from sklearn.preprocessing import MinMaxScaler
 
-from abcpy.NN_utilities.networks import ScalerAndNet
 from abcpy.acceptedparametersmanager import *
 from abcpy.graphtools import GraphTools
 # import dataset and networks definition:
@@ -18,7 +17,7 @@ except ImportError:
     has_torch = False
 else:
     has_torch = True
-    from abcpy.NN_utilities.networks import createDefaultNN
+    from abcpy.NN_utilities.networks import createDefaultNN, ScalerAndNet
     from abcpy.statistics import NeuralEmbedding
 
 from abcpy.NN_utilities.algorithms import FP_nn_training, triplet_training, contrastive_training
