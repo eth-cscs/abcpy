@@ -1,4 +1,4 @@
-dist: xenial
+dist: bionic
 language: python
 python:
 - '3.7'
@@ -15,8 +15,8 @@ addons:
     - libmpich-dev
     - mpich
 install:
-- sudo apt-get install -y r-base  # install R for testing examples. Hope that works
-- pip install rpy2  # put this somewhere better
+- sudo apt-get install -y r-base  # install R for testing example
+- pip install rpy2  # install the rpy2 library for testing example with R
 - pip install -r requirements.txt
 - pip install -r requirements/backend-spark.txt
 - pip install -r requirements/neural_networks_requirements.txt
