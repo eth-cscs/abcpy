@@ -1,4 +1,4 @@
-# ABCpy [![Documentation Status](https://readthedocs.org/projects/abcpy/badge/?version=latest)](http://abcpy.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.org/eth-cscs/abcpy.svg?branch=master)](https://travis-ci.org/eth-cscs/abcpy) [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/eth-cscs/abcpy/master?filepath=examples%2Fgetting_started.ipynb)
+# ABCpy [![Documentation Status](https://readthedocs.org/projects/abcpy/badge/?version=latest)](http://abcpy.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.org/eth-cscs/abcpy.svg?branch=master)](https://travis-ci.org/eth-cscs/abcpy) [![codecov](https://codecov.io/gh/eth-cscs/abcpy/branch/master/graph/badge.svg)](https://codecov.io/gh/eth-cscs/abcpy) [![DOI](https://zenodo.org/badge/doi/10.1145/3093172.3093233.svg)](http://dx.doi.org/10.1145/3093172.3093233) [![GitHub license](https://img.shields.io/github/license/eth-cscs/abcpy.svg)](https://github.com/eth-cscs/abcpy/blob/master/LICENSE) [![PyPI version shields.io](https://img.shields.io/pypi/v/abcpy.svg)](https://pypi.python.org/pypi/abcpy/) [![PyPI pyversions](https://img.shields.io/pypi/pyversions/abcpy.svg)](https://pypi.python.org/pypi/abcpy/)  [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/eth-cscs/abcpy/master?filepath=examples%2Fgetting_started.ipynb)
 
 ABCpy is a scientific library written in Python for Bayesian uncertainty quantification in
 absence of likelihood function, which parallelizes existing approximate Bayesian computation (ABC) 
@@ -86,11 +86,9 @@ finally CSCS (Swiss National Super Computing Center) for their generous support.
 
 ## Citation
 
-There is a paper in the proceedings of the 2017 PASC conference. In case you use
+There is a [paper](http://dx.doi.org/10.1145/3093172.3093233) in the proceedings of the 2017 PASC conference. In case you use
 ABCpy for your publication, we would appreciate a citation. You can use
-[this](https://github.com/eth-cscs/abcpy/blob/v0.5.6/doc/literature/DuttaS-ABCpy-PASC-2017.bib)
-
-BibTex reference.
+[this](https://github.com/eth-cscs/abcpy/blob/v0.5.6/doc/literature/DuttaS-ABCpy-PASC-2017.bib) BibTex reference.
 
 
 ## Other Refernces
