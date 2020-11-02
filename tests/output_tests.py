@@ -76,6 +76,33 @@ class JournalTests(unittest.TestCase):
         # np.testing.assert_equal(journal.parameters, new_journal.parameters)
         np.testing.assert_equal(journal.weights, new_journal.weights)
 
+    def test_ESS(self):
+        weights_identical = np.ones(100)
+        weights = np.arange(100)
+        journal = Journal(1)
+        journal.add_weights(weights_identical)
+        journal.add_weights(weights)
+        journal.add_ESS_estimate(weights=weights_identical)
+        journal.add_ESS_estimate(weights=weights)
+        self.assertEqual(len(journal.ESS), 2)
+        self.assertAlmostEqual(journal.get_ESS_estimates(), 74.62311557788945)
+        self.assertAlmostEqual(journal.get_ESS_estimates(0), 100)
+
+    def test_plot_ESS(self):
+        weights_identical = np.ones(100)
+        weights_1 = np.arange(100)
+        weights_2 = np.arange(100, 200)
+        journal = Journal(1)
+        journal.add_weights(weights_identical)
+        journal.add_ESS_estimate(weights=weights_identical)
+        journal.add_weights(weights_1)
+        journal.add_ESS_estimate(weights=weights_1)
+        journal.add_weights(weights_2)
+        journal.add_ESS_estimate(weights=weights_2)
+        journal.plot_ESS()
+        journal_2 = Journal(0)
+        self.assertRaises(RuntimeError, journal_2.plot_ESS)
+
 
 if __name__ == '__main__':
     unittest.main()

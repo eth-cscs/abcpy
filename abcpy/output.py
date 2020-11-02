@@ -38,6 +38,7 @@ class Journal:
         self.accepted_parameters = []
         self.names_and_parameters = []
         self.weights = []
+        self.ESS = []
         self.distances = []
         self.opt_values = []
         self.configuration = {}
@@ -158,6 +159,29 @@ class Journal:
         if self._type == 1:
             self.opt_values.append(opt_values)
 
+    def add_ESS_estimate(self, weights):
+        """
+        Computes and saves Effective Sample Size (ESS) estimate starting from provided weights; ESS is estimated as sum
+        the inverse of sum of squared normalized weights. The provided weights are normalized before computing ESS.
+        If type==0, old ESS estimate gets overwritten.
+
+        Parameters
+        ----------
+        weights: numpy.array
+            vector containing n weigths
+        """
+
+        # normalize weights:
+        normalized_weights = weights / np.sum(weights)
+
+        ESS = 1 / sum(pow(normalized_weights, 2))
+
+        if self._type == 0:
+            self.ESS = [ESS]
+
+        if self._type == 1:
+            self.ESS.append(ESS)
+
     def save(self, filename):
         """
         Stores the journal to disk.
@@ -255,6 +279,22 @@ class Journal:
             return self.distances[end]
         else:
             return self.distances[iteration]
+
+    def get_ESS_estimates(self, iteration=None):
+        """
+        Returns the estimate of Effective Sample Size (ESS) from a sampling scheme.
+
+        For intermediate results, pass the iteration.
+
+        Parameters
+        ----------
+        iteration: int
+            specify the iteration for which to return ESS
+        """
+        if iteration is None:
+            iteration = -1
+
+        return self.ESS[iteration]
 
     def posterior_mean(self, iteration=None):
         """
@@ -728,3 +768,32 @@ class Journal:
             plt.savefig(path_to_save, bbox_inches="tight")
 
         return fig, axes
+
+    def plot_ESS(self):
+        """
+        Produces a plot showing the evolution of the estimated ESS (from sample weights) across iterations; it also
+        shows as a baseline the maximum possible ESS which can be achieved, corresponding to the case of independent
+        samples, which is equal to the total number of samples.
+
+        Returns
+        -------
+        list
+            a list containing the matplotlib "fig, ax" objects defining the plot. Can be useful for further
+            modifications.
+        """
+
+        if self._type == 0:
+            raise RuntimeError("ESS plot is available only if the journal was created with full_output=1; otherwise, "
+                               "ESS is saved only for the last iteration.")
+
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(6, 4))
+
+        ax.scatter(np.arange(len(self.ESS)) + 1, self.ESS, label="Estimated ESS")
+        ax.set_xlabel("Iteration")
+        ax.set_ylabel("ESS")
+        # put horizontal line at the largest value ESS can get:
+        ax.axhline(len(self.weights[-1]), label="Max theoretical value", ls="dashed")
+        ax.legend()
+        ax.set_xticks(np.arange(len(self.ESS)) + 1)
+
+        return fig, ax

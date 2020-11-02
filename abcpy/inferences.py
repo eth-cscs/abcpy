@@ -238,7 +238,8 @@ class RejectionABC(InferenceMethod):
 
         self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
         journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
-        journal.add_weights(copy.deepcopy(np.ones((n_samples, 1))))
+        journal.add_weights(np.ones((n_samples, 1)))
+        journal.add_ESS_estimate(np.ones((n_samples, 1)))
         journal.add_distances(copy.deepcopy(distances))
         self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
         names_and_parameters = self._get_names_and_parameters()
@@ -509,6 +510,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_distances(copy.deepcopy(distances))
                 journal.add_weights(copy.deepcopy(accepted_weights))
+                journal.add_ESS_estimate(accepted_weights)
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                                   accepted_weights=accepted_weights)
                 names_and_parameters = self._get_names_and_parameters()
@@ -911,6 +913,7 @@ class PMC(BaseLikelihood, InferenceMethod):
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
                 journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_weights(copy.deepcopy(accepted_weights))
+                journal.add_ESS_estimate(accepted_weights)
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                                   accepted_weights=accepted_weights)
                 names_and_parameters = self._get_names_and_parameters()
@@ -1313,6 +1316,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                     self.logger.info('Saving after resampling')
                     journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                     journal.add_weights(copy.deepcopy(accepted_weights))
+                    journal.add_ESS_estimate(accepted_weights)
                     journal.add_distances(copy.deepcopy(distances))
                     names_and_parameters = self._get_names_and_parameters()
                     journal.add_user_parameters(names_and_parameters)
@@ -1338,6 +1342,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                     # Saving intermediate configuration to output journal.
                     journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                     journal.add_weights(copy.deepcopy(accepted_weights))
+                    journal.add_ESS_estimate(accepted_weights)
                     journal.add_distances(copy.deepcopy(distances))
                     names_and_parameters = self._get_names_and_parameters()
                     journal.add_user_parameters(names_and_parameters)
@@ -1348,6 +1353,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         if (full_output == 0) or (full_output == 1 and broken_preemptively and aStep <= steps - 1):
             journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
             journal.add_weights(copy.deepcopy(accepted_weights))
+            journal.add_ESS_estimate(accepted_weights)
             journal.add_distances(copy.deepcopy(distances))
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                               accepted_weights=accepted_weights)
@@ -1753,6 +1759,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
                 journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_distances(copy.deepcopy(distances))
                 journal.add_weights(copy.deepcopy(accepted_weights))
+                journal.add_ESS_estimate(accepted_weights)
                 journal.add_opt_values(accepted_cov_mats)
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                                   accepted_weights=accepted_weights)
@@ -1775,6 +1782,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
             journal.add_distances(copy.deepcopy(distances))
             journal.add_weights(copy.deepcopy(accepted_weights))
+            journal.add_ESS_estimate(accepted_weights)
             journal.add_opt_values(accepted_cov_mats)
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                               accepted_weights=accepted_weights)
@@ -2150,6 +2158,7 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_distances(copy.deepcopy(accepted_dist))
                 journal.add_weights(accepted_weights)
+                journal.add_ESS_estimate(accepted_weights)
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_weights=accepted_weights,
                                                                   accepted_parameters=accepted_parameters)
                 names_and_parameters = self._get_names_and_parameters()
@@ -2511,6 +2520,7 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_distances(copy.deepcopy(accepted_dist))
                 journal.add_weights(copy.deepcopy(accepted_weights))
+                journal.add_ESS_estimate(accepted_weights)
                 self.accepted_parameters_manager.update_broadcast(self.backend,
                                                                   accepted_parameters=accepted_parameters,
                                                                   accepted_weights=accepted_weights)
@@ -2883,6 +2893,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_distances(copy.deepcopy(distances))
                 journal.add_weights(copy.deepcopy(accepted_weights))
+                journal.add_ESS_estimate(accepted_weights)
                 journal.add_opt_values(copy.deepcopy(accepted_y_sim))
 
                 names_and_parameters = self._get_names_and_parameters()
