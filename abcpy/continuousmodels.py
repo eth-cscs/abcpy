@@ -187,8 +187,8 @@ class Normal(ProbabilisticModel, Continuous):
 
     def get_output_dimension(self):
         return 1
-        ## Why does the following not work here?
-        ## return self._dimension
+        # Why does the following not work here?
+        # return self._dimension
 
     def pdf(self, input_values, x):
         """
@@ -284,8 +284,8 @@ class StudentT(ProbabilisticModel, Continuous):
 
     def get_output_dimension(self):
         return 1
-        ## Why does the following not work here?
-        ## return self._dimension
+        # Why does the following not work here?
+        # return self._dimension
 
     def pdf(self, input_values, x):
         """

@@ -84,7 +84,7 @@ class Statistics(metaclass=ABCMeta):
 
         """
 
-        # Check summary_statistics is a np.ndarry
+        # Check summary_statistics is a np.ndarray
         if not isinstance(summary_statistics, np.ndarray):
             raise TypeError('Summary statistics is not of allowed types')
         # Include the polynomial expansion

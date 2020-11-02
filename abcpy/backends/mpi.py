@@ -241,7 +241,7 @@ class BackendMPIScheduler(Backend):
 
         # While we have some ranks that haven't finished
         while sum(is_map_done) < self.mpimanager.get_scheduler_size():
-            # Wait for a reqest from anyone
+            # Wait for a request from anyone
             data_request = self.mpimanager.get_scheduler_communicator().recv(
                 source=MPI.ANY_SOURCE,
                 tag=MPI.ANY_TAG,
@@ -535,7 +535,7 @@ class BackendMPILeader(BackendMPIWorker):
                 # Func sent before and not during for performance reasons
                 pds_res = self.map(function_packed)
 
-                # Store the result in a newly gnerated PDS pds_id
+                # Store the result in a newly generated PDS pds_id
                 self.pds_store[pds_res.pds_id] = pds_res
 
             elif op == self.OP_BROADCAST:
@@ -618,7 +618,7 @@ class BackendMPILeader(BackendMPIWorker):
             if data_chunks is None:
                 break
 
-            # Accumulate the indicess and *processed* chunks
+            # Accumulate the indices and *processed* chunks
             for chunk in data_chunks:
                 data_index, data_item = chunk
                 res = self.__leader_run_function(function_packed, data_item)

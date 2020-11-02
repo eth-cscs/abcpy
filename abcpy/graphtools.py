@@ -137,7 +137,7 @@ class GraphTools:
         if is_root:
             mapping, garbage_index = self._get_mapping()
 
-        # The pdf of each root model is first calculated seperately
+        # The pdf of each root model is first calculated separately
         result = [1.] * len(models)
 
         for i, model in enumerate(models):

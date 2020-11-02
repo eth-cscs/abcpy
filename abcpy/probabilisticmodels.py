@@ -807,7 +807,7 @@ class Hyperparameter(ProbabilisticModel):
     def pdf(self, input_values, x):
         # Mathematically, the expression for the pdf of a hyperparameter should be: if(x==self.fixed_parameters) return
         # 1; else return 0; However, since the pdf is called recursively for the whole model structure, and pdfs
-        # multiply, this would mean that all pdfs become 0. Setting the return value to 1 ensures proper calulation of
+        # multiply, this would mean that all pdfs become 0. Setting the return value to 1 ensures proper computation of
         # the overall pdf.
         return 1.
 
