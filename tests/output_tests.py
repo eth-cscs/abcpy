@@ -103,6 +103,38 @@ class JournalTests(unittest.TestCase):
         journal_2 = Journal(0)
         self.assertRaises(RuntimeError, journal_2.plot_ESS)
 
+    def test_plot_wass_dist(self):
+        rng = np.random.RandomState(1)
+        weights_identical = np.ones(100)
+        params_0 = rng.randn(100)
+        weights_1 = np.arange(100)
+        params_1 = rng.randn(100)
+        weights_2 = np.arange(100, 200)
+        params_2 = rng.randn(100)
+        weights_3 = np.arange(200, 300)
+        params_3 = rng.randn(100)
+        weights_4 = np.arange(300, 400)
+        params_4 = rng.randn(100)
+        journal = Journal(1)
+        journal.add_weights(weights_identical)
+        journal.add_accepted_parameters(params_0)
+        journal.add_weights(weights_1)
+        journal.add_accepted_parameters(params_1)
+        journal.add_weights(weights_2)
+        journal.add_accepted_parameters(params_2)
+        journal.add_weights(weights_3)
+        journal.add_accepted_parameters(params_3)
+        journal.add_weights(weights_4)
+        journal.add_accepted_parameters(params_4)
+        fig, ax, wass_dist_lists = journal.Wass_convergence_plot()
+        self.assertAlmostEqual(wass_dist_lists[0], 0.05211720800690442)
+        # check the Errors
+        journal_2 = Journal(0)
+        self.assertRaises(RuntimeError, journal_2.Wass_convergence_plot)
+        journal_3 = Journal(1)
+        journal_3.add_weights(weights_identical)
+        self.assertRaises(RuntimeError, journal_2.Wass_convergence_plot)
+
 
 if __name__ == '__main__':
     unittest.main()

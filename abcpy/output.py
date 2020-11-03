@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import gaussian_kde
 
+from abcpy.utils import wass_dist
+
 
 class Journal:
     """The journal holds information created by the run of inference schemes.
@@ -455,8 +457,8 @@ class Journal:
 
         Returns
         -------
-        list
-            a list containing the matplotlib "fig, axes" objects defining the plot. Can be useful for further
+        tuple
+            a tuple containing the matplotlib "fig, axes" objects defining the plot. Can be useful for further
             modifications.
         """
 
@@ -777,8 +779,8 @@ class Journal:
 
         Returns
         -------
-        list
-            a list containing the matplotlib "fig, ax" objects defining the plot. Can be useful for further
+        tuple
+            a tuple containing the matplotlib "fig, ax" objects defining the plot. Can be useful for further
             modifications.
         """
 
@@ -797,3 +799,55 @@ class Journal:
         ax.set_xticks(np.arange(len(self.ESS)) + 1)
 
         return fig, ax
+
+    def Wass_convergence_plot(self):
+        """
+        Computes the Wasserstein distance between the empirical distribution at subsequent iterations to see whether
+        the approximation of the posterior is converging. Then, it produces a plot displaying that. The approximation of
+        the posterior is converging if the Wass distance between subsequent iterations decreases with iteration and gets
+        close to 0, as that means there is no evolution of the posterior samples. The Wasserstein distance is estimated
+        using the POT library).
+
+        This method only works when the Journal stores results from all the iterations (ie it was generated with
+        full_output=1).
+
+        Returns
+        -------
+        tuple
+            a tuple containing the matplotlib "fig, ax" objects defining the plot and the list of the computed
+            Wasserstein distances. "fig" and "ax" can be useful for further modifying the plot.
+        """
+        if self._type == 0:
+            raise RuntimeError("Wasserstein distance convergence test is available only if the journal was created with"
+                               " full_output=1; in fact, this works by comparing the saved empirical distribution at "
+                               "different iterations, and the latter is saved only if full_output=1.")
+
+        if len(self.weights) == 1:
+            raise RuntimeError("Only a set of posterior samples has been saved, corresponding to either running a "
+                               "sequential algorithm for one iteration only or to using non-sequential algorithms (as"
+                               "RejectionABC). Wasserstein distance convergence test requires at least samples from at "
+                               "least 2 iterations.")
+
+        wass_dist_lists = [None] * (len(self.weights) - 1)
+
+        for i in range(len(self.weights) - 1):
+            params_1 = self.get_accepted_parameters(i)
+            params_2 = self.get_accepted_parameters(i + 1)
+            if len(params_1.shape) == 1:  # we assume that the dimension of parameters is 1
+                params_1 = params_1.reshape(-1, 1)
+            if len(params_2.shape) == 1:  # we assume that the dimension of parameters is 1
+                params_2 = params_2.reshape(-1, 1)
+            wass_dist_lists[i] = wass_dist(post_samples_1=params_1, post_samples_2=params_2,
+                                           weights_post_1=self.get_weights(i),
+                                           weights_post_2=self.get_weights(i + 1))[1].get('cost')
+
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(6, 4))
+        ax.scatter(np.arange(len(self.weights) - 1) + 1, wass_dist_lists,
+                   label="Estimated Wass. distance\nbetween iteration i and i+1")
+        ax.set_xlabel("Iteration")
+        ax.set_ylabel("Wasserstein distance")
+        ax.legend()
+        # put horizontal line at the largest value ESS can get:
+        ax.set_xticks(np.arange(len(self.weights) - 1) + 1)
+
+        return fig, ax, wass_dist_lists
