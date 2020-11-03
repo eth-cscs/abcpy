@@ -1,6 +1,6 @@
 from mpi4py import MPI
 
-__mpimanager = None
+mpimanager = None
 
 
 class MPIManager(object):
@@ -123,8 +123,7 @@ class MPIManager(object):
 def get_mpi_manager():
     ''' Return the instance of mpimanager
     Creates one with default parameters is not already existing '''
-    global mpimanager
-    if mpimanager == None:
+    if mpimanager is None:
         create_mpi_manager([0], 1)
     return mpimanager
 
