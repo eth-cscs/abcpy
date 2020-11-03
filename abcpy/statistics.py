@@ -342,7 +342,9 @@ class NeuralEmbedding(Statistics):
                                                                    hidden_sizes=hidden_sizes))
 
         if path_to_scaler is not None:
-            scaler = cloudpickle.load(open(path_to_scaler, 'rb'))
+            f = open(path_to_scaler, 'rb')
+            scaler = cloudpickle.load(f)
+            f.close()
             net = ScalerAndNet(net, scaler)
 
         statistic_object = cls(net, previous_statistics=previous_statistics)
@@ -370,7 +372,9 @@ class NeuralEmbedding(Statistics):
 
         if hasattr(self.net, "scaler"):
             save_net(path_to_net_state_dict, self.net.net)
-            cloudpickle.dump(self.net.scaler, open(path_to_scaler, 'wb'))
+            f = open(path_to_scaler, 'wb')
+            cloudpickle.dump(self.net.scaler, f)
+            f.close()
         else:
             save_net(path_to_net_state_dict, self.net)
 
