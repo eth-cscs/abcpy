@@ -251,7 +251,7 @@ class Semiautomatic(StatisticsLearning, GraphTools):
         """
         # the sampling is performed by the init of the parent class
         super(Semiautomatic, self).__init__(model, statistics_calc, backend,
-                                            n_samples, n_samples_per_param, parameters=parameters,
+                                            n_samples, n_samples_per_param=n_samples_per_param, parameters=parameters,
                                             simulations=simulations, seed=seed)
 
         self.logger.info('Learning of the transformation...')
