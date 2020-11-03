@@ -135,6 +135,32 @@ class JournalTests(unittest.TestCase):
         journal_3.add_weights(weights_identical)
         self.assertRaises(RuntimeError, journal_2.Wass_convergence_plot)
 
+    def test_plot_post_distr(self):
+        rng = np.random.RandomState(1)
+        weights_identical = np.ones((100, 1))
+        params = rng.randn(100, 2, 1, 1)
+        weights = np.arange(100).reshape(-1, 1)
+        journal = Journal(1)
+        journal.add_user_parameters([("par1", params[:, 0]), ("par2", params[:, 1])])
+        journal.add_user_parameters([("par1", params[:, 0]), ("par2", params[:, 1])])
+        journal.add_weights(weights=weights_identical)
+        journal.add_weights(weights=weights)
+        journal.plot_posterior_distr(single_marginals_only=True, iteration=0)
+        journal.plot_posterior_distr(double_marginals_only=True, show_samples=True,
+                                     true_parameter_values=[0.5, 0.3])
+        journal.plot_posterior_distr(contour_levels=10, ranges_parameters={"par1": [-1, 1]},
+                                     parameters_to_show=["par1"])
+
+        with self.assertRaises(KeyError):
+            journal.plot_posterior_distr(parameters_to_show=["par3"])
+        with self.assertRaises(RuntimeError):
+            journal.plot_posterior_distr(single_marginals_only=True, double_marginals_only=True)
+            journal.plot_posterior_distr(parameters_to_show=["par1"], double_marginals_only=True)
+            journal.plot_posterior_distr(parameters_to_show=["par1"], true_parameter_values=[0.5, 0.3])
+        with self.assertRaises(TypeError):
+            journal.plot_posterior_distr(ranges_parameters={"par1": [-1]})
+            journal.plot_posterior_distr(ranges_parameters={"par1": np.zeros(1)})
+
 
 if __name__ == '__main__':
     unittest.main()
