@@ -99,7 +99,9 @@ class Journal:
 
     def add_accepted_parameters(self, accepted_parameters):
         """
-        Saves provided weights by appending them to the journal. If type==0, old weights get overwritten.
+        FIX THIS!
+        Saves provided accepted parameters by appending them to the journal. If type==0, old accepted parameters get
+        overwritten.
 
         Parameters
         ----------
@@ -176,7 +178,7 @@ class Journal:
         # normalize weights:
         normalized_weights = weights / np.sum(weights)
 
-        ESS = 1 / sum(pow(normalized_weights, 2))
+        ESS = 1 / sum(sum(pow(normalized_weights, 2)))
 
         if self._type == 0:
             self.ESS = [ESS]
@@ -800,7 +802,7 @@ class Journal:
 
         return fig, ax
 
-    def Wass_convergence_plot(self):
+    def Wass_convergence_plot(self, num_iter_max=1e8, **kwargs):
         """
         Computes the Wasserstein distance between the empirical distribution at subsequent iterations to see whether
         the approximation of the posterior is converging. Then, it produces a plot displaying that. The approximation of
@@ -809,7 +811,15 @@ class Journal:
         using the POT library).
 
         This method only works when the Journal stores results from all the iterations (ie it was generated with
-        full_output=1).
+        full_output=1). Moreover, this only works when all the parameters in the model are univariate.
+
+        Parameters
+        ----------
+        num_iter_max : integer, optional
+            The maximum number of iterations in the linear programming algorithm to estimate the Wasserstein distance.
+            Default to 1e8.
+        kwargs
+            Additional arguments passed to the wass_dist calculation function.
 
         Returns
         -------
@@ -827,19 +837,36 @@ class Journal:
                                "sequential algorithm for one iteration only or to using non-sequential algorithms (as"
                                "RejectionABC). Wasserstein distance convergence test requires at least samples from at "
                                "least 2 iterations.")
+        if self.get_accepted_parameters().dtype == "object":
+            raise RuntimeError("This error was probably raised due to the parameters in your model having different "
+                               "dimenions (and specifically not being univariate). For now, Wasserstein distance"
+                               " convergence test is available only if the different parameters have the same "
+                               "dimension.")
 
         wass_dist_lists = [None] * (len(self.weights) - 1)
 
         for i in range(len(self.weights) - 1):
+            print(i)
             params_1 = self.get_accepted_parameters(i)
             params_2 = self.get_accepted_parameters(i + 1)
+            weights_1 = self.get_weights(i)
+            weights_2 = self.get_weights(i + 1)
             if len(params_1.shape) == 1:  # we assume that the dimension of parameters is 1
                 params_1 = params_1.reshape(-1, 1)
+            else:
+                params_1 = params_1.reshape(params_1.shape[0], -1)
             if len(params_2.shape) == 1:  # we assume that the dimension of parameters is 1
                 params_2 = params_2.reshape(-1, 1)
-            wass_dist_lists[i] = wass_dist(post_samples_1=params_1, post_samples_2=params_2,
-                                           weights_post_1=self.get_weights(i),
-                                           weights_post_2=self.get_weights(i + 1))[1].get('cost')
+            else:
+                params_2 = params_2.reshape(params_2.shape[0], -1)
+
+            if len(weights_1.shape) == 2:  # it can be that the weights have shape (-1,1); reshape therefore
+                weights_1 = weights_1.reshape(-1)
+            if len(weights_2.shape) == 2:  # it can be that the weights have shape (-1,1); reshape therefore
+                weights_2 = weights_2.reshape(-1)
+
+            wass_dist_lists[i] = wass_dist(samples_1=params_1, samples_2=params_2, weights_1=weights_1,
+                                           weights_2=weights_2, num_iter_max=num_iter_max, **kwargs)
 
         fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(6, 4))
         ax.scatter(np.arange(len(self.weights) - 1) + 1, wass_dist_lists,

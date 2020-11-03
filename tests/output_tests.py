@@ -77,8 +77,8 @@ class JournalTests(unittest.TestCase):
         np.testing.assert_equal(journal.weights, new_journal.weights)
 
     def test_ESS(self):
-        weights_identical = np.ones(100)
-        weights = np.arange(100)
+        weights_identical = np.ones((100, 1))
+        weights = np.arange(100).reshape(-1, 1)
         journal = Journal(1)
         journal.add_weights(weights_identical)
         journal.add_weights(weights)
@@ -89,9 +89,9 @@ class JournalTests(unittest.TestCase):
         self.assertAlmostEqual(journal.get_ESS_estimates(0), 100)
 
     def test_plot_ESS(self):
-        weights_identical = np.ones(100)
-        weights_1 = np.arange(100)
-        weights_2 = np.arange(100, 200)
+        weights_identical = np.ones((100, 1))
+        weights_1 = np.arange(100).reshape(-1, 1)
+        weights_2 = np.arange(100, 200).reshape(-1, 1)
         journal = Journal(1)
         journal.add_weights(weights_identical)
         journal.add_ESS_estimate(weights=weights_identical)
@@ -105,16 +105,16 @@ class JournalTests(unittest.TestCase):
 
     def test_plot_wass_dist(self):
         rng = np.random.RandomState(1)
-        weights_identical = np.ones(100)
-        params_0 = rng.randn(100)
+        weights_identical = np.ones((100, 1))
+        params_0 = rng.randn(100).reshape(-1, 1)
         weights_1 = np.arange(100)
-        params_1 = rng.randn(100)
+        params_1 = rng.randn(100).reshape(-1, 1, 1)
         weights_2 = np.arange(100, 200)
-        params_2 = rng.randn(100)
+        params_2 = rng.randn(100).reshape(-1, 1)
         weights_3 = np.arange(200, 300)
-        params_3 = rng.randn(100)
+        params_3 = rng.randn(100).reshape(-1, 1)
         weights_4 = np.arange(300, 400)
-        params_4 = rng.randn(100)
+        params_4 = rng.randn(100).reshape(-1, 1)
         journal = Journal(1)
         journal.add_weights(weights_identical)
         journal.add_accepted_parameters(params_0)
@@ -127,13 +127,17 @@ class JournalTests(unittest.TestCase):
         journal.add_weights(weights_4)
         journal.add_accepted_parameters(params_4)
         fig, ax, wass_dist_lists = journal.Wass_convergence_plot()
-        self.assertAlmostEqual(wass_dist_lists[0], 0.05211720800690442)
+        self.assertAlmostEqual(wass_dist_lists[0], 0.22829193592175878)
         # check the Errors
         journal_2 = Journal(0)
         self.assertRaises(RuntimeError, journal_2.Wass_convergence_plot)
         journal_3 = Journal(1)
         journal_3.add_weights(weights_identical)
-        self.assertRaises(RuntimeError, journal_2.Wass_convergence_plot)
+        self.assertRaises(RuntimeError, journal_3.Wass_convergence_plot)
+        journal_4 = Journal(1)
+        journal_4.add_accepted_parameters(np.array([np.array([1]), np.array([1, 2])]))
+        print(len(journal_4.accepted_parameters))
+        self.assertRaises(RuntimeError, journal_4.Wass_convergence_plot)
 
     def test_plot_post_distr(self):
         rng = np.random.RandomState(1)
