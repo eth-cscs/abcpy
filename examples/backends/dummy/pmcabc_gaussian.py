@@ -3,8 +3,6 @@ import logging
 import numpy as np
 
 
-
-
 def infer_parameters(steps=3, n_sample=250, n_samples_per_param=10, logging_level=logging.WARN):
     """Perform inference for this example.
 
