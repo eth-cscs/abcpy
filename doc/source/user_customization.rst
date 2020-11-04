@@ -54,7 +54,7 @@ Since a Gaussian model generates continous numbers, the newly implemented class 
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
    :language: python
-   :lines: 6, 11
+   :lines: 6, 9
 
 A good way to start implementing a new model is to define a convenient way to initialize it with its input parameters.
 In ABCpy all input parameters are either independent ProbabilisticModels or Hyperparameters. Thus, they should not be
@@ -74,7 +74,7 @@ the super class. This leads to the following implementation:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 16-25
+    :lines: 15-24
     :dedent: 4
     :linenos:
 
@@ -127,7 +127,7 @@ This leads to the following implementation:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 27-38
+    :lines: 26-37
     :dedent: 4
     :linenos:
 
@@ -144,7 +144,7 @@ A proper implementation look as follows:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 50-60
+    :lines: 49-59
     :dedent: 4
     :linenos:
 
@@ -171,7 +171,7 @@ Then, this function should return :code:`False` as soon as values are out of the
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 40-45
+    :lines: 39-44
     :dedent: 4
     :linenos:
 
@@ -192,7 +192,7 @@ Since our model generates a single float number in one forward simulation, the i
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 47-48
+    :lines: 46-47
     :dedent: 4
     :linenos:
 
@@ -215,7 +215,7 @@ as follows:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 62-66
+    :lines: 61-65
     :dedent: 4
     :linenos:
 
@@ -296,9 +296,9 @@ This creates two wrapper files `gaussian_model_simple_wrap.cpp` and
 Note that the include paths might need to be adapted to your system. Finally, we
 can write a Python model which uses our C++ code:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/pmcabc-gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/pmcabc_gaussian_model_simple.py
    :language: python
-   :lines: 1,4,6,8-62
+   :lines: 1,4,5-6,8,9-64
    :linenos:
 
 The important lines are where we import the wrapper code as a module (line 3) and call
@@ -320,15 +320,15 @@ example. The following R code is the contents of the R file `gaussian_model.R`:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.R
     :language: R
-    :lines: 1 - 4
+    :lines: 1 - 5
     :linenos:
 
 More complex R models are incorporated in the same way. To include this function
 within ABCpy we include the following code at the beginning of our Python file:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_R/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 4-5, 9-15
+    :lines: 5-6, 11-18, 20
     :linenos:
 
 This imports the R function :code:`simple_gaussian` into the Python environment.
@@ -336,9 +336,9 @@ We need to build our own model to incorporate this R function as in the previous
 section. The only difference is in the :code:`forward_simulate` method of the
 class :code:`Gaussian`.
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_R/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 61
+    :lines: 66
     :dedent: 8
     :linenos:
 
@@ -367,7 +367,7 @@ calculator should be provided. The following header conforms to this idea:
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 112-119
+    :lines: 109-116
     :dedent: 4
 
 Then, we need to define how the distance is calculated. First we compute the summary statistics from the datasets and
@@ -379,14 +379,14 @@ to save computation time of summary statistics from observed data, we save the s
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 121-155
+    :lines: 118-155
     :dedent: 4
 
 Finally, we need to define the maximal distance that can be obtained from this distance measure. 
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 158-159
+    :lines: 157-158
     :dedent: 4
 
 The newly defined distance class can be used in the same way as the already existing once. The complete example for this
@@ -513,5 +513,5 @@ Note that after defining your own kernel, you will need to collect all your kern
 :py:class:`JointPerturbationKernel <abcpy.perturbationkernel.JointPerturbationKernel>` object in order for inference to
 work. For an example on how to do this, check the :ref:`Using perturbation kernels <gettingstarted>` section.
 
-The complete example used in this tutorial can be found
-examples/extensions/perturbationkernels/multivariate_normal_kernel.py.
+The complete example used in this tutorial can be found in the file
+`examples/extensions/perturbationkernels/multivariate_normal_kernel.py`.

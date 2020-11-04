@@ -16,7 +16,7 @@ measurement of heights and the probabilistic model would be Gaussian.
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 74-75, 80-82
+    :lines: 86-98, 103-105
     :dedent: 4
 
 The Gaussian or Normal model has two parameters: the mean, denoted by :math:`\mu`, and the standard deviation, denoted
@@ -43,7 +43,7 @@ follows:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 76-82
+    :lines: 99-105
     :dedent: 4
 
 We have defined the parameter :math:`\mu` and :math:`\sigma` of the Gaussian model as random variables and assigned
@@ -68,7 +68,7 @@ first define a way to extract *summary statistics* from the dataset.
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 84-86
+    :lines: 107-109
     :dedent: 4
 
 Next we define the discrepancy measure between the datasets, by defining a distance function (LogReg distance is chosen
@@ -79,7 +79,7 @@ the datasets, and then compute the distance between the two statistics.
  
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 88-90
+    :lines: 111-113
     :dedent: 4
 
 Algorithms in ABCpy often require a perturbation kernel, a tool to explore the parameter space. Here, we use the default
@@ -89,7 +89,7 @@ discrete. For a more involved example, please consult `Composite Perturbation Ke
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 92-94
+    :lines: 115-117
     :dedent: 4
 
 Finally, we need to specify a backend that determines the parallelization framework to use. The example code here uses
@@ -99,7 +99,7 @@ available in ABCpy, please consult :ref:`Using Parallelization Backends <paralle
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 96-99
+    :lines: 119-122
     :dedent: 4
 
 In this example, we choose PMCABC algorithm (inference scheme) to draw posterior samples of the parameters. Therefore,
@@ -108,7 +108,7 @@ function, backend object, perturbation kernel and a seed for the random number g
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 101-103
+    :lines: 124-126
     :dedent: 4
 
 Finally, we can parametrize the sampler and start sampling from the posterior distribution of the parameters given the
@@ -116,7 +116,7 @@ observed dataset:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 105-109
+    :lines: 128-131
     :dedent: 4
 
 The above inference scheme gives us samples from the posterior distribution of the parameter of interest *height*
@@ -151,7 +151,7 @@ of the students are:
 
 .. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
     :language: python
-    :lines: 6
+    :lines: 29-42
     :dedent: 4
 
 which depend on several variables: if there were bias, the average size of the
@@ -171,7 +171,7 @@ in the following way:
 
 .. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
     :language: python
-    :lines: 9-10, 13, 16, 19
+    :lines: 46-47,50,53,56
     :dedent: 4
 
 So, each student will receive some grade without additional effects which is
@@ -182,7 +182,7 @@ the final grade of the students now can be written as:
 
 .. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
     :language: python
-    :lines: 22
+    :lines: 59
     :dedent: 4
 
 Notice here we created a new random variable `final_grade`, by subtracting the random variables `class_size` multiplied
@@ -213,7 +213,7 @@ Whether a student gets a scholarship depends on the number of teachers in the sc
 
 .. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
     :language: python
-    :lines: 25, 28, 31
+    :lines: 62-75, 78, 81
     :dedent: 4
 
 With this we now have two *root* ProbabilisicModels (random variables), namely :code:`final_grade` and
@@ -230,14 +230,14 @@ different observed datasets.
 
 .. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
     :language: python
-    :lines: 33-41
+    :lines: 83-91
     :dedent: 4
 
 Using these two distance functions with the final code look as follows:
 
 .. literalinclude:: ../../examples/hierarchicalmodels/pmcabc_inference_on_multiple_sets_of_obs.py
     :language: python
-    :lines: 43-64
+    :lines: 93-115
     :dedent: 4
 
 Observe that the lists given to the sampler and the sampling method now contain two entries. These correspond to the two
@@ -258,7 +258,7 @@ parameters we would like to perturb using a multivariate Student's-T kernel. Thi
 
 .. literalinclude:: ../../examples/extensions/perturbationkernels/pmcabc_perturbation_kernels.py
     :language: python
-    :lines: 46-49
+    :lines: 96-99
     :dedent: 4
 
 We have now defined how each set of parameters is perturbed on its own. The sampler object, however, needs to be
@@ -268,7 +268,7 @@ It just needs to be provided with all the relevant kernels:
 
 .. literalinclude:: ../../examples/extensions/perturbationkernels/pmcabc_perturbation_kernels.py
     :language: python
-    :lines: 51-53
+    :lines: 101-103
     :dedent: 4
 
 This is all that needs to be changed. The rest of the implementation works the exact same as in the previous example. If
@@ -315,14 +315,14 @@ root models.
 
 .. literalinclude:: ../../examples/approx_lhd/pmc_hierarchical_models.py
     :language: python
-    :lines: 33-41
+    :lines: 78-86
     :dedent: 4
 
 We then parametrize the sampler and sample from the posterior distribution. 
 
 .. literalinclude:: ../../examples/approx_lhd/pmc_hierarchical_models.py
     :language: python
-    :lines: 52-64
+    :lines: 97-103
     :dedent: 4 
 
 Observe that the lists given to the sampler and the sampling method now contain two entries. These correspond to the two
@@ -373,7 +373,7 @@ The original summary statistics were defined as follows:
 
 .. literalinclude:: ../../examples/statisticslearning/pmcabc_gaussian_statistics_learning.py
     :language: python
-    :lines: 21-23
+    :lines: 52-54
     :dedent: 4
 
 Then we can learn the optimized summary statistics from the above list of summary statistics using the semi-automatic
@@ -381,14 +381,14 @@ summary selection procedure as follows:
 
 .. literalinclude:: ../../examples/statisticslearning/pmcabc_gaussian_statistics_learning.py
     :language: python
-    :lines: 25-31
+    :lines: 56-62
     :dedent: 4
 
 We remark that the minimal amount of coding needed for using the neural network based regression does not change at all:
 
 .. literalinclude:: ../../examples/statisticslearning/pmcabc_gaussian_statistics_learning.py
     :language: python
-    :lines: 34-42
+    :lines: 64-72
     :dedent: 4
 
 And similarly for the other two approaches.
@@ -407,28 +407,28 @@ most suitable one for the observed dataset `y_obs`.
 
 .. literalinclude:: ../../examples/modelselection/randomforest_modelselections.py
     :language: python
-    :lines: 7-19
+    :lines: 11-23
     :dedent: 4
 
 We first need to initiate the Model Selection scheme, for which we need to define the summary statistics and backend:
 
 .. literalinclude:: ../../examples/modelselection/randomforest_modelselections.py
     :language: python
-    :lines: 21-30
+    :lines: 25-34
     :dedent: 4
 
 Now we can choose the most suitable model for the observed dataset `y_obs`,
 
 .. literalinclude:: ../../examples/modelselection/randomforest_modelselections.py
     :language: python
-    :lines: 32-33
+    :lines: 36-37
     :dedent: 4
 
 or compute posterior probability of each of the models given the observed dataset.
 
 .. literalinclude:: ../../examples/modelselection/randomforest_modelselections.py
    :language: python
-   :lines: 35-36
+   :lines: 39-40
    :dedent: 4
 
 
@@ -441,5 +441,5 @@ setting it to info mode at the beginning of the file.
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
    :language: python
-   :lines: 1, 8
+   :lines: 1, 85
    :dedent: 0

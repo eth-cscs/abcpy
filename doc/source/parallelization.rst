@@ -60,7 +60,7 @@ can be passed at the initialization of the backend as follows:
 
 .. literalinclude:: ../../examples/backends/mpi/mpi_model_inferences.py
     :language: python
-    :lines: 12-13
+    :lines: 13-14
     :dedent: 4
 
 Here each model is assigned a MPI communicator with 2 ranks. Clearly, the MPI
@@ -78,7 +78,7 @@ The `forward_simulation` function of the above model is as follows:
 
 .. literalinclude:: ../../examples/backends/mpi/mpi_model_inferences.py
     :language: python
-    :lines: 51-80
+    :lines: 52-81
     :dedent: 4
 
 Note that in order to run jobs in parallel you need to have MPI installed on the
