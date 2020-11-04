@@ -69,7 +69,16 @@ a multiple of the ranks per communicator plus one additional rank for the
 master. For example, if we want to run n instances of a MPI model and allows m
 processes to each instance, we will have to spawn (n*m)+1 ranks.
 
-For `forward_simulation` of the MPI-parallelized simulator model has to be able 
+For instance, let's say you want to use n=3. Therefore, we use the following command:
+
+::
+
+    mpirun -n 7 python3 mpi/mpi_model_inferences.py
+
+as (3*2) + 1 = 7. Note that, in this scenario, using only 6 tasks overall leads to failure of the script due to how
+the tasks are assigned to the model instances.
+
+The `forward_simulation` method of the MPI-parallelized simulator model has to be able
 to take an MPI communicator as a parameter.
 
 An example of an MPI-parallelized simulator model, which can be used with ABCpy 

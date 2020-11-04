@@ -7,6 +7,10 @@ Here, we explain how to use ABCpy to quantify parameter uncertainty of a probabi
 dataset. If you are new to uncertainty quantification using Approximate Bayesian Computation (ABC), we recommend you to
 start with the `Parameters as Random Variables`_ section.
 
+Moreover, we also provide an interactive notebook on Binder guiding through the basics of ABC with ABCpy; without
+installing that on your machine.
+Please find if `here <https://mybinder.org/v2/gh/eth-cscs/abcpy/master?filepath=examples>`_.
+
 Parameters as Random Variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
