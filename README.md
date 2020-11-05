@@ -70,7 +70,7 @@ which however does not work with virtual environments.
 
 # Author 
 ABCpy was written by [Ritabrata Dutta, Warwick
-University](https://warwick.ac.uk/fac/sci/statistics/staff/academic-research/dutta/) and [Marcel Schoengens](mschoengens@bitvalve.org), CSCS, ETH Zurich, and presently actively maintained by [Lorenzo Pacchiardi](https://github.com/LoryPack) and [Ritabrata Dutta, Warwick
+University](https://warwick.ac.uk/fac/sci/statistics/staff/academic-research/dutta/) and [Marcel Schoengens](mschoengens@bitvalve.org), CSCS, ETH Zurich, and presently actively maintained by [Lorenzo Pacchiardi, Oxford University](https://github.com/LoryPack) and [Ritabrata Dutta, Warwick
 University](https://warwick.ac.uk/fac/sci/statistics/staff/academic-research/dutta/). Please feel free to submit any bugs or feature requests. We'd also love to hear about your experiences with ABCpy in general. Drop us an email!
 
 We want to thank [Prof. Antonietta Mira, Università della svizzera
