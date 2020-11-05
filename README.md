@@ -70,11 +70,8 @@ which however does not work with virtual environments.
 
 # Author 
 ABCpy was written by [Ritabrata Dutta, Warwick
-University](https://warwick.ac.uk/fac/sci/statistics/staff/academic-research/dutta/)
-and [Marcel Schoengens](schoengens@cscs.ch), CSCS, ETH Zurich, and we're
-actively developing it. Please feel free to submit any bugs or feature requests.
-We'd also love to hear about your experiences with ABCpy in general. Drop us an
-email!
+University](https://warwick.ac.uk/fac/sci/statistics/staff/academic-research/dutta/) and [Marcel Schoengens](mschoengens@bitvalve.org), CSCS, ETH Zurich, and presently actively maintained by [Lorenzo Pacchiardi](https://github.com/LoryPack) and [Ritabrata Dutta, Warwick
+University](https://warwick.ac.uk/fac/sci/statistics/staff/academic-research/dutta/). Please feel free to submit any bugs or feature requests. We'd also love to hear about your experiences with ABCpy in general. Drop us an email!
 
 We want to thank [Prof. Antonietta Mira, Università della svizzera
 italiana](https://search.usi.ch/en/people/f8960de6d60dd08a79b6c1eb20b7442b/Mira-Antonietta),
@@ -94,6 +91,10 @@ ABCpy for your publication, we would appreciate a citation. You can use
 ## Other Refernces
 
 Publications in which ABCpy was applied:
+
+* R. Dutta, K. Zouaoui-Boudjeltia, C. Kotsalos, A. Rousseau, D. Ribeiro de Sousa, J. M. Desmet, A. Van Meerhaeghe, A. Mira, and B. Chopard. "Interpretable pathological test for Cardio-vascular disease: Approximate Bayesian computation with distance learning." arXiv preprint arXiv:2010.06465 (2020).
+
+* R. Dutta, S. Gomes, D. Kalise, L. Pacchiardi. "Using mobility data in the design of optimal lockdown strategies for the COVID-19 pandemic in England." arXiv preprint arXiv:2006.16059 (2020).
 
 * L. Pacchiardi, P. K&#252;nzli, M. Sch&#246;ngens, B. Chopard, R. Dutta, "Distance-Learning for Approximate Bayesian
   Computation to Model a Volcanic Eruption", 2020, Sankhya B, ISSN 0976-8394, 
