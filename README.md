@@ -88,7 +88,7 @@ ABCpy for your publication, we would appreciate a citation. You can use
 [this](https://github.com/eth-cscs/abcpy/blob/v0.5.6/doc/literature/DuttaS-ABCpy-PASC-2017.bib) BibTex reference.
 
 
-## Other Refernces
+## Other References
 
 Publications in which ABCpy was applied:
 
