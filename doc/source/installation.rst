@@ -11,6 +11,7 @@ Installation from PyPI
 
 Simplest way to install 
 ::
+
    pip3 install abcpy
 
 This also works in a virtual environment.
@@ -34,9 +35,10 @@ To create a package and install it, do
 ::
 
    make package
+   pip3 install wheel
+   pip3 install build/dist/abcpy-0.6.0-py3-none-any.whl
 
-   pip3 install build/dist/abcpy-0.5.6-py3-none-any.whl
-
+``wheel`` is required to install in this way.
 
 Note that ABCpy requires Python3.
 
@@ -65,15 +67,18 @@ Troubleshooting ``mpi4py`` installation
 ``mpi4py`` requires a working MPI implementation to be installed; check the `official docs
 <https://mpi4py.readthedocs.io/en/stable/install.html>`_ for more info. On Ubuntu, that can be installed with:
 ::
+
     sudo apt-get install libopenmpi-dev
 
 Even when that is present, running ``pip install mpi4py`` can sometimes lead to errors. In fact, as specified in the `official docs
 <https://mpi4py.readthedocs.io/en/stable/install.html>`_, the ``mpicc`` compiler needs to be in the search path. If that is not the case, a workaround is:
 ::
+
     env MPICC=/path/to/mpicc pip install mpi4py
 
 In some cases, even the above may not be enough. A possibility is using ``conda`` (``conda install mpi4py``) which usually handles package dependencies better than ``pip``. Alternatively, you can try by installing directly ``mpi4py`` from the package manager; in Ubuntu, you can do:
 ::
+
     sudo apt install python3-mpi4py
 
 which however does not work with virtual environments.
