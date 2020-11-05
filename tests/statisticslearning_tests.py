@@ -1,9 +1,11 @@
 import unittest
+
 import numpy as np
-from abcpy.continuousmodels import Uniform
-from abcpy.continuousmodels import Normal
-from abcpy.statistics import Identity
+
 from abcpy.backends import BackendDummy as Backend
+from abcpy.continuousmodels import Normal
+from abcpy.continuousmodels import Uniform
+from abcpy.statistics import Identity
 from abcpy.statisticslearning import Semiautomatic, SemiautomaticNN, TripletDistanceLearning, \
     ContrastiveDistanceLearning
 
@@ -92,6 +94,49 @@ class SemiautomaticNNTests(unittest.TestCase):
 
             self.assertRaises(ValueError, self.new_statistics_calculator_with_scaler.statistics, [np.array([1, 2])])
 
+    def test_errors(self):
+        with self.assertRaises(RuntimeError):
+            self.statisticslearning = SemiautomaticNN([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                      n_samples_per_param=1, seed=1, parameters=np.ones((100, 1)))
+        with self.assertRaises(RuntimeError):
+            self.statisticslearning = SemiautomaticNN([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                  n_samples_per_param=1, seed=1, simulations=np.ones((100, 1)))
+        with self.assertRaises(RuntimeError):
+            self.statisticslearning = SemiautomaticNN([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                  n_samples_per_param=1, seed=1, simulations=np.ones((100, 1, 3)))
+        with self.assertRaises(RuntimeError):
+            self.statisticslearning = SemiautomaticNN([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                  n_samples_per_param=1, seed=1, parameters=np.ones((100, 1, 2)))
+        with self.assertRaises(RuntimeError):
+            self.statisticslearning = SemiautomaticNN([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                  n_samples_per_param=1, seed=1, simulations=np.ones((100, 1)),
+                                                  parameters=np.zeros((99, 1)))
+        with self.assertRaises(RuntimeError):
+            self.statisticslearning = SemiautomaticNN([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                  n_samples_per_param=1, seed=1, parameters_val=np.ones((100, 1)))
+        with self.assertRaises(RuntimeError):
+            self.statisticslearning = SemiautomaticNN([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                  n_samples_per_param=1, seed=1, simulations_val=np.ones((100, 1)))
+        with self.assertRaises(RuntimeError):
+            self.statisticslearning = SemiautomaticNN([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                  n_samples_per_param=1, seed=1, simulations_val=np.ones((100, 1, 3)))
+        with self.assertRaises(RuntimeError):
+            self.statisticslearning = SemiautomaticNN([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                  n_samples_per_param=1, seed=1, parameters_val=np.ones((100, 1, 2)))
+        with self.assertRaises(RuntimeError):
+            self.statisticslearning = SemiautomaticNN([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                  n_samples_per_param=1, seed=1, simulations_val=np.ones((100, 1)),
+                                                      parameters_val=np.zeros((99, 1)))
+        with self.assertRaises(TypeError):
+            self.statisticslearning = SemiautomaticNN([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                      n_samples_per_param=1, seed=1, parameters=[i for i in range(10)],
+                                                      simulations=[i for i in range(10)])
+        with self.assertRaises(TypeError):
+            self.statisticslearning = SemiautomaticNN([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                  n_samples_per_param=1, seed=1,
+                                                  parameters_val=[i for i in range(10)],
+                                                  simulations_val=[i for i in range(10)])
+
 
 class ContrastiveDistanceLearningTests(unittest.TestCase):
     def setUp(self):
@@ -162,8 +207,9 @@ class TripletDistanceLearningTests(unittest.TestCase):
                                                               n_samples=100, n_samples_per_param=1, seed=1, n_epochs=10)
             # with sample scaler:
             self.statisticslearning_with_scaler = TripletDistanceLearning([self.Y], self.statistics_cal, self.backend,
-                                                              scale_samples=True,
-                                                              n_samples=100, n_samples_per_param=1, seed=1, n_epochs=10)
+                                                                          scale_samples=True,
+                                                                          n_samples=100, n_samples_per_param=1, seed=1,
+                                                                          n_epochs=10)
 
     def test_initialization(self):
         if not has_torch:

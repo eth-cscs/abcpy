@@ -1,8 +1,8 @@
-from abcpy.probabilisticmodels import ProbabilisticModel, Discrete, Hyperparameter, InputConnector
-
 import numpy as np
 from scipy.special import comb
 from scipy.stats import poisson, bernoulli
+
+from abcpy.probabilisticmodels import ProbabilisticModel, Discrete, InputConnector
 
 
 class Bernoulli(Discrete, ProbabilisticModel):
@@ -20,14 +20,13 @@ class Bernoulli(Discrete, ProbabilisticModel):
 
         if not isinstance(parameters, list):
             raise TypeError('Input for Bernoulli has to be of type list.')
-        if len(parameters)!=1:
+        if len(parameters) != 1:
             raise ValueError('Input for Bernoulli has to be of length 1.')
 
         self._dimension = len(parameters)
         input_parameters = InputConnector.from_list(parameters)
         super(Bernoulli, self).__init__(input_parameters, name)
         self.visited = False
-
 
     def _check_input(self, input_values):
         """
@@ -37,11 +36,10 @@ class Bernoulli(Discrete, ProbabilisticModel):
             return False
 
         # test whether probability is in the interval [0,1]
-        if input_values[0]<0 or input_values[0]>1:
-           return False
+        if input_values[0] < 0 or input_values[0] > 1:
+            return False
 
         return True
-
 
     def _check_output(self, parameters):
         """
@@ -50,7 +48,6 @@ class Bernoulli(Discrete, ProbabilisticModel):
         if not isinstance(parameters[0], (int, np.int32, np.int64)):
             return False
         return True
-
 
     def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """
@@ -74,10 +71,8 @@ class Bernoulli(Discrete, ProbabilisticModel):
         result = np.array(rng.binomial(1, input_values[0], k))
         return [np.array([x]) for x in result]
 
-
     def get_output_dimension(self):
         return self._dimension
-
 
     def pmf(self, input_values, x):
         """Evaluates the probability mass function at point x.
@@ -118,7 +113,7 @@ class Binomial(Discrete, ProbabilisticModel):
 
         if not isinstance(parameters, list):
             raise TypeError('Input for Binomial has to be of type list.')
-        if len(parameters)!=2:
+        if len(parameters) != 2:
             raise ValueError('Input for Binomial has to be of length 2.')
 
         self._dimension = 1
@@ -150,12 +145,10 @@ class Binomial(Discrete, ProbabilisticModel):
 
         return True
 
-
     def _check_output(self, parameters):
         if not isinstance(parameters[0], (int, np.int32, np.int64)):
             return False
         return True
-
 
     def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """
@@ -179,10 +172,8 @@ class Binomial(Discrete, ProbabilisticModel):
         result = rng.binomial(input_values[0], input_values[1], k)
         return [np.array([x]) for x in result]
 
-
     def get_output_dimension(self):
         return self._dimension
-
 
     def pmf(self, input_values, x):
         """
@@ -205,10 +196,10 @@ class Binomial(Discrete, ProbabilisticModel):
         x = int(x)
         n = input_values[0]
         p = input_values[1]
-        if(x>n):
+        if x > n:
             pmf = 0
         else:
-            pmf = comb(n,x)*pow(p,x)*pow((1-p),(n-x))
+            pmf = comb(n, x) * pow(p, x) * pow((1 - p), (n - x))
         self.calculated_pmf = pmf
         return pmf
 
@@ -228,14 +219,13 @@ class Poisson(Discrete, ProbabilisticModel):
 
         if not isinstance(parameters, list):
             raise TypeError('Input for Poisson has to be of type list.')
-        if len(parameters)!=1:
+        if len(parameters) != 1:
             raise ValueError('Input for Poisson has to be of length 1.')
 
         self._dimension = 1
         input_parameters = InputConnector.from_list(parameters)
         super(Poisson, self).__init__(input_parameters, name)
         self.visited = False
-
 
     def _check_input(self, input_values):
         """Raises an error iff more than one parameter are given or the parameter given is smaller than 0."""
@@ -244,17 +234,15 @@ class Poisson(Discrete, ProbabilisticModel):
             return False
 
         # test whether the parameter is smaller than 0
-        if input_values[0]<0:
-           return False
+        if input_values[0] < 0:
+            return False
 
         return True
-
 
     def _check_output(self, parameters):
         if not isinstance(parameters[0], (int, np.int32, np.int64)):
             return False
         return True
-
 
     def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """
@@ -280,10 +268,8 @@ class Poisson(Discrete, ProbabilisticModel):
         result = rng.poisson(int(input_values[0]), k)
         return [np.array([x]) for x in result]
 
-
     def get_output_dimension(self):
         return self._dimension
-
 
     def pmf(self, input_values, x):
         """Calculates the probability mass function of the distribution at point x.
@@ -304,7 +290,6 @@ class Poisson(Discrete, ProbabilisticModel):
         pmf = poisson(int(input_values[0])).pmf(x)
         self.calculated_pmf = pmf
         return pmf
-
 
 
 class DiscreteUniform(Discrete, ProbabilisticModel):
@@ -339,7 +324,8 @@ class DiscreteUniform(Discrete, ProbabilisticModel):
         lowerbound = input_values[0]  # Lower bound
         upperbound = input_values[1]  # Upper bound
 
-        if not isinstance(lowerbound, (int, np.int64, np.int32, np.int16)) or not isinstance(upperbound, (int, np.int64, np.int32, np.int16)) or lowerbound >= upperbound:
+        if not isinstance(lowerbound, (int, np.int64, np.int32, np.int16)) or not isinstance(upperbound, (
+        int, np.int64, np.int32, np.int16)) or lowerbound >= upperbound:
             return False
         return True
 
@@ -369,8 +355,8 @@ class DiscreteUniform(Discrete, ProbabilisticModel):
         list: [np.ndarray]
             A list containing the sampled values as np-array.
         """
-        result = np.array(rng.randint(input_values[0], input_values[1]+1, size=k, dtype=np.int64))
-        return [np.array([x]).reshape(-1,) for x in result]
+        result = np.array(rng.randint(input_values[0], input_values[1] + 1, size=k, dtype=np.int64))
+        return [np.array([x]).reshape(-1, ) for x in result]
 
     def get_output_dimension(self):
         return self._dimension
@@ -397,4 +383,3 @@ class DiscreteUniform(Discrete, ProbabilisticModel):
             pmf = 0
         self.calculated_pmf = pmf
         return pmf
-

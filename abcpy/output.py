@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import gaussian_kde
 
+from abcpy.utils import wass_dist
+
 
 class Journal:
     """The journal holds information created by the run of inference schemes.
@@ -38,6 +40,7 @@ class Journal:
         self.accepted_parameters = []
         self.names_and_parameters = []
         self.weights = []
+        self.ESS = []
         self.distances = []
         self.opt_values = []
         self.configuration = {}
@@ -89,14 +92,16 @@ class Journal:
             Each entry is a tuple, where the first entry is the name of the probabilistic model, and the second entry is
             the parameters associated with this model.
         """
-        if (self._type == 0):
+        if self._type == 0:
             self.names_and_parameters = [dict(names_and_params)]
         else:
             self.names_and_parameters.append(dict(names_and_params))
 
     def add_accepted_parameters(self, accepted_parameters):
         """
-        Saves provided weights by appending them to the journal. If type==0, old weights get overwritten.
+        FIX THIS!
+        Saves provided accepted parameters by appending them to the journal. If type==0, old accepted parameters get
+        overwritten.
 
         Parameters
         ----------
@@ -157,6 +162,29 @@ class Journal:
 
         if self._type == 1:
             self.opt_values.append(opt_values)
+
+    def add_ESS_estimate(self, weights):
+        """
+        Computes and saves Effective Sample Size (ESS) estimate starting from provided weights; ESS is estimated as sum
+        the inverse of sum of squared normalized weights. The provided weights are normalized before computing ESS.
+        If type==0, old ESS estimate gets overwritten.
+
+        Parameters
+        ----------
+        weights: numpy.array
+            vector containing n weigths
+        """
+
+        # normalize weights:
+        normalized_weights = weights / np.sum(weights)
+
+        ESS = 1 / sum(sum(pow(normalized_weights, 2)))
+
+        if self._type == 0:
+            self.ESS = [ESS]
+
+        if self._type == 1:
+            self.ESS.append(ESS)
 
     def save(self, filename):
         """
@@ -255,6 +283,22 @@ class Journal:
             return self.distances[end]
         else:
             return self.distances[iteration]
+
+    def get_ESS_estimates(self, iteration=None):
+        """
+        Returns the estimate of Effective Sample Size (ESS) from a sampling scheme.
+
+        For intermediate results, pass the iteration.
+
+        Parameters
+        ----------
+        iteration: int
+            specify the iteration for which to return ESS
+        """
+        if iteration is None:
+            iteration = -1
+
+        return self.ESS[iteration]
 
     def posterior_mean(self, iteration=None):
         """
@@ -415,8 +459,8 @@ class Journal:
 
         Returns
         -------
-        list
-            a list containing the matplotlib "fig, axes" objects defining the plot. Can be useful for further
+        tuple
+            a tuple containing the matplotlib "fig, axes" objects defining the plot. Can be useful for further
             modifications.
         """
 
@@ -728,3 +772,108 @@ class Journal:
             plt.savefig(path_to_save, bbox_inches="tight")
 
         return fig, axes
+
+    def plot_ESS(self):
+        """
+        Produces a plot showing the evolution of the estimated ESS (from sample weights) across iterations; it also
+        shows as a baseline the maximum possible ESS which can be achieved, corresponding to the case of independent
+        samples, which is equal to the total number of samples.
+
+        Returns
+        -------
+        tuple
+            a tuple containing the matplotlib "fig, ax" objects defining the plot. Can be useful for further
+            modifications.
+        """
+
+        if self._type == 0:
+            raise RuntimeError("ESS plot is available only if the journal was created with full_output=1; otherwise, "
+                               "ESS is saved only for the last iteration.")
+
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(6, 4))
+
+        ax.scatter(np.arange(len(self.ESS)) + 1, self.ESS, label="Estimated ESS")
+        ax.set_xlabel("Iteration")
+        ax.set_ylabel("ESS")
+        # put horizontal line at the largest value ESS can get:
+        ax.axhline(len(self.weights[-1]), label="Max theoretical value", ls="dashed")
+        ax.legend()
+        ax.set_xticks(np.arange(len(self.ESS)) + 1)
+
+        return fig, ax
+
+    def Wass_convergence_plot(self, num_iter_max=1e8, **kwargs):
+        """
+        Computes the Wasserstein distance between the empirical distribution at subsequent iterations to see whether
+        the approximation of the posterior is converging. Then, it produces a plot displaying that. The approximation of
+        the posterior is converging if the Wass distance between subsequent iterations decreases with iteration and gets
+        close to 0, as that means there is no evolution of the posterior samples. The Wasserstein distance is estimated
+        using the POT library).
+
+        This method only works when the Journal stores results from all the iterations (ie it was generated with
+        full_output=1). Moreover, this only works when all the parameters in the model are univariate.
+
+        Parameters
+        ----------
+        num_iter_max : integer, optional
+            The maximum number of iterations in the linear programming algorithm to estimate the Wasserstein distance.
+            Default to 1e8.
+        kwargs
+            Additional arguments passed to the wass_dist calculation function.
+
+        Returns
+        -------
+        tuple
+            a tuple containing the matplotlib "fig, ax" objects defining the plot and the list of the computed
+            Wasserstein distances. "fig" and "ax" can be useful for further modifying the plot.
+        """
+        if self._type == 0:
+            raise RuntimeError("Wasserstein distance convergence test is available only if the journal was created with"
+                               " full_output=1; in fact, this works by comparing the saved empirical distribution at "
+                               "different iterations, and the latter is saved only if full_output=1.")
+
+        if len(self.weights) == 1:
+            raise RuntimeError("Only a set of posterior samples has been saved, corresponding to either running a "
+                               "sequential algorithm for one iteration only or to using non-sequential algorithms (as"
+                               "RejectionABC). Wasserstein distance convergence test requires at least samples from at "
+                               "least 2 iterations.")
+        if self.get_accepted_parameters().dtype == "object":
+            raise RuntimeError("This error was probably raised due to the parameters in your model having different "
+                               "dimenions (and specifically not being univariate). For now, Wasserstein distance"
+                               " convergence test is available only if the different parameters have the same "
+                               "dimension.")
+
+        wass_dist_lists = [None] * (len(self.weights) - 1)
+
+        for i in range(len(self.weights) - 1):
+            params_1 = self.get_accepted_parameters(i)
+            params_2 = self.get_accepted_parameters(i + 1)
+            weights_1 = self.get_weights(i)
+            weights_2 = self.get_weights(i + 1)
+            if len(params_1.shape) == 1:  # we assume that the dimension of parameters is 1
+                params_1 = params_1.reshape(-1, 1)
+            else:
+                params_1 = params_1.reshape(params_1.shape[0], -1)
+            if len(params_2.shape) == 1:  # we assume that the dimension of parameters is 1
+                params_2 = params_2.reshape(-1, 1)
+            else:
+                params_2 = params_2.reshape(params_2.shape[0], -1)
+
+            if len(weights_1.shape) == 2:  # it can be that the weights have shape (-1,1); reshape therefore
+                weights_1 = weights_1.reshape(-1)
+            if len(weights_2.shape) == 2:  # it can be that the weights have shape (-1,1); reshape therefore
+                weights_2 = weights_2.reshape(-1)
+
+            wass_dist_lists[i] = wass_dist(samples_1=params_1, samples_2=params_2, weights_1=weights_1,
+                                           weights_2=weights_2, num_iter_max=num_iter_max, **kwargs)
+
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(6, 4))
+        ax.scatter(np.arange(len(self.weights) - 1) + 1, wass_dist_lists,
+                   label="Estimated Wass. distance\nbetween iteration i and i+1")
+        ax.set_xlabel("Iteration")
+        ax.set_ylabel("Wasserstein distance")
+        ax.legend()
+        # put horizontal line at the largest value ESS can get:
+        ax.set_xticks(np.arange(len(self.weights) - 1) + 1)
+
+        return fig, ax, wass_dist_lists

@@ -1,9 +1,9 @@
-from abcpy.probabilisticmodels import ProbabilisticModel, Continuous, Hyperparameter, InputConnector
 import numpy as np
-
-from numbers import Number
-from scipy.stats import multivariate_normal, norm
 from scipy.special import gamma
+from scipy.stats import multivariate_normal, norm
+
+from abcpy.probabilisticmodels import ProbabilisticModel, Continuous, InputConnector
+
 
 class Uniform(ProbabilisticModel, Continuous):
     def __init__(self, parameters, name='Uniform'):
@@ -23,7 +23,7 @@ class Uniform(ProbabilisticModel, Continuous):
 
         if not isinstance(parameters, list):
             raise TypeError('Input for Uniform has to be of type list.')
-        if len(parameters)<2:
+        if len(parameters) < 2:
             raise ValueError('Input for Uniform has to be of length 2.')
         if not isinstance(parameters[0], list):
             raise TypeError('Each boundary for Uniform has to be of type list.')
@@ -46,10 +46,9 @@ class Uniform(ProbabilisticModel, Continuous):
 
         # test whether lower bound is not greater than upper bound
         for j in range(self.get_output_dimension()):
-            if (input_values[j] > input_values[j+self.get_output_dimension()]):
+            if input_values[j] > input_values[j + self.get_output_dimension()]:
                 return False
         return True
-
 
     def _check_output(self, parameters):
         """
@@ -59,11 +58,10 @@ class Uniform(ProbabilisticModel, Continuous):
 
         for i in range(self.get_output_dimension()):
             lower_value = self.get_input_connector()[i]
-            upper_value = self.get_input_connector()[i+self.get_output_dimension()]
+            upper_value = self.get_input_connector()[i + self.get_output_dimension()]
             if parameters[i] < lower_value or parameters[i] > upper_value:
                 return False
         return True
-
 
     def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """
@@ -86,13 +84,11 @@ class Uniform(ProbabilisticModel, Continuous):
 
         samples = np.zeros(shape=(k, self.get_output_dimension()))
         for j in range(0, self.get_output_dimension()):
-            samples[:, j] = rng.uniform(input_values[j], input_values[j+self.get_output_dimension()], k)
-        return [np.array(x).reshape(-1,) for x in samples]
-
+            samples[:, j] = rng.uniform(input_values[j], input_values[j + self.get_output_dimension()], k)
+        return [np.array(x).reshape(-1, ) for x in samples]
 
     def get_output_dimension(self):
         return self._dimension
-
 
     def pdf(self, input_values, x):
         """
@@ -115,7 +111,7 @@ class Uniform(ProbabilisticModel, Continuous):
         lower_bound = input_values[:self.get_output_dimension()]
         upper_bound = input_values[self.get_output_dimension():]
 
-        if (np.product(np.greater_equal(x, np.array(lower_bound)) * np.less_equal(x, np.array(upper_bound)))):
+        if np.product(np.greater_equal(x, np.array(lower_bound)) * np.less_equal(x, np.array(upper_bound))):
             pdf_value = 1. / np.product(np.array(upper_bound) - np.array(lower_bound))
         else:
             pdf_value = 0.
@@ -141,7 +137,7 @@ class Normal(ProbabilisticModel, Continuous):
 
         if not isinstance(parameters, list):
             raise TypeError('Input for Normal has to be of type list.')
-        if len(parameters)<2:
+        if len(parameters) < 2:
             raise ValueError('Input for Normal has to be of length 2.')
 
         input_parameters = InputConnector.from_list(parameters)
@@ -159,13 +155,11 @@ class Normal(ProbabilisticModel, Continuous):
             return False
         return True
 
-
     def _check_output(self, parameters):
         """
         Checks parameter values that are given as fixed values.
         """
         return True
-
 
     def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """
@@ -189,14 +183,12 @@ class Normal(ProbabilisticModel, Continuous):
         mu = input_values[0]
         sigma = input_values[1]
         result = np.array(rng.normal(mu, sigma, k))
-        return [np.array([x]).reshape(-1,) for x in result]
-
+        return [np.array([x]).reshape(-1, ) for x in result]
 
     def get_output_dimension(self):
         return 1
-        ## Why does the following not work here?
-        ## return self._dimension
-
+        # Why does the following not work here?
+        # return self._dimension
 
     def pdf(self, input_values, x):
         """
@@ -218,7 +210,7 @@ class Normal(ProbabilisticModel, Continuous):
 
         mu = input_values[0]
         sigma = input_values[1]
-        pdf = norm(mu,sigma).pdf(x)
+        pdf = norm(mu, sigma).pdf(x)
         self.calculated_pdf = pdf
         return pdf
 
@@ -241,7 +233,7 @@ class StudentT(ProbabilisticModel, Continuous):
 
         if not isinstance(parameters, list):
             raise TypeError('Input for StudentT has to be of type list.')
-        if len(parameters)<2:
+        if len(parameters) < 2:
             raise ValueError('Input for StudentT has to be of length 2.')
 
         input_parameters = InputConnector.from_list(parameters)
@@ -269,9 +261,8 @@ class StudentT(ProbabilisticModel, Continuous):
 
         mean = input_values[0]
         df = input_values[1]
-        result = np.array((rng.standard_t(df,k)+mean))
-        return [np.array([x]).reshape(-1,) for x in result]
-
+        result = np.array((rng.standard_t(df, k) + mean))
+        return [np.array([x]).reshape(-1, ) for x in result]
 
     def _check_input(self, input_values):
         """
@@ -293,9 +284,8 @@ class StudentT(ProbabilisticModel, Continuous):
 
     def get_output_dimension(self):
         return 1
-        ## Why does the following not work here?
-        ## return self._dimension
-
+        # Why does the following not work here?
+        # return self._dimension
 
     def pdf(self, input_values, x):
         """
@@ -316,8 +306,8 @@ class StudentT(ProbabilisticModel, Continuous):
         """
 
         df = input_values[1]
-        x-=input_values[0] #divide by std dev if we include that
-        pdf = gamma((df+1)/2)/(np.sqrt(df*np.pi)*gamma(df/2)*(1+x**2/df)**((df+1)/2))
+        x -= input_values[0]  # divide by std dev if we include that
+        pdf = gamma((df + 1) / 2) / (np.sqrt(df * np.pi) * gamma(df / 2) * (1 + x ** 2 / df) ** ((df + 1) / 2))
         self.calculated_pdf = pdf
         return pdf
 
@@ -344,7 +334,7 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
 
         if not isinstance(parameters, list):
             raise TypeError('Input for Multivariate Normal has to be of type list.')
-        if len(parameters)<2:
+        if len(parameters) < 2:
             raise ValueError('Input for Multivariate Normal has to be of length 2.')
 
         mean = parameters[0]
@@ -365,10 +355,10 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         # Test whether input in compatible
         dim = self._dimension
         param_ctn = len(input_values)
-        if param_ctn != dim+dim**2:
+        if param_ctn != dim + dim ** 2:
             return False
 
-        cov = np.array(input_values[dim:dim+dim**2]).reshape((dim,dim))
+        cov = np.array(input_values[dim:dim + dim ** 2]).reshape((dim, dim))
 
         # Check whether the covariance matrix is symmetric
         if not np.allclose(cov, cov.T, atol=1e-3):
@@ -382,14 +372,12 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
 
         return True
 
-
     def _check_output(self, parameters):
         """
         Checks parameter values that are given as fixed values.
         """
 
         return True
-
 
     def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """
@@ -413,14 +401,12 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
 
         dim = self.get_output_dimension()
         mean = np.array(input_values[0:dim])
-        cov = np.array(input_values[dim:dim+dim**2]).reshape((dim, dim))
+        cov = np.array(input_values[dim:dim + dim ** 2]).reshape((dim, dim))
         result = rng.multivariate_normal(mean, cov, k)
-        return [np.array([result[i,:]]).reshape(-1,) for i in range(k)]
-
+        return [np.array([result[i, :]]).reshape(-1, ) for i in range(k)]
 
     def get_output_dimension(self):
         return self._dimension
-
 
     def pdf(self, input_values, x):
         """
@@ -443,7 +429,7 @@ class MultivariateNormal(ProbabilisticModel, Continuous):
         dim = self._dimension
         # Extract parameters
         mean = np.array(input_values[0:dim])
-        cov = np.array(input_values[dim:dim+dim**2]).reshape((dim, dim))
+        cov = np.array(input_values[dim:dim + dim ** 2]).reshape((dim, dim))
 
         pdf = multivariate_normal(mean, cov).pdf(x)
         self.calculated_pdf = pdf
@@ -468,7 +454,7 @@ class MultiStudentT(ProbabilisticModel, Continuous):
 
         if not isinstance(parameters, list):
             raise TypeError('Input for Multivariate StudentT has to be of type list.')
-        if len(parameters)<3:
+        if len(parameters) < 3:
             raise ValueError('Input for Multivariate Student T has to be of length 3.')
         if not isinstance(parameters[0], list):
             raise TypeError('Input for mean of Multivariate Student T has to be of type list.')
@@ -494,12 +480,12 @@ class MultiStudentT(ProbabilisticModel, Continuous):
 
         dim = self._dimension
         param_ctn = len(input_values)
-        if param_ctn > dim+dim**2+1 or param_ctn < dim+dim**2+1:
+        if param_ctn > dim + dim ** 2 + 1 or param_ctn < dim + dim ** 2 + 1:
             return False
 
         # Extract parameters
         mean = np.array(input_values[0:dim])
-        cov = np.array(input_values[dim:dim+dim**2]).reshape((dim, dim))
+        cov = np.array(input_values[dim:dim + dim ** 2]).reshape((dim, dim))
         df = input_values[-1]
 
         # Check whether the covariance matrix is symmetric
@@ -517,7 +503,6 @@ class MultiStudentT(ProbabilisticModel, Continuous):
             return False
 
         return True
-
 
     def _check_output(self, parameters):
         """
@@ -549,10 +534,10 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         # Extract input_parameters
         dim = self.get_output_dimension()
         mean = np.array(input_values[0:dim])
-        cov = np.array(input_values[dim:dim+dim**2]).reshape((dim, dim))
+        cov = np.array(input_values[dim:dim + dim ** 2]).reshape((dim, dim))
         df = input_values[-1]
 
-        if (df == np.inf):
+        if df == np.inf:
             chisq = 1.0
         else:
             chisq = rng.chisquare(df, k) / df
@@ -561,10 +546,8 @@ class MultiStudentT(ProbabilisticModel, Continuous):
         result = (mean + np.divide(mvn, np.sqrt(chisq)))
         return [np.array([result[i, :]]).reshape(-1, ) for i in range(k)]
 
-
     def get_output_dimension(self):
         return self._dimension
-
 
     def pdf(self, input_values, x):
         """
@@ -588,10 +571,10 @@ class MultiStudentT(ProbabilisticModel, Continuous):
 
         # Extract parameters
         mean = np.array(input_values[0:dim])
-        cov = np.array(input_values[dim:dim+dim**2]).reshape((dim, dim))
+        cov = np.array(input_values[dim:dim + dim ** 2]).reshape((dim, dim))
         df = input_values[-1]
 
-        p=len(mean)
+        p = len(mean)
         numerator = gamma((df + p) / 2)
         denominator = gamma(df / 2) * pow(df * np.pi, p / 2.) * np.sqrt(abs(np.linalg.det(cov)))
         normalizing_const = numerator / denominator

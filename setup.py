@@ -7,10 +7,10 @@ try: # for pip >= 10
     from pip._internal.req import parse_requirements
 except ImportError: # for pip <= 9.0.3
     from pip.req import parse_requirements
-    
+
 try: # for pip >= 19.3
     from pip._internal.network.session import PipSession
-except ImportError: 
+except ImportError:
     try: # for pip < 19.3 and >=10
         from pip._internal.download import PipSession
     except ImportError: # for pip <= 9.0.3
@@ -19,12 +19,16 @@ except ImportError:
 here = path.abspath(path.dirname(__file__))
 
 install_reqs_raw = parse_requirements('requirements.txt', session=PipSession())
-install_reqs = [str(ir.req) for ir in install_reqs_raw]
+
+try:
+    install_reqs = [str(ir.req) for ir in install_reqs_raw]
+except AttributeError:
+    install_reqs = [str(ir.requirement) for ir in install_reqs_raw]
 
 with open(path.join(here, 'VERSION')) as f:
     version = f.readline().strip()
     file_tgz = 'v' + version + '.tar.gz'
-    
+
 setup(
     name='abcpy',
 
@@ -39,7 +43,7 @@ setup(
     # The project's main homepage.
     url='https://github.com/eth-cscs/abcpy',
     download_url = 'https://github.com/eth-cscs/abcpy/archive/' + file_tgz,
-    
+
     # Author details
     author='The abcpy authors',
     author_email='',

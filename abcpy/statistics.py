@@ -78,13 +78,13 @@ class Statistics(metaclass=ABCMeta):
         Returns
         -------
         numpy.ndarray
-            nx(p+degree*p+cross*nchoosek(p,2)) matrix where for each of the n pointss with
+            nx(p+degree*p+cross*nchoosek(p,2)) matrix where for each of the n points with
             p statistics, degree*p polynomial expansion term and cross*nchoosek(p,2) many
             cross-product terms are calculated.
 
         """
 
-        # Check summary_statistics is a np.ndarry
+        # Check summary_statistics is a np.ndarray
         if not isinstance(summary_statistics, np.ndarray):
             raise TypeError('Summary statistics is not of allowed types')
         # Include the polynomial expansion
@@ -342,7 +342,9 @@ class NeuralEmbedding(Statistics):
                                                                    hidden_sizes=hidden_sizes))
 
         if path_to_scaler is not None:
-            scaler = cloudpickle.load(open(path_to_scaler, 'rb'))
+            f = open(path_to_scaler, 'rb')
+            scaler = cloudpickle.load(f)
+            f.close()
             net = ScalerAndNet(net, scaler)
 
         statistic_object = cls(net, previous_statistics=previous_statistics)
@@ -353,6 +355,7 @@ class NeuralEmbedding(Statistics):
         """Method to save the neural network state dict to a file. If the network is of the class ScalerAndNet, ie a
         scaler is applied before the data is fed through the network, then you are required to pass the path where you
         want the scaler to be saved.
+
         Parameters
         ----------
         path_to_net_state_dict: basestring
@@ -369,7 +372,9 @@ class NeuralEmbedding(Statistics):
 
         if hasattr(self.net, "scaler"):
             save_net(path_to_net_state_dict, self.net.net)
-            cloudpickle.dump(self.net.scaler, open(path_to_scaler, 'wb'))
+            f = open(path_to_scaler, 'wb')
+            cloudpickle.dump(self.net.scaler, f)
+            f.close()
         else:
             save_net(path_to_net_state_dict, self.net)
 

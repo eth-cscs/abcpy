@@ -98,7 +98,7 @@ class StatisticsLearning(metaclass=ABCMeta):
 
         n_samples_to_generate = n_samples * (parameters is None) + n_samples_val * (parameters_val is None)
 
-        if n_samples_to_generate > 0:  # need to generate some data 
+        if n_samples_to_generate > 0:  # need to generate some data
             self.logger.info('Generation of data...')
 
             self.logger.debug("Definitions for parallelization.")
@@ -251,7 +251,7 @@ class Semiautomatic(StatisticsLearning, GraphTools):
         """
         # the sampling is performed by the init of the parent class
         super(Semiautomatic, self).__init__(model, statistics_calc, backend,
-                                            n_samples, n_samples_per_param, parameters=parameters,
+                                            n_samples, n_samples_per_param=n_samples_per_param, parameters=parameters,
                                             simulations=simulations, seed=seed)
 
         self.logger.info('Learning of the transformation...')

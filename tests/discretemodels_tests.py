@@ -1,7 +1,7 @@
+import unittest
+
 from abcpy.discretemodels import *
 from tests.probabilisticmodels_tests import AbstractAPIImplementationTests
-
-import unittest
 
 """Tests whether the methods defined for discrete probabilistic models are working as intended."""
 
@@ -10,17 +10,21 @@ class BernoulliAPITests(AbstractAPIImplementationTests, unittest.TestCase):
     model_types = [Bernoulli]
     model_inputs = [[0.5]]
 
+
 class BinomialAPITests(AbstractAPIImplementationTests, unittest.TestCase):
     model_types = [Binomial]
     model_inputs = [[3, 0.5]]
+
 
 class PoissonAPITests(AbstractAPIImplementationTests, unittest.TestCase):
     model_types = [Poisson]
     model_inputs = [[3]]
 
+
 class DiscreteUniformTests(AbstractAPIImplementationTests, unittest.TestCase):
     model_types = [DiscreteUniform]
     model_inputs = [[10, 20]]
+
 
 class CheckParametersAtInitializationTests(unittest.TestCase):
     """Tests that no probabilistic model with invalid parameters can be initialized."""
@@ -62,28 +66,29 @@ class DimensionTests(unittest.TestCase):
 
     def test_Bernoulli(self):
         Bn = Bernoulli([0.5])
-        self.assertTrue(Bn.get_output_dimension()==1)
+        self.assertTrue(Bn.get_output_dimension() == 1)
 
     def test_Binomial(self):
         Bi = Binomial([1, 0.5])
-        self.assertTrue(Bi.get_output_dimension()==1)
+        self.assertTrue(Bi.get_output_dimension() == 1)
 
     def test_Poisson(self):
         Po = Poisson([3])
-        self.assertTrue(Po.get_output_dimension()==1)
+        self.assertTrue(Po.get_output_dimension() == 1)
 
     def test_DiscreteUniform(self):
         Du = DiscreteUniform([10, 20])
-        self.assertTrue(Du.get_output_dimension()==1)
+        self.assertTrue(Du.get_output_dimension() == 1)
 
 
 class SampleFromDistributionTests(unittest.TestCase):
     """Tests the return value of forward_simulate for all discrete distributions."""
+
     def test_Bernoulli(self):
         Bn = Bernoulli([0.5])
         samples = Bn.forward_simulate(Bn.get_input_values(), 3)
         self.assertTrue(isinstance(samples, list))
-        self.assertTrue(len(samples)==3)
+        self.assertTrue(len(samples) == 3)
 
     def test_Binomial(self):
         Bi = Binomial([1, 0.1])

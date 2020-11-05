@@ -54,7 +54,7 @@ Since a Gaussian model generates continous numbers, the newly implemented class 
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
    :language: python
-   :lines: 6, 10
+   :lines: 6, 9
 
 A good way to start implementing a new model is to define a convenient way to initialize it with its input parameters.
 In ABCpy all input parameters are either independent ProbabilisticModels or Hyperparameters. Thus, they should not be
@@ -127,7 +127,7 @@ This leads to the following implementation:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 27-38
+    :lines: 26-37
     :dedent: 4
     :linenos:
 
@@ -144,7 +144,7 @@ A proper implementation look as follows:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 53-63
+    :lines: 49-59
     :dedent: 4
     :linenos:
 
@@ -171,7 +171,7 @@ Then, this function should return :code:`False` as soon as values are out of the
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 41-46
+    :lines: 39-44
     :dedent: 4
     :linenos:
 
@@ -192,7 +192,7 @@ Since our model generates a single float number in one forward simulation, the i
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 49-50
+    :lines: 46-47
     :dedent: 4
     :linenos:
 
@@ -215,7 +215,7 @@ as follows:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_python/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 66-71
+    :lines: 61-65
     :dedent: 4
     :linenos:
 
@@ -296,9 +296,9 @@ This creates two wrapper files `gaussian_model_simple_wrap.cpp` and
 Note that the include paths might need to be adapted to your system. Finally, we
 can write a Python model which uses our C++ code:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/pmcabc-gaussian_model_simple.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_cpp/pmcabc_gaussian_model_simple.py
    :language: python
-   :lines: 3 - 60
+   :lines: 1,4,5-6,8,9-64
    :linenos:
 
 The important lines are where we import the wrapper code as a module (line 3) and call
@@ -320,30 +320,70 @@ example. The following R code is the contents of the R file `gaussian_model.R`:
 
 .. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.R
     :language: R
-    :lines: 1 - 4
+    :lines: 1 - 5
     :linenos:
 
 More complex R models are incorporated in the same way. To include this function
 within ABCpy we include the following code at the beginning of our Python file:
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_R/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 6 - 14
+    :lines: 5-6, 11-18, 20
     :linenos:
 
 This imports the R function :code:`simple_gaussian` into the Python environment.
 We need to build our own model to incorporate this R function as in the previous
 section. The only difference is in the :code:`forward_simulate` method of the
-class :code:`Gaussian'.
+class :code:`Gaussian`.
 
-.. literalinclude:: ../../examples/extensions/models/gaussian_R/gaussian_model.py
+.. literalinclude:: ../../examples/extensions/models/gaussian_R/pmcabc_gaussian_model_simple.py
     :language: python
-    :lines: 59
+    :lines: 66
     :dedent: 8
     :linenos:
 
 The default output for R functions in Python is a float vector. This must be
 converted into a Python numpy array for the purposes of ABCpy.
+
+Wrap a Model Written in FORTRAN
+-------------------------------
+
+FORTRAN is still a widely used language in some specific application domains. We show here how to wrap a FORTRAN model
+in ABCpy by exploiting the `F2PY <https://numpy.org/doc/stable/f2py/>`_ tool, which is part of Numpy.
+
+Using this tool is quite simple; first, the FORTRAN code defining the model has to be defined:
+
+.. literalinclude:: ../../examples/extensions/models/gaussian_f90/gaussian_model_simple.f90
+    :language: FORTRAN
+    :lines: 1 - 3
+
+specifically, that needs to define a subroutine (here ``gaussian``) in a module (here ``gaussian_model``):
+
+Then, the FORTRAN code needs to be compiled in a way which can be linked to the Python one; by using F2PY, this is as
+simple as:
+::
+
+    python -m numpy.f2py -c -m gaussian_model_simple gaussian_model_simple.f90
+
+which produces an executable (with ``.so`` extension on Linux, for instance) with the same name as the FORTRAN file.
+Finally, an ABCpy model in Python needs to be defined which calls the FORTRAN binary similarly to what done before.
+Specifically, we import the FORTRAN model in the following way:
+
+
+.. literalinclude:: ../../examples/extensions/models/gaussian_f90/pmcabc_gaussian_model_simple.py
+    :language: python
+    :lines: 5
+
+Note that the name of the object to import is the same as the module name in the original FORTRAN code. Then, in the
+``forward_simulate`` method of the ABCpy model, you can run the FORTRAN model and obtain its output with the following line:
+
+.. literalinclude:: ../../examples/extensions/models/gaussian_f90/pmcabc_gaussian_model_simple.py
+    :language: python
+    :lines: 52
+    :dedent: 8
+
+A full reproducible example is available in `examples/extensions/models/gaussion_f90/`; a Makefile with the right
+compilation commands is also provided.
 
 
 Implementing a new Distance
@@ -367,7 +407,7 @@ calculator should be provided. The following header conforms to this idea:
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 113-120
+    :lines: 109-116
     :dedent: 4
 
 Then, we need to define how the distance is calculated. First we compute the summary statistics from the datasets and
@@ -379,14 +419,14 @@ to save computation time of summary statistics from observed data, we save the s
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 122-156
+    :lines: 118-155
     :dedent: 4
 
 Finally, we need to define the maximal distance that can be obtained from this distance measure. 
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 159-160
+    :lines: 157-158
     :dedent: 4
 
 The newly defined distance class can be used in the same way as the already existing once. The complete example for this
@@ -410,13 +450,13 @@ implemented:
 
 .. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 101
+    :lines: 98
 
 On the other hand, if the kernel is a discrete kernel, we would need the following method:
 
 .. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 109
+    :lines: 106
 
 As an example, we will implement a kernel which perturbs continuous parameters using a multivariate normal
 distribution (which is already implemented within ABCpy). First, we need to define a constructor.
@@ -430,7 +470,7 @@ this kernel. All these models should be saved on the kernel for future reference
 
 .. literalinclude:: ../../examples/extensions/perturbationkernels/multivariate_normal_kernel.py
     :language: python
-    :lines: 5, 7,8
+    :lines: 7,10-11
 
 Next, we need the following method:
 
@@ -457,7 +497,7 @@ Let us now look at the implementation of the method:
 
 .. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 254-286
+    :lines: 247-279
     :dedent: 4
 
 Some of the implemented inference algorithms weigh different sets of parameters differently. Therefore, if such weights
@@ -486,7 +526,7 @@ Here the implementation for our kernel:
 
 .. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 289-336
+    :lines: 281-329
     :dedent: 4
 
 The first line shows how you obtain the values of the parameters that your kernel should perturb. These values are
@@ -503,7 +543,7 @@ This method is implemented as follows for the multivariate normal:
 
 .. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 339-366
+    :lines: 331-358
     :dedent: 4
 
 We simply obtain the parameter values and covariance matrix for this kernel and calculate the probability density
@@ -513,5 +553,5 @@ Note that after defining your own kernel, you will need to collect all your kern
 :py:class:`JointPerturbationKernel <abcpy.perturbationkernel.JointPerturbationKernel>` object in order for inference to
 work. For an example on how to do this, check the :ref:`Using perturbation kernels <gettingstarted>` section.
 
-The complete example used in this tutorial can be found
-examples/extensions/perturbationkernels/multivariate_normal_kernel.py.
+The complete example used in this tutorial can be found in the file
+`examples/extensions/perturbationkernels/multivariate_normal_kernel.py`.

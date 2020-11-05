@@ -1,9 +1,10 @@
 from abc import ABCMeta, abstractmethod
 from numbers import Number
+
 import numpy as np
 
 
-class InputConnector():
+class InputConnector:
     def __init__(self, dimension):
         """
         Creates input parameters of given dimensionality. Each dimension needs to be specified using the set method.
@@ -16,9 +17,8 @@ class InputConnector():
 
         self._all_indices_specified = False
         self._dimension = dimension
-        self._models = [None]*dimension
-        self._model_indices = [None]*dimension
-
+        self._models = [None] * dimension
+        self._model_indices = [None] * dimension
 
     def from_number(number):
         """
@@ -40,7 +40,6 @@ class InputConnector():
         else:
             raise TypeError('Unsupported type.')
 
-
     def from_model(model):
         """
         Convenient initializer that converts the full output of a model to input parameters.
@@ -61,7 +60,6 @@ class InputConnector():
             return input_parameters
         else:
             raise TypeError('Unsupported type.')
-
 
     def from_list(parameters):
         """
@@ -114,8 +112,6 @@ class InputConnector():
         else:
             raise TypeError('Input is not a list')
 
-
-
     def __getitem__(self, index):
         """
         For the input models, return those fixed value(s) that are specified by index.
@@ -135,7 +131,7 @@ class InputConnector():
         """
 
         # index is a single number
-        if isinstance (index, Number):
+        if isinstance(index, Number):
             model = self._models[index]
             model_index = self._model_indices[index]
             if model.get_stored_output_values() is None:
@@ -155,7 +151,6 @@ class InputConnector():
                     return None
             return result
 
-
     def get_values(self):
         """
         Returns the fixed values of all input models.
@@ -165,11 +160,10 @@ class InputConnector():
         np.array
         """
 
-        result = [0]*self._dimension
+        result = [0] * self._dimension
         for i in range(0, self._dimension):
             result[i] = self.__getitem__(i)
         return result
-
 
     def get_models(self):
         """
@@ -182,7 +176,6 @@ class InputConnector():
 
         return self._models
 
-
     def get_model(self, index):
         """
         Returns the model at index.
@@ -194,7 +187,6 @@ class InputConnector():
 
         return self._models[index]
 
-
     def get_parameter_count(self):
         """
         Returns the number of parameters.
@@ -205,7 +197,6 @@ class InputConnector():
         """
 
         return self._dimension
-
 
     def set(self, index, model, model_index):
         """
@@ -228,9 +219,8 @@ class InputConnector():
 
         self._models[index] = model
         self._model_indices[index] = model_index
-        if (self._models != None):
+        if self._models != None:
             self._all_indices_specified = True
-
 
     def all_models_fixed_values(self):
         """
@@ -250,7 +240,7 @@ class InputConnector():
         return True
 
 
-class ProbabilisticModel(metaclass = ABCMeta):
+class ProbabilisticModel(metaclass=ABCMeta):
     """
     This abstract class represents all probabilistic models.
     """
@@ -271,7 +261,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
             A human readable name for the model. Can be the variable name for example.
         """
 
-
         # set name
         self.name = name
 
@@ -289,7 +278,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
         self.visited = False
         self.calculated_pdf = None
 
-
     def __getitem__(self, item):
         """
         Overloads the access operator. If the access operator is called, a tuple of the ProbablisticModel that called
@@ -303,14 +291,14 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
 
         if isinstance(item, Number):
-            if(item>=self.get_output_dimension()):
-                raise IndexError('The specified index lies out of range for probabilistic model %s.'%(self.__class__.__name__))
+            if item >= self.get_output_dimension():
+                raise IndexError(
+                    'The specified index lies out of range for probabilistic model %s.' % self.__class__.__name__)
             input_parameters = InputConnector(1)
             input_parameters.set(0, self, item)
             return input_parameters
         else:
             raise TypeError('Input of unsupported type.')
-
 
     def get_input_values(self):
         """
@@ -324,7 +312,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
         return self.get_input_connector().get_values()
 
-
     def get_input_models(self):
         """
         Returns a list of all input models.
@@ -336,7 +323,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
         input_connector = self.get_input_connector()
         return input_connector.get_models()
-
 
     def get_stored_output_values(self):
         """
@@ -351,7 +337,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
         return self._fixed_values
 
-
     def get_input_connector(self):
         """
         Returns the input connector object that connecects the current model to its parents.
@@ -365,7 +350,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
         return self._parameters
 
-
     def get_input_dimension(self):
         """
         Returns the input dimension of the current model.
@@ -377,7 +361,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
 
         return self._parameters._dimension
-
 
     def set_output_values(self, values):
         """
@@ -404,7 +387,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
             return True
         return False
 
-
     def __add__(self, other):
         """Overload the + operator for probabilistic models.
 
@@ -418,8 +400,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         SummationModel
             A probabilistic model describing a model coming from summation.
         """
-        return SummationModel([self,other])
-
+        return SummationModel([self, other])
 
     def __radd__(self, other):
         """Overload the + operator from the righthand side to support addition of Hyperparameters from the left.
@@ -436,7 +417,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
         return SummationModel([other, self])
 
-
     def __sub__(self, other):
         """Overload the - operator for probabilistic models.
 
@@ -452,7 +432,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
         return SubtractionModel([self, other])
 
-
     def __rsub__(self, other):
         """Overload the - operator from the righthand side to support subtraction of Hyperparameters from the left.
 
@@ -466,8 +445,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         SubtractionModel
             A probabilistic model describing a model coming from subtraction.
         """
-        return SubtractionModel([other,self])
-
+        return SubtractionModel([other, self])
 
     def __mul__(self, other):
         """Overload the * operator for probabilistic models.
@@ -482,8 +460,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         MultiplicationModel
             A probabilistic model describing a model coming from multiplication.
         """
-        return MultiplicationModel([self,other])
-
+        return MultiplicationModel([self, other])
 
     def __rmul__(self, other):
         """Overload the * operator from the righthand side to support subtraction of Hyperparameters from the left.
@@ -498,8 +475,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
                 MultiplicationModel
                     A probabilistic model describing a model coming from multiplication.
                 """
-        return MultiplicationModel([other,self])
-
+        return MultiplicationModel([other, self])
 
     def __truediv__(self, other):
         """Overload the / operator for probabilistic models.
@@ -516,7 +492,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
         return DivisionModel([self, other])
 
-
     def __rtruediv__(self, other):
         """Overload the / operator from the righthand side to support subtraction of Hyperparameters from the left.
 
@@ -532,14 +507,11 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
         return DivisionModel([other, self])
 
-
     def __pow__(self, power, modulo=None):
         return ExponentialModel([self, power])
 
-
     def __rpow__(self, other):
         return RExponentialModel([other, self])
-
 
     def _forward_simulate_and_store_output(self, rng=np.random.RandomState()):
         """
@@ -558,13 +530,12 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
 
         parameters_are_valid = self._check_input(self.get_input_values())
-        if(parameters_are_valid):
+        if parameters_are_valid:
             sample_result = self.forward_simulate(self.get_input_values(), 1, rng=rng)
             if sample_result != None:
                 self.set_output_values(sample_result[0])
                 return True
         return False
-
 
     def pdf(self, input_values, x):
         """
@@ -585,11 +556,10 @@ class ProbabilisticModel(metaclass = ABCMeta):
             The pdf evaluated at point x.
         """
         # If the probabilistic model is discrete, there is no probability density function, but a probability mass function. This check ensures that calling the pdf of such a model still works.
-        if(isinstance(self, Discrete)):
+        if isinstance(self, Discrete):
             return self.pmf(input_values, x)
         else:
             raise NotImplementedError
-
 
     def calculate_and_store_pdf_if_needed(self, x):
         """
@@ -606,14 +576,12 @@ class ProbabilisticModel(metaclass = ABCMeta):
         if self._calculated_pdf == None:
             self._calculated_pdf = self.pdf(self.get_input_values(), x)
 
-
     def flush_stored_pdf(self):
         """
         This function flushes the internally stored value of a previously computed pdf.
         """
 
         self._calculated_pdf = None
-
 
     def get_stored_pdf(self):
         """
@@ -625,7 +593,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
 
         return self._calculated_pdf
-
 
     @abstractmethod
     def _check_input(self, input_values):
@@ -659,7 +626,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
         raise NotImplementedError
 
-
     @abstractmethod
     def _check_output(self, values):
         """
@@ -677,7 +643,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
         """
 
         raise NotImplementedError
-
 
     @abstractmethod
     def forward_simulate(self, input_values, k, rng, mpi_comm=None):
@@ -714,7 +679,6 @@ class ProbabilisticModel(metaclass = ABCMeta):
 
         raise NotImplementedError
 
-
     @abstractmethod
     def get_output_dimension(self):
         """
@@ -733,7 +697,7 @@ class ProbabilisticModel(metaclass = ABCMeta):
         raise NotImplementedError
 
 
-class Continuous(metaclass = ABCMeta):
+class Continuous(metaclass=ABCMeta):
     """
     This abstract class represents all continuous probabilistic models.
     """
@@ -755,7 +719,7 @@ class Continuous(metaclass = ABCMeta):
         raise NotImplementedError
 
 
-class Discrete(metaclass = ABCMeta):
+class Discrete(metaclass=ABCMeta):
     """
     This abstract class represents all discrete probabilistic models.
     """
@@ -782,6 +746,7 @@ class Hyperparameter(ProbabilisticModel):
     This class represents all hyperparameters (i.e. fixed parameters).
 
     """
+
     def __init__(self, value, name='Hyperparameter'):
         """
 
@@ -796,11 +761,9 @@ class Hyperparameter(ProbabilisticModel):
         self._fixed_values = np.array([value])
         self.visited = False
 
-
     def _forward_simulate_and_store_output(self, rng=np.random.RandomState()):
         self.visited = True
         return True
-
 
     def _check_input(self, input_values):
         """
@@ -813,10 +776,8 @@ class Hyperparameter(ProbabilisticModel):
             return True
         return False
 
-
     def _check_output(self, values):
         return False
-
 
     def set_output_values(self, values, rng=np.random.RandomState()):
         if not isinstance(values, np.ndarray):
@@ -825,34 +786,28 @@ class Hyperparameter(ProbabilisticModel):
             raise IndexError('Dimensions not matching.')
         return False
 
-
     def get_input_dimension(self):
         return 0;
 
     def get_output_dimension(self):
         return 1;
 
-
     def get_input_connector(self):
         return None
-
 
     def get_input_models(self):
         return []
 
-
     def get_input_values(self):
         return []
-
 
     def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         return [np.array(self._fixed_values) for _ in range(k)]
 
-
     def pdf(self, input_values, x):
         # Mathematically, the expression for the pdf of a hyperparameter should be: if(x==self.fixed_parameters) return
         # 1; else return 0; However, since the pdf is called recursively for the whole model structure, and pdfs
-        # multiply, this would mean that all pdfs become 0. Setting the return value to 1 ensures proper calulation of
+        # multiply, this would mean that all pdfs become 0. Setting the return value to 1 ensures proper computation of
         # the overall pdf.
         return 1.
 
@@ -890,23 +845,18 @@ class ModelResultingFromOperation(ProbabilisticModel):
         input_parameters = InputConnector.from_list(parameters)
         super(ModelResultingFromOperation, self).__init__(input_parameters, name)
 
-
     def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         raise NotImplementedError
 
-
     def _check_input(self, input_values):
         return True
-
 
     def _check_output(self, parameters):
         """Checks parameters while setting them. Provided due to inheritance."""
         return True
 
-
     def get_output_dimension(self):
         return self._dimension
-
 
     def pdf(self, input_values, x):
         """Calculates the probability density function at point x.
@@ -1009,9 +959,9 @@ class SummationModel(ModelResultingFromOperation):
             # add the corresponding parameter_values
             sample_value = []
             for j in range(self.get_output_dimension()):
-                sample_value.append(parameter_values[j]+parameter_values[j+self.get_output_dimension()])
-            if(len(sample_value)==1):
-                sample_value=sample_value[0]
+                sample_value.append(parameter_values[j] + parameter_values[j + self.get_output_dimension()])
+            if len(sample_value) == 1:
+                sample_value = sample_value[0]
             return_value.append(sample_value)
 
         return return_value
@@ -1056,8 +1006,8 @@ class SubtractionModel(ModelResultingFromOperation):
             sample_value = []
             for j in range(self.get_output_dimension()):
                 sample_value.append(parameter_values[j] - parameter_values[j + self.get_output_dimension()])
-            if(len(sample_value)==1):
-                sample_value=sample_value[0]
+            if len(sample_value) == 1:
+                sample_value = sample_value[0]
             return_value.append(sample_value)
 
         return return_value
@@ -1065,6 +1015,7 @@ class SubtractionModel(ModelResultingFromOperation):
 
 class MultiplicationModel(ModelResultingFromOperation):
     """This class represents all probabilistic models resulting from a multiplication of two probabilistic models"""
+
     def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """Multiplies the sampled values of both parent distributions element wise.
 
@@ -1099,8 +1050,8 @@ class MultiplicationModel(ModelResultingFromOperation):
             sample_value = []
 
             for j in range(self.get_output_dimension()):
-                sample_value.append(parameter_values[j] * parameter_values[j+self.get_output_dimension()])
-            if (len(sample_value) == 1):
+                sample_value.append(parameter_values[j] * parameter_values[j + self.get_output_dimension()])
+            if len(sample_value) == 1:
                 sample_value = sample_value[0]
             return_value.append(sample_value)
 
@@ -1144,7 +1095,7 @@ class DivisionModel(ModelResultingFromOperation):
             sample_value = []
 
             for j in range(self.get_output_dimension()):
-                sample_value.append(parameter_values[j]/parameter_values[j + self.get_output_dimension()])
+                sample_value.append(parameter_values[j] / parameter_values[j + self.get_output_dimension()])
             return_value += sample_value
 
         return return_value
@@ -1170,10 +1121,8 @@ class ExponentialModel(ModelResultingFromOperation):
 
         super(ExponentialModel, self).__init__(parameters, name)
 
-
     def _check_input(self, input_values):
         return True
-
 
     def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """Raises the sampled values of the base by the exponent.
@@ -1210,7 +1159,7 @@ class ExponentialModel(ModelResultingFromOperation):
             sample_value = []
 
             for j in range(self.get_output_dimension()):
-                sample_value.append(parameter_values[j]**power)
+                sample_value.append(parameter_values[j] ** power)
             result.append(np.array(sample_value))
 
         return result
@@ -1235,10 +1184,8 @@ class RExponentialModel(ModelResultingFromOperation):
                 raise ValueError('The exponent can only be 1 dimensional.')
         super(RExponentialModel, self).__init__(parameters, name)
 
-
     def _check_input(self, input_values):
         return True
-
 
     def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
         """Raises the base by the sampled value of the exponent.
@@ -1279,4 +1226,3 @@ class RExponentialModel(ModelResultingFromOperation):
             result.append(sample_value)
 
         return [np.array(result)]
-

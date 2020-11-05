@@ -9,3 +9,4 @@ mpi4py
 cloudpickle
 matplotlib
 tqdm
+pot

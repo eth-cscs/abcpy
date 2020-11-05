@@ -1,4 +1,4 @@
-# ABCpy [![Documentation Status](https://readthedocs.org/projects/abcpy/badge/?version=latest)](http://abcpy.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.org/eth-cscs/abcpy.svg?branch=master)](https://travis-ci.org/eth-cscs/abcpy) [![codecov](https://codecov.io/gh/eth-cscs/abcpy/branch/master/graph/badge.svg)](https://codecov.io/gh/eth-cscs/abcpy) [![DOI](https://zenodo.org/badge/doi/10.1145/3093172.3093233.svg)](http://dx.doi.org/10.1145/3093172.3093233) [![GitHub license](https://img.shields.io/github/license/eth-cscs/abcpy.svg)](https://github.com/eth-cscs/abcpy/blob/master/LICENSE) [![PyPI version shields.io](https://img.shields.io/pypi/v/abcpy.svg)](https://pypi.python.org/pypi/abcpy/) [![PyPI pyversions](https://img.shields.io/pypi/pyversions/abcpy.svg)](https://pypi.python.org/pypi/abcpy/)
+# ABCpy [![Documentation Status](https://readthedocs.org/projects/abcpy/badge/?version=latest)](http://abcpy.readthedocs.io/en/latest/?badge=latest) [![Build Status](https://travis-ci.org/eth-cscs/abcpy.svg?branch=master)](https://travis-ci.org/eth-cscs/abcpy) [![codecov](https://codecov.io/gh/eth-cscs/abcpy/branch/master/graph/badge.svg)](https://codecov.io/gh/eth-cscs/abcpy) [![DOI](https://zenodo.org/badge/doi/10.1145/3093172.3093233.svg)](http://dx.doi.org/10.1145/3093172.3093233) [![GitHub license](https://img.shields.io/github/license/eth-cscs/abcpy.svg)](https://github.com/eth-cscs/abcpy/blob/master/LICENSE) [![PyPI version shields.io](https://img.shields.io/pypi/v/abcpy.svg)](https://pypi.python.org/pypi/abcpy/) [![PyPI pyversions](https://img.shields.io/pypi/pyversions/abcpy.svg)](https://pypi.python.org/pypi/abcpy/)  [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/eth-cscs/abcpy/master?filepath=examples)
 
 ABCpy is a scientific library written in Python for Bayesian uncertainty quantification in
 absence of likelihood function, which parallelizes existing approximate Bayesian computation (ABC) 
@@ -34,6 +34,39 @@ For more information, check out the
 Further, we provide a
 [collection of models](https://github.com/eth-cscs/abcpy-models) for which ABCpy
 has been applied successfully. This is a good place to look at more complicated inference setups.
+
+# Quick installation and requirements
+
+
+ABCpy can be installed from `pip`: 
+
+    pip install abcpy
+
+Check [here](https://abcpy.readthedocs.io/en/latest/installation.html) for more details.
+
+Basic requirements are listed in `requirements.txt`. That also includes packages required for MPI parallelization there, which is very often used. However, we also provide support for parallelization with Apache Spark (see below).
+ 
+ Additional packages are required for additional features: 
+
+- `torch` is needed in order to use neural networks to learn summary statistics. It can be installed by running `pip install -r requirements/neural_networks_requirements.txt`
+- In order to use Apache Spark for parallelization, `findspark` and `pyspark` are required; install them by `pip install -r requirements/backend-spark.txt`  
+
+## Troubleshooting `mpi4py` installation
+
+`mpi4py` requires a working MPI implementation to be installed; check the [official docs]((https://mpi4py.readthedocs.io/en/stable/install.html)) for more info. On Ubuntu, that can be installed with:
+
+    sudo apt-get install libopenmpi-dev
+
+Even when that is present, running `pip install mpi4py` can sometimes lead to errors. In fact, as specified in the [official docs]((https://mpi4py.readthedocs.io/en/stable/install.html)), the `mpicc` compiler needs to be in the search path. If that is not the case, a workaround is: 
+
+    env MPICC=/path/to/mpicc pip install mpi4py
+
+In some cases, even the above may not be enough. A possibility is using `conda` (`conda install mpi4py`) which usually handles package dependencies better than `pip`. Alternatively, you can try by installing directly `mpi4py` from the package manager; in Ubuntu, you can do:
+
+    sudo apt install python3-mpi4py 
+
+which however does not work with virtual environments.
+
 
 # Author 
 ABCpy was written by [Ritabrata Dutta, Warwick

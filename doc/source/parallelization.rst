@@ -19,7 +19,7 @@ be changed to
 
 .. literalinclude:: ../../examples/backends/mpi/pmcabc_gaussian.py
     :language: python
-    :lines: 6-10
+    :lines: 7-11
     :dedent: 4
 
 In words, one only needs to initialize an instance of the MPI backend. The
@@ -60,7 +60,7 @@ can be passed at the initialization of the backend as follows:
 
 .. literalinclude:: ../../examples/backends/mpi/mpi_model_inferences.py
     :language: python
-    :lines: 10-11
+    :lines: 13-14
     :dedent: 4
 
 Here each model is assigned a MPI communicator with 2 ranks. Clearly, the MPI
@@ -69,7 +69,16 @@ a multiple of the ranks per communicator plus one additional rank for the
 master. For example, if we want to run n instances of a MPI model and allows m
 processes to each instance, we will have to spawn (n*m)+1 ranks.
 
-For `forward_simulation` of the MPI-parallelized simulator model has to be able 
+For instance, let's say you want to use n=3. Therefore, we use the following command:
+
+::
+
+    mpirun -n 7 python3 mpi/mpi_model_inferences.py
+
+as (3*2) + 1 = 7. Note that, in this scenario, using only 6 tasks overall leads to failure of the script due to how
+the tasks are assigned to the model instances.
+
+The `forward_simulation` method of the MPI-parallelized simulator model has to be able
 to take an MPI communicator as a parameter.
 
 An example of an MPI-parallelized simulator model, which can be used with ABCpy 
@@ -78,7 +87,7 @@ The `forward_simulation` function of the above model is as follows:
 
 .. literalinclude:: ../../examples/backends/mpi/mpi_model_inferences.py
     :language: python
-    :lines: 48-77
+    :lines: 52-81
     :dedent: 4
 
 Note that in order to run jobs in parallel you need to have MPI installed on the
@@ -101,7 +110,7 @@ backend have to be changed to
 
 .. literalinclude:: ../../examples/backends/apache_spark/pmcabc_gaussian.py
     :language: python
-    :lines: 6-9
+    :lines: 7-10
     :dedent: 4
 
 In words, a Spark context has to be created and passed to the Spark

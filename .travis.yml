@@ -1,4 +1,4 @@
-dist: xenial
+dist: bionic
 language: python
 stages:
   - name: test
@@ -60,10 +60,11 @@ jobs:
               branch: master
 
 install:
+- sudo apt-get install -y r-base  # install R for testing example
+- pip install rpy2  # install the rpy2 library for testing example with R
 - pip install -r requirements.txt
-- pip install -r requirements/backend-mpi.txt
 - pip install -r requirements/backend-spark.txt
-- if [[ ! $NO_PYTORCH == true ]]; then pip install -r requirements/optional-requirements.txt; fi;
+- if [[ ! $NO_PYTORCH == true ]]; then pip install -r requirements/neural_networks_requirements.txt; fi;
 - if [[ $COVERAGE == true ]]; then pip install -r requirements/coverage.txt; fi;
 before_script:
 - python --version

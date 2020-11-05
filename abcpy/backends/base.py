@@ -1,6 +1,7 @@
 from abc import ABCMeta, abstractmethod
 
-class Backend(metaclass = ABCMeta):
+
+class Backend(metaclass=ABCMeta):
     """
     This is the base class for every parallelization backend. It essentially
     resembles the map/reduce API from Spark.
@@ -29,9 +30,8 @@ class Backend(metaclass = ABCMeta):
         PDS class (parallel data set)
             A reference object that represents the parallelized list
         """
-        
-        raise NotImplementedError
 
+        raise NotImplementedError
 
     @abstractmethod
     def broadcast(self, object):
@@ -48,9 +48,8 @@ class Backend(metaclass = ABCMeta):
         BDS class (broadcast data set)
             A reference to the broadcasted object
         """
-        
-        raise NotImplementedError
 
+        raise NotImplementedError
 
     @abstractmethod
     def map(self, func, pds):
@@ -71,9 +70,8 @@ class Backend(metaclass = ABCMeta):
         PDS class
             a new parallel data set that contains the result of the map
         """
-        
-        raise NotImplementedError
 
+        raise NotImplementedError
 
     @abstractmethod
     def collect(self, pds):
@@ -90,10 +88,10 @@ class Backend(metaclass = ABCMeta):
         Python list
             all elements of pds as a list
         """
-        
+
         raise NotImplementedError
 
-    
+
 class PDS:
     """
     The reference class for parallel data sets (PDS).
@@ -108,11 +106,10 @@ class BDS:
     """
     The reference class for broadcast data set (BDS).
     """
-    
+
     @abstractmethod
     def __init__(self):
         raise NotImplementedError
-
 
     @abstractmethod
     def value(self):
@@ -128,11 +125,10 @@ class BackendDummy(Backend):
     anything. It is mainly implemented for testing purpose.
 
     """
-    
+
     def __init__(self):
         pass
 
-    
     def parallelize(self, python_list):
         """
         This actually does nothing: it just wraps the Python list into dummy pds (PDSDummy).
@@ -144,10 +140,9 @@ class BackendDummy(Backend):
         -------        
         PDSDummy (parallel data set)
         """
-        
+
         return PDSDummy(python_list)
 
-    
     def broadcast(self, object):
         """
         This actually does nothing: it just wraps the object into BDSDummy.
@@ -160,10 +155,9 @@ class BackendDummy(Backend):
         -------        
         BDSDummy class
         """
-        
+
         return BDSDummy(object)
 
-    
     def map(self, func, pds):
         """
         This is a wrapper for the Python internal map function.
@@ -180,12 +174,11 @@ class BackendDummy(Backend):
         PDSDummy class
             a new pseudo-parallel data set that contains the result of the map
         """
-        
+
         result_map = map(func, pds.python_list)
         result_pds = PDSDummy(list(result_map))
         return result_pds
 
-    
     def collect(self, pds):
         """
         Returns the Python list stored in PDSDummy
@@ -199,35 +192,32 @@ class BackendDummy(Backend):
         Python list
             all elements of pds as a list
         """
-        
+
         return pds.python_list
 
-    
 
 class PDSDummy(PDS):
     """
     This is a wrapper for a Python list to fake parallelization.
     """
-    
+
     def __init__(self, python_list):
         self.python_list = python_list
 
-        
 
 class BDSDummy(BDS):
     """
     This is a wrapper for a Python object to fake parallelization.
     """
-    
+
     def __init__(self, object):
         self.object = object
 
-        
     def value(self):
         return self.object
 
 
-class NestedParallelizationController():
+class NestedParallelizationController:
     @abstractmethod
     def nested_execution(self):
         raise NotImplementedError

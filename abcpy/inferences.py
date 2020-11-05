@@ -1,10 +1,9 @@
 import copy
 import logging
-import numpy as np
 import time
-import sys
+from abc import abstractproperty
 
-from abc import ABCMeta, abstractmethod, abstractproperty
+import numpy as np
 from scipy import optimize
 
 from abcpy.acceptedparametersmanager import *
@@ -17,7 +16,7 @@ from abcpy.probabilisticmodels import *
 from abcpy.utils import cached
 
 
-class InferenceMethod(GraphTools, metaclass = ABCMeta):
+class InferenceMethod(GraphTools, metaclass=ABCMeta):
     """
         This abstract base class represents an inference method.
 
@@ -68,7 +67,7 @@ class InferenceMethod(GraphTools, metaclass = ABCMeta):
         raise NotImplementedError
 
 
-class BaseMethodsWithKernel(metaclass = ABCMeta):
+class BaseMethodsWithKernel(metaclass=ABCMeta):
     """
     This abstract base class represents inference methods that have a kernel.
     """
@@ -78,7 +77,7 @@ class BaseMethodsWithKernel(metaclass = ABCMeta):
         """To be overwritten by any sub-class: an attribute specifying the transition or perturbation kernel."""
         raise NotImplementedError
 
-    def perturb(self, column_index, epochs = 10, rng=np.random.RandomState()):
+    def perturb(self, column_index, epochs=10, rng=np.random.RandomState()):
         """
         Perturbs all free parameters, given the current weights.
         Commonly used during inference.
@@ -111,7 +110,7 @@ class BaseMethodsWithKernel(metaclass = ABCMeta):
             accepted, last_index = self.set_parameters(correctly_ordered_parameters, 0)
             if accepted:
                 break
-            current_epoch+=1
+            current_epoch += 1
 
         if current_epoch == 10:
             return [False]
@@ -119,17 +118,18 @@ class BaseMethodsWithKernel(metaclass = ABCMeta):
         return [True, correctly_ordered_parameters]
 
 
-class BaseLikelihood(InferenceMethod, BaseMethodsWithKernel, metaclass = ABCMeta):
+class BaseLikelihood(InferenceMethod, BaseMethodsWithKernel, metaclass=ABCMeta):
     """
     This abstract base class represents inference methods that use the likelihood.
     """
+
     @abstractproperty
     def likfun(self):
         """To be overwritten by any sub-class: an attribute specifying the likelihood function to be used."""
         raise NotImplementedError
 
 
-class BaseDiscrepancy(InferenceMethod, BaseMethodsWithKernel, metaclass = ABCMeta):
+class BaseDiscrepancy(InferenceMethod, BaseMethodsWithKernel, metaclass=ABCMeta):
     """
     This abstract base class represents inference methods using descrepancy.
     """
@@ -141,7 +141,7 @@ class BaseDiscrepancy(InferenceMethod, BaseMethodsWithKernel, metaclass = ABCMet
 
 
 class RejectionABC(InferenceMethod):
-    """This base class implements the rejection algorithm based inference scheme [1] for
+    """This class implements the rejection algorithm based inference scheme [1] for
         Approximate Bayesian Computation.
 
         [1] Tavaré, S., Balding, D., Griffith, R., Donnelly, P.: Inferring coalescence
@@ -232,13 +232,14 @@ class RejectionABC(InferenceMethod):
         accepted_parameters, distances, counter = [list(t) for t in zip(*accepted_parameters_distances_counter)]
 
         for count in counter:
-            self.simulation_counter+=count
+            self.simulation_counter += count
 
         distances = np.array(distances)
 
         self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
         journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
-        journal.add_weights(copy.deepcopy(np.ones((n_samples, 1))))
+        journal.add_weights(np.ones((n_samples, 1)))
+        journal.add_ESS_estimate(np.ones((n_samples, 1)))
         journal.add_distances(copy.deepcopy(distances))
         self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
         names_and_parameters = self._get_names_and_parameters()
@@ -259,8 +260,10 @@ class RejectionABC(InferenceMethod):
             The random number generator to be used.
         Returns
         -------
-        np.array
-            accepted parameter
+        Tuple
+            The first entry of the tuple is the accepted parameters.
+            The second entry is the distance between the simulated data set and the observation, while the third one is
+            the number of simulations needed to obtain the accepted parameter.
         """
         distance = self.distance.dist_max()
 
@@ -275,23 +278,22 @@ class RejectionABC(InferenceMethod):
             self.sample_from_prior(rng=rng)
             theta = self.get_parameters(self.model)
             y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
-            counter+=1
-            if(y_sim is not None):
+            counter += 1
+            if y_sim is not None:
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
                 self.logger.debug("distance after {:4d} simulations: {:e}".format(
                     counter, distance))
             else:
                 distance = self.distance.dist_max()
-        self.logger.debug(
-                "Needed {:4d} simulations to reach distance {:e} < epsilon = {:e}".
-                format(counter, distance, float(self.epsilon))
-                )
-        return (theta, distance, counter)
+        self.logger.debug("Needed {:4d} simulations to reach distance {:e} < epsilon = {:e}".format(counter, distance,
+                                                                                                    float(
+                                                                                                        self.epsilon)))
+        return theta, distance, counter
 
 
 class PMCABC(BaseDiscrepancy, InferenceMethod):
     """
-    This base class implements a modified version of Population Monte Carlo based inference scheme for Approximate
+    This class implements a modified version of Population Monte Carlo based inference scheme for Approximate
     Bayesian computation of Beaumont et. al. [1]. Here the threshold value at `t`-th generation are adaptively chosen by
     taking the maximum between the epsilon_percentile-th value of discrepancies of the accepted parameters at `t-1`-th
     generation and the threshold value provided for this generation by the user. If we take the value of
@@ -320,18 +322,17 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
     kernel = None
     rng = None
 
-    #default value, set so that testing works
+    # default value, set so that testing works
     n_samples = 2
     n_samples_per_param = None
 
     backend = None
 
-
     def __init__(self, root_models, distances, backend, kernel=None, seed=None):
         self.model = root_models
         # We define the joint Linear combination distance using all the distances for each individual models
         self.distance = LinearCombination(root_models, distances)
-        if(kernel is None):
+        if kernel is None:
 
             mapping, garbage_index = self._get_mapping()
             models = []
@@ -342,14 +343,14 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         self.kernel = kernel
         self.backend = backend
         self.rng = np.random.RandomState(seed)
-        self.logger = logging.getLogger(__name__) 
+        self.logger = logging.getLogger(__name__)
 
         self.accepted_parameters_manager = AcceptedParametersManager(self.model)
 
-        self.simulation_counter=0
+        self.simulation_counter = 0
 
-
-    def sample(self, observations, steps, epsilon_init, n_samples = 10000, n_samples_per_param = 1, epsilon_percentile = 10, covFactor = 2, full_output=0, journal_file = None):
+    def sample(self, observations, steps, epsilon_init, n_samples=10000, n_samples_per_param=1, epsilon_percentile=10,
+               covFactor=2, full_output=0, journal_file=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -385,9 +386,9 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         """
         self.accepted_parameters_manager.broadcast(self.backend, observations)
         self.n_samples = n_samples
-        self.n_samples_per_param=n_samples_per_param
+        self.n_samples_per_param = n_samples_per_param
 
-        if(journal_file is None):
+        if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
             journal.configuration["type_dist_func"] = type(self.distance).__name__
@@ -416,11 +417,12 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         self.logger.info("Starting PMC iterations")
         for aStep in range(steps):
             self.logger.debug("iteration {} of PMC algorithm".format(aStep))
-            if(aStep==0 and journal_file is not None):
+            if aStep == 0 and journal_file is not None:
                 accepted_parameters = journal.get_accepted_parameters(-1)
                 accepted_weights = journal.get_weights(-1)
 
-                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights)
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
+                                                                  accepted_weights=accepted_weights)
 
                 kernel_parameters = []
                 for kernel in self.kernel.kernels:
@@ -435,20 +437,20 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 # accepted_cov_mats = [covFactor * new_cov_mat for new_cov_mat in new_cov_mats]
                 accepted_cov_mats = self._compute_accepted_cov_mats(covFactor, accepted_cov_mats)
 
-            
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
             rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
             rng_pds = self.backend.parallelize(rng_arr)
 
             # 0: update remotely required variables
-            #print("INFO: Broadcasting parameters.")
+            # print("INFO: Broadcasting parameters.")
             self.logger.info("Broadcasting parameters")
             self.epsilon = epsilon_arr[aStep]
-            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters, accepted_weights, accepted_cov_mats)
+            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters, accepted_weights,
+                                                              accepted_cov_mats)
 
             # 1: calculate resample parameters
-            #print("INFO: Resampling parameters")
-            self.logger.info("Resamping parameters")
+            # print("INFO: Resampling parameters")
+            self.logger.info("Resampling parameters")
 
             params_and_dists_and_counter_pds = self.backend.map(self._resample_parameter, rng_pds)
             params_and_dists_and_counter = self.backend.collect(params_and_dists_and_counter_pds)
@@ -457,13 +459,13 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             distances = np.array(distances)
 
             for count in counter:
-                self.simulation_counter+=count
+                self.simulation_counter += count
 
             # Compute epsilon for next step
             # print("INFO: Calculating acceptance threshold (epsilon).")
             self.logger.info("Calculating acceptances threshold")
             if aStep < steps - 1:
-                if epsilon_arr[aStep + 1] == None:
+                if epsilon_arr[aStep + 1] is None:
                     epsilon_arr[aStep + 1] = np.percentile(distances, epsilon_percentile)
                 else:
                     epsilon_arr[aStep + 1] = np.max(
@@ -476,13 +478,12 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             self.logger.info("Calculate weights")
             new_weights_pds = self.backend.map(self._calculate_weight, new_parameters_pds)
             new_weights = np.array(self.backend.collect(new_weights_pds)).reshape(-1, 1)
-            sum_of_weights = 0.0
-            for w in new_weights:
-                sum_of_weights += w
+            sum_of_weights = np.sum(new_weights)
             new_weights = new_weights / sum_of_weights
 
             # The calculation of cov_mats needs the new weights and new parameters
-            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters = new_parameters, accepted_weights=new_weights)
+            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=new_parameters,
+                                                              accepted_weights=new_weights)
 
             # The parameters relevant to each kernel have to be used to calculate n_sample times. It is therefore more efficient to broadcast these parameters once,
             # instead of collecting them at each kernel in each step
@@ -496,7 +497,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             self.logger.info("Calculating covariance matrix")
             new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
             # Since each entry of new_cov_mats is a numpy array, we can multiply like this
-            new_cov_mats = [covFactor*new_cov_mat for new_cov_mat in new_cov_mats]
+            new_cov_mats = [covFactor * new_cov_mat for new_cov_mat in new_cov_mats]
 
             # 4: Update the newly computed values
             accepted_parameters = new_parameters
@@ -509,6 +510,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_distances(copy.deepcopy(distances))
                 journal.add_weights(copy.deepcopy(accepted_weights))
+                journal.add_ESS_estimate(accepted_weights)
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                                   accepted_weights=accepted_weights)
                 names_and_parameters = self._get_names_and_parameters()
@@ -533,11 +535,13 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
 
         Returns
         -------
-        np.array
-            accepted parameter
+        Tuple
+            The first entry of the tuple is the accepted parameters.
+            The second entry is the distance between the simulated data set and the observation, while the third one is
+            the number of simulations needed to obtain the accepted parameter.
         """
 
-        #print(npc.communicator())
+        # print(npc.communicator())
         rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
         distance = self.distance.dist_max()
@@ -547,38 +551,37 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                              .format(float(self.epsilon), distance))
 
         theta = self.get_parameters()
-        counter=0
+        counter = 0
 
         while distance > self.epsilon:
-            if self.accepted_parameters_manager.accepted_parameters_bds == None:
+            if self.accepted_parameters_manager.accepted_parameters_bds is None:
                 self.sample_from_prior(rng=rng)
                 theta = self.get_parameters()
                 y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
-                counter+=1
+                counter += 1
 
             else:
-                index = rng.choice(self.n_samples, size=1, p=self.accepted_parameters_manager.accepted_weights_bds.value().reshape(-1))
+                index = rng.choice(self.n_samples, size=1,
+                                   p=self.accepted_parameters_manager.accepted_weights_bds.value().reshape(-1))
                 # truncate the normal to the bounds of parameter space of the model
                 # truncating the normal like this is fine: https://arxiv.org/pdf/0907.4010v1.pdf
                 while True:
                     perturbation_output = self.perturb(index[0], rng=rng)
-                    if(perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1])!=0):
+                    if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
                         theta = perturbation_output[1]
                         break
                 y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
-                counter+=1
+                counter += 1
 
             distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
 
-            self.logger.debug("distance after {:4d} simulations: {:e}".format(
-                     counter, distance))
+            self.logger.debug("distance after {:4d} simulations: {:e}".format(counter, distance))
 
-        self.logger.debug(
-                "Needed {:4d} simulations to reach distance {:e} < epsilon = {:e}".
-                format(counter, distance, float(self.epsilon))
-                )
+        self.logger.debug("Needed {:4d} simulations to reach distance {:e} < epsilon = {:e}".format(counter, distance,
+                                                                                                    float(
+                                                                                                        self.epsilon)))
 
-        return (theta, distance, counter)
+        return theta, distance, counter
 
     def _calculate_weight(self, theta, npc=None):
         """
@@ -601,18 +604,32 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         else:
             prior_prob = self.pdf_of_prior(self.model, theta, 0)
 
-            denominator = 0.0
-
             # Get the mapping of the models to be used by the kernels
-            mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(self.accepted_parameters_manager.model)
+            mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(
+                self.accepted_parameters_manager.model)
+            pdf_values = np.array([self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
+                                                   self.accepted_parameters_manager.accepted_parameters_bds.value()[i],
+                                                   theta) for i in range(self.n_samples)])
+            denominator = np.sum(self.accepted_parameters_manager.accepted_weights_bds.value().reshape(-1) * pdf_values)
 
-            for i in range(0, self.n_samples):
-                pdf_value = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
-                                            self.accepted_parameters_manager.accepted_parameters_bds.value()[i], theta)
-                denominator += self.accepted_parameters_manager.accepted_weights_bds.value()[i, 0] * pdf_value
             return 1.0 * prior_prob / denominator
 
     def _compute_accepted_cov_mats(self, covFactor, new_cov_mats):
+        """
+        Update the covariance matrices computed from data by multiplying them with covFactor and adding a small term in
+        the diagonal for numerical stability.
+
+        Parameters
+        ----------
+        covFactor : float
+            factor to correct the covariance matrices
+        new_cov_mats : list
+            list of covariance matrices computed from data
+        Returns
+        -------
+        list
+            List of new accepted covariance matrices
+        """
         # accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
         accepted_cov_mats = []
         for new_cov_mat in new_cov_mats:
@@ -622,6 +639,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             else:
                 accepted_cov_mats.append((covFactor * new_cov_mat + 0.0001 * new_cov_mat).reshape(1, 1))
         return accepted_cov_mats
+
 
 class PMC(BaseLikelihood, InferenceMethod):
     """
@@ -665,13 +683,12 @@ class PMC(BaseLikelihood, InferenceMethod):
 
     backend = None
 
-
     def __init__(self, root_models, likfuns, backend, kernel=None, seed=None):
         self.model = root_models
         # We define the joint Product of likelihood functions using all the likelihoods for each individual models
         self.likfun = ProductCombination(root_models, likfuns)
 
-        if(kernel is None):
+        if kernel is None:
 
             mapping, garbage_index = self._get_mapping()
             models = []
@@ -690,8 +707,8 @@ class PMC(BaseLikelihood, InferenceMethod):
 
         self.simulation_counter = 0
 
-
-    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 100, covFactors = None, iniPoints = None, full_output=0, journal_file = None):
+    def sample(self, observations, steps, n_samples=10000, n_samples_per_param=100, covFactors=None, iniPoints=None,
+               full_output=0, journal_file=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -728,7 +745,7 @@ class PMC(BaseLikelihood, InferenceMethod):
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
 
-        if(journal_file is None):
+        if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
             journal.configuration["type_lhd_func"] = type(self.likfun).__name__
@@ -750,7 +767,7 @@ class PMC(BaseLikelihood, InferenceMethod):
 
         # Initialize particles: When not supplied, randomly draw them from prior distribution
         # Weights of particles: Assign equal weights for each of the particles
-        if iniPoints == None:
+        if iniPoints is None:
             accepted_parameters = []
             for ind in range(0, n_samples):
                 self.sample_from_prior(rng=self.rng)
@@ -763,7 +780,8 @@ class PMC(BaseLikelihood, InferenceMethod):
         if covFactors is None:
             covFactors = np.ones(shape=(len(self.kernel.kernels),))
 
-        self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights)
+        self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
+                                                          accepted_weights=accepted_weights)
 
         # The parameters relevant to each kernel have to be used to calculate n_sample times. It is therefore more efficient
         # to broadcast these parameters once, instead of collecting them at each kernel in each step
@@ -787,11 +805,12 @@ class PMC(BaseLikelihood, InferenceMethod):
         # main SMC algorithm
         self.logger.info("Starting pmc iterations")
         for aStep in range(steps):
-            if(aStep==0 and journal_file is not None):
+            if aStep == 0 and journal_file is not None:
                 accepted_parameters = journal.get_accepted_parameters(-1)
                 accepted_weights = journal.get_weights(-1)
 
-                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights)
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
+                                                                  accepted_weights=accepted_weights)
 
                 kernel_parameters = []
                 for kernel in self.kernel.kernels:
@@ -802,7 +821,6 @@ class PMC(BaseLikelihood, InferenceMethod):
 
                 # 3: calculate covariance
                 self.logger.info("Calculating covariance matrix")
-
 
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
                 # Since each entry of new_cov_mats is a numpy array, we can multiply like this
@@ -815,7 +833,8 @@ class PMC(BaseLikelihood, InferenceMethod):
             # 0: update remotely required variables
             self.logger.info("Broadcasting parameters")
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
-                                                              accepted_weights=accepted_weights, accepted_cov_mats=accepted_cov_mats)
+                                                              accepted_weights=accepted_weights,
+                                                              accepted_cov_mats=accepted_cov_mats)
 
             # 1: Resample parameters
             self.logger.info("Resample parameters")
@@ -826,7 +845,7 @@ class PMC(BaseLikelihood, InferenceMethod):
             for ind in range(0, self.n_samples):
                 while True:
                     perturbation_output = self.perturb(index[ind], rng=self.rng)
-                    if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1])!= 0:
+                    if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
                         new_parameters.append(perturbation_output[1])
                         break
 
@@ -835,13 +854,13 @@ class PMC(BaseLikelihood, InferenceMethod):
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=self.n_samples, dtype=np.uint32)
             rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
             data_arr = []
-            for i in range(len(rng_arr)):
-                data_arr.append([new_parameters[i], rng_arr[i]])
+            data_arr = list(zip(new_parameters, rng_arr))
             data_pds = self.backend.parallelize(data_arr)
 
             approx_likelihood_new_parameters_and_counter_pds = self.backend.map(self._approx_lik_calc, data_pds)
             self.logger.debug("collect approximate likelihood from pds")
-            approx_likelihood_new_parameters_and_counter = self.backend.collect(approx_likelihood_new_parameters_and_counter_pds)
+            approx_likelihood_new_parameters_and_counter = self.backend.collect(
+                approx_likelihood_new_parameters_and_counter_pds)
             approx_likelihood_new_parameters, counter = [list(t) for t in
                                                          zip(*approx_likelihood_new_parameters_and_counter)]
 
@@ -863,16 +882,16 @@ class PMC(BaseLikelihood, InferenceMethod):
 
             # self.logger.info("new_weights : ", new_weights, ", sum_of_weights : ", sum_of_weights)
             self.logger.info("sum_of_weights : {}".format(sum_of_weights))
-            accepted_parameters = new_parameters
+            accepted_parameters = new_parameters  # this is repeated uselessly below
 
-            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=new_weights)
+            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
+                                                              accepted_weights=new_weights)
 
             # 4: calculate covariance
             # The parameters relevant to each kernel have to be used to calculate n_sample times. It is therefore more efficient to broadcast these parameters once, instead of collecting them at each kernel in each step
             self.logger.info("Calculating covariance matrix")
-            kernel_parameters = []
-            for kernel in self.kernel.kernels:
-                kernel_parameters.append(self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
+            kernel_parameters = [self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models) for
+                                 kernel in self.kernel.kernels]
 
             self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
@@ -894,6 +913,7 @@ class PMC(BaseLikelihood, InferenceMethod):
             if (full_output == 1 and aStep <= steps - 1) or (full_output == 0 and aStep == steps - 1):
                 journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_weights(copy.deepcopy(accepted_weights))
+                journal.add_ESS_estimate(accepted_weights)
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                                   accepted_weights=accepted_weights)
                 names_and_parameters = self._get_names_and_parameters()
@@ -939,7 +959,7 @@ class PMC(BaseLikelihood, InferenceMethod):
 
         self.logger.debug("Prior pdf evaluated at theta is :" + str(pdf_at_theta))
 
-        return (total_pdf_at_theta, self.n_samples_per_param)
+        return total_pdf_at_theta, self.n_samples_per_param
 
     def _calculate_weight(self, theta, npc=None):
         """
@@ -964,19 +984,32 @@ class PMC(BaseLikelihood, InferenceMethod):
         else:
             prior_prob = self.pdf_of_prior(self.model, theta)
 
-            denominator = 0.0
-
             mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(
                 self.accepted_parameters_manager.model)
 
-            for i in range(0, self.n_samples):
-                pdf_value = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
-                                            self.accepted_parameters_manager.accepted_parameters_bds.value()[i], theta)
-                denominator+=self.accepted_parameters_manager.accepted_weights_bds.value()[i,0]*pdf_value
+            pdf_values = np.array([self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
+                                                   self.accepted_parameters_manager.accepted_parameters_bds.value()[i],
+                                                   theta) for i in range(self.n_samples)])
+            denominator = np.sum(self.accepted_parameters_manager.accepted_weights_bds.value().reshape(-1) * pdf_values)
 
             return 1.0 * prior_prob / denominator
 
     def _compute_accepted_cov_mats(self, covFactors, new_cov_mats):
+        """
+        Update the covariance matrices computed from data by multiplying them with covFactors and adding a small term in
+        the diagonal for numerical stability.
+
+        Parameters
+        ----------
+        covFactors : list of float
+            factors to correct the covariance matrices
+        new_cov_mats : list
+            list of covariance matrices computed from data
+        Returns
+        -------
+        list
+            List of new accepted covariance matrices
+        """
         accepted_cov_mats = []
         for covFactor, new_cov_mat in zip(covFactors, new_cov_mats):
             if not (new_cov_mat.size == 1):
@@ -988,7 +1021,8 @@ class PMC(BaseLikelihood, InferenceMethod):
 
 class SABC(BaseDiscrepancy, InferenceMethod):
     """
-    This base class implements a modified version of Simulated Annealing Approximate Bayesian Computation (SABC) of [1] when the prior is non-informative.
+    This class implements a modified version of Simulated Annealing Approximate Bayesian Computation (SABC) of [1]
+    when the prior is non-informative.
 
     [1] C. Albert, H. R. Kuensch and A. Scheidegger. A Simulated Annealing Approach to
     Approximate Bayes Computations. Statistics and Computing, (2014).
@@ -1026,7 +1060,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         # We define the joint Linear combination distance using all the distances for each individual models
         self.distance = LinearCombination(root_models, distances)
 
-        if (kernel is None):
+        if kernel is None:
 
             mapping, garbage_index = self._get_mapping()
             models = []
@@ -1047,9 +1081,8 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
         self.simulation_counter = 0
 
-
-    def sample(self, observations, steps, epsilon, n_samples = 10000, n_samples_per_param = 1, beta = 2, delta = 0.2,
-               v = 0.3, ar_cutoff = 0.1, resample = None, n_update = None, full_output=0, journal_file = None):
+    def sample(self, observations, steps, epsilon, n_samples=10000, n_samples_per_param=1, beta=2, delta=0.2,
+               v=0.3, ar_cutoff=0.1, resample=None, n_update=None, full_output=0, journal_file=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -1065,16 +1098,18 @@ class SABC(BaseDiscrepancy, InferenceMethod):
             Number of samples to generate. The default value is 10000.
         n_samples_per_param : integer, optional
             Number of data points in each simulated data set. The default value is 1.
-        beta : numpy.float
-            Tuning parameter of SABC, default value is 2.
-        delta : numpy.float
+        beta : numpy.float, optional
+            Tuning parameter of SABC, default value is 2. Used to scale up the covariance matrices obtained from data.
+        delta : numpy.float, optional
             Tuning parameter of SABC, default value is 0.2.
         v : numpy.float, optional
             Tuning parameter of SABC, The default value is 0.3.
-        ar_cutoff : numpy.float
-            Acceptance ratio cutoff, The default value is 0.1.
+        ar_cutoff : numpy.float, optional
+            Acceptance ratio cutoff: if the acceptance rate at some iteration of the algorithm is lower than that, the
+            algorithm will stop. The default value is 0.1.
         resample: int, optional
-            Resample after this many acceptance, The default value is None which takes value inside n_samples
+            At any iteration, perform a resampling step if the number of accepted particles is larger than resample.
+            When not provided, it assumes resample to be equal to n_samples.
         n_update: int, optional
             Number of perturbed parameters at each step, The default value is None which takes value inside n_samples
         full_output: integer, optional
@@ -1096,7 +1131,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
 
-        if(journal_file is None):
+        if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
             journal.configuration["type_dist_func"] = type(self.distance).__name__
@@ -1120,36 +1155,37 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         all_distances = None
         accepted_cov_mat = None
 
-        if resample == None:
+        if resample is None:
             resample = n_samples
-        if n_update == None:
+        if n_update is None:
             n_update = n_samples
         sample_array = np.ones(shape=(steps,))
         sample_array[0] = n_samples
         sample_array[1:] = n_update
 
-        ## Acceptance counter to determine the resampling step
+        # Acceptance counter to determine the resampling step
         accept = 0
         samples_until = 0
 
-        ## Counter whether broken preemptively
+        # Counter whether broken preemptively
         broken_preemptively = False
 
         for aStep in range(0, steps):
             self.logger.debug("step {}".format(aStep))
-            if(aStep==0 and journal_file is not None):
-                accepted_parameters=journal.get_accepted_parameters(-1)
-                accepted_weights=journal.get_weights(-1)
+            if aStep == 0 and journal_file is not None:
+                accepted_parameters = journal.get_accepted_parameters(-1)
+                accepted_weights = journal.get_weights(-1)
 
-                #Broadcast Accepted parameters and Accedpted weights
-                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights)
+                # Broadcast Accepted parameters and Accepted weights
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
+                                                                  accepted_weights=accepted_weights)
 
                 kernel_parameters = []
                 for kernel in self.kernel.kernels:
                     kernel_parameters.append(
                         self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
 
-                #Broadcast Accepted Kernel parameters
+                # Broadcast Accepted Kernel parameters
                 self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
@@ -1179,16 +1215,15 @@ class SABC(BaseDiscrepancy, InferenceMethod):
             self.logger.debug("Map step of parallelism is finished")
             params_and_dists = self.backend.collect(params_and_dists_pds)
             self.logger.debug("Collect step of parallelism is finished")
-            new_parameters, new_distances, new_all_parameters, new_all_distances, index, acceptance, counter = [list(t) for t in
-                                                                                                       zip(
-                                                                                                           *params_and_dists)]
+            new_parameters, new_distances, new_all_parameters, new_all_distances, index, acceptance, counter = [
+                list(t) for t in zip(*params_and_dists)]
 
             # Keeping counter of number of simulations
             self.logger.debug("Counting number of simulations")
             for count in counter:
-                self.simulation_counter+=count
+                self.simulation_counter += count
 
-            #new_parameters = np.array(new_parameters)
+            # new_parameters = np.array(new_parameters)
             new_distances = np.array(new_distances)
             new_all_distances = np.concatenate(new_all_distances)
             index = np.array(index)
@@ -1229,12 +1264,8 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 samples_until = samples_until + sample_array[aStep]
                 acceptance_rate = accept / samples_until
 
-                msg = ("updates= {:.2f}, epsilon= {}, u.mean={:e}, acceptance rate: {:.2f}"
-                        .format(
-                            np.sum(sample_array[1:aStep + 1]) / np.sum(sample_array[1:]) * 100,
-                            epsilon, U, acceptance_rate
-                            )
-                        )
+                msg = ("updates= {:.2f}, epsilon= {}, u.mean={:e}, acceptance rate: {:.2f}".format(
+                    np.sum(sample_array[1:aStep + 1]) / np.sum(sample_array[1:]) * 100, epsilon, U, acceptance_rate))
                 self.logger.info(msg)
                 if acceptance_rate < ar_cutoff:
                     broken_preemptively = True
@@ -1251,22 +1282,23 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 smooth_distances = smooth_distances[index_resampled]
                 distances = distances[index_resampled]
 
-                ## Update U and epsilon:
+                # Update U and epsilon:
                 epsilon = epsilon * (1 - delta)
                 U = np.mean(smooth_distances)
                 epsilon = self._schedule(U, v)
 
-                ## Print effective sampling size
-                self.logger.info('Resampling: Effective sampling size: '+str(1 / sum(pow(weight / sum(weight), 2))))
+                # Print effective sampling size
+                self.logger.info('Resampling: Effective sampling size: ' + str(1 / sum(pow(weight / sum(weight), 2))))
                 accept = 0
                 samples_until = 0
 
-                ## Compute and broadcast accepted parameters, accepted kernel parameters and accepted Covariance matrix
+                # Compute and broadcast accepted parameters, accepted kernel parameters and accepted Covariance matrix
                 # Broadcast Accepted parameters and add to journal
                 self.logger.info("Broadcast Accepted parameters and add to journal")
-                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_weights=accepted_weights, accepted_parameters=accepted_parameters)
-                # Compute Accepetd Kernel parameters and broadcast them
-                self.logger.debug("Compute Accepetd Kernel parameters and broadcast them")
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_weights=accepted_weights,
+                                                                  accepted_parameters=accepted_parameters)
+                # Compute Accepted Kernel parameters and broadcast them
+                self.logger.debug("Compute Accepted Kernel parameters and broadcast them")
                 kernel_parameters = []
                 for kernel in self.kernel.kernels:
                     kernel_parameters.append(
@@ -1279,20 +1311,22 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
 
-                if (full_output == 1 and aStep<= steps-1):
-                    ## Saving intermediate configuration to output journal.
+                if full_output == 1 and aStep <= steps - 1:
+                    # Saving intermediate configuration to output journal.
                     self.logger.info('Saving after resampling')
                     journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                     journal.add_weights(copy.deepcopy(accepted_weights))
+                    journal.add_ESS_estimate(accepted_weights)
                     journal.add_distances(copy.deepcopy(distances))
                     names_and_parameters = self._get_names_and_parameters()
                     journal.add_user_parameters(names_and_parameters)
                     journal.number_of_simulations.append(self.simulation_counter)
             else:
-                ## Compute and broadcast accepted parameters, accepted kernel parameters and accepted Covariance matrix
+                # Compute and broadcast accepted parameters, accepted kernel parameters and accepted Covariance matrix
                 # Broadcast Accepted parameters
-                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_weights= accepted_weights, accepted_parameters=accepted_parameters)
-                # Compute Accepetd Kernel parameters and broadcast them
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_weights=accepted_weights,
+                                                                  accepted_parameters=accepted_parameters)
+                # Compute Accepted Kernel parameters and broadcast them
                 kernel_parameters = []
                 for kernel in self.kernel.kernels:
                     kernel_parameters.append(
@@ -1304,10 +1338,11 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
 
-                if (full_output == 1 and aStep <= steps-1):
-                    ## Saving intermediate configuration to output journal.
+                if full_output == 1 and aStep <= steps - 1:
+                    # Saving intermediate configuration to output journal.
                     journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                     journal.add_weights(copy.deepcopy(accepted_weights))
+                    journal.add_ESS_estimate(accepted_weights)
                     journal.add_distances(copy.deepcopy(distances))
                     names_and_parameters = self._get_names_and_parameters()
                     journal.add_user_parameters(names_and_parameters)
@@ -1315,11 +1350,13 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
         # Add epsilon_arr, number of final steps and final output to the journal
         # print("INFO: Saving final configuration to output journal.")
-        if (full_output == 0) or (full_output ==1 and broken_preemptively and aStep<= steps-1):
+        if (full_output == 0) or (full_output == 1 and broken_preemptively and aStep <= steps - 1):
             journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
             journal.add_weights(copy.deepcopy(accepted_weights))
+            journal.add_ESS_estimate(accepted_weights)
             journal.add_distances(copy.deepcopy(distances))
-            self.accepted_parameters_manager.update_broadcast(self.backend,accepted_parameters=accepted_parameters,accepted_weights=accepted_weights)
+            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
+                                                              accepted_weights=accepted_weights)
             names_and_parameters = self._get_names_and_parameters()
             journal.add_user_parameters(names_and_parameters)
             journal.number_of_simulations.append(self.simulation_counter)
@@ -1379,7 +1416,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         else:
             U = np.average(distance, weights=np.exp(-distance / epsilon))
 
-        return (U)
+        return U
 
     def _schedule(self, rho, v):
         if rho < 1e-100:
@@ -1388,13 +1425,14 @@ class SABC(BaseDiscrepancy, InferenceMethod):
             fun = lambda epsilon: pow(epsilon, 2) + v * pow(epsilon, 3 / 2) - pow(rho, 2)
             epsilon = optimize.fsolve(fun, rho / 2)
 
-        return (epsilon)
+        return epsilon
 
     def _update_broadcasts(self, smooth_distances, all_distances):
         def destroy(bc):
             if bc != None:
                 bc.unpersist
                 # bc.destroy
+
         if not smooth_distances is None:
             self.smooth_distances_bds = self.backend.broadcast(smooth_distances)
         if not all_distances is None:
@@ -1416,10 +1454,10 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         numpy.ndarray
             accepted parameter
         """
-        if(isinstance(data,np.ndarray)):
+        if isinstance(data, np.ndarray):
             data = data.tolist()
-        rng=data[0]
-        index=data[1]
+        rng = data[0]
+        index = data[1]
         rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
         all_parameters = []
@@ -1428,7 +1466,7 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
         counter = 0
 
-        if self.accepted_parameters_manager.accepted_cov_mats_bds == None:
+        if self.accepted_parameters_manager.accepted_cov_mats_bds is None:
 
             while acceptance == 0:
                 self.sample_from_prior(rng=rng)
@@ -1437,15 +1475,15 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                 t0 = time.time()
                 y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
                 self.logger.debug("Simulation took " + str(time.time() - t0) + "sec")
-                counter+=1
+                counter += 1
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
                 all_distances.append(distance)
                 acceptance = rng.binomial(1, np.exp(-distance / self.epsilon), 1)
             acceptance = 1
         else:
-            ## Select one arbitrary particle:
+            # Select one arbitrary particle:
             index = rng.choice(self.n_samples, size=1)[0]
-            ## Sample proposal parameter and calculate new distance:
+            # Sample proposal parameter and calculate new distance:
             theta = self.accepted_parameters_manager.accepted_parameters_bds.value()[index]
 
             while True:
@@ -1455,27 +1493,42 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                     break
             t0 = time.time()
             y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
-            self.logger.debug("Simulation took "+ str(time.time()-t0)+"sec")
-            counter+=1
+            self.logger.debug("Simulation took " + str(time.time() - t0) + "sec")
+            counter += 1
             distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
             smooth_distance = self._smoother_distance([distance], self.all_distances_bds.value())
 
-            ## Calculate acceptance probability:
+            # Calculate acceptance probability:
             self.logger.debug("Calulate acceptance probability")
-            ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model,
-                self.accepted_parameters_manager.accepted_parameters_bds.value()[index])
+            ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(
+                self.model, self.accepted_parameters_manager.accepted_parameters_bds.value()[index])
             ratio_likelihood_prob = np.exp((self.smooth_distances_bds.value()[index] - smooth_distance) / self.epsilon)
             acceptance_prob = ratio_prior_prob * ratio_likelihood_prob
 
-            ## If accepted
+            # If accepted
             if rng.rand(1) < acceptance_prob:
                 acceptance = 1
             else:
                 distance = np.inf
 
-        return (new_theta, distance, all_parameters, all_distances, index, acceptance, counter)
+        return new_theta, distance, all_parameters, all_distances, index, acceptance, counter
 
     def _compute_accepted_cov_mats(self, beta, new_cov_mats):
+        """
+        Update the covariance matrices computed from data by multiplying them with beta and adding a small term in
+        the diagonal for numerical stability.
+
+        Parameters
+        ----------
+        beta : float
+            factor to correct the covariance matrices
+        new_cov_mats : list
+            list of covariance matrices computed from data
+        Returns
+        -------
+        list
+            List of new accepted covariance matrices
+        """
         accepted_cov_mats = []
         for new_cov_mat in new_cov_mats:
             if not (new_cov_mat.size == 1):
@@ -1486,10 +1539,8 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         return accepted_cov_mats
 
 
-
-
 class ABCsubsim(BaseDiscrepancy, InferenceMethod):
-    """This base class implements Approximate Bayesian Computation by subset simulation (ABCsubsim) algorithm of [1].
+    """This class implements Approximate Bayesian Computation by subset simulation (ABCsubsim) algorithm of [1].
 
     [1] M. Chiachio, J. L. Beck, J. Chiachio, and G. Rus., Approximate Bayesian computation by subset
     simulation. SIAM J. Sci. Comput., 36(3):A1339–A1358, 2014/10/03 2014.
@@ -1520,7 +1571,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
     backend = None
 
-    def __init__(self, root_models, distances, backend, kernel=None,seed=None):
+    def __init__(self, root_models, distances, backend, kernel=None, seed=None):
         self.model = root_models
         # We define the joint Linear combination distance using all the distances for each individual models
         self.distance = LinearCombination(root_models, distances)
@@ -1540,15 +1591,14 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
         self.anneal_parameter = None
         self.logger = logging.getLogger(__name__)
 
-
         # these are usually big tables, so we broadcast them to have them once
         # per executor instead of once per task
         self.accepted_parameters_manager = AcceptedParametersManager(self.model)
 
         self.simulation_counter = 0
 
-
-    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, chain_length = 10, ap_change_cutoff = 10, full_output=0, journal_file = None):
+    def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, chain_length=10, ap_change_cutoff=10,
+               full_output=0, journal_file=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -1586,7 +1636,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
 
-        if(journal_file is None):
+        if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
             journal.configuration["type_dist_func"] = type(self.distance).__name__
@@ -1606,10 +1656,9 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
         anneal_parameter_old = 0
         temp_chain_length = 1
 
-
         for aStep in range(0, steps):
             self.logger.info("ABCsubsim step {}".format(aStep))
-            if aStep==0 and journal_file is not None:
+            if aStep == 0 and journal_file is not None:
                 accepted_parameters = journal.get_accepted_parameters(-1)
                 accepted_weights = journal.get_weights(-1)
                 accepted_cov_mats = journal.opt_values[-1]
@@ -1627,7 +1676,8 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             # 0: update remotely required variables
             self.logger.info("Broadcasting parameters")
 
-            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_weights = accepted_weights, accepted_parameters=accepted_parameters)
+            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_weights=accepted_weights,
+                                                              accepted_parameters=accepted_parameters)
 
             # 1: Calculate  parameters
             # print("INFO: Initial accepted parameter parameters")
@@ -1639,7 +1689,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             new_parameters, new_distances, counter = [list(t) for t in zip(*params_and_dists)]
 
             for count in counter:
-                self.simulation_counter+=count
+                self.simulation_counter += count
 
             if aStep > 0:
                 accepted_parameters = []
@@ -1653,18 +1703,17 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             self.logger.debug("Sort and renumber samples.")
 
             accepted_params_and_dist = zip(distances, accepted_parameters)
-            accepted_params_and_dist = sorted(accepted_params_and_dist, key = lambda x: x[0])
+            accepted_params_and_dist = sorted(accepted_params_and_dist, key=lambda x: x[0])
             distances, accepted_parameters = [list(t) for t in zip(*accepted_params_and_dist)]
 
-            # 3: Calculate and broadcast annealling parameters
+            # 3: Calculate and broadcast annealing parameters
             self.logger.debug("Calculate and broadcast annealling parameters.")
             temp_chain_length = self.chain_length
             if aStep > 0:
                 anneal_parameter_old = anneal_parameter
             anneal_parameter = 0.5 * (
-            distances[int(n_samples / temp_chain_length)] + distances[int(n_samples / temp_chain_length) + 1])
+                    distances[int(n_samples / temp_chain_length)] + distances[int(n_samples / temp_chain_length) + 1])
             self.anneal_parameter = anneal_parameter
-
 
             # 4: Update proposal covariance matrix (Parallelized)
             self.logger.debug("Update proposal covariance matrix (Parallelized).")
@@ -1678,7 +1727,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
                 self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
                 accepted_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
             else:
-                accepted_cov_mats = pow(2,1)*accepted_cov_mats
+                accepted_cov_mats = pow(2, 1) * accepted_cov_mats
 
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_cov_mats=accepted_cov_mats)
 
@@ -1695,7 +1744,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             cov_mats, T, accept_index, counter = [list(t) for t in zip(*cov_mats_index)]
 
             for count in counter:
-                self.simulation_counter+=count
+                self.simulation_counter += count
 
             for ind in range(10):
                 if accept_index[ind] == 1:
@@ -1710,6 +1759,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
                 journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_distances(copy.deepcopy(distances))
                 journal.add_weights(copy.deepcopy(accepted_weights))
+                journal.add_ESS_estimate(accepted_weights)
                 journal.add_opt_values(accepted_cov_mats)
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                                   accepted_weights=accepted_weights)
@@ -1718,7 +1768,8 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
                 journal.number_of_simulations.append(self.simulation_counter)
 
             # Show progress
-            anneal_parameter_change_percentage = 100 * abs(anneal_parameter_old - anneal_parameter) / abs(anneal_parameter)
+            anneal_parameter_change_percentage = 100 * abs(anneal_parameter_old - anneal_parameter) / abs(
+                anneal_parameter)
             msg = ("step: {}, annealing parameter: {:.4f}, change(%) in annealing parameter: {:.1f}"
                    .format(aStep, anneal_parameter, anneal_parameter_change_percentage))
             self.logger.info(msg)
@@ -1731,6 +1782,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
             journal.add_distances(copy.deepcopy(distances))
             journal.add_weights(copy.deepcopy(accepted_weights))
+            journal.add_ESS_estimate(accepted_weights)
             journal.add_opt_values(accepted_cov_mats)
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                               accepted_weights=accepted_weights)
@@ -1774,10 +1826,10 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
         counter = 0
 
-        if self.accepted_parameters_manager.accepted_parameters_bds == None:
+        if self.accepted_parameters_manager.accepted_parameters_bds is None:
             self.sample_from_prior(rng=rng)
             y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
-            counter+=1
+            counter += 1
             distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
             result_theta += self.get_parameters()
             result_distance.append(distance)
@@ -1785,28 +1837,31 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             theta = self.accepted_parameters_manager.accepted_parameters_bds.value()[index]
             self.set_parameters(theta)
             y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
-            counter+=1
+            counter += 1
             distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
             result_theta.append(theta)
             result_distance.append(distance)
             for ind in range(0, self.chain_length - 1):
                 while True:
                     perturbation_output = self.perturb(index, rng=rng)
-                    if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1])!= 0:
+                    if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
                         break
-                y_sim = self.simulate(self.n_samples_per_param, rng=rng,npc=npc)
-                counter+=1
+                y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
+                counter += 1
                 new_distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
 
-                ## Calculate acceptance probability:
-                ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model, theta)
-                kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, perturbation_output[1], theta)
-                kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, theta, perturbation_output[1])
+                # Calculate acceptance probability:
+                ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model,
+                                                                                                             theta)
+                kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
+                                                   perturbation_output[1], theta)
+                kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, theta,
+                                                     perturbation_output[1])
                 ratio_likelihood_prob = kernel_numerator / kernel_denominator
                 acceptance_prob = min(1, ratio_prior_prob * ratio_likelihood_prob) * (
-                new_distance < self.anneal_parameter)
+                        new_distance < self.anneal_parameter)
 
-                ## If accepted
+                # If accepted
                 if rng.binomial(1, acceptance_prob) == 1:
                     result_theta.append(perturbation_output[1])
                     result_distance.append(new_distance)
@@ -1839,7 +1894,8 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
         acceptance = 0
 
-        accepted_cov_mats_transformed = [cov_mat*pow(2.0, -2.0 * t) for cov_mat in self.accepted_parameters_manager.accepted_cov_mats_bds.value()]
+        accepted_cov_mats_transformed = [cov_mat * pow(2.0, -2.0 * t) for cov_mat in
+                                         self.accepted_parameters_manager.accepted_cov_mats_bds.value()]
 
         theta = self.accepted_parameters_manager.accepted_parameters_bds.value()[0]
 
@@ -1855,12 +1911,13 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
                 if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
                     break
             y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
-            counter+=1
+            counter += 1
             new_distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
 
             self.logger.debug("Calculate acceptance probability.")
-            ## Calculate acceptance probability:
-            ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model, theta)
+            # Calculate acceptance probability:
+            ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model,
+                                                                                                         theta)
             kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
                                                perturbation_output[1], theta)
             kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, theta,
@@ -1873,13 +1930,13 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
         self.logger.debug("Return accepted parameters.")
         if acceptance / 10 <= 0.5 and acceptance / 10 >= 0.3:
-            return (accepted_cov_mats_transformed, t, 1, counter)
+            return accepted_cov_mats_transformed, t, 1, counter
         else:
-            return (accepted_cov_mats_transformed, t, 0, counter)
+            return accepted_cov_mats_transformed, t, 0, counter
 
 
 class RSMCABC(BaseDiscrepancy, InferenceMethod):
-    """This base class implements Replenishment Sequential Monte Carlo Approximate Bayesian computation of
+    """This class implements Replenishment Sequential Monte Carlo Approximate Bayesian computation of
     Drovandi and Pettitt [1].
 
     [1] CC. Drovandi CC and AN. Pettitt, Estimation of parameters for macroparasite population evolution using
@@ -1914,7 +1971,6 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
 
     backend = None
 
-
     def __init__(self, root_models, distances, backend, kernel=None, seed=None):
         self.model = root_models
         # We define the joint Linear combination distance using all the distances for each individual models
@@ -1943,9 +1999,8 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
 
         self.simulation_counter = 0
 
-
-    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, alpha = 0.1, epsilon_init = 100,
-               epsilon_final = 0.1, const = 0.01, covFactor = 2.0, full_output=0, journal_file = None):
+    def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, alpha=0.1, epsilon_init=100,
+               epsilon_final=0.1, const=0.01, covFactor=2.0, full_output=0, journal_file=None):
         """
         Samples from the posterior distribution of the model parameter given the observed
         data observations.
@@ -1967,7 +2022,7 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         epsilon_final : float, optional
             Terminal value of threshold, the default is 0.1
         const : float, optional
-             A constant to compute acceptance probabilty, the default is 0.01.
+             A constant to compute acceptance probability, the default is 0.01.
         covFactor : float, optional
             scaling parameter of the covariance matrix. The default value is 2.
         full_output: integer, optional
@@ -1990,7 +2045,7 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
 
-        if(journal_file is None):
+        if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
             journal.configuration["type_dist_func"] = type(self.distance).__name__
@@ -2010,10 +2065,11 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
             self.logger.info("RSMCABC iteration {}".format(aStep))
 
             if aStep == 0 and journal_file is not None:
-                accepted_parameters=journal.get_accepted_parameters(-1)
+                accepted_parameters = journal.get_accepted_parameters(-1)
                 accepted_weights = journal.get_weights(-1)
 
-                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_weights= accepted_weights, accepted_parameters=accepted_parameters)
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_weights=accepted_weights,
+                                                                  accepted_parameters=accepted_parameters)
 
                 kernel_parameters = []
                 for kernel in self.kernel.kernels:
@@ -2037,8 +2093,8 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
                 # Compute epsilon
                 epsilon = [epsilon_init]
                 R = int(1)
-                if(journal_file is None):
-                    accepted_cov_mats=None
+                if journal_file is None:
+                    accepted_cov_mats = None
             else:
                 # Compute epsilon
                 epsilon.append(accepted_dist[-1])
@@ -2084,7 +2140,7 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
             new_index = np.array(new_index)
 
             for count in counter:
-                self.simulation_counter+=count
+                self.simulation_counter += count
 
             # 1: Update all parameters, compute acceptance probability, compute epsilon
             self.logger.info("Append updated new parameters.")
@@ -2102,12 +2158,14 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_distances(copy.deepcopy(accepted_dist))
                 journal.add_weights(accepted_weights)
-                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_weights=accepted_weights, accepted_parameters=accepted_parameters)
+                journal.add_ESS_estimate(accepted_weights)
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_weights=accepted_weights,
+                                                                  accepted_parameters=accepted_parameters)
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)
                 journal.number_of_simulations.append(self.simulation_counter)
 
-            # 2: Compute acceptance probabilty and set R
+            # 2: Compute acceptance probability and set R
             self.logger.info("Compute acceptance probabilty and set R")
             prob_acceptance = sum(new_index) / (R * n_replenish)
             if prob_acceptance == 1 or prob_acceptance == 0:
@@ -2118,7 +2176,7 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
             self.logger.info("Order accepted parameters and distances")
             n_replenish = round(n_samples * alpha)
             accepted_params_and_dist = zip(accepted_dist, accepted_parameters)
-            accepted_params_and_dist = sorted(accepted_params_and_dist, key = lambda x: x[0])
+            accepted_params_and_dist = sorted(accepted_params_and_dist, key=lambda x: x[0])
             accepted_dist, accepted_parameters = [list(t) for t in zip(*accepted_params_and_dist)]
 
             self.logger.info("Throw away N_alpha particles with largest dist")
@@ -2133,7 +2191,6 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
             self.logger.info("Update parameters, weights")
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_weights=accepted_weights,
                                                               accepted_parameters=accepted_parameters)
-
 
         # Add epsilon_arr to the journal
         journal.configuration["epsilon_arr"] = epsilon
@@ -2174,11 +2231,11 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
 
         counter = 0
 
-        if self.accepted_parameters_manager.accepted_parameters_bds == None:
+        if self.accepted_parameters_manager.accepted_parameters_bds is None:
             while distance > self.epsilon[-1]:
                 self.sample_from_prior(rng=rng)
                 y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
-                counter+=1
+                counter += 1
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
 
             index_accept = 1
@@ -2192,11 +2249,14 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
                     if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
                         break
                 y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
-                counter+=1
+                counter += 1
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
-                ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model, theta)
-                kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, perturbation_output[1], theta)
-                kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, theta, perturbation_output[1])
+                ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model,
+                                                                                                             theta)
+                kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
+                                                   perturbation_output[1], theta)
+                kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, theta,
+                                                     perturbation_output[1])
                 ratio_kernel_prob = kernel_numerator / kernel_denominator
                 probability_acceptance = min(1, ratio_prior_prob * ratio_kernel_prob)
                 if distance < self.epsilon[-1] and rng.binomial(1, probability_acceptance) == 1:
@@ -2205,9 +2265,24 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
                     self.set_parameters(theta)
                     distance = self.accepted_dist_bds.value()[index[0]]
 
-        return (self.get_parameters(self.model), distance, index_accept, counter)
+        return self.get_parameters(self.model), distance, index_accept, counter
 
     def _compute_accepted_cov_mats(self, covFactor, new_cov_mats):
+        """
+        Update the covariance matrices computed from data by multiplying them with covFactor and adding a small term in
+        the diagonal for numerical stability.
+
+        Parameters
+        ----------
+        covFactor : float
+            factor to correct the covariance matrices
+        new_cov_mats : list
+            list of covariance matrices computed from data
+        Returns
+        -------
+        list
+            List of new accepted covariance matrices
+        """
         # accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
         accepted_cov_mats = []
         for new_cov_mat in new_cov_mats:
@@ -2218,8 +2293,9 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
                 accepted_cov_mats.append((covFactor * new_cov_mat + 0.0001 * new_cov_mat).reshape(1, 1))
         return accepted_cov_mats
 
+
 class APMCABC(BaseDiscrepancy, InferenceMethod):
-    """This base class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
+    """This class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
     M. Lenormand et al. [1].
 
     [1] M. Lenormand, F. Jabot and G. Deffuant, Adaptive approximate Bayesian computation
@@ -2254,7 +2330,7 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
 
     backend = None
 
-    def __init__(self,  root_models, distances, backend, kernel=None, seed=None):
+    def __init__(self, root_models, distances, backend, kernel=None, seed=None):
         self.model = root_models
         # We define the joint Linear combination distance using all the distances for each individual models
         self.distance = LinearCombination(root_models, distances)
@@ -2271,7 +2347,7 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
         self.backend = backend
         self.logger = logging.getLogger(__name__)
 
-        self.epsilon= None
+        self.epsilon = None
         self.rng = np.random.RandomState(seed)
 
         # these are usually big tables, so we broadcast them to have them once
@@ -2281,8 +2357,8 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
 
         self.simulation_counter = 0
 
-
-    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, alpha = 0.1, acceptance_cutoff = 0.03, covFactor = 2.0, full_output=0, journal_file = None):
+    def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, alpha=0.1, acceptance_cutoff=0.03,
+               covFactor=2.0, full_output=0, journal_file=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -2321,7 +2397,7 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
 
-        if(journal_file is None):
+        if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
             journal.configuration["type_dist_func"] = type(self.distance).__name__
@@ -2343,11 +2419,12 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
         # print("INFO: Starting APMCABC iterations.")
         for aStep in range(steps):
             self.logger.info("APMCABC iteration {}".format(aStep))
-            if(aStep==0 and journal_file is not None):
-                accepted_parameters=journal.get_accepted_parameters(-1)
-                accepted_weights=journal.get_weights(-1)
+            if aStep == 0 and journal_file is not None:
+                accepted_parameters = journal.get_accepted_parameters(-1)
+                accepted_weights = journal.get_weights(-1)
 
-                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights)
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
+                                                                  accepted_weights=accepted_weights)
 
                 kernel_parameters = []
                 for kernel in self.kernel.kernels:
@@ -2361,10 +2438,11 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
                 accepted_cov_mats = self._compute_accepted_cov_mats(covFactor, accepted_cov_mats)
                 # accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
 
-                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters, accepted_weights=accepted_weights)
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
+                                                                  accepted_weights=accepted_weights)
 
-                alpha_accepted_parameters=accepted_parameters
-                alpha_accepted_weights=accepted_weights
+                alpha_accepted_parameters = accepted_parameters
+                alpha_accepted_weights = accepted_weights
 
             # 0: Drawing new new/perturbed samples using prior or MCMC Kernel
             if aStep > 0:
@@ -2378,7 +2456,10 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
 
             # update remotely required variables
             self.logger.info("Broadcasting parameters")
-            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=alpha_accepted_parameters, accepted_weights=alpha_accepted_weights, accepted_cov_mats=accepted_cov_mats)
+            self.accepted_parameters_manager.update_broadcast(self.backend,
+                                                              accepted_parameters=alpha_accepted_parameters,
+                                                              accepted_weights=alpha_accepted_weights,
+                                                              accepted_cov_mats=accepted_cov_mats)
             self._update_broadcasts(alpha_accepted_dist)
 
             # calculate resample parameters
@@ -2391,7 +2472,7 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
             new_weights = np.array(new_weights).reshape(n_additional_samples, 1)
 
             for count in counter:
-                self.simulation_counter+=count
+                self.simulation_counter += count
 
             # 1: Update all parameters, compute acceptance probability, compute epsilon
             if len(new_weights) == n_samples:
@@ -2419,7 +2500,9 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
 
             # 3: calculate covariance
             self.logger.info("Calculating covariance matrix")
-            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=alpha_accepted_parameters, accepted_weights=alpha_accepted_weights)
+            self.accepted_parameters_manager.update_broadcast(self.backend,
+                                                              accepted_parameters=alpha_accepted_parameters,
+                                                              accepted_weights=alpha_accepted_weights)
 
             kernel_parameters = []
             for kernel in self.kernel.kernels:
@@ -2437,6 +2520,7 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_distances(copy.deepcopy(accepted_dist))
                 journal.add_weights(copy.deepcopy(accepted_weights))
+                journal.add_ESS_estimate(accepted_weights)
                 self.accepted_parameters_manager.update_broadcast(self.backend,
                                                                   accepted_parameters=accepted_parameters,
                                                                   accepted_weights=accepted_weights)
@@ -2485,17 +2569,17 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
 
         counter = 0
 
-        if self.accepted_parameters_manager.accepted_parameters_bds == None:
+        if self.accepted_parameters_manager.accepted_parameters_bds is None:
             self.sample_from_prior(rng=rng)
             y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
-            counter+=1
+            counter += 1
             distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
 
             weight = 1.0
         else:
             index = rng.choice(len(self.accepted_parameters_manager.accepted_weights_bds.value()), size=1,
                                p=self.accepted_parameters_manager.accepted_weights_bds.value().reshape(-1))
-            # trucate the normal to the bounds of parameter space of the model
+            # truncate the normal to the bounds of parameter space of the model
             # truncating the normal like this is fine: https://arxiv.org/pdf/0907.4010v1.pdf
             while True:
                 perturbation_output = self.perturb(index[0], rng=rng)
@@ -2503,20 +2587,36 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
                     break
 
             y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
-            counter+=1
+            counter += 1
             distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
 
             prior_prob = self.pdf_of_prior(self.model, perturbation_output[1])
             denominator = 0.0
             for i in range(len(self.accepted_parameters_manager.accepted_weights_bds.value())):
                 pdf_value = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
-                                            self.accepted_parameters_manager.accepted_parameters_bds.value()[i], perturbation_output[1])
+                                            self.accepted_parameters_manager.accepted_parameters_bds.value()[i],
+                                            perturbation_output[1])
                 denominator += self.accepted_parameters_manager.accepted_weights_bds.value()[i, 0] * pdf_value
             weight = 1.0 * prior_prob / denominator
 
-        return (self.get_parameters(self.model), distance, weight, counter)
+        return self.get_parameters(self.model), distance, weight, counter
 
     def _compute_accepted_cov_mats(self, covFactor, new_cov_mats):
+        """
+        Update the covariance matrices computed from data by multiplying them with covFactor and adding a small term in
+        the diagonal for numerical stability.
+
+        Parameters
+        ----------
+        covFactor : float
+            factor to correct the covariance matrices
+        new_cov_mats : list
+            list of covariance matrices computed from data
+        Returns
+        -------
+        list
+            List of new accepted covariance matrices
+        """
         # accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
         accepted_cov_mats = []
         for new_cov_mat in new_cov_mats:
@@ -2528,11 +2628,14 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
         return accepted_cov_mats
 
 class SMCABC(BaseDiscrepancy, InferenceMethod):
-    """This base class implements Adaptive Population Monte Carlo Approximate Bayesian computation of
+    """This class implements Sequential Monte Carlo Approximate Bayesian computation of
     Del Moral et al. [1].
 
     [1] P. Del Moral, A. Doucet, A. Jasra, An adaptive sequential Monte Carlo method for approximate
     Bayesian computation. Statistics and Computing, 22(5):1009–1020, 2012.
+
+    [2] Lee, Anthony. "n the choice of MCMC kernels for approximate Bayesian computation with SMC samplers.
+    Proceedings of the 2012 Winter Simulation Conference (WSC). IEEE, 2012.
 
     Parameters
     ----------
@@ -2562,12 +2665,12 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
     backend = None
 
-    def __init__(self, root_models, distances, backend, kernel = None, seed=None):
+    def __init__(self, root_models, distances, backend, kernel=None, seed=None):
         self.model = root_models
         # We define the joint Linear combination distance using all the distances for each individual models
         self.distance = LinearCombination(root_models, distances)
 
-        if (kernel is None):
+        if kernel is None:
 
             mapping, garbage_index = self._get_mapping()
             models = []
@@ -2589,9 +2692,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
         self.simulation_counter = 0
 
-
-    def sample(self, observations, steps, n_samples = 10000, n_samples_per_param = 1, epsilon_final = 0.1, alpha = 0.95,
-               covFactor = 2, resample = None, full_output=0, which_mcmc_kernel = 0, journal_file=None):
+    def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, epsilon_final=0.1, alpha=0.95,
+               covFactor=2, resample=None, full_output=0, which_mcmc_kernel=0, journal_file=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -2606,18 +2708,23 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         n_samples_per_param : integer, optional
             Number of data points in each simulated data set. The default value is 1.
         epsilon_final : float, optional
-            The final threshold value of epsilon to be reached. The default value is 0.1.
+            The final threshold value of epsilon to be reached; if at some iteration you reach a lower epsilon than
+            epsilon_final, the algorithm will stop and not proceed with further iterations. The default value is 0.1.
         alpha : float, optional
             A parameter taking values between [0,1], determinining the rate of change of the threshold epsilon. The
             default value is 0.95.
         covFactor : float, optional
             scaling parameter of the covariance matrix. The default value is 2.
+        resample  : float, optional
+            It defines the resample step: introduce a resample step, after the particles have been
+            perturbed and the new weights have been computed, if the effective sample size is smaller than resample. If
+            not provided, resample is set to 0.5 * n_samples.
         full_output: integer, optional
             If full_output==1, intermediate results are included in output journal.
             The default value is 0, meaning the intermediate results are not saved.
         which_mcmc_kernel: integer, optional
-            Specifies which MCMC kernel to be used: '0' kernel suggestd in [1], any other value will use r-hit kernel
-            suggested by Anthony Lee. The default value is 0.
+            Specifies which MCMC kernel to be used: '0' kernel suggested in [1], any other value will use r-hit kernel
+            suggested by Anthony Lee [2]. The default value is 0.
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
@@ -2633,13 +2740,14 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
 
-        if(journal_file is None):
+        if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
             journal.configuration["type_dist_func"] = type(self.distance).__name__
             journal.configuration["n_samples"] = self.n_samples
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
             journal.configuration["steps"] = steps
+            # maybe add which kernel I am using?
         else:
             journal = Journal.fromFile(journal_file)
 
@@ -2648,8 +2756,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         accepted_cov_mats = None
         accepted_y_sim = None
 
-        # Define the resmaple parameter
-        if resample == None:
+        # Define the resample parameter
+        if resample is None:
             resample = n_samples * 0.5
 
         # Define epsilon_init
@@ -2659,9 +2767,9 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         for aStep in range(0, steps):
             self.logger.info("SMCABC iteration {}".format(aStep))
 
-            if(aStep==0 and journal_file is not None):
-                accepted_parameters=journal.get_accepted_parameters(-1)
-                accepted_weights=journal.get_weights(-1)
+            if aStep == 0 and journal_file is not None:
+                accepted_parameters = journal.get_accepted_parameters(-1)
+                accepted_weights = journal.get_weights(-1)
                 accepted_y_sim = journal.opt_values[-1]
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
@@ -2699,14 +2807,15 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             # 1: calculate weights for new parameters
             self.logger.info("Calculating weights")
             if accepted_y_sim != None:
-                new_weights = np.zeros(shape=(n_samples), )
+                new_weights = np.zeros(shape=n_samples, )
                 for ind1 in range(n_samples):
                     numerator = 0.0
                     denominator = 0.0
                     for ind2 in range(n_samples_per_param):
-                        numerator += (self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]]) < epsilon[-1])
+                        numerator += (self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]]) < epsilon[
+                            -1])
                         denominator += (
-                        self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]]) < epsilon[-2])
+                                self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]]) < epsilon[-2])
                     if denominator != 0.0:
                         new_weights[ind1] = accepted_weights[ind1] * (numerator / denominator)
                     else:
@@ -2714,25 +2823,26 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
                 new_weights = new_weights / sum(new_weights)
             else:
-                new_weights = np.ones(shape=(n_samples), ) * (1.0 / n_samples)
+                new_weights = np.ones(shape=n_samples, ) * (1.0 / n_samples)
 
             # 2: Resample
-            if accepted_y_sim != None and pow(sum(pow(new_weights, 2)), -1) < resample:
+            if accepted_y_sim is not None and pow(sum(pow(new_weights, 2)), -1) < resample:
                 self.logger.info("Resampling")
                 # Weighted resampling:
                 index_resampled = self.rng.choice(n_samples, n_samples, replace=True, p=new_weights)
                 # accepted_parameters is a list. Then the indexing here does not work:
                 # accepted_parameters = accepted_parameters[index_resampled]
                 # do instead:
-                accepted_parameters = [accepted_parameters[i] for i in index_resampled]  # why don't we use arrays however?
-                new_weights = np.ones(shape=(n_samples), ) * (1.0 / n_samples)
+                accepted_parameters = [accepted_parameters[i] for i in
+                                       index_resampled]  # why don't we use arrays however?
+                new_weights = np.ones(shape=n_samples, ) * (1.0 / n_samples)
 
             # Update the weights
             accepted_weights = new_weights.reshape(len(new_weights), 1)
 
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                               accepted_weights=accepted_weights)
-            if(accepted_y_sim is not None):
+            if accepted_y_sim is not None:
                 kernel_parameters = []
                 for kernel in self.kernel.kernels:
                     kernel_parameters.append(
@@ -2756,7 +2866,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             self.epsilon = epsilon
 
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
-                                                              accepted_weights=accepted_weights, accepted_cov_mats=accepted_cov_mats)
+                                                              accepted_weights=accepted_weights,
+                                                              accepted_cov_mats=accepted_cov_mats)
             self._update_broadcasts(accepted_y_sim)
 
             # calculate resample parameters
@@ -2770,7 +2881,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             distances = np.array(distances)
 
             for count in counter:
-                self.simulation_counter+=count
+                self.simulation_counter += count
 
             # Update the parameters
             accepted_parameters = new_parameters
@@ -2782,6 +2893,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
                 journal.add_distances(copy.deepcopy(distances))
                 journal.add_weights(copy.deepcopy(accepted_weights))
+                journal.add_ESS_estimate(accepted_weights)
                 journal.add_opt_values(copy.deepcopy(accepted_y_sim))
 
                 names_and_parameters = self._get_names_and_parameters()
@@ -2821,15 +2933,15 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         """
 
         RHS = alpha * pow(sum(pow(accepted_weights, 2)), -1)
-        LHS = np.zeros(shape=(n_samples), )
+        LHS = np.zeros(shape=n_samples, )
         for ind1 in range(n_samples):
             numerator = 0.0
             denominator = 0.0
             for ind2 in range(n_samples_per_param):
                 numerator += (self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]]) < epsilon_new)
                 denominator += (self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]]) < epsilon[-1])
-            if(denominator==0):
-                LHS[ind1]=0
+            if denominator == 0:
+                LHS[ind1] = 0
             else:
                 LHS[ind1] = accepted_weights[ind1] * (numerator / denominator)
         if sum(LHS) == 0:
@@ -2838,8 +2950,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             LHS = LHS / sum(LHS)
             LHS = pow(sum(pow(LHS, 2)), -1)
             result = RHS - LHS
-        return (result)
-
+        return result
 
     def _bisection(self, func, low, high, tol):
         # cache computed values, as we call func below
@@ -2864,6 +2975,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             if bc != None:
                 bc.unpersist
                 # bc.destroy
+
         if not accepted_y_sim is None:
             self.accepted_y_sim_bds = self.backend.broadcast(accepted_y_sim)
 
@@ -2894,12 +3006,12 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(
             self.accepted_parameters_manager.model)
 
-        counter=0
+        counter = 0
         # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
         if self.accepted_parameters_manager.accepted_parameters_bds is None:
             self.sample_from_prior(rng=rng)
             y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
-            counter+=1
+            counter += 1
         else:
             if self.accepted_parameters_manager.accepted_weights_bds.value()[index] > 0:
                 theta = self.accepted_parameters_manager.accepted_parameters_bds.value()[index]
@@ -2908,9 +3020,9 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                     if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
                         break
                 y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
-                counter+=1
+                counter += 1
                 y_sim_old = self.accepted_y_sim_bds.value()[index]
-                ## Calculate acceptance probability:
+                # Calculate acceptance probability:
                 numerator = 0.0
                 denominator = 0.0
                 for ind in range(self.n_samples_per_param):
@@ -2925,8 +3037,10 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
                 ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model,
                                                                                                              theta)
-                kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, perturbation_output[1], theta)
-                kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, theta, perturbation_output[1])
+                kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
+                                                   perturbation_output[1], theta)
+                kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, theta,
+                                                     perturbation_output[1])
                 ratio_likelihood_prob = kernel_numerator / kernel_denominator
 
                 acceptance_prob = min(1, ratio_data_epsilon * ratio_prior_prob * ratio_likelihood_prob)
@@ -2939,24 +3053,25 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 self.set_parameters(self.accepted_parameters_manager.accepted_parameters_bds.value()[index])
                 y_sim = self.accepted_y_sim_bds.value()[index]
         distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
-        return (self.get_parameters(), y_sim, distance, counter)
+        return self.get_parameters(), y_sim, distance, counter
 
     def _accept_parameter_r_hit_kernel(self, rng_and_index, npc=None):
         """
-        Samples a single model parameter and simulate from it until
-        distance between simulated outcome and the observation is
-        smaller than epsilon.
+        This implements algorithm 5 in Lee (2012) [2] which is used as an MCMC kernel in SMCABC. This implementation
+        uses r=3.
 
         Parameters
         ----------
-        seed_and_index: numpy.ndarray
-            2 dimensional array. The first entry specifies the initial seed for the random number generator.
+        rng_and_index: numpy.ndarray
+            2 dimensional array. The first entry is a random number generator.
             The second entry defines the index in the data set.
 
         Returns
         -------
         Tuple
             The first entry of the tuple is the accepted parameters. The second entry is the simulated data set.
+            The third one is the distance between the simulated data set and the observation, while the fourth one is
+            the number of simulations needed to obtain the accepted parameter.
         """
 
         rng = rng_and_index[0]
@@ -2965,14 +3080,15 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
         # Set value of r for r-hit kernel
         r = 3
-        mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(self.accepted_parameters_manager.model)
+        mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(
+            self.accepted_parameters_manager.model)
 
-        counter=0
+        counter = 0
         # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
         if self.accepted_parameters_manager.accepted_parameters_bds is None:
             self.sample_from_prior(rng=rng)
             y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
-            counter+=1
+            counter += 1
         else:
             if self.accepted_parameters_manager.accepted_weights_bds.value()[index] > 0:
                 theta = self.accepted_parameters_manager.accepted_parameters_bds.value()[index]
@@ -2980,7 +3096,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 # Sample from theta until we get 'r-1' y_sim inside the epsilon ball
                 self.set_parameters(theta)
                 accept_old_arr, y_sim_old_arr, N_old = [], [], 0
-                while sum(accept_old_arr) < r-1:
+                while sum(accept_old_arr) < r - 1:
                     y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
                     y_sim_old_arr.append(y_sim)
                     if self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),
@@ -3004,14 +3120,16 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                     counter += 1
                     N += 1
 
-                #Calculate acceptance probability
+                # Calculate acceptance probability
                 ratio_prior_prob = self.pdf_of_prior(self.model, perturbation_output[1]) / self.pdf_of_prior(self.model,
                                                                                                              theta)
-                kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, perturbation_output[1], theta)
-                kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, theta, perturbation_output[1])
+                kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
+                                                   perturbation_output[1], theta)
+                kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, theta,
+                                                     perturbation_output[1])
                 ratio_likelihood_prob = kernel_numerator / kernel_denominator
 
-                acceptance_prob = min(1, (N_old/(N-1)) * ratio_prior_prob * ratio_likelihood_prob)
+                acceptance_prob = min(1, (N_old / (N - 1)) * ratio_prior_prob * ratio_likelihood_prob)
 
                 if rng.binomial(1, acceptance_prob) == 1:
                     self.set_parameters(perturbation_output[1])
@@ -3025,9 +3143,24 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 self.set_parameters(self.accepted_parameters_manager.accepted_parameters_bds.value()[index])
                 y_sim = self.accepted_y_sim_bds.value()[index]
         distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
-        return (self.get_parameters(), y_sim, distance, counter)
+        return self.get_parameters(), y_sim, distance, counter
 
     def _compute_accepted_cov_mats(self, covFactor, new_cov_mats):
+        """
+        Update the covariance matrices computed from data by multiplying them with covFactor and adding a small term in
+        the diagonal for numerical stability.
+
+        Parameters
+        ----------
+        covFactor : float
+            factor to correct the covariance matrices
+        new_cov_mats : list
+            list of covariance matrices computed from data
+        Returns
+        -------
+        list
+            List of new accepted covariance matrices
+        """
         # accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
         accepted_cov_mats = []
         for new_cov_mat in new_cov_mats:
