@@ -73,7 +73,7 @@ used to provide a dictionary specifying the limits for the axis in the plots:
                                  ranges_parameters={'parameter_1': [0,2]})
 
 
-For journals generated with sequential algorithms, we provide a way to monitor the convergence by plotting the estimated
+For journals generated with sequential algorithms, we provide a way to check the convergence by plotting the estimated
 Effective Sample Size (ESS) at each iteration, as well as an estimate of the Wasserstein distance between the empirical
 distributions defined by the samples and weights at subsequent iterations:
 

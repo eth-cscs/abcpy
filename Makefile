@@ -44,7 +44,7 @@ doctest:
 	make -C doc html || (echo "Error in documentation generator."; exit 1)
 
 coveragetest: $(MAKEDIRS)  # compile models here as well as we check them for codecov as well.
-	command -v coverage >/dev/null 2>&1 || { echo >&2 "Python package 'coverage' has to been installed. Please, run 'pip3 install coverage'."; exit;}
+	@command -v coverage >/dev/null 2>&1 || { echo >&2 "Python package 'coverage' has to been installed. Please, run 'pip3 install coverage'."; exit;}
 	# unittests
 	@- $(foreach TEST, $(UNITTESTS), \
 		echo === Testing code coverage: $(TEST); \
