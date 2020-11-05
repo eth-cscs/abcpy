@@ -846,7 +846,6 @@ class Journal:
         wass_dist_lists = [None] * (len(self.weights) - 1)
 
         for i in range(len(self.weights) - 1):
-            print(i)
             params_1 = self.get_accepted_parameters(i)
             params_2 = self.get_accepted_parameters(i + 1)
             weights_1 = self.get_weights(i)

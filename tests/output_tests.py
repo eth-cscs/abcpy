@@ -150,6 +150,7 @@ class JournalTests(unittest.TestCase):
         journal.add_weights(weights=weights_identical)
         journal.add_weights(weights=weights)
         journal.plot_posterior_distr(single_marginals_only=True, iteration=0)
+        journal.plot_posterior_distr(true_parameter_values=[0.5, 0.3], show_samples=True)
         journal.plot_posterior_distr(double_marginals_only=True, show_samples=True,
                                      true_parameter_values=[0.5, 0.3])
         journal.plot_posterior_distr(contour_levels=10, ranges_parameters={"par1": [-1, 1]},
@@ -159,10 +160,13 @@ class JournalTests(unittest.TestCase):
             journal.plot_posterior_distr(parameters_to_show=["par3"])
         with self.assertRaises(RuntimeError):
             journal.plot_posterior_distr(single_marginals_only=True, double_marginals_only=True)
+        with self.assertRaises(RuntimeError):
             journal.plot_posterior_distr(parameters_to_show=["par1"], double_marginals_only=True)
+        with self.assertRaises(RuntimeError):
             journal.plot_posterior_distr(parameters_to_show=["par1"], true_parameter_values=[0.5, 0.3])
         with self.assertRaises(TypeError):
             journal.plot_posterior_distr(ranges_parameters={"par1": [-1]})
+        with self.assertRaises(TypeError):
             journal.plot_posterior_distr(ranges_parameters={"par1": np.zeros(1)})
 
 

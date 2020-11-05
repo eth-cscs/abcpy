@@ -29,10 +29,10 @@ class JointCheckKernelsTests(unittest.TestCase):
             self.fail("JointPerturbationKernel raises an exception")
 
 
-class CalculateCovTets(unittest.TestCase):
+class CalculateCovTest(unittest.TestCase):
     """Tests whether the implementation of calculate_cov is working as intended."""
 
-    def test(self):
+    def test_default(self):
         B1 = Binomial([10, 0.2])
         N1 = Normal([0.1, 0.01])
         N2 = Normal([0.3, N1])
@@ -54,6 +54,27 @@ class CalculateCovTets(unittest.TestCase):
         self.assertTrue(len(covs[0]) == 2)
 
         self.assertTrue(not (covs[1]))
+
+    def test_Student_T(self):
+        N1 = Normal([0.1, 0.01])
+        N2 = Normal([0.3, N1])
+        graph = Normal([N1, N2])
+
+        Manager = AcceptedParametersManager([graph])
+        backend = Backend()
+        kernel = JointPerturbationKernel([MultivariateStudentTKernel([N1, N2], df=2)])
+        Manager.update_broadcast(backend, [[0.27, 0.097], [0.32, 0.012]], np.array([1, 1]))
+
+        kernel_parameters = []
+        for krnl in kernel.kernels:
+            kernel_parameters.append(Manager.get_accepted_parameters_bds_values(krnl.models))
+        Manager.update_kernel_values(backend, kernel_parameters)
+
+        covs = kernel.calculate_cov(Manager)
+        print(covs)
+        self.assertTrue(len(covs) == 1)
+
+        self.assertTrue(len(covs[0]) == 2)
 
 
 class UpdateTests(unittest.TestCase):
@@ -83,11 +104,35 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(perturbed_values_and_models,
                          [(N1, [0.17443453636632419]), (N2, [0.25882435863499248]), (B1, [3])])
 
+    def test_Student_T(self):
+        N1 = Normal([0.1, 0.01])
+        N2 = Normal([0.3, N1])
+        graph = Normal([N1, N2])
+
+        Manager = AcceptedParametersManager([graph])
+        backend = Backend()
+        kernel = JointPerturbationKernel([MultivariateStudentTKernel([N1, N2], df=2)])
+        Manager.update_broadcast(backend, [[0.27, 0.097], [0.32, 0.012]], np.array([1, 1]),
+                                 accepted_cov_mats=[[[0.01, 0], [0, 0.01]], []])
+
+        kernel_parameters = []
+        for krnl in kernel.kernels:
+            kernel_parameters.append(
+                Manager.get_accepted_parameters_bds_values(krnl.models))
+
+        Manager.update_kernel_values(backend, kernel_parameters=kernel_parameters)
+
+        rng = np.random.RandomState(1)
+        perturbed_values_and_models = kernel.update(Manager, 1, rng)
+        print(perturbed_values_and_models)
+        self.assertEqual(perturbed_values_and_models,
+                         [(N1, [0.2107982411716391]), (N2, [-0.049106838502166614])])
+
 
 class PdfTests(unittest.TestCase):
     """Tests whether the pdf returns the correct results."""
 
-    def test_return_value(self):
+    def test_return_value_default_kernel(self):
         B1 = Binomial([10, 0.2])
         N1 = Normal([0.1, 0.01])
         N2 = Normal([0.3, N1])
@@ -105,6 +150,25 @@ class PdfTests(unittest.TestCase):
         covs = [[[1, 0], [0, 1]], []]
         Manager.update_broadcast(backend, accepted_cov_mats=covs)
         pdf = kernel.pdf(mapping, Manager, Manager.accepted_parameters_bds.value()[1], [2, 0.3, 0.1])
+        self.assertTrue(isinstance(pdf, float))
+
+    def test_return_value_Student_T(self):
+        N1 = Normal([0.1, 0.01])
+        N2 = Normal([0.3, N1])
+        graph = Normal([N1, N2])
+
+        Manager = AcceptedParametersManager([graph])
+        backend = Backend()
+        kernel = JointPerturbationKernel([MultivariateStudentTKernel([N1, N2], df=2)])
+        Manager.update_broadcast(backend, [[0.4, 0.09], [0.2, 0.008]], np.array([0.5, 0.2]))
+        kernel_parameters = []
+        for krnl in kernel.kernels:
+            kernel_parameters.append(Manager.get_accepted_parameters_bds_values(krnl.models))
+        Manager.update_kernel_values(backend, kernel_parameters)
+        mapping, mapping_index = Manager.get_mapping(Manager.model)
+        covs = [[[1, 0], [0, 1]], []]
+        Manager.update_broadcast(backend, accepted_cov_mats=covs)
+        pdf = kernel.pdf(mapping, Manager, Manager.accepted_parameters_bds.value()[1], [0.3, 0.1])
         self.assertTrue(isinstance(pdf, float))
 
 
