@@ -92,12 +92,15 @@ ABCpy for your publication, we would appreciate a citation. You can use
 
 Publications in which ABCpy was applied:
 
-* R. Dutta, K. Zouaoui-Boudjeltia, C. Kotsalos, A. Rousseau, D. Ribeiro de Sousa, J. M. Desmet, A. Van Meerhaeghe, A. Mira, and B. Chopard. "Interpretable pathological test for Cardio-vascular disease: Approximate Bayesian computation with distance learning." arXiv preprint arXiv:2010.06465 (2020).
+* R. Dutta, K. Zouaoui-Boudjeltia, C. Kotsalos, A. Rousseau, D. Ribeiro de Sousa, J. M. Desmet, 
+A. Van Meerhaeghe, A. Mira, and B. Chopard. "Interpretable pathological test for Cardio-vascular 
+disease: Approximate Bayesian computation with distance learning.", 2020, arXiv:2010.06465.
 
-* R. Dutta, S. Gomes, D. Kalise, L. Pacchiardi. "Using mobility data in the design of optimal lockdown strategies for the COVID-19 pandemic in England." arXiv preprint arXiv:2006.16059 (2020).
+* R. Dutta, S. Gomes, D. Kalise, L. Pacchiardi. "Using mobility data in the design of optimal 
+lockdown strategies for the COVID-19 pandemic in England.", 2020, arXiv:2006.16059.
 
-* L. Pacchiardi, P. K&#252;nzli, M. Sch&#246;ngens, B. Chopard, R. Dutta, "Distance-Learning for Approximate Bayesian
-  Computation to Model a Volcanic Eruption", 2020, Sankhya B, ISSN 0976-8394, 
+* L. Pacchiardi, P. K&#252;nzli, M. Sch&#246;ngens, B. Chopard, R. Dutta, "Distance-Learning for 
+Approximate Bayesian Computation to Model a Volcanic Eruption", 2020, Sankhya B, ISSN 0976-8394, 
   [DOI: 10.1007/s13571-019-00208-8](https://doi.org/10.1007/s13571-019-00208-8).
 
 * R. Dutta, J. P.  Onnela, A. Mira, "Bayesian Inference of Spreading Processes
@@ -111,11 +114,10 @@ Publications in which ABCpy was applied:
   Computation with High Performance Computing", 2018, Frontiers in physiology, 9.
 
 * A. Ebert, R. Dutta, P. Wu, K. Mengersen and A. Mira, "Likelihood-Free
-  Parameter Estimation for Dynamic Queueing Networks", 2018, arXiv:1804.02526
+  Parameter Estimation for Dynamic Queueing Networks", 2018, arXiv:1804.02526.
 
 * R. Dutta, M. Schoengens, A. Ummadisingu, N. Widerman, J. P.  Onnela, A. Mira, "ABCpy: A
-  High-Performance Computing Perspective to Approximate Bayesian Computation",
-  2017, arXiv:1711.04694
+  High-Performance Computing Perspective to Approximate Bayesian Computation", 2017, arXiv:1711.04694.
 
 ## License
 ABCpy is published under the BSD 3-clause license, see [here](LICENSE).
