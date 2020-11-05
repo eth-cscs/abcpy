@@ -73,6 +73,16 @@ used to provide a dictionary specifying the limits for the axis in the plots:
                                  ranges_parameters={'parameter_1': [0,2]})
 
 
+For journals generated with sequential algorithms, we provide a way to monitor the convergence by plotting the estimated
+Effective Sample Size (ESS) at each iteration, as well as an estimate of the Wasserstein distance between the empirical
+distributions defined by the samples and weights at subsequent iterations:
+
+.. code-block:: python
+
+    journal.plot_ESS()
+    journal.Wass_convergence_plot()
+
+
 And certainly, a journal can easily be saved to and loaded from disk:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
