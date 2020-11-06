@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from abcpy.distances import Euclidean, PenLogReg, LogReg
+from abcpy.distances import Euclidean, PenLogReg, LogReg, Wasserstein
 from abcpy.statistics import Identity
 
 
@@ -92,6 +92,33 @@ class LogRegTests(unittest.TestCase):
 
     def test_dist_max(self):
         self.assertTrue(self.distancefunc.dist_max() == 1.0)
+
+
+class WassersteinTests(unittest.TestCase):
+    def setUp(self):
+        self.stat_calc = Identity(degree=2, cross=False)
+        self.distancefunc = Wasserstein(self.stat_calc)
+        self.rng = np.random.RandomState(1)
+
+    def test_distance(self):
+        d1 = 0.5 * self.rng.randn(100, 2) - 10
+        d2 = 0.5 * self.rng.randn(100, 2) + 10
+
+        d1 = d1.tolist()
+        d2 = d2.tolist()
+
+        # Checks whether wrong input type produces error message
+        self.assertRaises(TypeError, self.distancefunc.distance, 3.4, d2)
+        self.assertRaises(TypeError, self.distancefunc.distance, d1, 3.4)
+
+        # completely separable datasets should have a distance of 1.0
+        self.assertEqual(self.distancefunc.distance(d1, d2), 28.623685155319652)
+
+        # equal data sets should have a distance of approximately 0.0; it won't be exactly 0 due to numerical rounding
+        self.assertAlmostEqual(self.distancefunc.distance(d1, d1), 0.0, delta=1e-5)
+
+    def test_dist_max(self):
+        self.assertTrue(self.distancefunc.dist_max() == np.inf)
 
 
 if __name__ == '__main__':
