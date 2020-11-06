@@ -20,8 +20,8 @@ here = path.abspath(path.dirname(__file__))
 
 if sys.version_info[1] > 5:  # python from 3.6 on
     install_reqs_raw = parse_requirements('requirements.txt', session=PipSession())
-elif sys.version_info[1] == 5:
-    install_reqs_raw = parse_requirements('requirements/requirements_python_35.txt', session=PipSession())
+elif sys.version_info[1] == 4 or sys.version_info[1] == 5:
+    install_reqs_raw = parse_requirements('requirements/requirements_python_34_35.txt', session=PipSession())
 else:
     raise RuntimeError("Python version not supported")
 
