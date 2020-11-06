@@ -20,18 +20,6 @@ jobs:
     include:
         # Unit tests on different python versions, all on Ubuntu
         - stage: test
-          name: "Python 3.4"
-          python: "3.4"
-          env:
-            - UNIT_TEST=true
-            - OLD_PYTHON=true
-        - stage: test
-          name: "Python 3.5"
-          python: "3.5"
-          env:
-            - UNIT_TEST=true
-            - OLD_PYTHON=true
-        - stage: test
           name: "Python 3.6"
           python: "3.6"
           env:
@@ -74,7 +62,7 @@ jobs:
 install:
 - sudo apt-get install -y r-base  # install R for testing example
 - pip install rpy2  # install the rpy2 library for testing example with R
-- if [[ $OLD_PYTHON == true ]]; then pip install -r requirements/requirements_python_34_35.txt; else pip install -r requirements.txt; fi;
+- pip install -r requirements.txt
 - pip install -r requirements/backend-spark.txt
 - if [[ ! $NO_PYTORCH == true ]]; then pip install -r requirements/neural_networks_requirements.txt; fi;
 - if [[ $COVERAGE == true ]]; then pip install -r requirements/coverage.txt; fi;
