@@ -13,7 +13,8 @@ algorithms and other likelihood-free inference schemes. It presently includes:
 * ABCsubsim (ABC using subset simulation)
 * PMC (Population Monte Carlo) using approximations of likelihood functions
 * Random Forest Model Selection Scheme
-* Semi-automatic summary selection
+* Semi-automatic summary selection (with Neural networks)
+* summary selection using distance learning (with Neural networks)
 
 ABCpy addresses the needs of domain scientists and data
 scientists by providing
