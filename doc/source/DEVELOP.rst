@@ -15,7 +15,7 @@ new version `M.m.b':
 1. Create a release branch `release-M.m.b`
 2. Adapt `VERSION` file in the repos root directory: `echo M.m.b > VERSION`
 3. Adapt `README.md` file: adapt links to correct version of `User Documentation` and `Reference`
-4. Adapt `doc/source/DEVELOP.rst` file: to install correct version of ABCpy
+4. Adapt `doc/source/installation.rst` file: to install correct version of ABCpy
 5. Merge all desired feature branches into the release branch
 6. Create a pull/ merge request: release branch -> master
 
