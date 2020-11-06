@@ -70,11 +70,8 @@ which however does not work with virtual environments.
 
 # Author 
 ABCpy was written by [Ritabrata Dutta, Warwick
-University](https://warwick.ac.uk/fac/sci/statistics/staff/academic-research/dutta/)
-and [Marcel Schoengens](schoengens@cscs.ch), CSCS, ETH Zurich, and we're
-actively developing it. Please feel free to submit any bugs or feature requests.
-We'd also love to hear about your experiences with ABCpy in general. Drop us an
-email!
+University](https://warwick.ac.uk/fac/sci/statistics/staff/academic-research/dutta/) and [Marcel Schoengens](mschoengens@bitvalve.org), CSCS, ETH Zurich, and presently actively maintained by [Lorenzo Pacchiardi, Oxford University](https://github.com/LoryPack) and [Ritabrata Dutta, Warwick
+University](https://warwick.ac.uk/fac/sci/statistics/staff/academic-research/dutta/). Please feel free to submit any bugs or feature requests. We'd also love to hear about your experiences with ABCpy in general. Drop us an email!
 
 We want to thank [Prof. Antonietta Mira, Università della svizzera
 italiana](https://search.usi.ch/en/people/f8960de6d60dd08a79b6c1eb20b7442b/Mira-Antonietta),
@@ -91,12 +88,19 @@ ABCpy for your publication, we would appreciate a citation. You can use
 [this](https://github.com/eth-cscs/abcpy/blob/v0.5.6/doc/literature/DuttaS-ABCpy-PASC-2017.bib) BibTex reference.
 
 
-## Other Refernces
+## Other References
 
 Publications in which ABCpy was applied:
 
-* L. Pacchiardi, P. K&#252;nzli, M. Sch&#246;ngens, B. Chopard, R. Dutta, "Distance-Learning for Approximate Bayesian
-  Computation to Model a Volcanic Eruption", 2020, Sankhya B, ISSN 0976-8394, 
+* R. Dutta, K. Zouaoui-Boudjeltia, C. Kotsalos, A. Rousseau, D. Ribeiro de Sousa, J. M. Desmet, 
+A. Van Meerhaeghe, A. Mira, and B. Chopard. "Interpretable pathological test for Cardio-vascular 
+disease: Approximate Bayesian computation with distance learning.", 2020, arXiv:2010.06465.
+
+* R. Dutta, S. Gomes, D. Kalise, L. Pacchiardi. "Using mobility data in the design of optimal 
+lockdown strategies for the COVID-19 pandemic in England.", 2020, arXiv:2006.16059.
+
+* L. Pacchiardi, P. K&#252;nzli, M. Sch&#246;ngens, B. Chopard, R. Dutta, "Distance-Learning for 
+Approximate Bayesian Computation to Model a Volcanic Eruption", 2020, Sankhya B, ISSN 0976-8394, 
   [DOI: 10.1007/s13571-019-00208-8](https://doi.org/10.1007/s13571-019-00208-8).
 
 * R. Dutta, J. P.  Onnela, A. Mira, "Bayesian Inference of Spreading Processes
@@ -110,11 +114,10 @@ Publications in which ABCpy was applied:
   Computation with High Performance Computing", 2018, Frontiers in physiology, 9.
 
 * A. Ebert, R. Dutta, P. Wu, K. Mengersen and A. Mira, "Likelihood-Free
-  Parameter Estimation for Dynamic Queueing Networks", 2018, arXiv:1804.02526
+  Parameter Estimation for Dynamic Queueing Networks", 2018, arXiv:1804.02526.
 
 * R. Dutta, M. Schoengens, A. Ummadisingu, N. Widerman, J. P.  Onnela, A. Mira, "ABCpy: A
-  High-Performance Computing Perspective to Approximate Bayesian Computation",
-  2017, arXiv:1711.04694
+  High-Performance Computing Perspective to Approximate Bayesian Computation", 2017, arXiv:1711.04694.
 
 ## License
 ABCpy is published under the BSD 3-clause license, see [here](LICENSE).

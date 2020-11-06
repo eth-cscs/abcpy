@@ -9,7 +9,7 @@ start with the `Parameters as Random Variables`_ section.
 
 Moreover, we also provide an interactive notebook on Binder guiding through the basics of ABC with ABCpy; without
 installing that on your machine.
-Please find if `here <https://mybinder.org/v2/gh/eth-cscs/abcpy/master?filepath=examples>`_.
+Please find it `here <https://mybinder.org/v2/gh/eth-cscs/abcpy/master?filepath=examples>`_.
 
 Parameters as Random Variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
