@@ -389,7 +389,7 @@ compilation commands is also provided.
 Implementing a new Distance
 ---------------------------
 We will now explain how you can implement your own distance measure. A new distance is implemented as a new class that
-derives from :py:class`Distance <abcpy.distance.Distance>` and for which the following three methods have to be
+derives from :py:class:`Distance <abcpy.distances.Distance>` and for which the following three methods have to be
 implemented:
 
 * :py:meth:`Distance.__init__() <abcpy.distances.Distance.__init__>`
@@ -407,26 +407,23 @@ calculator should be provided. The following header conforms to this idea:
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 109-116
+    :lines: 15,27-33
     :dedent: 4
 
-Then, we need to define how the distance is calculated. First we compute the summary statistics from the datasets and
-then compute the distance between the summary statistics. Notice, while computing the summary statistics we save the
-first dataset and the corresponding summary statistics. This is since we always pass the observed dataset first to the
-distance function. The observed dataset does not change during an inference computation and thus it is efficient to
-compute it once and store it internally. (Notice, here the first input data is considered to be the observed data. Hence, 
-to save computation time of summary statistics from observed data, we save the summary from the observed data ad reuse them.)
+Then, we need to define how the distance is calculated. We need first to compute the summary statistics from the datasets and after compute the distance between the summary statistics. Notice that we use the private method :py:meth:`Distance._calculate_summary_stat <abcpy.distances.Distance._calculate_summary_stat>` to compute the statistics from the dataset; internally, this saves the first dataset and the corresponding summary statistics while computing the summary statistics. In fact, we always pass the observed dataset first to the
+distance function during inference and ,as this does not change, it is efficient to
+compute it once and store it internally. At each call of the ``distance`` method, the first input is compared to the stored one and, only if they differ, the stored statistics is updated.
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 118-155
+    :lines: 152-176
     :dedent: 4
 
 Finally, we need to define the maximal distance that can be obtained from this distance measure. 
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 157-158
+    :lines: 178-185
     :dedent: 4
 
 The newly defined distance class can be used in the same way as the already existing once. The complete example for this
