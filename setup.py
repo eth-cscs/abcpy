@@ -18,7 +18,12 @@ except ImportError:
 
 here = path.abspath(path.dirname(__file__))
 
-install_reqs_raw = parse_requirements('requirements.txt', session=PipSession())
+if sys.version_info[1] > 5:  # python from 3.6 on
+    install_reqs_raw = parse_requirements('requirements.txt', session=PipSession())
+elif sys.version_info[1] == 4 or sys.version_info[1] == 5:
+    install_reqs_raw = parse_requirements('requirements/requirements_python_34_35.txt', session=PipSession())
+else:
+    raise RuntimeError("Python version not supported")
 
 try:
     install_reqs = [str(ir.req) for ir in install_reqs_raw]
@@ -60,6 +65,8 @@ setup(
         'Development Status :: 4 - Beta',
 
         'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
