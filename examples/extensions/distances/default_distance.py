@@ -1,19 +1,17 @@
 import numpy as np
+
 from abcpy.distances import Distance, Euclidean
 
 
 class DefaultJointDistance(Distance):
     """
-    This class implements a default distance to be used when multiple root
-    models exist. It uses LogReg as the distance calculator for each root model, and
-    adds all individual distances.
+    This class showcases how to implement a distance. It is actually a wrapper of the Euclidean distance, which is
+    applied on each component of the provided datasets and summed.
 
     Parameters
     ----------
     statistics: abcpy.statistics object
         The statistics calculator to be used
-    number_of_models: integer
-        The number of root models on which the distance will act.
     """
 
     def __init__(self, statistics):

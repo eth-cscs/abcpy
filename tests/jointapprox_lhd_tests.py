@@ -1,15 +1,17 @@
 import unittest
+
 import numpy as np
 
 from abcpy.approx_lhd import SynLikelihood
-from abcpy.statistics import Identity
 from abcpy.continuousmodels import Normal, Uniform
 from abcpy.jointapprox_lhd import ProductCombination
+from abcpy.statistics import Identity
+
 
 class ProductCombinationTests(unittest.TestCase):
     def setUp(self):
-        self.stat_calc1 = Identity(degree = 1, cross = 0)
-        self.stat_calc2 = Identity(degree= 1, cross = 0)
+        self.stat_calc1 = Identity(degree=1, cross=0)
+        self.stat_calc2 = Identity(degree=1, cross=0)
         self.likfun1 = SynLikelihood(self.stat_calc1)
         self.likfun2 = SynLikelihood(self.stat_calc2)
         ## Define Models
@@ -17,27 +19,27 @@ class ProductCombinationTests(unittest.TestCase):
         self.mu = Uniform([[-5.0], [5.0]], name='mu')
         self.sigma = Uniform([[0.0], [10.0]], name='sigma')
         # define a Gaussian model
-        self.model1 = Normal([self.mu,self.sigma])
-        self.model2 = Normal([self.mu,self.sigma])
+        self.model1 = Normal([self.mu, self.sigma])
+        self.model2 = Normal([self.mu, self.sigma])
 
-        #Check whether wrong sized distnacefuncs gives an error
-        self.assertRaises(ValueError, ProductCombination, [self.model1,self.model2], [self.likfun1])
+        # Check whether wrong sized distnacefuncs gives an error
+        self.assertRaises(ValueError, ProductCombination, [self.model1, self.model2], [self.likfun1])
 
         self.jointapprox_lhd = ProductCombination([self.model1, self.model2], [self.likfun1, self.likfun2])
 
     def test_likelihood(self):
         # test simple distance computation
-        a = [[0, 0, 0],[0, 0, 0]]
-        b = [[0, 0, 0],[0, 0, 0]]
-        c = [[1, 1, 1],[1, 1, 1]]
+        a = [[0, 0, 0], [0, 0, 0]]
+        b = [[0, 0, 0], [0, 0, 0]]
+        c = [[1, 1, 1], [1, 1, 1]]
 
-        #Checks whether wrong input type produces error message
-        self.assertRaises(TypeError, self.jointapprox_lhd.likelihood, 3.4, [[2,1]])
-        self.assertRaises(TypeError, self.jointapprox_lhd.likelihood, [[2,4]], 3.4)
+        # Checks whether wrong input type produces error message
+        self.assertRaises(TypeError, self.jointapprox_lhd.likelihood, 3.4, [[2, 1]])
+        self.assertRaises(TypeError, self.jointapprox_lhd.likelihood, [[2, 4]], 3.4)
 
         # test input has different dimensionality
-        self.assertRaises(BaseException, self.jointapprox_lhd.likelihood, [a], [b,c])
-        self.assertRaises(BaseException, self.jointapprox_lhd.likelihood, [b,c], [a])
+        self.assertRaises(BaseException, self.jointapprox_lhd.likelihood, [a], [b, c])
+        self.assertRaises(BaseException, self.jointapprox_lhd.likelihood, [b, c], [a])
 
         # test whether they compute correct values
         # create observed data

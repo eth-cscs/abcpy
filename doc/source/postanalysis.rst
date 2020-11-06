@@ -4,7 +4,7 @@
 ================
 
 The output of an inference scheme is a Journal
-(:py:class:`abcpy.output.Journal`) which holds all the necessary results and
+(:py:class:``abcpy.output.Journal``) which holds all the necessary results and
 convenient methods to do the post analysis.
 
 For example, one can easily access the sampled parameters and corresponding
@@ -12,17 +12,17 @@ weights using:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
-    :lines: 48-49
+    :lines: 77-78
     :dedent: 4
 
-The output of `get_parameters()` is a Python dictionary. The keys for this dictionary are the names you specified for the parameters. The corresponding values are the marginal posterior samples of that parameter. Here is a short example of what you would specify, and what would be the output in the end:
+The output of ``get_parameters()`` is a Python dictionary. The keys for this dictionary are the names you specified for the parameters. The corresponding values are the marginal posterior samples of that parameter. Here is a short example of what you would specify, and what would be the output in the end:
 
 .. code-block:: python
 
     a = Normal([[1],[0.1]], name='parameter_1')
     b = MultivariateNormal([[1,1],[[0.1,0],[0,0.1]]], name='parameter_2')
 
-If one defined a model with these two parameters as inputs and `n_sample=2`, the following would be the output of `journal.get_parameters()`:
+If one defined a model with these two parameters as inputs and ``n_sample=2``, the following would be the output of ``journal.get_parameters()``:
 
 .. code-block:: python
 
@@ -45,7 +45,7 @@ For the post analysis basic functions are provided:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
-    :lines: 51-54
+    :lines: 80-82
     :dedent: 4
 
 Also, to ensure reproducibility, every journal stores the parameters of the
@@ -53,19 +53,39 @@ algorithm that created it:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
-    :lines: 57
+    :lines: 85
     :dedent: 4
 
-Finally, you can plot the inferred posterior mean of the parameters in the following way:
+Finally, you can plot the inferred posterior distribution of the parameters in the following way:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
-    :lines: 65
+    :lines: 88
     :dedent: 4
+
+The above line plots the posterior distribution for all the parameters and stores it in ``posterior.png``; if you instead want to plot it for some
+parameters only, you can use the ``parameters_to_show`` argument; in addition, the ``ranges_parameters`` argument can be
+used to provide a dictionary specifying the limits for the axis in the plots:
+
+.. code-block:: python
+
+    journal.plot_posterior_distr(parameters_to_show='parameter_1',
+                                 ranges_parameters={'parameter_1': [0,2]})
+
+
+For journals generated with sequential algorithms, we provide a way to check the convergence by plotting the estimated
+Effective Sample Size (ESS) at each iteration, as well as an estimate of the Wasserstein distance between the empirical
+distributions defined by the samples and weights at subsequent iterations:
+
+.. code-block:: python
+
+    journal.plot_ESS()
+    journal.Wass_convergence_plot()
+
 
 And certainly, a journal can easily be saved to and loaded from disk:
 
 .. literalinclude:: ../../examples/backends/dummy/pmcabc_gaussian.py
     :language: python
-    :lines: 60, 63
+    :lines: 91, 94
     :dedent: 4

@@ -1,11 +1,11 @@
 from abc import ABCMeta, abstractmethod
 
 
-class JointApprox_likelihood(metaclass = ABCMeta):
+class JointApprox_likelihood(metaclass=ABCMeta):
     """This abstract base class defines how the combination of distances computed on the observed and
     simulated datasets corresponding to different root models should be implemented.
     """
-    
+
     @abstractmethod
     def __init__(self, models, approx_lhds):
         """The constructor of a sub-class must accept non-optional models and corresponding distances
@@ -20,11 +20,11 @@ class JointApprox_likelihood(metaclass = ABCMeta):
             in the same order as corresponding root models for which it would be used to compute the
             approximate likelihood
         """
-        
+
         raise NotImplementedError
 
     @abstractmethod
-    def likelihood(d1, d2):
+    def likelihood(self, d1, d2):
         """To be overwritten by any sub-class: should calculate the distance between two
         sets of data d1 and d2.
 
@@ -48,21 +48,21 @@ class JointApprox_likelihood(metaclass = ABCMeta):
 
         raise NotImplemented
 
+
 class ProductCombination(JointApprox_likelihood):
     """
     This class implements the product combination of different approximate likelihoods computed on different datasets corresponding to
     different root models
 
     """
-    
+
     def __init__(self, models, approx_lhds):
 
-        if len(models)!=len(approx_lhds):
+        if len(models) != len(approx_lhds):
             raise ValueError('Number of root models and Number of assigned approximate likelihoods are not same')
 
         self.models = models
         self.approx_lhds = approx_lhds
-
 
     def likelihood(self, d1, d2):
         """Combine the distances between different datasets.
@@ -76,7 +76,7 @@ class ProductCombination(JointApprox_likelihood):
             raise TypeError('Data is not of allowed types')
         if not isinstance(d2, list):
             raise TypeError('Data is not of allowed types')
-        if len(d1)!=len(d2):
+        if len(d1) != len(d2):
             raise ValueError('Both the datasets should contain dataset for each of the root models')
 
         combined_likelihood = 1.0

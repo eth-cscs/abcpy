@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
@@ -41,15 +42,17 @@ class TripletNet(nn.Module):
         return self.embedding_net(x)
 
 
-def createDefaultNN(input_size, output_size, hidden_sizes=None):
+def createDefaultNN(input_size, output_size, hidden_sizes=None, nonlinearity=None):
     """Function returning a fully connected neural network class with a given input and output size, and optionally
     given hidden layer sizes (if these are not given, they are determined from the input and output size with some
     expression.
 
     In order to instantiate the network, you need to write: createDefaultNN(input_size, output_size)() as the function
     returns a class, and () is needed to instantiate an object."""
+
     class DefaultNN(nn.Module):
         """Neural network class with sizes determined by the upper level variables."""
+
         def __init__(self):
             super(DefaultNN, self).__init__()
             # put some fully connected layers:
@@ -70,7 +73,7 @@ def createDefaultNN(input_size, output_size, hidden_sizes=None):
                 self.fc_in = nn.Linear(input_size, hidden_sizes_list[0])
 
                 # define now the hidden layers
-                self.fc_hidden = []
+                self.fc_hidden = nn.ModuleList()
                 for i in range(len(hidden_sizes_list) - 1):
                     self.fc_hidden.append(nn.Linear(hidden_sizes_list[i], hidden_sizes_list[i + 1]))
                 self.fc_out = nn.Linear(hidden_sizes_list[-1], output_size)
@@ -80,12 +83,31 @@ def createDefaultNN(input_size, output_size, hidden_sizes=None):
                            "fc_hidden"):  # it means that hidden sizes was provided and the length of the list was 0
                 return self.fc_in(x)
 
-            x = F.relu(self.fc_in(x))
-            for i in range(len(self.fc_hidden)):
-                x = F.relu(self.fc_hidden[i](x))
+            if nonlinearity is None:
+                x = F.relu(self.fc_in(x))
+                for i in range(len(self.fc_hidden)):
+                    x = F.relu(self.fc_hidden[i](x))
+            else:
+                x = nonlinearity(self.fc_in(x))
+                for i in range(len(self.fc_hidden)):
+                    x = nonlinearity(self.fc_hidden[i](x))
 
             x = self.fc_out(x)
 
             return x
 
     return DefaultNN
+
+
+class ScalerAndNet(nn.Module):
+    """Defines a nn.Module class that wraps a scaler and a neural network, and applies the scaler before passing the
+    data through the neural network."""
+
+    def __init__(self, net, scaler):
+        super().__init__()
+        self.net = net
+        self.scaler = scaler
+
+    def forward(self, x):
+        x = torch.tensor(self.scaler.transform(x), dtype=torch.float32).to(next(self.net.parameters()).device)
+        return self.net(x)

@@ -1,5 +1,6 @@
-from abcpy.probabilisticmodels import Hyperparameter, ModelResultingFromOperation
 import numpy as np
+
+from abcpy.probabilisticmodels import Hyperparameter, ModelResultingFromOperation
 
 
 class AcceptedParametersManager:
@@ -63,6 +64,7 @@ class AcceptedParametersManager:
         accepted_cov_mats: np.ndarray
             The accepted covariance matrix to be broadcasted
         """
+
         # Used for Spark backend
         def destroy(bc):
             if bc != None:
@@ -100,22 +102,22 @@ class AcceptedParametersManager:
         mapping = []
 
         for model in models:
-            if(not(model.visited) and not(isinstance(model, Hyperparameter))):
+            if not model.visited and not (isinstance(model, Hyperparameter)):
                 model.visited = True
 
                 # Only parameters that are neither root nor Hyperparameters are included in the mapping
-                if(not(is_root) and not(isinstance(model, ModelResultingFromOperation))):
-                    #for i in range(model.get_output_dimension()):
+                if not is_root and not (isinstance(model, ModelResultingFromOperation)):
+                    # for i in range(model.get_output_dimension()):
                     mapping.append((model, index))
-                    index+=1
+                    index += 1
 
                 for parent in model.get_input_models():
-                    parent_mapping, index = self.get_mapping([parent], is_root= False, index=index)
+                    parent_mapping, index = self.get_mapping([parent], is_root=False, index=index)
                     for element in parent_mapping:
                         mapping.append(element)
 
         # Reset the flags of all models
-        if(is_root):
+        if is_root:
             self._reset_flags()
 
         return [mapping, index]
@@ -144,10 +146,10 @@ class AcceptedParametersManager:
         # Add all columns that correspond to desired parameters to the list that is returned
         for model in models:
             for prob_model, index in mapping:
-                if(model==prob_model):
+                if model == prob_model:
                     for i in range(len(self.accepted_parameters_bds.value())):
                         accepted_bds_values[i].append(self.accepted_parameters_bds.value()[i][index])
-        #accepted_bds_values = [np.array(x).reshape(-1, ) for x in accepted_bds_values]
+        # accepted_bds_values = [np.array(x).reshape(-1, ) for x in accepted_bds_values]
 
         return accepted_bds_values
 
@@ -160,11 +162,11 @@ class AcceptedParametersManager:
         models: list
             List of abcpy.ProbabilisticModel objects, the models the root models for which, together with their parents, the flags should be reset
         """
-        if(models is None):
+        if models is None:
             models = self.model
 
         for model in models:
             for parent in model.get_input_models():
-                if(parent.visited):
+                if parent.visited:
                     self._reset_flags([parent])
-            model.visited=False
+            model.visited = False

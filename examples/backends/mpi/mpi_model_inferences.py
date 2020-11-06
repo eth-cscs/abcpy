@@ -1,14 +1,18 @@
-#import logging
-#logging.basicConfig(level=logging.DEBUG)
+import logging
 
 import numpy as np
+
 from abcpy.probabilisticmodels import ProbabilisticModel, InputConnector
+
+logging.basicConfig(level=logging.WARNING)
+
 
 def setup_backend():
     global backend
 
     from abcpy.backends import BackendMPI as Backend
     backend = Backend(process_per_model=2)
+
 
 class NestedBivariateGaussian(ProbabilisticModel):
     """
@@ -49,7 +53,7 @@ class NestedBivariateGaussian(ProbabilisticModel):
         if mpi_comm is None:
             ValueError('MPI-parallelized simulator model needs to have access \
             to a MPI communicator object')
-        #print("Start Forward Simulate on rank {}".format(mpi_comm.Get_rank()))
+        # print("Start Forward Simulate on rank {}".format(mpi_comm.Get_rank()))
         rank = mpi_comm.Get_rank()
         # Extract the input parameters
         mu = input_values[rank]
@@ -70,28 +74,28 @@ class NestedBivariateGaussian(ProbabilisticModel):
                 point = np.array([element0, element1])
                 result[i] = point
             result = [np.array([result[i]]).reshape(-1, ) for i in range(k)]
-            #print("End forward sim on master")
+            # print("End forward sim on master")
             return result
         else:
-            #print("End forward sim on workers")
+            # print("End forward sim on workers")
             return None
+
 
 def infer_parameters_pmcabc():
     # define observation for true parameters mean=170, 65
-    rng = np.random.RandomState()
-    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2,))]
+    rng = np.random.RandomState(seed=1)
+    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2, ))]
 
     # define prior
     from abcpy.continuousmodels import Uniform
-    mu0 = Uniform([[150], [200]], )
-    mu1 = Uniform([[25], [100]], )
-
+    mu0 = Uniform([[150], [200]], name="mu0")
+    mu1 = Uniform([[25], [100]], name="mu1")
     # define the model
     height_weight_model = NestedBivariateGaussian([mu0, mu1])
 
     # define statistics
     from abcpy.statistics import Identity
-    statistics_calculator = Identity(degree = 2, cross = False)
+    statistics_calculator = Identity(degree=2, cross=False)
 
     # define distance
     from abcpy.distances import Euclidean
@@ -104,27 +108,27 @@ def infer_parameters_pmcabc():
     T, n_sample, n_samples_per_param = 2, 10, 1
     eps_arr = np.array([10000])
     epsilon_percentile = 95
-
-    journal = sampler.sample([y_obs],  T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
+    print('PMCABC Inferring')
+    journal = sampler.sample([y_obs], T, eps_arr, n_sample, n_samples_per_param, epsilon_percentile)
 
     return journal
 
+
 def infer_parameters_abcsubsim():
     # define observation for true parameters mean=170, 65
-    rng = np.random.RandomState()
-    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2,))]
+    rng = np.random.RandomState(seed=1)
+    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2, ))]
 
     # define prior
     from abcpy.continuousmodels import Uniform
-    mu0 = Uniform([[150], [200]], )
-    mu1 = Uniform([[25], [100]], )
-
+    mu0 = Uniform([[150], [200]], name="mu0")
+    mu1 = Uniform([[25], [100]], name="mu1")
     # define the model
     height_weight_model = NestedBivariateGaussian([mu0, mu1])
 
     # define statistics
     from abcpy.statistics import Identity
-    statistics_calculator = Identity(degree = 2, cross = False)
+    statistics_calculator = Identity(degree=2, cross=False)
 
     # define distance
     from abcpy.distances import Euclidean
@@ -132,28 +136,29 @@ def infer_parameters_abcsubsim():
 
     # define sampling scheme
     from abcpy.inferences import ABCsubsim
-    sampler = ABCsubsim([height_weight_model], [distance_calculator], backend)
+    sampler = ABCsubsim([height_weight_model], [distance_calculator], backend, seed=1)
     steps, n_samples, n_samples_per_param, chain_length = 2, 10, 1, 2
+    print('ABCsubsim Inferring')
     journal = sampler.sample([y_obs], steps, n_samples, n_samples_per_param, chain_length)
 
     return journal
 
+
 def infer_parameters_rsmcabc():
     # define observation for true parameters mean=170, 65
-    rng = np.random.RandomState()
-    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2,))]
+    rng = np.random.RandomState(seed=1)
+    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2, ))]
 
     # define prior
     from abcpy.continuousmodels import Uniform
-    mu0 = Uniform([[150], [200]], )
-    mu1 = Uniform([[25], [100]], )
-
+    mu0 = Uniform([[150], [200]], name="mu0")
+    mu1 = Uniform([[25], [100]], name="mu1")
     # define the model
     height_weight_model = NestedBivariateGaussian([mu0, mu1])
 
     # define statistics
     from abcpy.statistics import Identity
-    statistics_calculator = Identity(degree = 2, cross = False)
+    statistics_calculator = Identity(degree=2, cross=False)
 
     # define distance
     from abcpy.distances import Euclidean
@@ -162,29 +167,30 @@ def infer_parameters_rsmcabc():
     # define sampling scheme
     from abcpy.inferences import RSMCABC
     sampler = RSMCABC([height_weight_model], [distance_calculator], backend, seed=1)
-    print('sampling')
     steps, n_samples, n_samples_per_param, alpha, epsilon_init, epsilon_final = 2, 10, 1, 0.1, 10000, 500
     print('RSMCABC Inferring')
-    journal = sampler.sample([y_obs], steps, n_samples, n_samples_per_param, alpha , epsilon_init, epsilon_final,full_output=1)
+    journal = sampler.sample([y_obs], steps, n_samples, n_samples_per_param, alpha, epsilon_init, epsilon_final,
+                             full_output=1)
 
     return journal
 
+
 def infer_parameters_sabc():
     # define observation for true parameters mean=170, 65
-    rng = np.random.RandomState()
-    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2,))]
+    rng = np.random.RandomState(seed=1)
+    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2, ))]
 
     # define prior
     from abcpy.continuousmodels import Uniform
-    mu0 = Uniform([[150], [200]], )
-    mu1 = Uniform([[25], [100]], )
+    mu0 = Uniform([[150], [200]], name="mu0")
+    mu1 = Uniform([[25], [100]], name="mu1")
 
     # define the model
     height_weight_model = NestedBivariateGaussian([mu0, mu1])
 
     # define statistics
     from abcpy.statistics import Identity
-    statistics_calculator = Identity(degree = 2, cross = False)
+    statistics_calculator = Identity(degree=2, cross=False)
 
     # define distance
     from abcpy.distances import Euclidean
@@ -193,31 +199,30 @@ def infer_parameters_sabc():
     # define sampling scheme
     from abcpy.inferences import SABC
     sampler = SABC([height_weight_model], [distance_calculator], backend, seed=1)
-    print('sampling')
-    steps, epsilon, n_samples, n_samples_per_param, beta, delta, v = 2, np.array([40000]), 10, 1, 2, 0.2, 0.3
-    ar_cutoff, resample, n_update, adaptcov, full_output  = 0.1, None, None, 1, 1
-    #
-    # # print('SABC Inferring')
-    journal = sampler.sample([y_obs], steps, epsilon, n_samples, n_samples_per_param, beta, delta, v, ar_cutoff, resample, n_update, adaptcov, full_output)
+    steps, epsilon, n_samples, n_samples_per_param, beta, delta, v = 2, 40000, 10, 1, 2, 0.2, 0.3
+    ar_cutoff, resample, n_update, full_output = 0.1, None, None, 1
+    print('SABC Inferring')
+    journal = sampler.sample([y_obs], steps, epsilon, n_samples, n_samples_per_param, beta, delta, v, ar_cutoff,
+                             resample, n_update, full_output)
 
     return journal
 
+
 def infer_parameters_apmcabc():
     # define observation for true parameters mean=170, 65
-    rng = np.random.RandomState()
-    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2,))]
+    rng = np.random.RandomState(seed=1)
+    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2, ))]
 
     # define prior
     from abcpy.continuousmodels import Uniform
-    mu0 = Uniform([[150], [200]], )
-    mu1 = Uniform([[25], [100]], )
-
+    mu0 = Uniform([[150], [200]], name="mu0")
+    mu1 = Uniform([[25], [100]], name="mu1")
     # define the model
     height_weight_model = NestedBivariateGaussian([mu0, mu1])
 
     # define statistics
     from abcpy.statistics import Identity
-    statistics_calculator = Identity(degree = 2, cross = False)
+    statistics_calculator = Identity(degree=2, cross=False)
 
     # define distance
     from abcpy.distances import Euclidean
@@ -227,26 +232,28 @@ def infer_parameters_apmcabc():
     from abcpy.inferences import APMCABC
     sampler = APMCABC([height_weight_model], [distance_calculator], backend, seed=1)
     steps, n_samples, n_samples_per_param, alpha, acceptance_cutoff, covFactor, full_output, journal_file = 2, 100, 1, 0.2, 0.03, 2.0, 1, None
-    journal = sampler.sample([y_obs], steps, n_samples, n_samples_per_param, alpha, acceptance_cutoff, covFactor, full_output, journal_file)
+    print('APMCABC Inferring')
+    journal = sampler.sample([y_obs], steps, n_samples, n_samples_per_param, alpha, acceptance_cutoff, covFactor,
+                             full_output, journal_file)
 
     return journal
 
+
 def infer_parameters_rejectionabc():
     # define observation for true parameters mean=170, 65
-    rng = np.random.RandomState()
-    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2,))]
+    rng = np.random.RandomState(seed=1)
+    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2, ))]
 
     # define prior
     from abcpy.continuousmodels import Uniform
-    mu0 = Uniform([[150], [200]], )
-    mu1 = Uniform([[25], [100]], )
-
+    mu0 = Uniform([[150], [200]], name="mu0")
+    mu1 = Uniform([[25], [100]], name="mu1")
     # define the model
     height_weight_model = NestedBivariateGaussian([mu0, mu1])
 
     # define statistics
     from abcpy.statistics import Identity
-    statistics_calculator = Identity(degree = 2, cross = False)
+    statistics_calculator = Identity(degree=2, cross=False)
 
     # define distance
     from abcpy.distances import Euclidean
@@ -256,26 +263,27 @@ def infer_parameters_rejectionabc():
     from abcpy.inferences import RejectionABC
     sampler = RejectionABC([height_weight_model], [distance_calculator], backend, seed=1)
     n_samples, n_samples_per_param, epsilon = 2, 1, 20000
+    print('RejectionABC Inferring')
     journal = sampler.sample([y_obs], n_samples, n_samples_per_param, epsilon)
 
     return journal
 
+
 def infer_parameters_smcabc():
     # define observation for true parameters mean=170, 65
-    rng = np.random.RandomState()
-    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2,))]
+    rng = np.random.RandomState(seed=1)
+    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2, ))]
 
     # define prior
     from abcpy.continuousmodels import Uniform
-    mu0 = Uniform([[150], [200]], )
-    mu1 = Uniform([[25], [100]], )
-
+    mu0 = Uniform([[150], [200]], name="mu0")
+    mu1 = Uniform([[25], [100]], name="mu1")
     # define the model
     height_weight_model = NestedBivariateGaussian([mu0, mu1])
 
     # define statistics
     from abcpy.statistics import Identity
-    statistics_calculator = Identity(degree = 2, cross = False)
+    statistics_calculator = Identity(degree=2, cross=False)
 
     # define distance
     from abcpy.distances import Euclidean
@@ -285,44 +293,46 @@ def infer_parameters_smcabc():
     from abcpy.inferences import SMCABC
     sampler = SMCABC([height_weight_model], [distance_calculator], backend, seed=1)
     steps, n_samples, n_samples_per_param, epsilon = 2, 10, 1, 2000
+    print('SMCABC Inferring')
     journal = sampler.sample([y_obs], steps, n_samples, n_samples_per_param, epsilon, full_output=1)
 
     return journal
 
+
 def infer_parameters_pmc():
     # define observation for true parameters mean=170, 65
-    rng = np.random.RandomState()
-    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2,))]
+    rng = np.random.RandomState(seed=1)
+    y_obs = [np.array(rng.multivariate_normal([170, 65], np.eye(2), 1).reshape(2, ))]
 
     # define prior
     from abcpy.continuousmodels import Uniform
-    mu0 = Uniform([[150], [200]], )
-    mu1 = Uniform([[25], [100]], )
-
+    mu0 = Uniform([[150], [200]], name="mu0")
+    mu1 = Uniform([[25], [100]], name="mu1")
     # define the model
     height_weight_model = NestedBivariateGaussian([mu0, mu1])
 
     # define statistics
     from abcpy.statistics import Identity
-    statistics_calculator = Identity(degree = 2, cross = False)
+    statistics_calculator = Identity(degree=2, cross=False)
 
     from abcpy.approx_lhd import SynLikelihood
     approx_lhd = SynLikelihood(statistics_calculator)
 
     # define sampling scheme
     from abcpy.inferences import PMC
-    sampler = PMC([height_weight_model], [approx_lhd], backend, seed=1)
+    sampler = PMC([height_weight_model], [approx_lhd], backend, seed=2)
 
     # sample from scheme
     T, n_sample, n_samples_per_param = 2, 10, 10
-
-    journal = sampler.sample([y_obs],  T, n_sample, n_samples_per_param)
+    print('PMC Inferring')
+    journal = sampler.sample([y_obs], T, n_sample, n_samples_per_param)
 
     return journal
 
 
 def setUpModule():
     setup_backend()
+
 
 if __name__ == "__main__":
     setup_backend()

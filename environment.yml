@@ -1,0 +1,6 @@
+channels:
+- conda-forge
+dependencies:
+- openmpi
+- mpi4py
+- numpy

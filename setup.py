@@ -10,7 +10,7 @@ except ImportError: # for pip <= 9.0.3
     
 try: # for pip >= 19.3
     from pip._internal.network.session import PipSession
-except ImportError: 
+except ImportError:
     try: # for pip < 19.3 and >=10
         from pip._internal.download import PipSession
     except ImportError: # for pip <= 9.0.3
@@ -19,6 +19,7 @@ except ImportError:
 here = path.abspath(path.dirname(__file__))
 
 install_reqs_raw = parse_requirements('requirements.txt', session=PipSession())
+
 try:
     install_reqs = [str(ir.req) for ir in install_reqs_raw]
 except AttributeError:
@@ -27,7 +28,7 @@ except AttributeError:
 with open(path.join(here, 'VERSION')) as f:
     version = f.readline().strip()
     file_tgz = 'v' + version + '.tar.gz'
-    
+
 setup(
     name='abcpy',
 
@@ -42,7 +43,7 @@ setup(
     # The project's main homepage.
     url='https://github.com/eth-cscs/abcpy',
     download_url = 'https://github.com/eth-cscs/abcpy/archive/' + file_tgz,
-    
+
     # Author details
     author='The abcpy authors',
     author_email='',
@@ -59,8 +60,9 @@ setup(
         'Development Status :: 4 - Beta',
 
         'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.4',
-        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
     ],
 
     # What does your project relate to?

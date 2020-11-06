@@ -1,12 +1,12 @@
-
 from abcpy.backends import Backend, PDS, BDS
+
 
 class BackendSpark(Backend):
     """
     A parallelization backend for Apache Spark. It is essetially a wrapper for
     the required Spark functionality.
     """
-    
+
     def __init__(self, sparkContext, parallelism=4):
         """
         Initialize the backend with an existing and configured SparkContext.
@@ -20,7 +20,6 @@ class BackendSpark(Backend):
         """
         self.sc = sparkContext
         self.parallelism = parallelism
-
 
     def parallelize(self, python_list):
         """
@@ -36,11 +35,10 @@ class BackendSpark(Backend):
         PDSSpark class (parallel data set)
             A reference object that represents the parallelized list
         """
-        
+
         rdd = self.sc.parallelize(python_list, self.parallelism)
         pds = PDSSpark(rdd)
         return pds
-
 
     def broadcast(self, object):
         """
@@ -55,11 +53,10 @@ class BackendSpark(Backend):
         BDSSpark class (broadcast data set)
             A reference to the broadcasted object
         """
-        
+
         bcv = self.sc.broadcast(object)
         bds = BDSSpark(bcv)
         return bds
-
 
     def map(self, func, pds):
         """
@@ -76,11 +73,10 @@ class BackendSpark(Backend):
         PDSSpark class
             a new parallel data set that contains the result of the map
         """
-        
+
         rdd = pds.rdd.map(func)
         new_pds = PDSSpark(rdd)
         return new_pds
-
 
     def collect(self, pds):
         """
@@ -95,17 +91,16 @@ class BackendSpark(Backend):
         Python list
             all elements of pds as a list
         """
-        
+
         python_list = pds.rdd.collect()
         return python_list
 
-    
-    
+
 class PDSSpark(PDS):
     """
     This is a wrapper for Apache Spark RDDs.
     """
-    
+
     def __init__(self, rdd):
         """
         Returns
@@ -113,16 +108,15 @@ class PDSSpark(PDS):
         rdd: pyspark.rdd
             initialize with an Spark RDD
         """
-        
-        self.rdd = rdd
 
+        self.rdd = rdd
 
 
 class BDSSpark(BDS):
     """
     This is a wrapper for Apache Spark Broadcast variables.
     """
-    
+
     def __init__(self, bcv):
         """
         Parameters
@@ -130,9 +124,8 @@ class BDSSpark(BDS):
         bcv: pyspark.broadcast.Broadcast
             Initialize with a Spark broadcast variable
         """
-        
-        self.bcv = bcv
 
+        self.bcv = bcv
 
     def value(self):
         """
@@ -141,5 +134,5 @@ class BDSSpark(BDS):
         object
             returns the referenced object that was broadcasted.
         """
-        
+
         return self.bcv.value

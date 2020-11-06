@@ -1,4 +1,6 @@
 from abc import ABCMeta, abstractmethod
+
+import cloudpickle
 import numpy as np
 
 try:
@@ -7,8 +9,8 @@ except ImportError:
     has_torch = False
 else:
     has_torch = True
-    from abcpy.NN_utilities.utilities import load_net
-    from abcpy.NN_utilities.networks import createDefaultNN
+    from abcpy.NN_utilities.utilities import load_net, save_net
+    from abcpy.NN_utilities.networks import createDefaultNN, ScalerAndNet
 
 
 class Statistics(metaclass=ABCMeta):
@@ -76,13 +78,13 @@ class Statistics(metaclass=ABCMeta):
         Returns
         -------
         numpy.ndarray
-            nx(p+degree*p+cross*nchoosek(p,2)) matrix where for each of the n pointss with
+            nx(p+degree*p+cross*nchoosek(p,2)) matrix where for each of the n points with
             p statistics, degree*p polynomial expansion term and cross*nchoosek(p,2) many
             cross-product terms are calculated.
 
         """
 
-        # Check summary_statistics is a np.ndarry
+        # Check summary_statistics is a np.ndarray
         if not isinstance(summary_statistics, np.ndarray):
             raise TypeError('Summary statistics is not of allowed types')
         # Include the polynomial expansion
@@ -264,8 +266,8 @@ class NeuralEmbedding(Statistics):
         self.previous_statistics = previous_statistics
 
     @classmethod
-    def fromFile(cls, path_to_net_state_dict, network_class=None, input_size=None, output_size=None, hidden_sizes=None,
-                 previous_statistics=None):
+    def fromFile(cls, path_to_net_state_dict, network_class=None, path_to_scaler=None, input_size=None,
+                 output_size=None, hidden_sizes=None, previous_statistics=None):
         """If the neural network state_dict was saved to the disk, this method can be used to instantiate a
         NeuralEmbedding object with that neural network.
 
@@ -280,6 +282,10 @@ class NeuralEmbedding(Statistics):
         In both cases, note that the input size of the neural network must coincide with the size of each of the
         datapoints generated from the model (unless some other statistics are computed beforehand).
 
+        Note that if the neural network was of the class `ScalerAndNet`, ie a scaler was applied before the data is fed
+        through it, you need to pass `path_to_scaler` as well. Then this method will instantiate the network in the
+        correct way.
+
         Parameters
         ----------
         path_to_net_state_dict : basestring
@@ -287,6 +293,10 @@ class NeuralEmbedding(Statistics):
         network_class : torch.nn class, optional
             if the neural network class is known explicitly (for instance if the used defined it), then it has to be
              passed here. This must not be provided together with `input_size` or `output_size`.
+        path_to_scaler: basestring, optional
+            The path where the scaler which was applied before the neural network is saved. Note that if the neural
+            network was trained on scaled data and now you do not pass the correct scaler, the behavior will not be
+            correct, leading to wrong inference. Default to None.
         input_size : integer, optional
             if the neural network is an instance of abcpy.NN_utilities.networks.DefaultNN with some input and
             output size, then you should provide here the input size of the network. It has to be provided together with
@@ -327,13 +337,46 @@ class NeuralEmbedding(Statistics):
 
         if network_class is not None:  # user explicitly passed the NN class
             net = load_net(path_to_net_state_dict, network_class)
-            statistic_object = cls(net, previous_statistics=previous_statistics)
         else:  # the user passed the input_size, output_size and (maybe) the hidden_sizes
             net = load_net(path_to_net_state_dict, createDefaultNN(input_size=input_size, output_size=output_size,
                                                                    hidden_sizes=hidden_sizes))
-            statistic_object = cls(net, previous_statistics=previous_statistics)
+
+        if path_to_scaler is not None:
+            f = open(path_to_scaler, 'rb')
+            scaler = cloudpickle.load(f)
+            f.close()
+            net = ScalerAndNet(net, scaler)
+
+        statistic_object = cls(net, previous_statistics=previous_statistics)
 
         return statistic_object
+
+    def save_net(self, path_to_net_state_dict, path_to_scaler=None):
+        """Method to save the neural network state dict to a file. If the network is of the class ScalerAndNet, ie a
+        scaler is applied before the data is fed through the network, then you are required to pass the path where you
+        want the scaler to be saved.
+
+        Parameters
+        ----------
+        path_to_net_state_dict: basestring
+            Path where the state dict of the neural network is saved.
+        path_to_scaler: basestring
+            Path where the scaler is saved (with pickle); this is required if the neural network is of the class
+            ScalerAndNet, and is ignored otherwise.
+        """
+        # if the net is of the class ScalerAndNet
+        if hasattr(self.net, "scaler") and path_to_scaler is None:
+            raise RuntimeError("You did not specify path_to_scaler, which is required as the neural network is an "
+                               "element of the class `ScalerAndNet`, ie a scaler is applied before the data is fed"
+                               " through the network")
+
+        if hasattr(self.net, "scaler"):
+            save_net(path_to_net_state_dict, self.net.net)
+            f = open(path_to_scaler, 'wb')
+            cloudpickle.dump(self.net.scaler, f)
+            f.close()
+        else:
+            save_net(path_to_net_state_dict, self.net)
 
     def statistics(self, data):
         """
