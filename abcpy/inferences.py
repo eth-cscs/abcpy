@@ -378,6 +378,9 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
+        journal_class: instance of Journal, optional
+            An instance of Journal from which the first iteration will start.
+            The default value is None. 
 
         Returns
         -------
