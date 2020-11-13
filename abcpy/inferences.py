@@ -350,7 +350,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, steps, epsilon_init, n_samples=10000, n_samples_per_param=1, epsilon_percentile=10,
-               covFactor=2, full_output=0, journal_file=None):
+               covFactor=2, full_output=0, journal_file=None, journal_class=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -388,7 +388,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
 
-        if journal_file is None:
+        if journal_file is None and journal_class is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
             journal.configuration["type_dist_func"] = type(self.distance).__name__
@@ -397,7 +397,13 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             journal.configuration["steps"] = steps
             journal.configuration["epsilon_percentile"] = epsilon_percentile
         else:
-            journal = Journal.fromFile(journal_file)
+            if journal_file is not None and journal_class is not None:
+                raise Exception('When initializing from journal must specify either the path to the journal file with '
+                                'journal_file OR the journal instance itself with journal_class, not both.')
+            if journal_file is not None:
+                journal = Journal.fromFile(journal_file)
+            elif journal_class is not None:
+                journal = journal_class
 
         accepted_parameters = None
         accepted_weights = None
