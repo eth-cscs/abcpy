@@ -434,7 +434,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 self.logger.info("Calculateing covariance matrix")
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
                 # Since each entry of new_cov_mats is a numpy array, we can multiply like this
-                # accepted_cov_mats = [covFactor * new_cov_mat for new_cov_mat in new_cov_mats]
+                accepted_cov_mats = [covFactor * new_cov_mat for new_cov_mat in new_cov_mats]
                 accepted_cov_mats = self._compute_accepted_cov_mats(covFactor, accepted_cov_mats)
 
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
