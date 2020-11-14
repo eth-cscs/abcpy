@@ -219,7 +219,7 @@ class PMCABCTests(unittest.TestCase):
         journal_init = sampler.sample([self.observation], T, eps_arr, n_sample, n_simulate, eps_percentile)
 
         # Test from journal class
-        T, n_sample, n_simulate, eps_arr, eps_percentile = 1, 11, 1, [5], 10
+        T, n_sample, n_simulate, eps_arr, eps_percentile = 1, 10, 1, [5], 10
         journal = sampler.sample([self.observation], T, eps_arr, n_sample, n_simulate, eps_percentile, journal_class=journal_init)
 
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
@@ -233,9 +233,9 @@ class PMCABCTests(unittest.TestCase):
                                                                     (len(sigma_post_sample),
                                                                      sigma_post_sample[0].shape[1]), post_weights.shape
 
-        self.assertEqual(mu_sample_shape, (11, 1))
-        self.assertEqual(sigma_sample_shape, (11, 1))
-        self.assertEqual(weights_sample_shape, (11, 1))
+        self.assertEqual(mu_sample_shape, (10, 1))
+        self.assertEqual(sigma_sample_shape, (10, 1))
+        self.assertEqual(weights_sample_shape, (10, 1))
         self.assertLess(mu_post_mean - 0.03713, 10e-2)
         self.assertLess(sigma_post_mean - 7.727, 10e-2)
 
