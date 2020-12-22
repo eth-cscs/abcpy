@@ -1,0 +1,994 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AnalysisUIOptions">
+    <option name="SCOPE_TYPE" value="8" />
+    <option name="CUSTOM_SCOPE_NAME" value="abcpy" />
+    <option name="SHOW_STRUCTURE" value="true" />
+  </component>
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="BranchesTreeState">
+    <expand>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="LOCAL_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="REMOTE_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="REMOTE_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="GROUP_NODE:origin" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+    </expand>
+    <select>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="LOCAL_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="BRANCH:Wass_dist" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+    </select>
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="f595f641-8d2b-47eb-bbc9-3a98eca1ba8d" name="Default Changelist" comment="Fix Python versions in setup.py">
+      <change beforePath="$PROJECT_DIR$/.travis.yml" beforeDir="false" afterPath="$PROJECT_DIR$/.travis.yml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+    </list>
+    <list id="1c7eb6c1-b9d9-498c-b7da-5843036f3011" name="extensions" comment="stuff not to include for ABCpy paper">
+      <change beforePath="$PROJECT_DIR$/abcpy/approx_lhd.py" beforeDir="false" afterPath="$PROJECT_DIR$/abcpy/approx_lhd.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/abcpy/inferences.py" beforeDir="false" afterPath="$PROJECT_DIR$/abcpy/inferences.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/abcpy/jointapprox_lhd.py" beforeDir="false" afterPath="$PROJECT_DIR$/abcpy/jointapprox_lhd.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/abcpy/output.py" beforeDir="false" afterPath="$PROJECT_DIR$/abcpy/output.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/abcpy/utils.py" beforeDir="false" afterPath="$PROJECT_DIR$/abcpy/utils.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/inferences_tests.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/inferences_tests.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tests/statisticslearning_tests.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/statisticslearning_tests.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ChangesViewManager">
+    <option name="groupingKeys">
+      <option value="directory" />
+    </option>
+  </component>
+  <component name="CoverageOptionsProvider">
+    <option name="myAddOrReplace" value="1" />
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Jupyter Notebook" />
+        <option value="Python Script" />
+      </list>
+    </option>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="travis_trials" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitRewordedCommitMessages">
+    <option name="commitMessagesMapping">
+      <RewordedCommitMessageMapping>
+        <option name="originalMessage" value="Correct examples" />
+        <option name="rewordedMessage" value="Correct examples" />
+      </RewordedCommitMessageMapping>
+    </option>
+    <option name="currentCommit" value="1" />
+    <option name="onto" value="faada085d740175a8891a4dc9edb36aea204d934" />
+  </component>
+  <component name="GithubPullRequestsUISettings">
+    <option name="hiddenUrls">
+      <set>
+        <option value="https://github.com/LoryPack/abcpy" />
+      </set>
+    </option>
+  </component>
+  <component name="JupyterTrust" id="f63b39af-52a3-469a-826d-41a317306254" />
+  <component name="NamedScopeManager">
+    <scope name="examples" pattern="file[abcpy]:examples/*" />
+    <scope name="abcpy" pattern="file[abcpy]:abcpy//*" />
+  </component>
+  <component name="ProjectId" id="1W45yD4TRWGtjewcTvgbX7NVomU" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true">
+    <ConfirmationsSetting value="1" id="Add" />
+  </component>
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="TODO_SCOPE" value="All Places" />
+    <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="com.intellij.ide.scratch.LRUPopupBuilder$1/New Scratch File" value="Python" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/requirements" />
+    <property name="node.js.detected.package.eslint" value="true" />
+    <property name="node.js.detected.package.tslint" value="true" />
+    <property name="node.js.path.for.package.eslint" value="project" />
+    <property name="node.js.path.for.package.tslint" value="project" />
+    <property name="node.js.selected.package.eslint" value="(autodetect)" />
+    <property name="node.js.selected.package.tslint" value="(autodetect)" />
+    <property name="nodejs_package_manager_path" value="npm" />
+    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
+  </component>
+  <component name="PyCoverageOptionsProvider">
+    <option name="myUseBundledCoveragePy" value="true" />
+  </component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/requirements" />
+      <recent name="$PROJECT_DIR$/tests" />
+      <recent name="$PROJECT_DIR$/examples/backends/dummy" />
+      <recent name="$PROJECT_DIR$/examples/extensions/models" />
+      <recent name="$PROJECT_DIR$/examples/extensions/models/gaussian_R" />
+    </key>
+  </component>
+  <component name="RunManager" selected="Python tests.Unittests for inferences_tests.PMCloglikTests">
+    <configuration name="Unnamed" type="PyRemoteDebugConfigurationType" factoryName="Python Remote Debug" singleton="false" nameIsGenerated="true">
+      <module name="abcpy" />
+      <option name="PORT" value="0" />
+      <option name="HOST" value="localhost" />
+      <PathMappingSettings>
+        <option name="pathMappings">
+          <list />
+        </option>
+      </PathMappingSettings>
+      <option name="REDIRECT_OUTPUT" value="true" />
+      <option name="SUSPEND_AFTER_CONNECT" value="true" />
+      <method v="2" />
+    </configuration>
+    <configuration default="true" type="PyRemoteDebugConfigurationType" factoryName="Python Remote Debug" singleton="false">
+      <option name="PORT" value="0" />
+      <option name="HOST" value="localhost" />
+      <PathMappingSettings>
+        <option name="pathMappings">
+          <list />
+        </option>
+      </PathMappingSettings>
+      <option name="REDIRECT_OUTPUT" value="true" />
+      <option name="SUSPEND_AFTER_CONNECT" value="true" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Unnamed" type="PythonConfigurationType" factoryName="Python" nameIsGenerated="true">
+      <module name="abcpy" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="/usr/bin/python3.7" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Unittests for distances_tests.EuclideanTests.test_distance" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
+      <module name="abcpy" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;distances_tests.EuclideanTests.test_distance&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Unittests for distances_tests.LogRegTests" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
+      <module name="abcpy" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;distances_tests.LogRegTests&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Unittests for distances_tests.PenLogRegTests" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
+      <module name="abcpy" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;distances_tests.PenLogRegTests&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Unittests for distances_tests.WassersteinTests" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
+      <module name="abcpy" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;distances_tests.WassersteinTests&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Unittests for inferences_tests.PMCloglikTests" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
+      <module name="abcpy" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;inferences_tests.PMCloglikTests&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
+    <configuration name="Unittests for tests.test_examples.ExampleApproxLhdTest" type="tests" factoryName="Unittests" nameIsGenerated="true">
+      <module name="abcpy" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;tests.test_examples.ExampleApproxLhdTest&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method v="2" />
+    </configuration>
+    <list>
+      <item itemvalue="Python.Unnamed" />
+      <item itemvalue="Python Debug Server.Unnamed" />
+      <item itemvalue="Python tests.Unittests for tests.test_examples.ExampleApproxLhdTest" />
+      <item itemvalue="Python tests.Unittests for distances_tests.PenLogRegTests" />
+      <item itemvalue="Python tests.Unittests for distances_tests.LogRegTests" />
+      <item itemvalue="Python tests.Unittests for distances_tests.WassersteinTests" />
+      <item itemvalue="Python tests.Unittests for distances_tests.EuclideanTests.test_distance" />
+      <item itemvalue="Python tests.Unittests for inferences_tests.PMCloglikTests" />
+    </list>
+    <recent_temporary>
+      <list>
+        <item itemvalue="Python tests.Unittests for inferences_tests.PMCloglikTests" />
+        <item itemvalue="Python tests.Unittests for distances_tests.EuclideanTests.test_distance" />
+        <item itemvalue="Python tests.Unittests for distances_tests.WassersteinTests" />
+        <item itemvalue="Python tests.Unittests for distances_tests.LogRegTests" />
+        <item itemvalue="Python tests.Unittests for distances_tests.PenLogRegTests" />
+      </list>
+    </recent_temporary>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="f595f641-8d2b-47eb-bbc9-3a98eca1ba8d" name="Default Changelist" comment="" />
+      <changelist id="1c7eb6c1-b9d9-498c-b7da-5843036f3011" name="keep_aside" comment="" />
+      <created>1578396278532</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1578396278532</updated>
+      <workItem from="1578396284332" duration="3437000" />
+      <workItem from="1578403685343" duration="18000" />
+      <workItem from="1578500919041" duration="434000" />
+      <workItem from="1578668067460" duration="80000" />
+      <workItem from="1579359556400" duration="860000" />
+      <workItem from="1579634976037" duration="19000" />
+      <workItem from="1580326236849" duration="568000" />
+      <workItem from="1580574676561" duration="286000" />
+      <workItem from="1580591842408" duration="3000" />
+      <workItem from="1581358225146" duration="30000" />
+      <workItem from="1584873252466" duration="19714000" />
+      <workItem from="1584955439041" duration="375000" />
+      <workItem from="1584979899718" duration="1783000" />
+      <workItem from="1584982502122" duration="683000" />
+      <workItem from="1585555692279" duration="213000" />
+      <workItem from="1585861084897" duration="35000" />
+      <workItem from="1585898150915" duration="27000" />
+      <workItem from="1586016464200" duration="2136000" />
+      <workItem from="1586021146715" duration="566000" />
+      <workItem from="1586076608719" duration="996000" />
+      <workItem from="1586079315209" duration="1914000" />
+      <workItem from="1586444559926" duration="84000" />
+      <workItem from="1586698305511" duration="50000" />
+      <workItem from="1586852551530" duration="27000" />
+      <workItem from="1587217551610" duration="3047000" />
+      <workItem from="1587285281896" duration="710000" />
+      <workItem from="1587286462978" duration="15000" />
+      <workItem from="1587290568119" duration="57000" />
+      <workItem from="1587311128090" duration="2565000" />
+      <workItem from="1587455949199" duration="14359000" />
+      <workItem from="1587997106484" duration="3057000" />
+      <workItem from="1588147646416" duration="293000" />
+      <workItem from="1589101303457" duration="5649000" />
+      <workItem from="1589107838473" duration="30000" />
+      <workItem from="1589181858422" duration="624000" />
+      <workItem from="1589732038653" duration="169000" />
+      <workItem from="1589967152056" duration="781000" />
+      <workItem from="1590153336267" duration="194000" />
+      <workItem from="1590396206497" duration="80000" />
+      <workItem from="1590679767850" duration="767000" />
+      <workItem from="1590933448443" duration="67000" />
+      <workItem from="1592236609277" duration="1365000" />
+      <workItem from="1592238920293" duration="1530000" />
+      <workItem from="1592240508079" duration="936000" />
+      <workItem from="1592737743599" duration="45000" />
+      <workItem from="1593507833076" duration="541000" />
+      <workItem from="1593508813360" duration="30000" />
+      <workItem from="1593509119972" duration="135000" />
+      <workItem from="1593592531423" duration="81000" />
+      <workItem from="1594045250477" duration="1254000" />
+      <workItem from="1594046994493" duration="1622000" />
+      <workItem from="1597927891703" duration="221000" />
+      <workItem from="1597928875427" duration="29000" />
+      <workItem from="1597935754541" duration="2052000" />
+      <workItem from="1597938045096" duration="543000" />
+      <workItem from="1597938609129" duration="26000" />
+      <workItem from="1597940962409" duration="3064000" />
+      <workItem from="1598017254028" duration="5223000" />
+      <workItem from="1598174224814" duration="385000" />
+      <workItem from="1598277158947" duration="42000" />
+      <workItem from="1598281423013" duration="663000" />
+      <workItem from="1598282928985" duration="899000" />
+      <workItem from="1598284350665" duration="1673000" />
+      <workItem from="1598343071530" duration="482000" />
+      <workItem from="1598364891861" duration="861000" />
+      <workItem from="1598950730493" duration="449000" />
+      <workItem from="1598972757133" duration="1052000" />
+      <workItem from="1599029795826" duration="396000" />
+      <workItem from="1599553157020" duration="47000" />
+      <workItem from="1599553213703" duration="1603000" />
+      <workItem from="1599579353424" duration="450000" />
+      <workItem from="1599582396645" duration="594000" />
+      <workItem from="1599654583970" duration="4861000" />
+      <workItem from="1599665702345" duration="2646000" />
+      <workItem from="1599726438503" duration="2589000" />
+      <workItem from="1599740325101" duration="48000" />
+      <workItem from="1599741660097" duration="192000" />
+      <workItem from="1599812795031" duration="17384000" />
+      <workItem from="1599900924885" duration="277000" />
+      <workItem from="1599905465390" duration="760000" />
+      <workItem from="1599907065928" duration="418000" />
+      <workItem from="1600067271252" duration="383000" />
+      <workItem from="1600074496583" duration="18000" />
+      <workItem from="1600074825942" duration="2696000" />
+      <workItem from="1600090920204" duration="28000" />
+      <workItem from="1600091976410" duration="2800000" />
+      <workItem from="1600155503143" duration="15642000" />
+      <workItem from="1600333755532" duration="80000" />
+      <workItem from="1600416018000" duration="2198000" />
+      <workItem from="1600761658439" duration="75000" />
+      <workItem from="1600793250110" duration="367000" />
+      <workItem from="1600802600414" duration="62000" />
+      <workItem from="1600844023665" duration="17000" />
+      <workItem from="1600845026809" duration="613000" />
+      <workItem from="1600846977997" duration="71000" />
+      <workItem from="1600939568560" duration="684000" />
+      <workItem from="1601040307389" duration="1816000" />
+      <workItem from="1601218399111" duration="661000" />
+      <workItem from="1601453278207" duration="12412000" />
+      <workItem from="1601478899691" duration="4343000" />
+      <workItem from="1601551542028" duration="45000" />
+      <workItem from="1601557959112" duration="25000" />
+      <workItem from="1601649362219" duration="1311000" />
+      <workItem from="1601714098578" duration="1727000" />
+      <workItem from="1601800132632" duration="2044000" />
+      <workItem from="1601902954626" duration="784000" />
+      <workItem from="1601905932666" duration="1346000" />
+      <workItem from="1601912309326" duration="4670000" />
+      <workItem from="1602000438580" duration="409000" />
+      <workItem from="1602511421565" duration="3709000" />
+      <workItem from="1602517131718" duration="5993000" />
+      <workItem from="1602573451405" duration="2518000" />
+      <workItem from="1602597152518" duration="5779000" />
+      <workItem from="1602686613869" duration="868000" />
+      <workItem from="1603369886285" duration="2183000" />
+      <workItem from="1603377146027" duration="2482000" />
+      <workItem from="1603379863344" duration="618000" />
+      <workItem from="1603380489296" duration="30000" />
+      <workItem from="1603380659804" duration="12384000" />
+      <workItem from="1603436139608" duration="23198000" />
+      <workItem from="1603808314779" duration="12449000" />
+      <workItem from="1603872234690" duration="28852000" />
+      <workItem from="1603957425382" duration="12654000" />
+      <workItem from="1604045289403" duration="22739000" />
+      <workItem from="1604135984522" duration="7856000" />
+      <workItem from="1604224373133" duration="634000" />
+      <workItem from="1604225109148" duration="95000" />
+      <workItem from="1604306448102" duration="9007000" />
+      <workItem from="1604332809707" duration="29058000" />
+      <workItem from="1604480547931" duration="8485000" />
+      <workItem from="1604564484880" duration="397000" />
+      <workItem from="1604565318657" duration="203000" />
+      <workItem from="1604565542471" duration="281000" />
+      <workItem from="1604565853258" duration="14849000" />
+      <workItem from="1604593021487" duration="3988000" />
+      <workItem from="1604649122547" duration="10782000" />
+      <workItem from="1604662054730" duration="3662000" />
+      <workItem from="1604670250628" duration="531000" />
+      <workItem from="1604670809746" duration="1540000" />
+      <workItem from="1604674509208" duration="233000" />
+      <workItem from="1604675571563" duration="166000" />
+      <workItem from="1604742516119" duration="1190000" />
+      <workItem from="1604747998601" duration="901000" />
+      <workItem from="1604911696709" duration="422000" />
+      <workItem from="1604935534898" duration="69000" />
+      <workItem from="1604936739448" duration="1421000" />
+      <workItem from="1605169969016" duration="355000" />
+      <workItem from="1605173766999" duration="34000" />
+      <workItem from="1607350421904" duration="901000" />
+      <workItem from="1608573791052" duration="3000" />
+      <workItem from="1608641776360" duration="326000" />
+    </task>
+    <task id="LOCAL-00143" summary="Update ubuntu version">
+      <created>1604137972029</created>
+      <option name="number" value="00143" />
+      <option name="presentableId" value="LOCAL-00143" />
+      <option name="project" value="LOCAL" />
+      <updated>1604137972029</updated>
+    </task>
+    <task id="LOCAL-00144" summary="Update ubuntu version to install newer R version for rpy2 library">
+      <created>1604138363874</created>
+      <option name="number" value="00144" />
+      <option name="presentableId" value="LOCAL-00144" />
+      <option name="project" value="LOCAL" />
+      <updated>1604138363874</updated>
+    </task>
+    <task id="LOCAL-00145" summary="Add print in example">
+      <created>1604138448052</created>
+      <option name="number" value="00145" />
+      <option name="presentableId" value="LOCAL-00145" />
+      <option name="project" value="LOCAL" />
+      <updated>1604138448052</updated>
+    </task>
+    <task id="LOCAL-00146" summary="Update ubuntu version to install newer R version for rpy2 library">
+      <created>1604139367742</created>
+      <option name="number" value="00146" />
+      <option name="presentableId" value="LOCAL-00146" />
+      <option name="project" value="LOCAL" />
+      <updated>1604139367742</updated>
+    </task>
+    <task id="LOCAL-00147" summary="Fix Python versions in setup.py">
+      <created>1604149285251</created>
+      <option name="number" value="00147" />
+      <option name="presentableId" value="LOCAL-00147" />
+      <option name="project" value="LOCAL" />
+      <updated>1604149285251</updated>
+    </task>
+    <task id="LOCAL-00148" summary="Fix wrong requirements name">
+      <created>1604151173168</created>
+      <option name="number" value="00148" />
+      <option name="presentableId" value="LOCAL-00148" />
+      <option name="project" value="LOCAL" />
+      <updated>1604151173168</updated>
+    </task>
+    <task id="LOCAL-00149" summary="Remove useless multilevel.py file">
+      <created>1604328916634</created>
+      <option name="number" value="00149" />
+      <option name="presentableId" value="LOCAL-00149" />
+      <option name="project" value="LOCAL" />
+      <updated>1604328916635</updated>
+    </task>
+    <task id="LOCAL-00150" summary="Fix some typos">
+      <created>1604331793942</created>
+      <option name="number" value="00150" />
+      <option name="presentableId" value="LOCAL-00150" />
+      <option name="project" value="LOCAL" />
+      <updated>1604331793943</updated>
+    </task>
+    <task id="LOCAL-00151" summary="Fix some typos">
+      <created>1604332544176</created>
+      <option name="number" value="00151" />
+      <option name="presentableId" value="LOCAL-00151" />
+      <option name="project" value="LOCAL" />
+      <updated>1604332544176</updated>
+    </task>
+    <task id="LOCAL-00152" summary="Fix some typos">
+      <created>1604332567332</created>
+      <option name="number" value="00152" />
+      <option name="presentableId" value="LOCAL-00152" />
+      <option name="project" value="LOCAL" />
+      <updated>1604332567333</updated>
+    </task>
+    <task id="LOCAL-00153" summary="Add ESS computation and storage in Journal when type==1; also add plot for ESS in Journal class">
+      <created>1604342853236</created>
+      <option name="number" value="00153" />
+      <option name="presentableId" value="LOCAL-00153" />
+      <option name="project" value="LOCAL" />
+      <updated>1604342853236</updated>
+    </task>
+    <task id="LOCAL-00154" summary="Add Wasserstein distance convergence plot in Journal class">
+      <created>1604393743723</created>
+      <option name="number" value="00154" />
+      <option name="presentableId" value="LOCAL-00154" />
+      <option name="project" value="LOCAL" />
+      <updated>1604393743723</updated>
+    </task>
+    <task id="LOCAL-00155" summary="Add test for plot_posterior_distr">
+      <created>1604395862165</created>
+      <option name="number" value="00155" />
+      <option name="presentableId" value="LOCAL-00155" />
+      <option name="project" value="LOCAL" />
+      <updated>1604395862165</updated>
+    </task>
+    <task id="LOCAL-00156" summary="Add POT in requirements.txt">
+      <created>1604396677728</created>
+      <option name="number" value="00156" />
+      <option name="presentableId" value="LOCAL-00156" />
+      <option name="project" value="LOCAL" />
+      <updated>1604396677728</updated>
+    </task>
+    <task id="LOCAL-00157" summary="Add test for errors in statisticslearning.py">
+      <created>1604396727682</created>
+      <option name="number" value="00157" />
+      <option name="presentableId" value="LOCAL-00157" />
+      <option name="project" value="LOCAL" />
+      <updated>1604396727682</updated>
+    </task>
+    <task id="LOCAL-00158" summary="Additional test for Statistics">
+      <created>1604397700652</created>
+      <option name="number" value="00158" />
+      <option name="presentableId" value="LOCAL-00158" />
+      <option name="project" value="LOCAL" />
+      <updated>1604397700652</updated>
+    </task>
+    <task id="LOCAL-00159" summary="Explicitly close file with cloudpickle">
+      <created>1604401611027</created>
+      <option name="number" value="00159" />
+      <option name="presentableId" value="LOCAL-00159" />
+      <option name="project" value="LOCAL" />
+      <updated>1604401611027</updated>
+    </task>
+    <task id="LOCAL-00160" summary="Fix issues with importing modules in sphinx">
+      <created>1604418805042</created>
+      <option name="number" value="00160" />
+      <option name="presentableId" value="LOCAL-00160" />
+      <option name="project" value="LOCAL" />
+      <updated>1604418805042</updated>
+    </task>
+    <task id="LOCAL-00161" summary="Improve the Wass distance convergence check; specifically, fix using weights with two dimensions, and return the correct wass distance instead of squared one.">
+      <created>1604419547350</created>
+      <option name="number" value="00161" />
+      <option name="presentableId" value="LOCAL-00161" />
+      <option name="project" value="LOCAL" />
+      <updated>1604419547350</updated>
+    </task>
+    <task id="LOCAL-00162" summary="Fix python scripts in docs">
+      <created>1604502557909</created>
+      <option name="number" value="00162" />
+      <option name="presentableId" value="LOCAL-00162" />
+      <option name="project" value="LOCAL" />
+      <updated>1604502557910</updated>
+    </task>
+    <task id="LOCAL-00163" summary="Fix python scripts in docs">
+      <created>1604502680739</created>
+      <option name="number" value="00163" />
+      <option name="presentableId" value="LOCAL-00163" />
+      <option name="project" value="LOCAL" />
+      <updated>1604502680739</updated>
+    </task>
+    <task id="LOCAL-00164" summary="Fix python scripts in docs">
+      <created>1604502949000</created>
+      <option name="number" value="00164" />
+      <option name="presentableId" value="LOCAL-00164" />
+      <option name="project" value="LOCAL" />
+      <updated>1604502949000</updated>
+    </task>
+    <task id="LOCAL-00165" summary="Fix python scripts in docs">
+      <created>1604503125087</created>
+      <option name="number" value="00165" />
+      <option name="presentableId" value="LOCAL-00165" />
+      <option name="project" value="LOCAL" />
+      <updated>1604503125087</updated>
+    </task>
+    <task id="LOCAL-00166" summary="Fix python scripts in docs">
+      <created>1604504610531</created>
+      <option name="number" value="00166" />
+      <option name="presentableId" value="LOCAL-00166" />
+      <option name="project" value="LOCAL" />
+      <updated>1604504610532</updated>
+    </task>
+    <task id="LOCAL-00167" summary="Fix binder link">
+      <created>1604511069749</created>
+      <option name="number" value="00167" />
+      <option name="presentableId" value="LOCAL-00167" />
+      <option name="project" value="LOCAL" />
+      <updated>1604511069749</updated>
+    </task>
+    <task id="LOCAL-00168" summary="Fix python scripts in docs">
+      <created>1604511757569</created>
+      <option name="number" value="00168" />
+      <option name="presentableId" value="LOCAL-00168" />
+      <option name="project" value="LOCAL" />
+      <updated>1604511757569</updated>
+    </task>
+    <task id="LOCAL-00169" summary="Fix python scripts in docs">
+      <created>1604512088836</created>
+      <option name="number" value="00169" />
+      <option name="presentableId" value="LOCAL-00169" />
+      <option name="project" value="LOCAL" />
+      <updated>1604512088836</updated>
+    </task>
+    <task id="LOCAL-00170" summary="Add FORTRAN model in docs">
+      <created>1604513665793</created>
+      <option name="number" value="00170" />
+      <option name="presentableId" value="LOCAL-00170" />
+      <option name="project" value="LOCAL" />
+      <updated>1604513665793</updated>
+    </task>
+    <task id="LOCAL-00171" summary="Add FORTRAN model in docs">
+      <created>1604513927366</created>
+      <option name="number" value="00171" />
+      <option name="presentableId" value="LOCAL-00171" />
+      <option name="project" value="LOCAL" />
+      <updated>1604513927366</updated>
+    </task>
+    <task id="LOCAL-00172" summary="Add small remark on ESS/Wass_dist convergence checks">
+      <created>1604573055621</created>
+      <option name="number" value="00172" />
+      <option name="presentableId" value="LOCAL-00172" />
+      <option name="project" value="LOCAL" />
+      <updated>1604573055622</updated>
+    </task>
+    <task id="LOCAL-00173" summary="Add new notebook">
+      <created>1604573920380</created>
+      <option name="number" value="00173" />
+      <option name="presentableId" value="LOCAL-00173" />
+      <option name="project" value="LOCAL" />
+      <updated>1604573920380</updated>
+    </task>
+    <task id="LOCAL-00174" summary="Additional info on installation">
+      <created>1604581444473</created>
+      <option name="number" value="00174" />
+      <option name="presentableId" value="LOCAL-00174" />
+      <option name="project" value="LOCAL" />
+      <updated>1604581444473</updated>
+    </task>
+    <task id="LOCAL-00175" summary="Add MANIFEST.in file to include requirements in source distribution">
+      <created>1604582706853</created>
+      <option name="number" value="00175" />
+      <option name="presentableId" value="LOCAL-00175" />
+      <option name="project" value="LOCAL" />
+      <updated>1604582706853</updated>
+    </task>
+    <task id="LOCAL-00176" summary="Add MANIFEST.in file to include requirements in source distribution; useful for conda deployment in the future">
+      <created>1604582721855</created>
+      <option name="number" value="00176" />
+      <option name="presentableId" value="LOCAL-00176" />
+      <option name="project" value="LOCAL" />
+      <updated>1604582721855</updated>
+    </task>
+    <task id="LOCAL-00177" summary="Add MANIFEST.in file to include requirements in source distribution; useful for conda deployment in the future">
+      <created>1604585363212</created>
+      <option name="number" value="00177" />
+      <option name="presentableId" value="LOCAL-00177" />
+      <option name="project" value="LOCAL" />
+      <updated>1604585363212</updated>
+    </task>
+    <task id="LOCAL-00178" summary="Fix VERSION">
+      <created>1604591540344</created>
+      <option name="number" value="00178" />
+      <option name="presentableId" value="LOCAL-00178" />
+      <option name="project" value="LOCAL" />
+      <updated>1604591540344</updated>
+    </task>
+    <task id="LOCAL-00179" summary="Small fix in docs">
+      <created>1604592907965</created>
+      <option name="number" value="00179" />
+      <option name="presentableId" value="LOCAL-00179" />
+      <option name="project" value="LOCAL" />
+      <updated>1604592907965</updated>
+    </task>
+    <task id="LOCAL-00180" summary="Small fix in docs">
+      <created>1604592948465</created>
+      <option name="number" value="00180" />
+      <option name="presentableId" value="LOCAL-00180" />
+      <option name="project" value="LOCAL" />
+      <updated>1604592948465</updated>
+    </task>
+    <task id="LOCAL-00181" summary="Fix tests">
+      <created>1604594048951</created>
+      <option name="number" value="00181" />
+      <option name="presentableId" value="LOCAL-00181" />
+      <option name="project" value="LOCAL" />
+      <updated>1604594048952</updated>
+    </task>
+    <task id="LOCAL-00182" summary="Fix tests">
+      <created>1604595223919</created>
+      <option name="number" value="00182" />
+      <option name="presentableId" value="LOCAL-00182" />
+      <option name="project" value="LOCAL" />
+      <updated>1604595223919</updated>
+    </task>
+    <task id="LOCAL-00183" summary="Fix tests; improve coverage too">
+      <created>1604595233865</created>
+      <option name="number" value="00183" />
+      <option name="presentableId" value="LOCAL-00183" />
+      <option name="project" value="LOCAL" />
+      <updated>1604595233865</updated>
+    </task>
+    <task id="LOCAL-00184" summary="Try adding support for Python 3.4 and 3.5">
+      <created>1604653645337</created>
+      <option name="number" value="00184" />
+      <option name="presentableId" value="LOCAL-00184" />
+      <option name="project" value="LOCAL" />
+      <updated>1604653645338</updated>
+    </task>
+    <task id="LOCAL-00185" summary="Remove 3.4 Python as it is not present on Travis (end of life was more than 1 year ago)">
+      <created>1604654292753</created>
+      <option name="number" value="00185" />
+      <option name="presentableId" value="LOCAL-00185" />
+      <option name="project" value="LOCAL" />
+      <updated>1604654292753</updated>
+    </task>
+    <task id="LOCAL-00186" summary="Revert &quot;Remove 3.4 Python as it is not present on Travis (end of life was more than 1 year ago)&quot;&#10;&#10;This reverts commit a9616157">
+      <created>1604654587199</created>
+      <option name="number" value="00186" />
+      <option name="presentableId" value="LOCAL-00186" />
+      <option name="project" value="LOCAL" />
+      <updated>1604654587200</updated>
+    </task>
+    <task id="LOCAL-00187" summary="Revert &quot;Try adding support for Python 3.4 and 3.5&quot;&#10;&#10;This reverts commit 250393cf">
+      <created>1604654594987</created>
+      <option name="number" value="00187" />
+      <option name="presentableId" value="LOCAL-00187" />
+      <option name="project" value="LOCAL" />
+      <updated>1604654594987</updated>
+    </task>
+    <task id="LOCAL-00188" summary="Rename notebooks">
+      <created>1604658963001</created>
+      <option name="number" value="00188" />
+      <option name="presentableId" value="LOCAL-00188" />
+      <option name="project" value="LOCAL" />
+      <updated>1604658963001</updated>
+    </task>
+    <task id="LOCAL-00189" summary="Implement Wasserstein Distance; some updates to the Distance structure overall.">
+      <created>1604664209951</created>
+      <option name="number" value="00189" />
+      <option name="presentableId" value="LOCAL-00189" />
+      <option name="project" value="LOCAL" />
+      <updated>1604664209951</updated>
+    </task>
+    <task id="LOCAL-00190" summary="Implement Wasserstein Distance; some updates to the Distance structure overall.">
+      <created>1604669989110</created>
+      <option name="number" value="00190" />
+      <option name="presentableId" value="LOCAL-00190" />
+      <option name="project" value="LOCAL" />
+      <updated>1604669989110</updated>
+    </task>
+    <task id="LOCAL-00191" summary="Add line in MANIFEST.in">
+      <created>1604670332060</created>
+      <option name="number" value="00191" />
+      <option name="presentableId" value="LOCAL-00191" />
+      <option name="project" value="LOCAL" />
+      <updated>1604670332061</updated>
+    </task>
+    <option name="localTasksCounter" value="192" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="UnknownFeatures">
+    <option featureType="com.intellij.fileTypeFactory" implementationName="*.sh" />
+  </component>
+  <component name="Vcs.Log.History.Properties">
+    <option name="COLUMN_ORDER">
+      <list>
+        <option value="0" />
+        <option value="2" />
+        <option value="3" />
+        <option value="1" />
+      </list>
+    </option>
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="Wass_dist" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Add test for errors in statisticslearning.py" />
+    <MESSAGE value="Additional test for Statistics" />
+    <MESSAGE value="Explicitly close file with cloudpickle" />
+    <MESSAGE value="Fix issues with importing modules in sphinx" />
+    <MESSAGE value="Improve the Wass distance convergence check; specifically, fix using weights with two dimensions, and return the correct wass distance instead of squared one." />
+    <MESSAGE value="Fix binder link" />
+    <MESSAGE value="Fix python scripts in docs" />
+    <MESSAGE value="Add FORTRAN model in docs" />
+    <MESSAGE value="Add small remark on ESS/Wass_dist convergence checks" />
+    <MESSAGE value="Add new notebook" />
+    <MESSAGE value="Additional info on installation" />
+    <MESSAGE value="Add MANIFEST.in file to include requirements in source distribution" />
+    <MESSAGE value="Add MANIFEST.in file to include requirements in source distribution; useful for conda deployment in the future" />
+    <MESSAGE value="Fix VERSION" />
+    <MESSAGE value="Small fix in docs" />
+    <MESSAGE value="Fix tests; improve also coverage" />
+    <MESSAGE value="Fix tests" />
+    <MESSAGE value="Fix tests; improve coverage too" />
+    <MESSAGE value="Try adding support for Python 3.4 and 3.5" />
+    <MESSAGE value="Remove 3.4 Python as it is not present on Travis (end of life was more than 1 year ago)" />
+    <MESSAGE value="Revert &quot;Remove 3.4 Python as it is not present on Travis (end of life was more than 1 year ago)&quot;&#10;&#10;This reverts commit a9616157" />
+    <MESSAGE value="Revert &quot;Try adding support for Python 3.4 and 3.5&quot;&#10;&#10;This reverts commit 250393cf" />
+    <MESSAGE value="Rename notebooks" />
+    <MESSAGE value="Implement Wasserstein Distance; some updates to the Distance structure overall." />
+    <MESSAGE value="Add line in MANIFEST.in" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add line in MANIFEST.in" />
+    <option name="PRESELECT_EXISTING_CHANGELIST" value="true" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <default-breakpoints>
+        <breakpoint type="python-exception">
+          <properties notifyOnTerminate="true" exception="BaseException">
+            <option name="notifyOnTerminate" value="true" />
+          </properties>
+        </breakpoint>
+      </default-breakpoints>
+    </breakpoint-manager>
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/abcpy$randomforest_modelselections.coverage" NAME="randomforest_modelselections Coverage Results" MODIFIED="1603815634082" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/modelselection" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_in_acceptedparametersmanager_tests_py.coverage" NAME="Unittests in acceptedparametersmanager_tests.py Coverage Results" MODIFIED="1603444820267" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$pmcabc_gaussian_model.coverage" NAME="pmcabc-gaussian_model Coverage Results" MODIFIED="1603817105328" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/extensions/models/gaussian_R" />
+    <SUITE FILE_PATH="coverage/abcpy$pmcabc_perturbation_kernels.coverage" NAME="pmcabc_perturbation_kernels Coverage Results" MODIFIED="1603816423668" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/extensions/perturbationkernels" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_acceptedparametersmanager_tests_GetAcceptedParametersBdsValuesTests.coverage" NAME="Unittests for acceptedparametersmanager_tests.GetAcceptedParametersBdsValuesTests Coverage Results" MODIFIED="1589104955299" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$pmcabc_gaussian.coverage" NAME="pmcabc_gaussian Coverage Results" MODIFIED="1604047352541" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/backends/dummy" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_in_examples_tests_py.coverage" NAME="Unittests in examples_tests.py Coverage Results" MODIFIED="1604053247769" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_approx_lhd_tests_SynLikelihoodTests_test_likelihood.coverage" NAME="Unittests for approx_lhd_tests.SynLikelihoodTests.test_likelihood Coverage Results" MODIFIED="1601477540833" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_approx_lhd_tests_PenLogRegTests_test_likelihood_old.coverage" NAME="Unittests for approx_lhd_tests.PenLogRegTests.test_likelihood_old Coverage Results" MODIFIED="1603916582088" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_graphtools_tests_GetParametersTests.coverage" NAME="Unittests for graphtools_tests.GetParametersTests Coverage Results" MODIFIED="1589104590849" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_in_pmcabc_gaussian_py__1_.coverage" NAME="Unittests in pmcabc_gaussian.py (1) Coverage Results" MODIFIED="1603811747113" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/backends/dummy" />
+    <SUITE FILE_PATH="coverage/abcpy$gaussian_model.coverage" NAME="gaussian_model Coverage Results" MODIFIED="1603812215285" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/extensions/models/gaussian_R" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_approx_lhd_tests_SynLikelihoodTests.coverage" NAME="Unittests for approx_lhd_tests.SynLikelihoodTests Coverage Results" MODIFIED="1604050962760" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_acceptedparametersmanager_tests_UpdateBroadcastTests.coverage" NAME="Unittests for acceptedparametersmanager_tests.UpdateBroadcastTests Coverage Results" MODIFIED="1589104950179" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_approx_lhd_tests_PenLogRegTests.coverage" NAME="Unittests for approx_lhd_tests.PenLogRegTests Coverage Results" MODIFIED="1604050961146" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$pmc_hierarchical_models.coverage" NAME="pmc_hierarchical_models Coverage Results" MODIFIED="1604066319522" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/approx_lhd" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_jointapprox_lhd_tests_ProductCombinationTests.coverage" NAME="Unittests for jointapprox_lhd_tests.ProductCombinationTests Coverage Results" MODIFIED="1600761702779" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$pmcabc_gaussian_model_simple.coverage" NAME="pmcabc_gaussian_model_simple Coverage Results" MODIFIED="1604065190969" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/extensions/models/gaussian_cpp" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_inferences_tests_PMCTests.coverage" NAME="Unittests for inferences_tests.PMCTests Coverage Results" MODIFIED="1603384427486" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_examples_tests_ExampleApproxLhdPMCTest.coverage" NAME="Unittests for examples_tests.ExampleApproxLhdPMCTest Coverage Results" MODIFIED="1604052505775" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_inferences_tests_PMCloglikTests_test_sample.coverage" NAME="Unittests for inferences_tests.PMCloglikTests.test_sample Coverage Results" MODIFIED="1602597707718" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_examples_tests_ExampleExtensionsModelsTest.coverage" NAME="Unittests for examples_tests.ExampleExtensionsModelsTest Coverage Results" MODIFIED="1604054054903" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_graphtools_tests_PerturbTests.coverage" NAME="Unittests for graphtools_tests.PerturbTests Coverage Results" MODIFIED="1589104672101" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_distances_tests_LogRegTests_test_distance.coverage" NAME="Unittests for distances_tests.LogRegTests.test_distance Coverage Results" MODIFIED="1604047978748" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_approx_lhd_tests_PenLogRegTests_test_likelihood_multiple_observations.coverage" NAME="Unittests for approx_lhd_tests.PenLogRegTests.test_likelihood_multiple_observations Coverage Results" MODIFIED="1603916811905" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_graphtools_tests_SetParametersTests.coverage" NAME="Unittests for graphtools_tests.SetParametersTests Coverage Results" MODIFIED="1589104612849" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_output_tests_JournalTests_test_plot_wass_dist.coverage" NAME="Unittests for output_tests.JournalTests.test_plot_wass_dist Coverage Results" MODIFIED="1604593347960" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$pmcabc_gaussian_model_simple__2_.coverage" NAME="pmcabc-gaussian_model_simple (2) Coverage Results" MODIFIED="1603875063654" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/extensions/models/gaussian_python" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_output_tests_JournalTests.coverage" NAME="Unittests for output_tests.JournalTests Coverage Results" MODIFIED="1604409747607" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_approx_lhd_tests_SynLikelihoodTests_test_likelihood_multiple_observations.coverage" NAME="Unittests for approx_lhd_tests.SynLikelihoodTests.test_likelihood_multiple_observations Coverage Results" MODIFIED="1603892197461" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$statisticslearning_tests.coverage" NAME="statisticslearning_tests Coverage Results" MODIFIED="1592240601921" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_examples_tests_ExampleGaussianDummyTest_test_example.coverage" NAME="Unittests for examples_tests.ExampleGaussianDummyTest.test_example Coverage Results" MODIFIED="1604048830767" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_in_pmcabc_gaussian_model_simple_py.coverage" NAME="Unittests in pmcabc_gaussian_model_simple.py Coverage Results" MODIFIED="1604052791798" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/extensions/models/gaussian_cpp" />
+    <SUITE FILE_PATH="coverage/abcpy$distances_tests.coverage" NAME="distances_tests Coverage Results" MODIFIED="1601040502867" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$USER_HOME$/Dropbox/OxWaSP/ABC-project/Code/abcpy/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_acceptedparametersmanager_tests_BroadcastTests.coverage" NAME="Unittests for acceptedparametersmanager_tests.BroadcastTests Coverage Results" MODIFIED="1589104920275" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$pmcabc_inference_on_multiple_sets_of_obs.coverage" NAME="pmcabc_inference_on_multiple_sets_of_obs Coverage Results" MODIFIED="1603814310734" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/hierarchicalmodels" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_distances_tests_PenLogRegTests.coverage" NAME="Unittests for distances_tests.PenLogRegTests Coverage Results" MODIFIED="1604659284780" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_test_examples_ExampleExtensionsModelsTest_test_f90.coverage" NAME="Unittests for test_examples.ExampleExtensionsModelsTest.test_f90 Coverage Results" MODIFIED="1604139259655" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_inferences_tests_PMCABCTests.coverage" NAME="Unittests for inferences_tests.PMCABCTests Coverage Results" MODIFIED="1603379563887" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_in_graphtools_tests_py.coverage" NAME="Unittests for tests Coverage Results" MODIFIED="1589102234863" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_examples_tests_ExampleGaussianDummyTest.coverage" NAME="Unittests for examples_tests.ExampleGaussianDummyTest Coverage Results" MODIFIED="1604052285271" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$pmcabc_gaussian_statistics_learning.coverage" NAME="pmcabc_gaussian_statistics_learning Coverage Results" MODIFIED="1603816312286" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/statisticslearning" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_output_tests_JournalTests_test_plot_post_distr.coverage" NAME="Unittests for output_tests.JournalTests.test_plot_post_distr Coverage Results" MODIFIED="1604593682212" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$__init__.coverage" NAME="__init__ Coverage Results" MODIFIED="1589104758567" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_acceptedparametersmanager_tests_UpdateKernelValuesTests.coverage" NAME="Unittests for acceptedparametersmanager_tests.UpdateKernelValuesTests Coverage Results" MODIFIED="1589104925088" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_distances_tests_EuclideanTests_test_distance.coverage" NAME="Unittests for distances_tests.EuclideanTests.test_distance Coverage Results" MODIFIED="1604663343373" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_statisticslearning_tests_SemiautomaticNNTests.coverage" NAME="Unittests for statisticslearning_tests.SemiautomaticNNTests Coverage Results" MODIFIED="1604593878795" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$pmcabc_gaussian_model_simple__1_.coverage" NAME="pmcabc-gaussian_model_simple (1) Coverage Results" MODIFIED="1603819076361" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/extensions/models/gaussian_f90" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_distances_tests_WassersteinTests.coverage" NAME="Unittests for distances_tests.WassersteinTests Coverage Results" MODIFIED="1604660244186" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_statisticslearning_tests_SemiautomaticNNTests_test_errors.coverage" NAME="Unittests for statisticslearning_tests.SemiautomaticNNTests.test_errors Coverage Results" MODIFIED="1604396588295" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_examples_tests_ExampleExtensionsModelsTest_test_R.coverage" NAME="Unittests for examples_tests.ExampleExtensionsModelsTest.test_R Coverage Results" MODIFIED="1604054004670" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_examples_tests_ExampleExtensionsPerturbationKernelsTest.coverage" NAME="Unittests for examples_tests.ExampleExtensionsPerturbationKernelsTest Coverage Results" MODIFIED="1604054059373" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_examples_tests_ExampleExtensionsModelsGaussianCppTest.coverage" NAME="Unittests for examples_tests.ExampleExtensionsModelsGaussianCppTest Coverage Results" MODIFIED="1604052855051" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_examples_tests_ExampleExtensionsModelsGaussianF90Test.coverage" NAME="Unittests for examples_tests.ExampleExtensionsModelsGaussianF90Test Coverage Results" MODIFIED="1604052912665" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_statistics_tests_IdentityTests.coverage" NAME="Unittests for statistics_tests.IdentityTests Coverage Results" MODIFIED="1604397674993" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_in_pmcabc_gaussian_py.coverage" NAME="Unittests in pmcabc_gaussian.py Coverage Results" MODIFIED="1603875636108" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/backends/mpi" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_statistics_tests_NeuralEmbeddingTests.coverage" NAME="Unittests for statistics_tests.NeuralEmbeddingTests Coverage Results" MODIFIED="1604397678532" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$try_wass_dist.coverage" NAME="try_wass_dist Coverage Results" MODIFIED="1604414849742" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_examples_tests_ExampleStatisticsLearningTest.coverage" NAME="Unittests for examples_tests.ExampleStatisticsLearningTest Coverage Results" MODIFIED="1604064880061" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_perturbationkernel_tests_PdfTests_test_return_value_Student_T.coverage" NAME="Unittests for perturbationkernel_tests.PdfTests.test_return_value_Student_T Coverage Results" MODIFIED="1604594401449" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_in_tests.coverage" NAME="Unittests in tests Coverage Results" MODIFIED="1603444814317" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_output_tests_JournalTests_test_add_opt_values.coverage" NAME="Unittests for output_tests.JournalTests.test_add_opt_values Coverage Results" MODIFIED="1604593412556" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_graphtools_tests_GetCorrectOrderingTests.coverage" NAME="Unittests for graphtools_tests.GetCorrectOrderingTests Coverage Results" MODIFIED="1589104663423" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_perturbationkernel_tests_JointCheckKernelsTests.coverage" NAME="Unittests for perturbationkernel_tests.JointCheckKernelsTests Coverage Results" MODIFIED="1604594164910" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_in_inferences_tests_py.coverage" NAME="Unittests in inferences_tests.py Coverage Results" MODIFIED="1604342776889" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_backend_tests_mpi_MPIBackendTests.coverage" NAME="Unittests for backend_tests_mpi.MPIBackendTests Coverage Results" MODIFIED="1589105345739" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_graphtools_tests_SampleFromPriorTests.coverage" NAME="Unittests for graphtools_tests.SampleFromPriorTests Coverage Results" MODIFIED="1589102420943" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_in_pmcabc_gaussian_model_simple_py__1_.coverage" NAME="Unittests in pmcabc-gaussian_model_simple.py (1) Coverage Results" MODIFIED="1603811985427" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/extensions/models/gaussian_f90" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_perturbationkernel_tests_UpdateTests_test_Student_T.coverage" NAME="Unittests for perturbationkernel_tests.UpdateTests.test_Student_T Coverage Results" MODIFIED="1604595057401" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_distances_tests_LogRegTests.coverage" NAME="Unittests for distances_tests.LogRegTests Coverage Results" MODIFIED="1604659723838" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_graphtools_tests_GetMappingTests.coverage" NAME="Unittests for graphtools_tests.GetMappingTests Coverage Results" MODIFIED="1589104683934" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$mpi_model_inferences.coverage" NAME="mpi_model_inferences Coverage Results" MODIFIED="1603881653909" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/backends/mpi" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_examples_tests_ExampleBackendsTest.coverage" NAME="Unittests for examples_tests.ExampleBackendsTest Coverage Results" MODIFIED="1604054028825" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_output_tests_JournalTests_test_load_and_save.coverage" NAME="Unittests for output_tests.JournalTests.test_load_and_save Coverage Results" MODIFIED="1604593409735" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_statisticslearning_tests_ContrastiveDistanceLearningTests.coverage" NAME="Unittests for statisticslearning_tests.ContrastiveDistanceLearningTests Coverage Results" MODIFIED="1604593884601" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$inferences_tests.coverage" NAME="inferences_tests Coverage Results" MODIFIED="1603383645206" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$USER_HOME$/Dropbox/OxWaSP/ABC-project/Code/abcpy/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_perturbationkernel_tests_CalculateCovTest_test_Student_T.coverage" NAME="Unittests for perturbationkernel_tests.CalculateCovTest.test_Student_T Coverage Results" MODIFIED="1604594575953" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_statistics_tests_NeuralEmbeddingTests_test_save_load.coverage" NAME="Unittests for statistics_tests.NeuralEmbeddingTests.test_save_load Coverage Results" MODIFIED="1604397658753" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_examples_tests_ExampleHierarchicalModelsTest.coverage" NAME="Unittests for examples_tests.ExampleHierarchicalModelsTest Coverage Results" MODIFIED="1604054063668" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_inferences_tests_MCMCMetropoliHastingsLoglikTests.coverage" NAME="Unittests for inferences_tests.MCMCMetropoliHastingsLoglikTests Coverage Results" MODIFIED="1602604279821" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_statisticslearning_tests_TripletDistanceLearningTests.coverage" NAME="Unittests for statisticslearning_tests.TripletDistanceLearningTests Coverage Results" MODIFIED="1604593960046" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_graphtools_tests_ResetFlagsTests.coverage" NAME="Unittests for graphtools_tests.ResetFlagsTests Coverage Results" MODIFIED="1589104573024" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_statistics_tests_IdentityTests_test_pipeline.coverage" NAME="Unittests for statistics_tests.IdentityTests.test_pipeline Coverage Results" MODIFIED="1604396980174" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_examples_tests_ExampleModelSelectionTest.coverage" NAME="Unittests for examples_tests.ExampleModelSelectionTest Coverage Results" MODIFIED="1604054274714" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_examples_tests_ExampleExtensionsModelsTest_test_python.coverage" NAME="Unittests for examples_tests.ExampleExtensionsModelsTest.test_python Coverage Results" MODIFIED="1604053043460" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_output_tests_JournalTests_test_ESS.coverage" NAME="Unittests for output_tests.JournalTests.test_ESS Coverage Results" MODIFIED="1604593406167" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_examples_tests_ExampleApproxLhdTest.coverage" NAME="Unittests for examples_tests.ExampleApproxLhdTest Coverage Results" MODIFIED="1604054012291" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_graphtools_tests_PdfOfPriorTests.coverage" NAME="Unittests for graphtools_tests.PdfOfPriorTests Coverage Results" MODIFIED="1589104703852" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_perturbationkernel_tests_CalculateCovTets.coverage" NAME="Unittests for perturbationkernel_tests.CalculateCovTets Coverage Results" MODIFIED="1604594067652" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_in_output_tests_py.coverage" NAME="Unittests in output_tests.py Coverage Results" MODIFIED="1604593315813" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_graphtools_tests_SimulateTests.coverage" NAME="Unittests for graphtools_tests.SimulateTests Coverage Results" MODIFIED="1589104677808" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_distances_tests_EuclideanTests.coverage" NAME="Unittests for distances_tests.EuclideanTests Coverage Results" MODIFIED="1604659283017" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_output_tests_JournalTests_test_plot_ESS.coverage" NAME="Unittests for output_tests.JournalTests.test_plot_ESS Coverage Results" MODIFIED="1604593353773" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_in_distances_tests_py.coverage" NAME="Unittests in distances_tests.py Coverage Results" MODIFIED="1589104728662" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_statisticslearning_tests_SemiautomaticTests.coverage" NAME="Unittests for statisticslearning_tests.SemiautomaticTests Coverage Results" MODIFIED="1604593874518" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_in_approx_lhd_tests_py.coverage" NAME="Unittests in approx_lhd_tests.py Coverage Results" MODIFIED="1597943164402" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$approx_lhd.coverage" NAME="approx_lhd Coverage Results" MODIFIED="1603891012112" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/abcpy" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_approx_lhd_tests_PenLogRegTests_test_likelihood.coverage" NAME="Unittests for approx_lhd_tests.PenLogRegTests.test_likelihood Coverage Results" MODIFIED="1603916711906" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_inferences_tests_PMCloglikTests.coverage" NAME="Unittests for inferences_tests.PMCloglikTests Coverage Results" MODIFIED="1608641982243" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unnamed.coverage" NAME="Unnamed Coverage Results" MODIFIED="1589101683302" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_in_pmc_hierarchical_models_py.coverage" NAME="Unittests in pmc_hierarchical_models.py Coverage Results" MODIFIED="1604051664787" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/approx_lhd" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_statisticslearning_tests_SemiautomaticTests_test_errors.coverage" NAME="Unittests for statisticslearning_tests.SemiautomaticTests.test_errors Coverage Results" MODIFIED="1604396193782" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_acceptedparametersmanager_tests_GetMappingTests.coverage" NAME="Unittests for acceptedparametersmanager_tests.GetMappingTests Coverage Results" MODIFIED="1589104953492" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$pmcabc_gaussian__1_.coverage" NAME="pmcabc_gaussian (1) Coverage Results" MODIFIED="1603875651672" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/backends/mpi" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_perturbationkernel_tests_PdfTests.coverage" NAME="Unittests for perturbationkernel_tests.PdfTests Coverage Results" MODIFIED="1604594070671" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_pmcabc_gaussian_ExampleGaussianDummyTest.coverage" NAME="Unittests for pmcabc_gaussian.ExampleGaussianDummyTest Coverage Results" MODIFIED="1603811750524" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/examples/backends/dummy" />
+    <SUITE FILE_PATH="coverage/abcpy$Unittests_for_perturbationkernel_tests_UpdateTests.coverage" NAME="Unittests for perturbationkernel_tests.UpdateTests Coverage Results" MODIFIED="1604594069061" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+  </component>
+</project>
