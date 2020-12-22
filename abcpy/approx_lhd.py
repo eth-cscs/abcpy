@@ -105,7 +105,7 @@ class SynLikelihood(Approx_likelihood):
         #     x_new = np.einsum('i,ij,j->', single_stat_obs - mean_sim, robust_precision_sim, single_stat_obs - mean_sim)
         #     likelihoods[i] = np.exp(-0.5 * x_new)
         # do without for loop:
-        diff = self.stat_obs - mean_sim.reshape(1,-1)
+        diff = self.stat_obs - mean_sim.reshape(1, -1)
         x_news = np.einsum('bi,ij,bj->b', diff, robust_precision_sim, diff)
         likelihoods = np.exp(-0.5 * x_news)
         # looks like we are exponentiating the determinant as well, which is wrong;
@@ -113,6 +113,8 @@ class SynLikelihood(Approx_likelihood):
         factor = pow(np.sqrt((1 / (2 * np.pi)) * robust_precision_sim_det), self.stat_obs.shape[0])
         return np.prod(likelihoods) * factor  # compute the product of the different likelihoods for each observation
 
+    def loglikelihood(self, y_obs, y_sim):  # TODO: improve this, for now it is not ideal...
+        return np.log(self.likelihood(y_obs, y_sim))
 
 class PenLogReg(Approx_likelihood, GraphTools):
     """This class implements the approximate likelihood function which computes the approximate
@@ -165,10 +167,8 @@ class PenLogReg(Approx_likelihood, GraphTools):
 
         self.stat_obs = None
         self.data_set = None
-        
 
-        
-    def likelihood(self, y_obs, y_sim):
+    def loglikelihood(self, y_obs, y_sim):
         if not isinstance(y_obs, list):
             raise TypeError('Observed data is not of allowed types')
 
@@ -206,10 +206,12 @@ class PenLogReg(Approx_likelihood, GraphTools):
         groups += groups  # duplicate it as groups need to be defined for both datasets
         m = LogitNet(alpha=1, n_splits=self.n_folds, max_iter=self.max_iter, random_state=self.seed, scoring="log_loss")
         m = m.fit(X, y, groups=groups)
-        result = np.exp(-np.sum((m.intercept_+np.sum(np.multiply(m.coef_,self.stat_obs),axis=1)),axis=0))
-        
+        result = -np.sum((m.intercept_ + np.sum(np.multiply(m.coef_, self.stat_obs), axis=1)), axis=0)
+
         return result
 
+    def likelihood(self, y_obs, y_sim):
+        return np.exp(self.loglikelihood(y_obs, y_sim))
 
     def _simulate_ref_data(self, rng=np.random.RandomState()):
         """

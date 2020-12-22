@@ -7,7 +7,7 @@ from abcpy.backends import BackendDummy
 from abcpy.continuousmodels import Normal
 from abcpy.continuousmodels import Uniform
 from abcpy.distances import Euclidean
-from abcpy.inferences import RejectionABC, PMC, PMCABC, SABC, ABCsubsim, SMCABC, APMCABC, RSMCABC
+from abcpy.inferences import RejectionABC, PMC, PMCABC, SABC, ABCsubsim, SMCABC, APMCABC, RSMCABC, PMCloglik
 from abcpy.statistics import Identity
 
 
@@ -118,6 +118,70 @@ class PMCTests(unittest.TestCase):
         self.assertLess(abs(sigma_post_mean - 6.9214661382633365), 1e-3)
 
         self.assertFalse(journal.number_of_simulations == 0)
+
+
+class PMCloglikTests(unittest.TestCase):
+    # test if PMCloglik gives same result as PMC
+
+    def test_sample(self):
+        # setup backend
+        backend = BackendDummy()
+
+        # define a uniform prior distribution
+        mu = Uniform([[-5.0], [5.0]], name='mu')
+        sigma = Uniform([[0.0], [10.0]], name='sigma')
+        # define a Gaussian model
+        self.model = Normal([mu, sigma])
+
+        # define sufficient statistics for the model
+        stat_calc = Identity(degree=2, cross=0)
+
+        # create fake observed data
+        # y_obs = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
+        y_obs = [np.array(9.8)]
+
+        # Define the likelihood function
+        likfun = SynLikelihood(stat_calc)
+
+        T, n_sample, n_samples_per_param = 1, 10, 100
+
+        # do with likelihood:
+        sampler = PMC([self.model], [likfun], backend, seed=1)
+        journal = sampler.sample([y_obs], T, n_sample, n_samples_per_param, covFactors=np.array([.1, .1]),
+                                 iniPoints=None)
+        # Compute posterior mean
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
+
+        # do with loglikelihood:
+        sampler_log = PMCloglik([self.model], [likfun], backend, seed=1)
+        journal_log = sampler_log.sample([y_obs], T, n_sample, n_samples_per_param, covFactors=np.array([.1, .1]),
+                                         iniPoints=None)
+        # Compute posterior mean
+        mu_post_mean_log, sigma_post_mean_log = journal_log.posterior_mean()['mu'], journal_log.posterior_mean()[
+            'sigma']
+
+        self.assertAlmostEqual(mu_post_mean, mu_post_mean_log)
+        self.assertAlmostEqual(sigma_post_mean, sigma_post_mean_log)
+
+        # use the PMC scheme for T = 2
+        T, n_sample, n_samples_per_param = 2, 10, 100
+        # do with likelihood:
+        sampler = PMC([self.model], [likfun], backend, seed=1)
+        journal = sampler.sample([y_obs], T, n_sample, n_samples_per_param, covFactors=np.array([.1, .1]),
+                                 iniPoints=None)
+        # Compute posterior mean
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
+
+        # do with loglikelihood:
+        sampler_log = PMCloglik([self.model], [likfun], backend, seed=1)
+        journal_log = sampler_log.sample([y_obs], T, n_sample, n_samples_per_param, covFactors=np.array([.1, .1]),
+                                         iniPoints=None)
+        # Compute posterior mean
+        mu_post_mean_log, sigma_post_mean_log = journal_log.posterior_mean()['mu'], journal_log.posterior_mean()[
+            'sigma']
+
+        self.assertAlmostEqual(mu_post_mean, mu_post_mean_log)
+        self.assertAlmostEqual(sigma_post_mean, sigma_post_mean_log)
 
 
 class PMCABCTests(unittest.TestCase):
