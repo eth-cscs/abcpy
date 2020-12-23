@@ -406,12 +406,11 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         # Define epsilon_arr
         if len(epsilon_init) == steps:
             epsilon_arr = epsilon_init
+        elif len(epsilon_init) == 1:
+            epsilon_arr = [None] * steps
+            epsilon_arr[0] = epsilon_init
         else:
-            if len(epsilon_init) == 1:
-                epsilon_arr = [None] * steps
-                epsilon_arr[0] = epsilon_init
-            else:
-                raise ValueError("The length of epsilon_init can only be equal to 1 or steps.")
+            raise ValueError("The length of epsilon_init can only be equal to 1 or steps.")
 
         # main PMCABC algorithm
         self.logger.info("Starting PMC iterations")
@@ -435,7 +434,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
                 # Since each entry of new_cov_mats is a numpy array, we can multiply like this
                 # accepted_cov_mats = [covFactor * new_cov_mat for new_cov_mat in new_cov_mats]
-                accepted_cov_mats = self._compute_accepted_cov_mats(covFactor, accepted_cov_mats)
+                accepted_cov_mats = self._compute_accepted_cov_mats(covFactor, new_cov_mats)
 
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
             rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
@@ -497,7 +496,8 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             self.logger.info("Calculating covariance matrix")
             new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
             # Since each entry of new_cov_mats is a numpy array, we can multiply like this
-            new_cov_mats = [covFactor * new_cov_mat for new_cov_mat in new_cov_mats]
+            # new_cov_mats = [covFactor * new_cov_mat for new_cov_mat in new_cov_mats]
+            new_cov_mats = self._compute_accepted_cov_mats(covFactor, new_cov_mats)
 
             # 4: Update the newly computed values
             accepted_parameters = new_parameters
