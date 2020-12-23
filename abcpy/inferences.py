@@ -420,6 +420,11 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 accepted_parameters = journal.get_accepted_parameters(-1)
                 accepted_weights = journal.get_weights(-1)
 
+                if  hasattr(journal, "distances"):
+                    # if restarting from a journal, use the previous distances to check determine a new epsilon
+                    # (it if is larger than the epsilon_arr[0] provided here)
+                    epsilon_arr[0] = np.max([np.percentile(journal.distances[-1], epsilon_percentile), epsilon_arr[0]])
+
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                                   accepted_weights=accepted_weights)
 
@@ -518,7 +523,10 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.number_of_simulations.append(self.simulation_counter)
 
         # Add epsilon_arr to the journal
-        journal.configuration["epsilon_arr"] = epsilon_arr
+        if journal_file is not None and "epsilon_arr" in journal.configuration.keys():
+            journal.configuration["epsilon_arr"] += epsilon_arr
+        else:
+            journal.configuration["epsilon_arr"] = epsilon_arr
 
         return journal
 
