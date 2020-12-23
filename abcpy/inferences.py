@@ -8,7 +8,7 @@ from scipy import optimize
 
 from abcpy.acceptedparametersmanager import *
 from abcpy.graphtools import GraphTools
-from abcpy.jointapprox_lhd import ProductCombination, SumCombination
+from abcpy.jointapprox_lhd import SumCombination
 from abcpy.jointdistances import LinearCombination
 from abcpy.output import Journal
 from abcpy.perturbationkernel import DefaultKernel
