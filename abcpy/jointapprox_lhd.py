@@ -53,8 +53,8 @@ class JointApprox_likelihood(metaclass=ABCMeta):
 
 class ProductCombination(JointApprox_likelihood):
     """
-    This class implements the product combination of different approximate likelihoods computed on different datasets corresponding to
-    different root models
+    This class implements the product combination of different approximate likelihoods computed on different datasets
+    corresponding to different root models. This is not used anymore as we not use loglikelihoods in PMC
 
     """
 
@@ -90,8 +90,8 @@ class ProductCombination(JointApprox_likelihood):
 
 class SumCombination(JointApprox_likelihood):
     """
-    This class implements the product combination of different approximate likelihoods computed on different datasets corresponding to
-    different root models
+    This class implements the sum combination of different approximate loglikelihoods computed on different datasets
+    corresponding to different root models
 
     """
 
