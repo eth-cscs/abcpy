@@ -3,7 +3,6 @@ import unittest
 import numpy as np
 
 from abcpy.statistics import Identity, LinearTransformation, NeuralEmbedding
-from abcpy.NN_utilities.networks import ScalerAndNet
 
 try:
     import torch
@@ -11,7 +10,7 @@ except ImportError:
     has_torch = False
 else:
     has_torch = True
-    from abcpy.NN_utilities.networks import createDefaultNN
+    from abcpy.NN_utilities.networks import createDefaultNN, ScalerAndNet
 
 
 class IdentityTests(unittest.TestCase):

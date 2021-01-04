@@ -8,7 +8,7 @@ from scipy import optimize
 
 from abcpy.acceptedparametersmanager import *
 from abcpy.graphtools import GraphTools
-from abcpy.jointapprox_lhd import ProductCombination
+from abcpy.jointapprox_lhd import SumCombination
 from abcpy.jointdistances import LinearCombination
 from abcpy.output import Journal
 from abcpy.perturbationkernel import DefaultKernel
@@ -406,12 +406,11 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         # Define epsilon_arr
         if len(epsilon_init) == steps:
             epsilon_arr = epsilon_init
+        elif len(epsilon_init) == 1:
+            epsilon_arr = [None] * steps
+            epsilon_arr[0] = epsilon_init
         else:
-            if len(epsilon_init) == 1:
-                epsilon_arr = [None] * steps
-                epsilon_arr[0] = epsilon_init
-            else:
-                raise ValueError("The length of epsilon_init can only be equal to 1 or steps.")
+            raise ValueError("The length of epsilon_init can only be equal to 1 or steps.")
 
         # main PMCABC algorithm
         self.logger.info("Starting PMC iterations")
@@ -420,6 +419,11 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             if aStep == 0 and journal_file is not None:
                 accepted_parameters = journal.get_accepted_parameters(-1)
                 accepted_weights = journal.get_weights(-1)
+
+                if  hasattr(journal, "distances"):
+                    # if restarting from a journal, use the previous distances to check determine a new epsilon
+                    # (it if is larger than the epsilon_arr[0] provided here)
+                    epsilon_arr[0] = np.max([np.percentile(journal.distances[-1], epsilon_percentile), epsilon_arr[0]])
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                                   accepted_weights=accepted_weights)
@@ -435,7 +439,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
                 # Since each entry of new_cov_mats is a numpy array, we can multiply like this
                 # accepted_cov_mats = [covFactor * new_cov_mat for new_cov_mat in new_cov_mats]
-                accepted_cov_mats = self._compute_accepted_cov_mats(covFactor, accepted_cov_mats)
+                accepted_cov_mats = self._compute_accepted_cov_mats(covFactor, new_cov_mats)
 
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
             rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
@@ -497,7 +501,8 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             self.logger.info("Calculating covariance matrix")
             new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
             # Since each entry of new_cov_mats is a numpy array, we can multiply like this
-            new_cov_mats = [covFactor * new_cov_mat for new_cov_mat in new_cov_mats]
+            # new_cov_mats = [covFactor * new_cov_mat for new_cov_mat in new_cov_mats]
+            new_cov_mats = self._compute_accepted_cov_mats(covFactor, new_cov_mats)
 
             # 4: Update the newly computed values
             accepted_parameters = new_parameters
@@ -518,7 +523,10 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.number_of_simulations.append(self.simulation_counter)
 
         # Add epsilon_arr to the journal
-        journal.configuration["epsilon_arr"] = epsilon_arr
+        if journal_file is not None and "epsilon_arr" in journal.configuration.keys():
+            journal.configuration["epsilon_arr"] += epsilon_arr
+        else:
+            journal.configuration["epsilon_arr"] = epsilon_arr
 
         return journal
 
@@ -662,8 +670,8 @@ class PMC(BaseLikelihood, InferenceMethod):
     ----------
     model : list
         A list of the Probabilistic models corresponding to the observed datasets
-    likfun : abcpy.approx_lhd.Approx_likelihood
-        Approx_likelihood object defining the approximated likelihood to be used.
+    loglikfun : abcpy.approx_lhd.Approx_likelihood
+        Approx_loglikelihood object defining the approximated loglikelihood to be used.
     kernel : abcpy.distributions.Distribution
         Distribution object defining the perturbation kernel needed for the sampling.
     backend : abcpy.backends.Backend
@@ -683,10 +691,10 @@ class PMC(BaseLikelihood, InferenceMethod):
 
     backend = None
 
-    def __init__(self, root_models, likfuns, backend, kernel=None, seed=None):
+    def __init__(self, root_models, loglikfuns, backend, kernel=None, seed=None):
         self.model = root_models
-        # We define the joint Product of likelihood functions using all the likelihoods for each individual models
-        self.likfun = ProductCombination(root_models, likfuns)
+        # We define the joint Sum of Loglikelihood functions using all the loglikelihoods for each individual models
+        self.likfun = SumCombination(root_models, loglikfuns)
 
         if kernel is None:
 
@@ -722,8 +730,9 @@ class PMC(BaseLikelihood, InferenceMethod):
             number of samples to generate. The default value is 10000.
         n_samples_per_param : integer, optional
             number of data points in each simulated data set. The default value is 100.
-        covFactor : list of float, optional
-            scaling parameter of the covariance matrix. The default is a p dimensional array of 1 when p is the dimension of the parameter.
+        covFactors : list of float, optional
+            scaling parameter of the covariance matrix. The default is a p dimensional array of 1 when p is the
+            dimension of the parameter.
         inipoints : numpy.ndarray, optional
             parameter vaulues from where the sampling starts. By default sampled from the prior.
         full_output: integer, optional
@@ -767,7 +776,7 @@ class PMC(BaseLikelihood, InferenceMethod):
 
         # Initialize particles: When not supplied, randomly draw them from prior distribution
         # Weights of particles: Assign equal weights for each of the particles
-        if iniPoints is None:
+        if iniPoints == None:
             accepted_parameters = []
             for ind in range(0, n_samples):
                 self.sample_from_prior(rng=self.rng)
@@ -850,21 +859,22 @@ class PMC(BaseLikelihood, InferenceMethod):
                         break
 
             # 2: calculate approximate likelihood for new parameters
-            self.logger.info("Calculate approximate likelihood")
+            self.logger.info("Calculate approximate loglikelihood")
             seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=self.n_samples, dtype=np.uint32)
             rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
             data_arr = []
-            data_arr = list(zip(new_parameters, rng_arr))
+            for i in range(len(rng_arr)):
+                data_arr.append([new_parameters[i], rng_arr[i]])
             data_pds = self.backend.parallelize(data_arr)
 
-            approx_likelihood_new_parameters_and_counter_pds = self.backend.map(self._approx_lik_calc, data_pds)
+            approx_log_likelihood_new_parameters_and_counter_pds = self.backend.map(self._approx_log_lik_calc, data_pds)
             self.logger.debug("collect approximate likelihood from pds")
-            approx_likelihood_new_parameters_and_counter = self.backend.collect(
-                approx_likelihood_new_parameters_and_counter_pds)
-            approx_likelihood_new_parameters, counter = [list(t) for t in
-                                                         zip(*approx_likelihood_new_parameters_and_counter)]
+            approx_log_likelihood_new_parameters_and_counter = self.backend.collect(
+                approx_log_likelihood_new_parameters_and_counter_pds)
+            approx_log_likelihood_new_parameters, counter = [list(t) for t in
+                                                             zip(*approx_log_likelihood_new_parameters_and_counter)]
 
-            approx_likelihood_new_parameters = np.array(approx_likelihood_new_parameters).reshape(-1, 1)
+            approx_log_likelihood_new_parameters = np.array(approx_log_likelihood_new_parameters).reshape(-1, 1)
 
             for count in counter:
                 self.simulation_counter += count
@@ -875,14 +885,22 @@ class PMC(BaseLikelihood, InferenceMethod):
             new_weights_pds = self.backend.map(self._calculate_weight, new_parameters_pds)
             new_weights = np.array(self.backend.collect(new_weights_pds)).reshape(-1, 1)
 
-            new_weights = new_weights * approx_likelihood_new_parameters
-            sum_of_weights = np.sum(new_weights)
+            new_log_weights = np.log(new_weights) + approx_log_likelihood_new_parameters
 
+            # we get numerical issues often:
+            self.logger.info("range_of_weights (log): {}".format(np.max(new_log_weights) - np.min(new_log_weights)))
+            # sorted_weights = np.sort(new_log_weights)
+            # self.logger.info("Difference first second largest (log): {}".format(sorted_weights[-1] - sorted_weights[-2]))
+
+            # center on log scale (avoid numerical issues):
+            new_weights = np.exp(new_log_weights - np.max(new_log_weights))
+            sum_of_weights = np.sum(new_weights)
             new_weights = new_weights / sum_of_weights
 
             # self.logger.info("new_weights : ", new_weights, ", sum_of_weights : ", sum_of_weights)
             self.logger.info("sum_of_weights : {}".format(sum_of_weights))
-            accepted_parameters = new_parameters  # this is repeated uselessly below
+            self.logger.info("ESS : {}".format(1 / sum(pow(new_weights / sum(new_weights), 2))[0]))
+            accepted_parameters = new_parameters
 
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                               accepted_weights=new_weights)
@@ -890,8 +908,10 @@ class PMC(BaseLikelihood, InferenceMethod):
             # 4: calculate covariance
             # The parameters relevant to each kernel have to be used to calculate n_sample times. It is therefore more efficient to broadcast these parameters once, instead of collecting them at each kernel in each step
             self.logger.info("Calculating covariance matrix")
-            kernel_parameters = [self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models) for
-                                 kernel in self.kernel.kernels]
+            kernel_parameters = []
+            for kernel in self.kernel.kernels:
+                kernel_parameters.append(
+                    self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
 
             self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
@@ -923,7 +943,7 @@ class PMC(BaseLikelihood, InferenceMethod):
         return journal
 
     # define helper functions for map step
-    def _approx_lik_calc(self, data, npc=None):
+    def _approx_log_lik_calc(self, data, npc=None):
         """
         Compute likelihood for new parameters using approximate likelihood function
         Parameters
@@ -950,16 +970,18 @@ class PMC(BaseLikelihood, InferenceMethod):
         self.logger.debug("Computing likelihood...")
         total_pdf_at_theta = 1.
 
-        lhd = self.likfun.likelihood(obs, y_sim)
+        # lhd = self.likfun.likelihood(obs, y_sim)
+        loglhd = self.likfun.loglikelihood(obs, y_sim)
 
-        self.logger.debug("Likelihood is :" + str(lhd))
-        pdf_at_theta = self.pdf_of_prior(self.model, theta)
+        self.logger.debug("LogLikelihood is :" + str(loglhd))
 
-        total_pdf_at_theta *= (pdf_at_theta * lhd)
+        log_pdf_at_theta = np.log(self.pdf_of_prior(self.model, theta))
 
-        self.logger.debug("Prior pdf evaluated at theta is :" + str(pdf_at_theta))
+        self.logger.debug("Prior pdf evaluated at theta is :" + str(log_pdf_at_theta))
 
-        return total_pdf_at_theta, self.n_samples_per_param
+        log_pdf_at_theta += loglhd
+
+        return log_pdf_at_theta, self.n_samples_per_param
 
     def _calculate_weight(self, theta, npc=None):
         """
@@ -990,6 +1012,7 @@ class PMC(BaseLikelihood, InferenceMethod):
             pdf_values = np.array([self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
                                                    self.accepted_parameters_manager.accepted_parameters_bds.value()[i],
                                                    theta) for i in range(self.n_samples)])
+
             denominator = np.sum(self.accepted_parameters_manager.accepted_weights_bds.value().reshape(-1) * pdf_values)
 
             return 1.0 * prior_prob / denominator
@@ -1018,6 +1041,7 @@ class PMC(BaseLikelihood, InferenceMethod):
             else:
                 accepted_cov_mats.append((covFactor * new_cov_mat + 0.0001 * new_cov_mat).reshape(1, 1))
         return accepted_cov_mats
+
 
 class SABC(BaseDiscrepancy, InferenceMethod):
     """
@@ -2626,6 +2650,7 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
             else:
                 accepted_cov_mats.append((covFactor * new_cov_mat + 0.0001 * new_cov_mat).reshape(1, 1))
         return accepted_cov_mats
+
 
 class SMCABC(BaseDiscrepancy, InferenceMethod):
     """This class implements Sequential Monte Carlo Approximate Bayesian computation of
