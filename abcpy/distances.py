@@ -268,6 +268,8 @@ class LogReg(Distance):
     """This class implements a distance measure based on the classification
     accuracy [1]. The classification accuracy is calculated between two dataset d1 and d2 using
     logistics regression and return it as a distance. The maximum value of the distance is 1.0.
+    The logistic regression may not converge when using one single sample in each dataset (as for instance by putting
+    n_samples_per_param=1 in an inference routine).
 
     [1] Gutmann, M. U., Dutta, R., Kaski, S., & Corander, J. (2018). Likelihood-free inference via classification.
     Statistics and Computing, 28(2), 411-425.
