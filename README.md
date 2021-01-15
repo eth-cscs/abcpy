@@ -92,6 +92,7 @@ ABCpy for your publication, we would appreciate a citation. You can use
 
 Publications in which ABCpy was applied:
 
+* L. Pacchiardi, R. Dutta. "Score Matched Conditional Exponential Families for Likelihood-Free Inference", 2020, arXiv:2012.10903.
 * R. Dutta, K. Zouaoui-Boudjeltia, C. Kotsalos, A. Rousseau, D. Ribeiro de Sousa, J. M. Desmet, 
 A. Van Meerhaeghe, A. Mira, and B. Chopard. "Interpretable pathological test for Cardio-vascular 
 disease: Approximate Bayesian computation with distance learning.", 2020, arXiv:2010.06465.
