@@ -423,6 +423,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 if  hasattr(journal, "distances"):
                     # if restarting from a journal, use the previous distances to check determine a new epsilon
                     # (it if is larger than the epsilon_arr[0] provided here)
+                    self.logger.info("Calculating acceptances threshold from provided journal file")
                     epsilon_arr[0] = np.max([np.percentile(journal.distances[-1], epsilon_percentile), epsilon_arr[0]])
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,

@@ -212,8 +212,8 @@ class PMCABCTests(unittest.TestCase):
         self.assertFalse(journal.number_of_simulations == 0)
 
     def test_restart_from_journal(self):
+        # test with value of eps_arr_2 > percentile of distances
         n_sample, n_simulate, eps_arr, eps_percentile = 10, 1, [10, 5], 10
-
         # 2 steps with intermediate journal:
         sampler = PMCABC([self.model], [self.dist_calc], self.backend, seed=1)
         sampler.sample_from_prior(rng=np.random.RandomState(1))
@@ -221,7 +221,23 @@ class PMCABCTests(unittest.TestCase):
         journal_intermediate.save("tmp.jnl")
         journal_final_1 = sampler.sample([self.observation], 1, [eps_arr[1]], n_sample, n_simulate, eps_percentile,
                                          journal_file="tmp.jnl")
+        # 2 steps directly
+        sampler = PMCABC([self.model], [self.dist_calc], self.backend, seed=1)
+        sampler.sample_from_prior(rng=np.random.RandomState(1))
+        journal_final_2 = sampler.sample([self.observation], 2, eps_arr, n_sample, n_simulate, eps_percentile)
 
+        self.assertEqual(journal_final_1.configuration["epsilon_arr"], journal_final_2.configuration["epsilon_arr"])
+        self.assertEqual(journal_final_1.posterior_mean()['mu'], journal_final_2.posterior_mean()['mu'])
+
+        # test with value of eps_arr_2 < percentile of distances
+        n_sample, n_simulate, eps_arr, eps_percentile = 10, 1, [10, 1], 10
+        # 2 steps with intermediate journal:
+        sampler = PMCABC([self.model], [self.dist_calc], self.backend, seed=1)
+        sampler.sample_from_prior(rng=np.random.RandomState(1))
+        journal_intermediate = sampler.sample([self.observation], 1, [eps_arr[0]], n_sample, n_simulate, eps_percentile)
+        journal_intermediate.save("tmp.jnl")
+        journal_final_1 = sampler.sample([self.observation], 1, [eps_arr[1]], n_sample, n_simulate, eps_percentile,
+                                         journal_file="tmp.jnl")
         # 2 steps directly
         sampler = PMCABC([self.model], [self.dist_calc], self.backend, seed=1)
         sampler.sample_from_prior(rng=np.random.RandomState(1))
