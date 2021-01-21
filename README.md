@@ -27,9 +27,9 @@ scientists by providing
 # Documentation
 For more information, check out the
 
-* [Documentation](http://abcpy.readthedocs.io/en/v0.6.0) 
-* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.6.0/examples) directory and
-* [Reference](http://abcpy.readthedocs.io/en/v0.6.0/abcpy.html)
+* [Documentation](http://abcpy.readthedocs.io/en/v0.6.1) 
+* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.6.1/examples) directory and
+* [Reference](http://abcpy.readthedocs.io/en/v0.6.1/abcpy.html)
 
 
 Further, we provide a
@@ -93,6 +93,8 @@ ABCpy for your publication, we would appreciate a citation. You can use
 
 Publications in which ABCpy was applied:
 
+* L. Pacchiardi, R. Dutta. "Score Matched Conditional Exponential Families for Likelihood-Free Inference", 2020, arXiv:2012.10903.
+
 * R. Dutta, K. Zouaoui-Boudjeltia, C. Kotsalos, A. Rousseau, D. Ribeiro de Sousa, J. M. Desmet, 
 A. Van Meerhaeghe, A. Mira, and B. Chopard. "Interpretable pathological test for Cardio-vascular 
 disease: Approximate Bayesian computation with distance learning.", 2020, arXiv:2010.06465.
@@ -117,8 +119,7 @@ Approximate Bayesian Computation to Model a Volcanic Eruption", 2020, Sankhya B,
 * A. Ebert, R. Dutta, P. Wu, K. Mengersen and A. Mira, "Likelihood-Free
   Parameter Estimation for Dynamic Queueing Networks", 2018, arXiv:1804.02526.
 
-* R. Dutta, M. Schoengens, A. Ummadisingu, N. Widerman, J. P.  Onnela, A. Mira, "ABCpy: A
-  High-Performance Computing Perspective to Approximate Bayesian Computation", 2017, arXiv:1711.04694.
+* R. Dutta, M. Schoengens, L. Pacchiardi, A. Ummadisingu, N. Widerman, J. P.  Onnela, A. Mira, "ABCpy:       A High-Performance Computing Perspective to Approximate Bayesian Computation", 2020, arXiv:1711.04694.
 
 ## License
 ABCpy is published under the BSD 3-clause license, see [here](LICENSE).

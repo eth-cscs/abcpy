@@ -1,5 +1,7 @@
 from abc import ABCMeta, abstractmethod
 
+import numpy as np
+
 
 class JointApprox_likelihood(metaclass=ABCMeta):
     """This abstract base class defines how the combination of distances computed on the observed and
@@ -51,8 +53,8 @@ class JointApprox_likelihood(metaclass=ABCMeta):
 
 class ProductCombination(JointApprox_likelihood):
     """
-    This class implements the product combination of different approximate likelihoods computed on different datasets corresponding to
-    different root models
+    This class implements the product combination of different approximate likelihoods computed on different datasets
+    corresponding to different root models. This is not used anymore as we not use loglikelihoods in PMC
 
     """
 
@@ -84,3 +86,43 @@ class ProductCombination(JointApprox_likelihood):
             combined_likelihood *= self.approx_lhds[ind].likelihood(d1[ind], d2[ind])
 
         return combined_likelihood
+
+
+class SumCombination(JointApprox_likelihood):
+    """
+    This class implements the sum combination of different approximate loglikelihoods computed on different datasets
+    corresponding to different root models
+
+    """
+
+    def __init__(self, models, approx_lhds):
+
+        if len(models) != len(approx_lhds):
+            raise ValueError('Number of root models and Number of assigned approximate likelihoods are not same')
+
+        self.models = models
+        self.approx_lhds = approx_lhds
+
+    def loglikelihood(self, d1, d2):
+        """Combine the distances between different datasets.
+
+        Parameters
+        ----------
+        d1, d2: list
+            A list, containing lists describing the different data sets
+        """
+        if not isinstance(d1, list):
+            raise TypeError('Data is not of allowed types')
+        if not isinstance(d2, list):
+            raise TypeError('Data is not of allowed types')
+        if len(d1) != len(d2):
+            raise ValueError('Both the datasets should contain dataset for each of the root models')
+
+        combined_likelihood = 0
+        for ind in range(len(self.approx_lhds)):
+            combined_likelihood += self.approx_lhds[ind].loglikelihood(d1[ind], d2[ind])
+
+        return combined_likelihood
+
+    def likelihood(self, d1, d2):
+        return np.exp(self.loglikelihood(d1, d2))
