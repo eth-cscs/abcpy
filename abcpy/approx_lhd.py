@@ -27,8 +27,8 @@ class Approx_likelihood(metaclass=ABCMeta):
         raise NotImplemented
 
     @abstractmethod
-    def likelihood(self, y_obs, y_sim):
-        """To be overwritten by any sub-class: should compute the approximate likelihood 
+    def loglikelihood(self, y_obs, y_sim):
+        """To be overwritten by any sub-class: should compute the approximate loglikelihood
         value given the observed data set y_obs and the data set y_sim simulated from
         model set at the parameter value.
 
@@ -42,10 +42,13 @@ class Approx_likelihood(metaclass=ABCMeta):
         Returns
         -------
         float
-            Computed approximate likelihood.
+            Computed approximate loglikelihood.
         """
 
         raise NotImplemented
+
+    def likelihood(self, y_obs, y_sim):
+        return np.exp(self.loglikelihood(y_obs, y_sim))
 
 
 class SynLikelihood(Approx_likelihood):
@@ -66,7 +69,7 @@ class SynLikelihood(Approx_likelihood):
         self.data_set = None
         self.statistics_calc = statistics_calc
 
-    def likelihood(self, y_obs, y_sim):
+    def loglikelihood(self, y_obs, y_sim):
         # print("DEBUG: SynLikelihood.likelihood().")
         if not isinstance(y_obs, list):
             # print("type(y_obs) : ", type(y_obs), " , type(y_sim) : ", type(y_sim))
@@ -97,7 +100,7 @@ class SynLikelihood(Approx_likelihood):
         mean_sim = np.mean(stat_sim, 0)
         lw_cov_, _ = ledoit_wolf(stat_sim)
         robust_precision_sim = np.linalg.inv(lw_cov_)
-        robust_precision_sim_det = np.linalg.det(robust_precision_sim)
+        sign_logdet, robust_precision_sim_logdet = np.linalg.slogdet(robust_precision_sim)  # we do not need sign
         # print("DEBUG: combining.")
         # we may have different observation; loop on those now:
         # likelihoods = np.zeros(self.stat_obs.shape[0])
@@ -105,13 +108,13 @@ class SynLikelihood(Approx_likelihood):
         #     x_new = np.einsum('i,ij,j->', single_stat_obs - mean_sim, robust_precision_sim, single_stat_obs - mean_sim)
         #     likelihoods[i] = np.exp(-0.5 * x_new)
         # do without for loop:
-        diff = self.stat_obs - mean_sim.reshape(1,-1)
+        diff = self.stat_obs - mean_sim.reshape(1, -1)
         x_news = np.einsum('bi,ij,bj->b', diff, robust_precision_sim, diff)
-        likelihoods = np.exp(-0.5 * x_news)
+        logliks = -0.5 * x_news
         # looks like we are exponentiating the determinant as well, which is wrong;
         # this is however a constant which should not change the algorithms afterwards.
-        factor = pow(np.sqrt((1 / (2 * np.pi)) * robust_precision_sim_det), self.stat_obs.shape[0])
-        return np.prod(likelihoods) * factor  # compute the product of the different likelihoods for each observation
+        logfactor = 0.5 * self.stat_obs.shape[0] * (np.log(1 / (2 * np.pi)) + robust_precision_sim_logdet)
+        return np.sum(logliks) + logfactor  # compute the sum of the different loglikelihoods for each observation
 
 
 class PenLogReg(Approx_likelihood, GraphTools):
@@ -165,10 +168,8 @@ class PenLogReg(Approx_likelihood, GraphTools):
 
         self.stat_obs = None
         self.data_set = None
-        
 
-        
-    def likelihood(self, y_obs, y_sim):
+    def loglikelihood(self, y_obs, y_sim):
         if not isinstance(y_obs, list):
             raise TypeError('Observed data is not of allowed types')
 
@@ -206,10 +207,9 @@ class PenLogReg(Approx_likelihood, GraphTools):
         groups += groups  # duplicate it as groups need to be defined for both datasets
         m = LogitNet(alpha=1, n_splits=self.n_folds, max_iter=self.max_iter, random_state=self.seed, scoring="log_loss")
         m = m.fit(X, y, groups=groups)
-        result = np.exp(-np.sum((m.intercept_+np.sum(np.multiply(m.coef_,self.stat_obs),axis=1)),axis=0))
-        
-        return result
+        result = -np.sum((m.intercept_ + np.sum(np.multiply(m.coef_, self.stat_obs), axis=1)), axis=0)
 
+        return result
 
     def _simulate_ref_data(self, rng=np.random.RandomState()):
         """

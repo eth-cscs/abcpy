@@ -41,6 +41,7 @@ jobs:
           python: "3.8"
           env:
             - NO_PYTORCH=true
+            - UNIT_TEST=true
         - stage: deploy
           script:
             - echo "Required dummy override of default 'script' in .travis.yml."
