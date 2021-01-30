@@ -644,9 +644,9 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         for new_cov_mat in new_cov_mats:
             if not (new_cov_mat.size == 1):
                 accepted_cov_mats.append(
-                    covFactor * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+                    covFactor * new_cov_mat + 1e-20 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
             else:
-                accepted_cov_mats.append((covFactor * new_cov_mat + 0.0001 * new_cov_mat).reshape(1, 1))
+                accepted_cov_mats.append((covFactor * new_cov_mat + 1e-20 * new_cov_mat).reshape(1, 1))
         return accepted_cov_mats
 
 
@@ -1038,9 +1038,9 @@ class PMC(BaseLikelihood, InferenceMethod):
         for covFactor, new_cov_mat in zip(covFactors, new_cov_mats):
             if not (new_cov_mat.size == 1):
                 accepted_cov_mats.append(
-                    covFactor * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+                    covFactor * new_cov_mat + 1e-20 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
             else:
-                accepted_cov_mats.append((covFactor * new_cov_mat + 0.0001 * new_cov_mat).reshape(1, 1))
+                accepted_cov_mats.append((covFactor * new_cov_mat + 1e-20 * new_cov_mat).reshape(1, 1))
         return accepted_cov_mats
 
 
@@ -1558,9 +1558,9 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         for new_cov_mat in new_cov_mats:
             if not (new_cov_mat.size == 1):
                 accepted_cov_mats.append(
-                    beta * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+                    beta * new_cov_mat + 1e-20 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
             else:
-                accepted_cov_mats.append((beta * new_cov_mat + 0.0001 * new_cov_mat).reshape(1, 1))
+                accepted_cov_mats.append((beta * new_cov_mat + 1e-20 * new_cov_mat).reshape(1, 1))
         return accepted_cov_mats
 
 
@@ -2313,9 +2313,9 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         for new_cov_mat in new_cov_mats:
             if not (new_cov_mat.size == 1):
                 accepted_cov_mats.append(
-                    covFactor * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+                    covFactor * new_cov_mat + 1e-20 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
             else:
-                accepted_cov_mats.append((covFactor * new_cov_mat + 0.0001 * new_cov_mat).reshape(1, 1))
+                accepted_cov_mats.append((covFactor * new_cov_mat + 1e-20 * new_cov_mat).reshape(1, 1))
         return accepted_cov_mats
 
 
@@ -2647,9 +2647,9 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
         for new_cov_mat in new_cov_mats:
             if not (new_cov_mat.size == 1):
                 accepted_cov_mats.append(
-                    covFactor * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+                    covFactor * new_cov_mat + 1e-20 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
             else:
-                accepted_cov_mats.append((covFactor * new_cov_mat + 0.0001 * new_cov_mat).reshape(1, 1))
+                accepted_cov_mats.append((covFactor * new_cov_mat + 1e-20 * new_cov_mat).reshape(1, 1))
         return accepted_cov_mats
 
 
@@ -3192,7 +3192,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         for new_cov_mat in new_cov_mats:
             if not (new_cov_mat.size == 1):
                 accepted_cov_mats.append(
-                    covFactor * new_cov_mat + 0.0001 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+                    covFactor * new_cov_mat + 1e-20 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
             else:
-                accepted_cov_mats.append((covFactor * new_cov_mat + 0.0001 * new_cov_mat).reshape(1, 1))
+                accepted_cov_mats.append((covFactor * new_cov_mat + 1e-20 * new_cov_mat).reshape(1, 1))
         return accepted_cov_mats
