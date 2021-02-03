@@ -130,6 +130,10 @@ class Distance(metaclass=ABCMeta):
 
         s2 = self.statistics_calc.statistics(d2)
 
+        if self.s1.shape[1] != s2.shape[1]:
+            raise ValueError("The dimension of summaries in the two datasets is different; check the dimension of the"
+                             " provided observations and simulations.")
+
         return self.s1, s2
 
 
