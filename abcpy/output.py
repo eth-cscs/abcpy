@@ -386,7 +386,7 @@ class Journal:
         H, edges = np.histogramdd(np.hstack(joined_params), bins=n_bins, weights=weights.reshape(len(weights), ))
         return [H, edges]
 
-    # TODO this does not work for multidimensional parameters
+    # TODO this does not work for multidimensional parameters and discrete distributions
     def plot_posterior_distr(self, parameters_to_show=None, ranges_parameters=None, iteration=None, show_samples=None,
                              single_marginals_only=False, double_marginals_only=False, write_posterior_mean=True,
                              show_posterior_mean=True, true_parameter_values=None, contour_levels=14, figsize=None,

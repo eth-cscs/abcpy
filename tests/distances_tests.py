@@ -111,7 +111,6 @@ class WassersteinTests(unittest.TestCase):
         self.assertRaises(TypeError, self.distancefunc.distance, 3.4, d2)
         self.assertRaises(TypeError, self.distancefunc.distance, d1, 3.4)
 
-        # completely separable datasets should have a distance of 1.0
         self.assertEqual(self.distancefunc.distance(d1, d2), 28.623685155319652)
 
         # equal data sets should have a distance of approximately 0.0; it won't be exactly 0 due to numerical rounding

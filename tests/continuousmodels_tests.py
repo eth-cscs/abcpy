@@ -31,6 +31,11 @@ class MultiStudentTAPITests(AbstractAPIImplementationTests, unittest.TestCase):
     model_inputs = [[[1, 0], [[1, 0], [0, 1]], 3]]
 
 
+class LogNormalTAPITests(AbstractAPIImplementationTests, unittest.TestCase):
+    model_types = [LogNormal]
+    model_inputs = [[0, 1]]
+
+
 class CheckParametersAtInitializationTests(unittest.TestCase):
     """Tests that no probabilistic model with invalid parameters can be initialized."""
 
@@ -72,6 +77,10 @@ class CheckParametersAtInitializationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             MultiStudentT([[1, 0], [[1, 0], [0, 1]], -1])
 
+    def test_LogNormal(self):
+        with self.assertRaises(ValueError):
+            LogNormal([1, -1])
+
 
 class DimensionTests(unittest.TestCase):
     """Tests whether the dimensions of all continuous models are defined in the correct way."""
@@ -95,6 +104,10 @@ class DimensionTests(unittest.TestCase):
     def test_MultiStudentT(self):
         M = MultiStudentT([[1, 0], [[0.1, 0], [0, 0.1]], 1])
         self.assertTrue(M.get_output_dimension() == 2)
+
+    def test_LogNormal(self):
+        LN = LogNormal([3, 1])
+        self.assertTrue(LN.get_output_dimension() == 1)
 
 
 class SampleFromDistributionTests(unittest.TestCase):
@@ -130,6 +143,12 @@ class SampleFromDistributionTests(unittest.TestCase):
         self.assertTrue(isinstance(samples, list))
         self.assertTrue(len(samples) == 3)
 
+    def test_LogNormal(self):
+        LN = LogNormal([3, 1])
+        samples = LN.forward_simulate(LN.get_input_values(), 3)
+        self.assertTrue(isinstance(samples, list))
+        self.assertTrue(len(samples) == 3)
+
 
 class CheckParametersBeforeSamplingTests(unittest.TestCase):
     """Tests whether False will be returned if the input parameters of _check_parameters_before_sampling are not accepted."""
@@ -161,6 +180,10 @@ class CheckParametersBeforeSamplingTests(unittest.TestCase):
         self.assertFalse(M._check_input([[1, 0], [[-1, 0], [0, -1]], 1]))
 
         self.assertFalse(M._check_input([[1, 0], [[1, 0], [0, 1]], -1]))
+
+    def test_LogNormal(self):
+        LN = LogNormal([3, 1])
+        self.assertFalse(LN._check_input([3, -1]))
 
 
 if __name__ == '__main__':
