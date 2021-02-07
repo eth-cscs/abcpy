@@ -434,7 +434,7 @@ class SMCABCTests(unittest.TestCase):
         self.assertAlmostEqual(mu_post_mean, - 0.8888295384029634, delta=10e-3)
         self.assertAlmostEqual(sigma_post_mean, 4.299346466029422, delta=10e-3)
 
-        self.assertFalse(journal.number_of_simulations == 0)
+        self.assertEqual(journal.number_of_simulations[-1], 19)
 
         # try now with the r-hit kernel:
         T, n_sample, n_simulate = 2, 10, 1

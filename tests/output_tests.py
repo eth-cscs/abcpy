@@ -135,7 +135,7 @@ class JournalTests(unittest.TestCase):
         journal_3.add_weights(weights_identical)
         self.assertRaises(RuntimeError, journal_3.Wass_convergence_plot)
         journal_4 = Journal(1)
-        journal_4.add_accepted_parameters(np.array([np.array([1]), np.array([1, 2])]))
+        journal_4.add_accepted_parameters(np.array([np.array([1]), np.array([1, 2])], dtype="object"))
         print(len(journal_4.accepted_parameters))
         self.assertRaises(RuntimeError, journal_4.Wass_convergence_plot)
 
