@@ -2826,11 +2826,14 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
             # 0: Compute the Epsilon
             if accepted_y_sim != None:
-                self.logger.info("Compute epsilon, might take a while")
-                # Compute epsilon for next step
-                fun = lambda epsilon_var: self._compute_epsilon(epsilon_var, \
-                                                                epsilon, observations, accepted_y_sim, accepted_weights,
-                                                                n_samples, n_samples_per_param, alpha)
+                self.logger.info(
+                    "Compute epsilon, might take a while; previous epsilon value: {:.4f}".format(epsilon[-1]))
+                # first compute the distances for the current set of parameters and observations
+                # (notice that may have already been done somewhere before!):
+                current_distance_matrix = self._compute_distance_matrix(observations, accepted_y_sim, n_samples,
+                                                                       n_samples_per_param)
+                fun = self._def_compute_epsilon(epsilon, accepted_weights, n_samples, current_distance_matrix,
+                                                alpha)
                 epsilon_new = self._bisection(fun, epsilon_final, epsilon[-1], 0.001)
                 if epsilon_new < epsilon_final:
                     epsilon_new = epsilon_final
@@ -2838,20 +2841,15 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
             # 1: calculate weights for new parameters
             self.logger.info("Calculating weights")
-            if accepted_y_sim != None:
-                new_weights = np.zeros(shape=n_samples, )
-                for ind1 in range(n_samples):
-                    numerator = 0.0
-                    denominator = 0.0
-                    for ind2 in range(n_samples_per_param):
-                        numerator += (self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]]) < epsilon[
-                            -1])
-                        denominator += (
-                                self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]]) < epsilon[-2])
-                    if denominator != 0.0:
-                        new_weights[ind1] = accepted_weights[ind1] * (numerator / denominator)
-                    else:
-                        new_weights[ind1] = 0
+            if accepted_y_sim is not None:
+                numerators = np.sum(current_distance_matrix < epsilon[-1], axis=1)
+                denominators = np.sum(current_distance_matrix < epsilon[-2], axis=1)
+
+                non_zero_denominator = denominators != 0
+                new_weights = np.zeros(shape=n_samples)
+
+                new_weights[non_zero_denominator] = accepted_weights.flatten()[non_zero_denominator] * (
+                        numerators[non_zero_denominator] / denominators[non_zero_denominator])
 
                 new_weights = new_weights / sum(new_weights)
             else:
@@ -2903,7 +2901,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             self._update_broadcasts(accepted_y_sim)
 
             # calculate resample parameters
-            self.logger.info("Drawing perturbed sampless")
+            self.logger.info("Drawing perturbed samples")
             if which_mcmc_kernel == 0:
                 params_and_ysim_pds = self.backend.map(self._accept_parameter, rng_and_index_pds)
             else:
@@ -2937,52 +2935,86 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
         return journal
 
-    def _compute_epsilon(self, epsilon_new, epsilon, observations, accepted_y_sim, accepted_weights, n_samples,
-                         n_samples_per_param, alpha):
+    def _compute_distance_matrix(self, observations, accepted_y_sim, n_samples, n_samples_per_param):
+        distance_matrix = np.zeros((n_samples, n_samples_per_param))
+
+        for ind1 in range(n_samples):
+            for ind2 in range(n_samples_per_param):
+                distance_matrix[ind1, ind2] = self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]])
+                self.logger.debug(
+                    'Computed distance inside for weights:' + str(
+                        distance_matrix[ind1, ind2]))
+        return distance_matrix
+
+    @staticmethod
+    def _def_compute_epsilon(epsilon, accepted_weights, n_samples, distance_matrix, alpha):
         """
+        Returns a function of 'epsilon_new' that is used in the bisection routine.
+        The distances are computed just once in the definition of the function; this therefore avoids computing them
+        repeatedly during the _bisection routine for the same input values, which is inefficient.
+
         Parameters
         ----------
-        epsilon_new: float
-            New value for epsilon.
         epsilon: float
             Current threshold.
-        observations: numpy.ndarray
-            Observed data.
-        accepted_y_sim: numpy.ndarray
-            Accepted simulated data.
         accepted_weights: numpy.ndarray
             Accepted weights.
         n_samples: integer
             Number of samples to generate.
-        n_samples_per_param: integer
-            Number of data points in each simulated data set.
+        distance_matrix: np.ndarray:
+            the distance matrix between observation and data used to compute the weights
         alpha: float
 
         Returns
         -------
-        float
-            Newly computed value for threshold.
+        callable
+            The function used in the bisection routine
         """
 
         RHS = alpha * pow(sum(pow(accepted_weights, 2)), -1)
-        LHS = np.zeros(shape=n_samples, )
-        for ind1 in range(n_samples):
-            numerator = 0.0
-            denominator = 0.0
-            for ind2 in range(n_samples_per_param):
-                numerator += (self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]]) < epsilon_new)
-                denominator += (self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]]) < epsilon[-1])
-            if denominator == 0:
-                LHS[ind1] = 0
+
+        def _compute_epsilon(epsilon_new):
+            """
+            Parameters
+            ----------
+            epsilon_new: float
+                New value for epsilon.
+
+            Returns
+            -------
+            float
+                Newly computed value for threshold.
+            """
+            # old version (not optimized):
+            # for ind1 in range(n_samples):
+            #     numerator = 0.0
+            #     denominator = 0.0
+            #     for ind2 in range(n_samples_per_param):
+            #         numerator += (distance_matrix[ind1, ind2] < epsilon_new)
+            #         denominator += (distance_matrix[ind1, ind2] < epsilon[-1])
+            #     if denominator == 0:
+            #         LHS[ind1] = 0
+            #     else:
+            #         LHS[ind1] = accepted_weights[ind1] * (numerator / denominator)
+
+            numerators = np.sum(distance_matrix < epsilon_new, axis=1)
+            denominators = np.sum(distance_matrix < epsilon[-1], axis=1)
+
+            non_zero_denominator = denominators != 0
+            LHS = np.zeros(shape=n_samples)
+
+            LHS[non_zero_denominator] = accepted_weights.flatten()[non_zero_denominator] * (
+                    numerators[non_zero_denominator] / denominators[non_zero_denominator])
+            if sum(LHS) == 0:
+                result = RHS
             else:
-                LHS[ind1] = accepted_weights[ind1] * (numerator / denominator)
-        if sum(LHS) == 0:
-            result = RHS
-        else:
-            LHS = LHS / sum(LHS)
-            LHS = pow(sum(pow(LHS, 2)), -1)
-            result = RHS - LHS
-        return result
+                LHS = LHS / sum(LHS)
+                LHS = pow(sum(pow(LHS, 2)), -1)
+                result = RHS - LHS
+
+            return result
+
+        return _compute_epsilon
 
     def _bisection(self, func, low, high, tol):
         # cache computed values, as we call func below
@@ -3060,6 +3092,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 for ind in range(self.n_samples_per_param):
                     numerator += (self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),
                                                          [[y_sim[0][ind]]]) < self.epsilon[-1])
+                    # we have most likely already computed this distance before, but hard to keep track. Moreover this
+                    # is parallelized -> should not impact too much on computing time
                     denominator += (self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),
                                                            [[y_sim_old[0][ind]]]) < self.epsilon[-1])
                 if denominator == 0:
@@ -3120,35 +3154,41 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         if self.accepted_parameters_manager.accepted_parameters_bds is None:
             self.sample_from_prior(rng=rng)
             y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
+            # the following is was probably already computed before, but hard to keep track:
+            distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
             counter += 1
         else:
             if self.accepted_parameters_manager.accepted_weights_bds.value()[index] > 0:
                 theta = self.accepted_parameters_manager.accepted_parameters_bds.value()[index]
 
-                # Sample from theta until we get 'r-1' y_sim inside the epsilon ball
+                # Sample from theta until we get 'r-1' y_sim inside the epsilon ball (line 4 in Alg 5 in [3])
                 self.set_parameters(theta)
-                accept_old_arr, y_sim_old_arr, N_old = [], [], 0
+                accept_old_arr, N_old = [], 0
+                # y_sim_old_arr = []  this is actually not used.
                 while len(accept_old_arr) < r - 1:
                     y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
-                    y_sim_old_arr.append(y_sim)
+                    # y_sim_old_arr.append(y_sim)
                     if self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),
                                               y_sim) < self.epsilon[-1]:
                         accept_old_arr.append(N_old)
                     N_old += 1
                     counter += 1
 
-                # Perturb and sample from the perturbed theta until we get 'r' y_sim inside the epsilon ball
+                # Perturb and sample from the perturbed theta until we get 'r' y_sim inside the epsilon ball 
+                # (line 2 in Alg 5 in [3])
                 while True:
                     perturbation_output = self.perturb(index, rng=rng)
                     if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
                         break
-                accept_new_arr, y_sim_new_arr, N = [], [], 0
+                accept_new_arr, y_sim_new_arr, distance_new_arr, N = [], [], [], 0
                 while len(accept_new_arr) < r:
                     y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
                     y_sim_new_arr.append(y_sim)
-                    if self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),
-                                              y_sim) < self.epsilon[-1]:
+                    distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),
+                                                      y_sim)
+                    if distance < self.epsilon[-1]:
                         accept_new_arr.append(N)
+                    distance_new_arr.append(distance)
                     counter += 1
                     N += 1
 
@@ -3168,13 +3208,17 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                     # Randomly sample index J
                     J = rng.choice(accept_new_arr).astype(int)
                     y_sim = y_sim_new_arr[J]
+                    distance = distance_new_arr[J]
                 else:
                     self.set_parameters(theta)
                     y_sim = self.accepted_y_sim_bds.value()[index]
+                    # the following is was probably already computed before, but hard to keep track:
+                    distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
             else:
                 self.set_parameters(self.accepted_parameters_manager.accepted_parameters_bds.value()[index])
                 y_sim = self.accepted_y_sim_bds.value()[index]
-        distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+                # the following distance was probably already computed before?
+                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
         return self.get_parameters(), y_sim, distance, counter
 
     def _compute_accepted_cov_mats(self, covFactor, new_cov_mats):
