@@ -2793,7 +2793,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         if not np.isinf(self.distance.dist_max()):
             epsilon = [self.distance.dist_max()]
         else:
-            epsilon = [1e10]
+            epsilon = [1e5]
 
         # main SMC ABC algorithm
         for aStep in range(0, steps):
