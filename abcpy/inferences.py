@@ -420,7 +420,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 accepted_parameters = journal.get_accepted_parameters(-1)
                 accepted_weights = journal.get_weights(-1)
 
-                if  hasattr(journal, "distances"):
+                if hasattr(journal, "distances"):
                     # if restarting from a journal, use the previous distances to check determine a new epsilon
                     # (it if is larger than the epsilon_arr[0] provided here)
                     self.logger.info("Calculating acceptances threshold from provided journal file")
@@ -2663,6 +2663,9 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
     [2] Lee, Anthony. "n the choice of MCMC kernels for approximate Bayesian computation with SMC samplers.
     Proceedings of the 2012 Winter Simulation Conference (WSC). IEEE, 2012.
 
+    [3] Bernton, E., Jacob, P. E., Gerber, M., & Robert, C. P. (2019). Approximate Bayesian computation with the
+    Wasserstein distance. Journal of the Royal Statistical Society Series B, 81(2), 235-269.
+
     Parameters
     ----------
     model : list
@@ -3125,7 +3128,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 # Sample from theta until we get 'r-1' y_sim inside the epsilon ball
                 self.set_parameters(theta)
                 accept_old_arr, y_sim_old_arr, N_old = [], [], 0
-                while sum(accept_old_arr) < r - 1:
+                while len(accept_old_arr) < r - 1:
                     y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
                     y_sim_old_arr.append(y_sim)
                     if self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),
@@ -3140,7 +3143,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                     if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
                         break
                 accept_new_arr, y_sim_new_arr, N = [], [], 0
-                while sum(accept_new_arr) < r:
+                while len(accept_new_arr) < r:
                     y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
                     y_sim_new_arr.append(y_sim)
                     if self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),

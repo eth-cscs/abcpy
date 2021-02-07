@@ -431,8 +431,30 @@ class SMCABCTests(unittest.TestCase):
         self.assertEqual(mu_sample_shape, (10, 1))
         self.assertEqual(sigma_sample_shape, (10, 1))
         self.assertEqual(weights_sample_shape, (10, 1))
-        self.assertLess(mu_post_mean - (-0.786118677019), 10e-2)
-        self.assertLess(sigma_post_mean - 4.63324738665, 10e-2)
+        self.assertAlmostEqual(mu_post_mean, - 0.8888295384029634, delta=10e-3)
+        self.assertAlmostEqual(sigma_post_mean, 4.299346466029422, delta=10e-3)
+
+        self.assertFalse(journal.number_of_simulations == 0)
+
+        # try now with the r-hit kernel:
+        T, n_sample, n_simulate = 2, 10, 1
+        sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
+        journal = sampler.sample([self.observation], T, n_sample, n_simulate, which_mcmc_kernel=1)
+        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
+            journal.get_parameters()['sigma']), np.array(journal.get_weights())
+
+        # Compute posterior mean
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
+
+        # test shape of sample
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                                                    (len(sigma_post_sample),
+                                                                     sigma_post_sample[0].shape[1]), post_weights.shape
+        self.assertEqual(mu_sample_shape, (10, 1))
+        self.assertEqual(sigma_sample_shape, (10, 1))
+        self.assertEqual(weights_sample_shape, (10, 1))
+        self.assertAlmostEqual(mu_post_mean, -0.6507386970288184, delta=10e-3)
+        self.assertAlmostEqual(sigma_post_mean, 6.253446572247367, delta=10e-3)
 
         self.assertFalse(journal.number_of_simulations == 0)
 
