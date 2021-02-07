@@ -655,7 +655,7 @@ class PMC(BaseLikelihood, InferenceMethod):
     Population Monte Carlo based inference scheme of Cappé et. al. [1].
 
     This algorithm assumes a likelihood function is available and can be evaluated
-    at any parameter value given the oberved dataset.  In absence of the
+    at any parameter value given the observed dataset.  In absence of the
     likelihood function or when it can't be evaluated with a rational
     computational expenses, we use the approximated likelihood functions in
     abcpy.approx_lhd module, for which the argument of the consistency of the
@@ -2786,8 +2786,11 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         if resample is None:
             resample = n_samples * 0.5
 
-        # Define epsilon_init
-        epsilon = [10000]
+        # Define maximum value of epsilon
+        if not np.isinf(self.distance.dist_max()):
+            epsilon = [self.distance.dist_max()]
+        else:
+            epsilon = [1e10]
 
         # main SMC ABC algorithm
         for aStep in range(0, steps):
