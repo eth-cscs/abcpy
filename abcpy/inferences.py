@@ -2728,7 +2728,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
         self.simulation_counter = 0
 
-    def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, epsilon_final=0.1, alpha=None,
+    def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, epsilon_final=0.1, alpha=0.95,
                covFactor=2, resample=None, full_output=0, which_mcmc_kernel=0, r=None,
                journal_file=None):
         """Samples from the posterior distribution of the model parameter given the observed
