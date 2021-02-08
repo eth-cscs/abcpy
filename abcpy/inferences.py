@@ -2972,6 +2972,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         """
 
         RHS = alpha * pow(sum(pow(accepted_weights, 2)), -1)
+        denominators = np.sum(distance_matrix < epsilon[-1], axis=1)
+        non_zero_denominator = denominators != 0
 
         def _compute_epsilon(epsilon_new):
             """
@@ -2998,9 +3000,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             #         LHS[ind1] = accepted_weights[ind1] * (numerator / denominator)
 
             numerators = np.sum(distance_matrix < epsilon_new, axis=1)
-            denominators = np.sum(distance_matrix < epsilon[-1], axis=1)
 
-            non_zero_denominator = denominators != 0
             LHS = np.zeros(shape=n_samples)
 
             LHS[non_zero_denominator] = accepted_weights.flatten()[non_zero_denominator] * (
@@ -3008,7 +3008,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             if sum(LHS) == 0:
                 result = RHS
             else:
-                LHS = LHS / sum(LHS)
+                LHS = LHS / sum(LHS)  # normalize weights.
                 LHS = pow(sum(pow(LHS, 2)), -1)
                 result = RHS - LHS
 
@@ -3205,8 +3205,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
                 if rng.binomial(1, acceptance_prob) == 1:
                     self.set_parameters(perturbation_output[1])
-                    # Randomly sample index J
-                    J = rng.choice(accept_new_arr).astype(int)
+                    # Randomly sample index J between the first r-1 hits
+                    J = rng.choice(accept_new_arr[:-1]).astype(int)
                     y_sim = y_sim_new_arr[J]
                     distance = distance_new_arr[J]
                 else:
