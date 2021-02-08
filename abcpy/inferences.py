@@ -7,6 +7,7 @@ import numpy as np
 from scipy import optimize
 
 from abcpy.acceptedparametersmanager import *
+from abcpy.backends import BackendDummy
 from abcpy.graphtools import GraphTools
 from abcpy.jointapprox_lhd import SumCombination
 from abcpy.jointdistances import LinearCombination
@@ -77,7 +78,7 @@ class BaseMethodsWithKernel(metaclass=ABCMeta):
         """To be overwritten by any sub-class: an attribute specifying the transition or perturbation kernel."""
         raise NotImplementedError
 
-    def perturb(self, column_index, epochs=10, rng=np.random.RandomState()):
+    def perturb(self, column_index, epochs=10, rng=np.random.RandomState(), accepted_parameters_manager=None):
         """
         Perturbs all free parameters, given the current weights.
         Commonly used during inference.
@@ -88,6 +89,9 @@ class BaseMethodsWithKernel(metaclass=ABCMeta):
             The index of the column in the accepted_parameters_bds that should be used for perturbation
         epochs: integer
             The number of times perturbation should happen before the algorithm is terminated
+        accepted_parameters_manager: AcceptedParametersManager
+            The AcceptedParametersManager to use; if not provided, use the one stored in
+            self.accepted_parameters_manager
 
         Returns
         -------
@@ -96,10 +100,13 @@ class BaseMethodsWithKernel(metaclass=ABCMeta):
         """
         current_epoch = 0
 
+        if accepted_parameters_manager is None:
+            accepted_parameters_manager = self.accepted_parameters_manager
+
         while current_epoch < epochs:
 
             # Get new parameters of the graph
-            new_parameters = self.kernel.update(self.accepted_parameters_manager, column_index, rng=rng)
+            new_parameters = self.kernel.update(accepted_parameters_manager, column_index, rng=rng)
 
             self._reset_flags()
 
@@ -2721,8 +2728,9 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
         self.simulation_counter = 0
 
-    def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, epsilon_final=0.1, alpha=0.95,
-               covFactor=2, resample=None, full_output=0, which_mcmc_kernel=0, journal_file=None):
+    def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, epsilon_final=0.1, alpha=None,
+               covFactor=2, resample=None, full_output=0, which_mcmc_kernel=0, r=None,
+               journal_file=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -2731,7 +2739,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         observations : list
             A list, containing lists describing the observed data sets
         steps : integer
-            Number of iterations in the sequential algoritm ("generations")
+            Number of iterations in the sequential algorithm ("generations")
         n_samples : integer, optional
             Number of samples to generate. The default value is 10000.
         n_samples_per_param : integer, optional
@@ -2752,8 +2760,13 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             If full_output==1, intermediate results are included in output journal.
             The default value is 0, meaning the intermediate results are not saved.
         which_mcmc_kernel: integer, optional
-            Specifies which MCMC kernel to be used: '0' kernel suggested in [1], any other value will use r-hit kernel
-            suggested by Anthony Lee [2]. The default value is 0.
+            Specifies which MCMC kernel to be used: '0' kernel suggested in [1], '1' uses the first version of r-hit
+            kernel suggested by Anthony Lee (Alg. 5 in [2]), while '2' uses the second version of r-hit kernel
+            suggested by Anthony Lee (Alg. 6 in [2]). The default value is 0.
+        r: integer, optional:
+            Specifies the value of 'r' (the number of wanted hits) in the r-hits kernels. It is therefore ignored if
+            'which_mcmc_kernel==0'. If no value is provided, the first version of r-hit kernel uses r=3, while the
+            second uses r=2. The default value is None.
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
@@ -2794,6 +2807,14 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             epsilon = [self.distance.dist_max()]
         else:
             epsilon = [1e5]
+
+        if which_mcmc_kernel not in [0, 1, 2]:
+            raise NotImplementedError("'which_mcmc_kernel' was given wrong value. It specifies which MCMC kernel to be"
+                                      " used: '0' kernel suggested in [1], '1' uses the first version of r-hit"
+                                      "kernel suggested by Anthony Lee (Alg. 5 in [2]), while '2' uses the second "
+                                      "version of r-hit kernel"
+                                      "suggested by Anthony Lee (Alg. 6 in [2]). The default value is 0.")
+        self.r = r
 
         # main SMC ABC algorithm
         for aStep in range(0, steps):
@@ -2904,8 +2925,10 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             self.logger.info("Drawing perturbed samples")
             if which_mcmc_kernel == 0:
                 params_and_ysim_pds = self.backend.map(self._accept_parameter, rng_and_index_pds)
-            else:
+            elif which_mcmc_kernel == 1:
                 params_and_ysim_pds = self.backend.map(self._accept_parameter_r_hit_kernel, rng_and_index_pds)
+            elif which_mcmc_kernel == 2:
+                params_and_ysim_pds = self.backend.map(self._accept_parameter_r_hit_kernel_version_2, rng_and_index_pds)
             params_and_ysim = self.backend.collect(params_and_ysim_pds)
             new_parameters, new_y_sim, distances, counter = [list(t) for t in zip(*params_and_ysim)]
             distances = np.array(distances)
@@ -3124,7 +3147,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
     def _accept_parameter_r_hit_kernel(self, rng_and_index, npc=None):
         """
         This implements algorithm 5 in Lee (2012) [2] which is used as an MCMC kernel in SMCABC. This implementation
-        uses r=3.
+        uses r=3 as default value.
 
         Parameters
         ----------
@@ -3145,7 +3168,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
         # Set value of r for r-hit kernel
-        r = 3
+        r = 3 if self.r is None else self.r
         mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(
             self.accepted_parameters_manager.model)
 
@@ -3218,6 +3241,142 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 self.set_parameters(self.accepted_parameters_manager.accepted_parameters_bds.value()[index])
                 y_sim = self.accepted_y_sim_bds.value()[index]
                 # the following distance was probably already computed before?
+                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+        return self.get_parameters(), y_sim, distance, counter
+
+    def _accept_parameter_r_hit_kernel_version_2(self, rng_and_index, npc=None):
+        """
+        This implements algorithm 6 in Lee (2012) [2] which is used as an MCMC kernel in SMCABC. This implementation
+        uses r=2 as default value.
+
+        Parameters
+        ----------
+        rng_and_index: numpy.ndarray
+            2 dimensional array. The first entry is a random number generator.
+            The second entry defines the index in the data set.
+
+        Returns
+        -------
+        Tuple
+            The first entry of the tuple is the accepted parameters. The second entry is the simulated data set.
+            The third one is the distance between the simulated data set and the observation, while the fourth one is
+            the number of simulations needed to obtain the accepted parameter.
+        """
+
+        rng = rng_and_index[0]
+        index = rng_and_index[1]
+        rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+
+        # Set value of r for r-hit kernel
+        r = 2 if self.r is None else self.r
+        mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(
+            self.accepted_parameters_manager.model)
+
+        counter = 0
+        # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
+        if self.accepted_parameters_manager.accepted_parameters_bds is None:
+            self.sample_from_prior(rng=rng)
+            y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
+            distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+            # the following is was probably already computed before, but hard to keep track:
+            counter += 1
+        else:
+            if self.accepted_parameters_manager.accepted_weights_bds.value()[index] > 0:
+                theta = self.accepted_parameters_manager.accepted_parameters_bds.value()[index]
+
+                # Generate different perturbed values from theta and sample from model until we get 'r' y_sim
+                # inside the epsilon ball (line 1 in Alg 6 in [3])
+                accept_prime_arr, z_sim_arr, theta_prime_arr, distance_arr, N_prime = [], [], [], [], 0
+                while len(accept_prime_arr) < r:
+                    # first perturb:
+                    while True:
+                        # this perturbs using the current theta value
+                        perturbation_output = self.perturb(index, rng=rng)
+                        if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
+                            break
+                    theta_prime_arr.append(perturbation_output[1])
+                    # now simulate
+                    z_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
+                    z_sim_arr.append(z_sim)  # could store here only the accepted ones... Can improve
+                    distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), z_sim)
+                    if distance < self.epsilon[-1]:
+                        accept_prime_arr.append(N_prime)
+                    distance_arr.append(distance)
+                    N_prime += 1
+                    counter += 1
+                # select the index among the first r-1 hits (line 2 in Alg 6)
+                L = rng.choice(accept_prime_arr[:-1]).astype(int)
+                theta_prime_L = theta_prime_arr[L]
+
+                # create a new AcceptedParametersManager storing the theta_prime_L in order to draw perturbations from
+                # it:
+                inner_accepted_parameters_manager = AcceptedParametersManager(self.model)
+                # define a dummy backend:
+                backend_inner = BackendDummy()
+                # need to pass the covariance matrix (take it from the overall AcceptedParametersManager) and the
+                # theta_prime_L:
+                inner_accepted_parameters_manager.update_broadcast(backend_inner, accepted_parameters=[theta_prime_L],
+                                                                   accepted_cov_mats=self.accepted_parameters_manager.accepted_cov_mats_bds.value())
+
+                # in kernel_parameters you need to store theta_prime_L
+                # inner_accepted_parameters_manager.update_kernel_values(backend_inner,
+                #                                                        kernel_parameters=[[theta_prime_L]])
+
+                # update the kernel parameters (which is used to perturb - this is more general than the one above which
+                # works with one kernel only)
+                kernel_parameters = []
+                for kernel in self.kernel.kernels:
+                    kernel_parameters.append(
+                        inner_accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
+
+                inner_accepted_parameters_manager.update_kernel_values(backend_inner,
+                                                                       kernel_parameters=kernel_parameters)
+
+                # in kernel_parameters you need to store theta_prime_L
+                # inner_accepted_parameters_manager.update_kernel_values(backend_inner,
+                #                                                        kernel_parameters=[[theta_prime_L]])
+
+                # Generate different perturbed values from the parameter value selected above and sample from model
+                # until we get 'r-1' y_sim inside the epsilon ball (line 3 in Alg 6 in [3])
+                accept_arr, N = [], 0
+                while len(accept_arr) < r - 1:
+                    while True:
+                        perturbation_output = self.perturb(0, rng=rng,
+                                                           accepted_parameters_manager=inner_accepted_parameters_manager)
+                        if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
+                            break
+                    x_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)  #
+                    # y_sim_new_arr.append(y_sim)
+                    if self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),
+                                              x_sim) < self.epsilon[-1]:
+                        accept_arr.append(N)
+                    counter += 1
+                    N += 1
+
+                # Calculate acceptance probability (line 4 in Alg 6)
+                ratio_prior_prob = self.pdf_of_prior(self.model, theta_prime_L) / self.pdf_of_prior(self.model,
+                                                                                                    theta)
+                kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
+                                                   theta_prime_L, theta)
+                kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, theta,
+                                                     theta_prime_L)
+                ratio_likelihood_prob = kernel_numerator / kernel_denominator
+
+                acceptance_prob = min(1, (N / (N_prime - 1)) * ratio_prior_prob * ratio_likelihood_prob)
+
+                if rng.binomial(1, acceptance_prob) == 1:
+                    self.set_parameters(theta_prime_L)
+                    y_sim = z_sim_arr[L]
+                    distance = distance_arr[L]
+                else:
+                    self.set_parameters(theta)
+                    y_sim = self.accepted_y_sim_bds.value()[index]
+                    # the following is was probably already computed before, but hard to keep track:
+                    distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+            else:
+                self.set_parameters(self.accepted_parameters_manager.accepted_parameters_bds.value()[index])
+                y_sim = self.accepted_y_sim_bds.value()[index]
+                # the following is was probably already computed before, but hard to keep track:
                 distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
         return self.get_parameters(), y_sim, distance, counter
 

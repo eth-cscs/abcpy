@@ -436,7 +436,7 @@ class SMCABCTests(unittest.TestCase):
 
         self.assertEqual(journal.number_of_simulations[-1], 19)
 
-        # try now with the r-hit kernel:
+        # try now with the r-hit kernel version 1:
         T, n_sample, n_simulate = 2, 10, 1
         sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
         journal = sampler.sample([self.observation], T, n_sample, n_simulate, which_mcmc_kernel=1)
@@ -455,6 +455,28 @@ class SMCABCTests(unittest.TestCase):
         self.assertEqual(weights_sample_shape, (10, 1))
         self.assertAlmostEqual(mu_post_mean, -0.6507386970288184, delta=10e-3)
         self.assertAlmostEqual(sigma_post_mean, 6.253446572247367, delta=10e-3)
+
+        self.assertEqual(journal.number_of_simulations[-1], 56)
+
+        # try now with the r-hit kernel version 2:
+        T, n_sample, n_simulate = 2, 10, 1
+        sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
+        journal = sampler.sample([self.observation], T, n_sample, n_simulate, which_mcmc_kernel=2)
+        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
+            journal.get_parameters()['sigma']), np.array(journal.get_weights())
+
+        # Compute posterior mean
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
+
+        # test shape of sample
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                                                    (len(sigma_post_sample),
+                                                                     sigma_post_sample[0].shape[1]), post_weights.shape
+        self.assertEqual(mu_sample_shape, (10, 1))
+        self.assertEqual(sigma_sample_shape, (10, 1))
+        self.assertEqual(weights_sample_shape, (10, 1))
+        self.assertAlmostEqual(mu_post_mean, -0.5486451602421536, delta=10e-3)
+        self.assertAlmostEqual(sigma_post_mean, 3.633148439032683, delta=10e-3)
 
         self.assertFalse(journal.number_of_simulations == 0)
 
