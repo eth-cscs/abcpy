@@ -4,10 +4,10 @@ MAKEDIRS=$(shell find examples -name Makefile -exec dirname {} \;)
 whl_file = abcpy-${VERSION}-py3-none-any.whl
 
 .DEFAULT: help
-.PHONY: help clean doc doctest exampletest package test uninstall unittest unittest_mpi install reinstall $(MAKEDIRS)
+.PHONY: help clean doc doctest exampletest exampletest_mpi package test uninstall unittest unittest_mpi install reinstall $(MAKEDIRS)
 
 help:
-	@echo Targets are: clean, doc, doctest, exampletest, package, uninstall, unittest, unittest_mpi	, test
+	@echo Targets are: clean, doc, doctest, exampletest, exampletest_mpi, package, uninstall, unittest, unittest_mpi, test
 
 clean:
 	find . -name "*.pyc" -type f -delete
