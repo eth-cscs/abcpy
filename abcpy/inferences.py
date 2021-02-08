@@ -2776,7 +2776,6 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
-        self.sample_from_prior(rng=self.rng)
 
         self.accepted_parameters_manager.broadcast(self.backend, observations)
         self.n_samples = n_samples
@@ -2790,6 +2789,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
             journal.configuration["steps"] = steps
             # maybe add which kernel I am using?
+            self.sample_from_prior(rng=self.rng)  # initialize only if you are not restarting from a journal, in order
+            # to ensure reproducibility
         else:
             journal = Journal.fromFile(journal_file)
 

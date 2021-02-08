@@ -480,6 +480,53 @@ class SMCABCTests(unittest.TestCase):
 
         self.assertFalse(journal.number_of_simulations == 0)
 
+    def test_restart_from_journal(self):
+        n_sample, n_simulate = 10, 1
+
+        # standard MCMC kernel
+        # 2 steps with intermediate journal:
+        sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
+        journal_intermediate = sampler.sample([self.observation], 2, n_sample, n_simulate)
+        journal_intermediate.save("tmp.jnl")
+        journal_final_1 = sampler.sample([self.observation], 1, n_sample, n_simulate,
+                                         journal_file="tmp.jnl")
+
+        # 2 steps directly
+        sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
+        journal_final_2 = sampler.sample([self.observation], 3, n_sample, n_simulate, full_output=1)
+        self.assertEqual(journal_final_1.configuration["epsilon_arr"], journal_final_2.configuration["epsilon_arr"])
+        self.assertEqual(journal_final_1.posterior_mean()['mu'], journal_final_2.posterior_mean()['mu'])
+
+        # r-hit kernel version 1
+        # 2 steps with intermediate journal:
+        sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
+        journal_intermediate = sampler.sample([self.observation], 2, n_sample, n_simulate, which_mcmc_kernel=1)
+        journal_intermediate.save("tmp.jnl")
+        journal_final_1 = sampler.sample([self.observation], 1, n_sample, n_simulate, which_mcmc_kernel=1,
+                                         journal_file="tmp.jnl")
+
+        # 2 steps directly
+        sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
+        journal_final_2 = sampler.sample([self.observation], 3, n_sample, n_simulate, full_output=1,
+                                         which_mcmc_kernel=1)
+        self.assertEqual(journal_final_1.configuration["epsilon_arr"], journal_final_2.configuration["epsilon_arr"])
+        self.assertEqual(journal_final_1.posterior_mean()['mu'], journal_final_2.posterior_mean()['mu'])
+
+        # r-hit kernel version 2
+        # 2 steps with intermediate journal:
+        sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
+        journal_intermediate = sampler.sample([self.observation], 2, n_sample, n_simulate, which_mcmc_kernel=2)
+        journal_intermediate.save("tmp.jnl")
+        journal_final_1 = sampler.sample([self.observation], 1, n_sample, n_simulate, which_mcmc_kernel=2,
+                                         journal_file="tmp.jnl")
+
+        # 2 steps directly
+        sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
+        journal_final_2 = sampler.sample([self.observation], 3, n_sample, n_simulate, full_output=1,
+                                         which_mcmc_kernel=2)
+        self.assertEqual(journal_final_1.configuration["epsilon_arr"], journal_final_2.configuration["epsilon_arr"])
+        self.assertEqual(journal_final_1.posterior_mean()['mu'], journal_final_2.posterior_mean()['mu'])
+
 
 class APMCABCTests(unittest.TestCase):
     def setUp(self):
