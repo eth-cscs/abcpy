@@ -2825,6 +2825,9 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 accepted_parameters = journal.get_accepted_parameters(-1)
                 accepted_weights = journal.get_weights(-1)
                 accepted_y_sim = journal.opt_values[-1]
+                distances = journal.get_distances(-1)
+
+                epsilon = journal.configuration["epsilon_arr"]
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                                   accepted_weights=accepted_weights)
