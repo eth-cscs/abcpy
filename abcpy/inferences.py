@@ -415,7 +415,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             epsilon_arr = epsilon_init
         elif len(epsilon_init) == 1:
             epsilon_arr = [None] * steps
-            epsilon_arr[0] = epsilon_init
+            epsilon_arr[0] = epsilon_init[0]
         else:
             raise ValueError("The length of epsilon_init can only be equal to 1 or steps.")
 

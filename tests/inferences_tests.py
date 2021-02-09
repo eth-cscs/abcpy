@@ -210,6 +210,30 @@ class PMCABCTests(unittest.TestCase):
 
         self.assertFalse(journal.number_of_simulations == 0)
 
+        # use the PMCABC scheme for T = 2 providing only first value for eps_arr
+        T, n_sample, n_simulate, eps_arr, eps_percentile = 2, 10, 1, [10], 10
+        sampler = PMCABC([self.model], [self.dist_calc], self.backend, seed=1)
+        sampler.sample_from_prior(rng=np.random.RandomState(1))
+        journal = sampler.sample([self.observation], T, eps_arr, n_sample, n_simulate, eps_percentile)
+        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
+            journal.get_parameters()['sigma']), np.array(journal.get_weights())
+
+        # Compute posterior mean
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
+
+        # test shape of sample
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                                                    (len(sigma_post_sample),
+                                                                     sigma_post_sample[0].shape[1]), post_weights.shape
+
+        self.assertEqual(mu_sample_shape, (10, 1))
+        self.assertEqual(sigma_sample_shape, (10, 1))
+        self.assertEqual(weights_sample_shape, (10, 1))
+        self.assertLess(mu_post_mean - 0.9356, 10e-2)
+        self.assertLess(sigma_post_mean - 7.819, 10e-2)
+
+        self.assertFalse(journal.number_of_simulations == 0)
+
     def test_restart_from_journal(self):
         # test with value of eps_arr_2 > percentile of distances
         n_sample, n_simulate, eps_arr, eps_percentile = 10, 1, [10, 5], 10
