@@ -3038,8 +3038,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.add_user_parameters(names_and_parameters)
                 journal.number_of_simulations.append(self.simulation_counter)
 
-        # Add epsilon_arr to the journal
-        journal.configuration["epsilon_arr"] = epsilon
+            # Add epsilon_arr to the journal
+            journal.configuration["epsilon_arr"] = epsilon
 
         return journal
 
