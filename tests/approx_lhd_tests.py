@@ -56,13 +56,20 @@ class PenLogRegTests(unittest.TestCase):
         self.assertAlmostEqual(comp_likelihood_biv, np.log(expected_likelihood_biv))
 
     def test_likelihood_multiple_observations(self):
-        comp_likelihood = self.likfun.loglikelihood(self.y_obs, self.y_sim)
-        expected_likelihood = 9.77317308598673e-08
-        self.assertAlmostEqual(comp_likelihood, np.log(expected_likelihood))
+        comp_likelihood = self.likfun.likelihood(self.y_obs_double, self.y_sim)
+        expected_likelihood = 7.337876253225462e-10
+        self.assertAlmostEqual(comp_likelihood, expected_likelihood)
 
         expected_likelihood_biv = 0.9999999999999979
-        comp_likelihood_biv = self.likfun_bivariate.loglikelihood(self.y_obs_bivariate, self.y_sim_bivariate)
-        self.assertAlmostEqual(comp_likelihood_biv, np.log(expected_likelihood_biv))
+        comp_likelihood_biv = self.likfun_bivariate.likelihood(self.y_obs_bivariate_double, self.y_sim_bivariate)
+        self.assertAlmostEqual(comp_likelihood_biv, expected_likelihood_biv)
+
+    def test_loglikelihood_additive(self):
+        comp_loglikelihood_a = self.likfun.loglikelihood([self.y_obs_double[0]], self.y_sim)
+        comp_loglikelihood_b = self.likfun.loglikelihood([self.y_obs_double[1]], self.y_sim)
+        comp_loglikelihood_two = self.likfun.loglikelihood(self.y_obs_double, self.y_sim)
+
+        self.assertAlmostEqual(comp_loglikelihood_two, comp_loglikelihood_a + comp_loglikelihood_b)
 
 
 class SynLikelihoodTests(unittest.TestCase):
@@ -97,6 +104,14 @@ class SynLikelihoodTests(unittest.TestCase):
         expected_likelihood = 0.04457899184856649
         # This checks whether it computes a correct value and dimension is right
         self.assertAlmostEqual(comp_likelihood, np.log(expected_likelihood))
+
+    def test_loglikelihood_additive(self):
+        y_obs = [1.8, 0.9]
+        comp_loglikelihood_a = self.likfun.loglikelihood([y_obs[0]], self.y_sim)
+        comp_loglikelihood_b = self.likfun.loglikelihood([y_obs[1]], self.y_sim)
+        comp_loglikelihood_two = self.likfun.loglikelihood(y_obs, self.y_sim)
+
+        self.assertAlmostEqual(comp_loglikelihood_two, comp_loglikelihood_a + comp_loglikelihood_b)
 
 
 if __name__ == '__main__':
