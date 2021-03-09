@@ -1,7 +1,7 @@
-from abc import ABCMeta, abstractmethod
-
 import numpy as np
+from abc import ABCMeta, abstractmethod
 from glmnet import LogitNet
+from scipy.stats import gaussian_kde, rankdata, norm
 from sklearn.covariance import ledoit_wolf
 
 from abcpy.graphtools import GraphTools
@@ -126,6 +126,81 @@ class SynLikelihood(Approx_likelihood):
         logliks = -0.5 * x_news
         logfactor = 0.5 * stat_obs.shape[0] * robust_precision_sim_logdet
         return np.sum(logliks) + logfactor  # compute the sum of the different loglikelihoods for each observation
+
+
+class SemiParametricSynLikelihood(Approx_likelihood):
+    """This class implements the approximate likelihood function which computes the approximate
+    likelihood using the semiparametric Synthetic Likelihood (semiBSL) approach described in [1].
+
+    This does not yet include shrinkage strategies for the correlation matrix.
+
+    [1] An, Z., Nott, D. J., & Drovandi, C. (2020). Robust Bayesian synthetic likelihood via a semi-parametric approach.
+    Statistics and Computing, 30(3), 543-557.
+
+    """
+
+    def __init__(self, statistics_calc):
+        super(SemiParametricSynLikelihood, self).__init__(statistics_calc)
+
+    def loglikelihood(self, y_obs, y_sim):
+        # this implementation aims to be equivalent to the 'BSL' R package
+
+        stat_obs, stat_sim = self._calculate_summary_stat(y_obs, y_sim)
+        n_obs, d = stat_obs.shape
+        if d < 2:
+            raise RuntimeError("The dimension of the statistics need to be at least 2 in order to apply semiBSL.")
+        # first: estimate the marginal KDEs for each coordinate
+        logpdf_obs = np.zeros_like(stat_obs)  # this will contain the estimated pdf at the various observation points
+        u_obs = np.zeros_like(stat_obs)  # this instead will contain the transformed u's using the estimated CDF
+        for j in range(d):
+            # estimate the KDE using the data in stat_sim for coordinate j. This leads to slightly different results
+            # from the R package implementation due to slightly different way to estimate the factor as well as
+            # different way to evaluate the kernel (they use a weird interpolation there).
+            kde = gaussian_kde(stat_sim[:, j], bw_method="silverman")
+            logpdf_obs[:, j] = kde.logpdf(stat_obs[:, j])
+            for i in range(n_obs):  # loop over the different observations
+                u_obs[i, j] = kde.integrate_box_1d(-np.infty, stat_obs[i, j])
+        etas_obs = norm.ppf(u_obs)
+
+        # second: estimate the correlation matrix for the gaussian copula using gaussian rank correlation
+        R_hat = self._estimate_gaussian_correlation(stat_sim)
+        R_hat_inv = np.linalg.inv(R_hat)
+        R_sign_det, R_inv_logdet = np.linalg.slogdet(R_hat_inv)  # sign not used
+
+        # third: combine the two to compute the loglikelihood;
+        # for each observation:
+        # logliks = np.zeros(n_obs)
+        # for i in range(n_obs):
+        #     logliks[i] = np.sum(logpdf_obs[i])  # sum along marginals along dimensions
+        #     # add the copula density:
+        #     logliks[i] += 0.5 * R_inv_logdet
+        #     logliks[i] -= 0.5 * np.einsum("i,ij,j->", etas_obs[i], R_hat_inv - np.eye(d), etas_obs[i])
+
+        # do jointly:
+        loglik = np.sum(logpdf_obs)  # sum along marginals along dimensions
+        # add the copula density:
+        copula_density = -0.5 * np.einsum("bi,ij,bj->b", etas_obs, R_hat_inv - np.eye(d), etas_obs)
+        loglik += np.sum(copula_density) + 0.5 * n_obs * R_inv_logdet
+
+        return loglik
+
+    @staticmethod
+    def _estimate_gaussian_correlation(x):
+        # this is checked with the BSL library, same result
+        n, d = x.shape
+        r = np.zeros_like(x)
+        for j in range(d):
+            r[:, j] = rankdata(x[:, j])
+
+        rqnorm = norm.ppf(r / (n + 1))
+
+        # this is useless repeated computation; may store it somehow
+        # TODO optimize
+        denominator = np.sum(norm.ppf((np.arange(n) + 1) / (n + 1)) ** 2)
+
+        R_hat = np.einsum('ki,kj->ij', rqnorm, rqnorm) / denominator
+
+        return R_hat
 
 
 class PenLogReg(Approx_likelihood, GraphTools):
