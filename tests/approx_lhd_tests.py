@@ -92,18 +92,17 @@ class SynLikelihoodTests(unittest.TestCase):
         # create observed data
         y_obs = [1.8]
         # calculate the statistics of the observed data
-        comp_likelihood = self.likfun.loglikelihood(y_obs, self.y_sim)
-        expected_likelihood = 0.20963610211945238
+        comp_loglikelihood = self.likfun.loglikelihood(y_obs, self.y_sim)
+        expected_loglikelihood = -0.6434435652263701
         # This checks whether it computes a correct value and dimension is right
-        self.assertAlmostEqual(comp_likelihood, np.log(expected_likelihood))
+        self.assertAlmostEqual(comp_loglikelihood, expected_loglikelihood)
 
     def test_likelihood_multiple_observations(self):
         y_obs = [1.8, 0.9]
-        comp_likelihood = self.likfun.loglikelihood(y_obs, self.y_sim)
-        print(comp_likelihood)
-        expected_likelihood = 0.04457899184856649
+        comp_loglikelihood = self.likfun.loglikelihood(y_obs, self.y_sim)
+        expected_loglikelihood = -1.2726154993040115
         # This checks whether it computes a correct value and dimension is right
-        self.assertAlmostEqual(comp_likelihood, np.log(expected_likelihood))
+        self.assertAlmostEqual(comp_loglikelihood, expected_loglikelihood)
 
     def test_loglikelihood_additive(self):
         y_obs = [1.8, 0.9]
