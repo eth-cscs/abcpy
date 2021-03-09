@@ -111,9 +111,7 @@ class SynLikelihood(Approx_likelihood):
         diff = self.stat_obs - mean_sim.reshape(1, -1)
         x_news = np.einsum('bi,ij,bj->b', diff, robust_precision_sim, diff)
         logliks = -0.5 * x_news
-        # looks like we are exponentiating the determinant as well, which is wrong;
-        # this is however a constant which should not change the algorithms afterwards.
-        logfactor = 0.5 * self.stat_obs.shape[0] * (np.log(1 / (2 * np.pi)) + robust_precision_sim_logdet)
+        logfactor = 0.5 * self.stat_obs.shape[0] * robust_precision_sim_logdet
         return np.sum(logliks) + logfactor  # compute the sum of the different loglikelihoods for each observation
 
 
