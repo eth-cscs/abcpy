@@ -8,7 +8,7 @@ from abcpy.graphtools import GraphTools
 
 
 class Approx_likelihood(metaclass=ABCMeta):
-    """This abstract base class defines the approximate likelihood 
+    """This abstract base class defines the approximate likelihood
     function.
     """
 
@@ -16,15 +16,23 @@ class Approx_likelihood(metaclass=ABCMeta):
     def __init__(self, statistics_calc):
         """
         The constructor of a sub-class must accept a non-optional statistics
-        calculator, which is stored to self.statistics_calc.
+        calculator; then, it must call the __init__ method of the parent class. This ensures that the
+        object is initialized correctly so that the _calculate_summary_stat private method can be called when computing
+        the distances.
+
 
         Parameters
         ----------
-        statistics_calc : abcpy.stasistics.Statistics
+        statistics_calc : abcpy.statistics.Statistics
             Statistics extractor object that conforms to the Statistics class.
         """
+        self.statistics_calc = statistics_calc
 
-        raise NotImplemented
+        # Since the observations do always stay the same, we can save the
+        #  summary statistics of them and not recalculate it each time
+        self.stat_obs = None
+        self.data_set = None
+        self.dataSame = False
 
     @abstractmethod
     def loglikelihood(self, y_obs, y_sim):
@@ -50,30 +58,8 @@ class Approx_likelihood(metaclass=ABCMeta):
     def likelihood(self, y_obs, y_sim):
         return np.exp(self.loglikelihood(y_obs, y_sim))
 
-
-class SynLikelihood(Approx_likelihood):
-    """This class implements the approximate likelihood function which computes the approximate
-    likelihood using the synthetic likelihood approach described in Wood [1].
-    For synthetic likelihood approximation, we compute the robust precision matrix using Ledoit and Wolf's [2]
-    method.
-    
-    [1] S. N. Wood. Statistical inference for noisy nonlinear ecological 
-    dynamic systems. Nature, 466(7310):1102–1104, Aug. 2010.
-    
-    [2] O. Ledoit and M. Wolf, A Well-Conditioned Estimator for Large-Dimensional Covariance Matrices,
-    Journal of Multivariate Analysis, Volume 88, Issue 2, pages 365-411, February 2004.
-    """
-
-    def __init__(self, statistics_calc):
-        self.stat_obs = None
-        self.data_set = None
-        self.statistics_calc = statistics_calc
-
-    def loglikelihood(self, y_obs, y_sim):
-        # print("DEBUG: SynLikelihood.likelihood().")
+    def _calculate_summary_stat(self, y_obs, y_sim):
         if not isinstance(y_obs, list):
-            # print("type(y_obs) : ", type(y_obs), " , type(y_sim) : ", type(y_sim))
-            # print("y_obs : ", y_obs)
             raise TypeError('Observed data is not of allowed types')
 
         if not isinstance(y_sim, list):
@@ -81,6 +67,7 @@ class SynLikelihood(Approx_likelihood):
 
         # Check whether y_obs is same as the stored dataset.
         if self.data_set is not None:
+            # check that the the observations have the same length; if not, they can't be the same:
             if len(y_obs) != len(self.data_set):
                 self.dataSame = False
             elif len(np.array(y_obs[0]).reshape(-1, )) == 1:
@@ -96,6 +83,32 @@ class SynLikelihood(Approx_likelihood):
         # Extract summary statistics from the simulated data
         stat_sim = self.statistics_calc.statistics(y_sim)
 
+        if self.stat_obs.shape[1] != stat_sim.shape[1]:
+            raise ValueError("The dimension of summaries in the two datasets is different; check the dimension of the"
+                             " provided observations and simulations.")
+
+        return self.stat_obs, stat_sim
+
+
+class SynLikelihood(Approx_likelihood):
+    """This class implements the approximate likelihood function which computes the approximate
+    likelihood using the synthetic likelihood approach described in Wood [1].
+    For synthetic likelihood approximation, we compute the robust precision matrix using Ledoit and Wolf's [2]
+    method.
+    
+    [1] S. N. Wood. Statistical inference for noisy nonlinear ecological 
+    dynamic systems. Nature, 466(7310):1102–1104, Aug. 2010.
+    
+    [2] O. Ledoit and M. Wolf, A Well-Conditioned Estimator for Large-Dimensional Covariance Matrices,
+    Journal of Multivariate Analysis, Volume 88, Issue 2, pages 365-411, February 2004.
+    """
+
+    def __init__(self, statistics_calc):
+        super(SynLikelihood, self).__init__(statistics_calc)
+
+    def loglikelihood(self, y_obs, y_sim):
+        stat_obs, stat_sim = self._calculate_summary_stat(y_obs, y_sim)
+
         # Compute the mean, robust precision matrix and determinant of precision matrix
         mean_sim = np.mean(stat_sim, 0)
         lw_cov_, _ = ledoit_wolf(stat_sim)
@@ -103,15 +116,15 @@ class SynLikelihood(Approx_likelihood):
         sign_logdet, robust_precision_sim_logdet = np.linalg.slogdet(robust_precision_sim)  # we do not need sign
         # print("DEBUG: combining.")
         # we may have different observation; loop on those now:
-        # likelihoods = np.zeros(self.stat_obs.shape[0])
-        # for i, single_stat_obs in enumerate(self.stat_obs):
+        # likelihoods = np.zeros(stat_obs.shape[0])
+        # for i, single_stat_obs in enumerate(stat_obs):
         #     x_new = np.einsum('i,ij,j->', single_stat_obs - mean_sim, robust_precision_sim, single_stat_obs - mean_sim)
         #     likelihoods[i] = np.exp(-0.5 * x_new)
         # do without for loop:
-        diff = self.stat_obs - mean_sim.reshape(1, -1)
+        diff = stat_obs - mean_sim.reshape(1, -1)
         x_news = np.einsum('bi,ij,bj->b', diff, robust_precision_sim, diff)
         logliks = -0.5 * x_news
-        logfactor = 0.5 * self.stat_obs.shape[0] * robust_precision_sim_logdet
+        logfactor = 0.5 * stat_obs.shape[0] * robust_precision_sim_logdet
         return np.sum(logliks) + logfactor  # compute the sum of the different loglikelihoods for each observation
 
 
@@ -154,8 +167,9 @@ class PenLogReg(Approx_likelihood, GraphTools):
 
     def __init__(self, statistics_calc, model, n_simulate, n_folds=10, max_iter=100000, seed=None):
 
+        super(PenLogReg, self).__init__(statistics_calc)  # call the super init to initialize correctly
+
         self.model = model
-        self.statistics_calc = statistics_calc
         self.n_folds = n_folds
         self.n_simulate = n_simulate
         self.seed = seed
@@ -164,33 +178,9 @@ class PenLogReg(Approx_likelihood, GraphTools):
         # Simulate reference data and extract summary statistics from the reference data
         self.ref_data_stat = self._simulate_ref_data(rng=self.rng)[0]
 
-        self.stat_obs = None
-        self.data_set = None
-
     def loglikelihood(self, y_obs, y_sim):
-        if not isinstance(y_obs, list):
-            raise TypeError('Observed data is not of allowed types')
+        stat_obs, stat_sim = self._calculate_summary_stat(y_obs, y_sim)
 
-        if not isinstance(y_sim, list):
-            raise TypeError('simulated data is not of allowed types')
-
-        # Check whether y_obs is same as the stored dataset.
-        if self.data_set is not None:
-            # check that the the observations have the same length; if not, they can't be the same:
-            if len(y_obs) != len(self.data_set):
-                self.dataSame = False
-            elif len(np.array(y_obs[0]).reshape(-1, )) == 1:
-                self.dataSame = self.data_set == y_obs
-            else:  # otherwise it fails when y_obs[0] is array
-                self.dataSame = all(
-                    [(np.array(self.data_set[i]) == np.array(y_obs[i])).all() for i in range(len(y_obs))])
-
-        if self.stat_obs is None or self.dataSame is False:
-            self.stat_obs = self.statistics_calc.statistics(y_obs)
-            self.data_set = y_obs
-
-        # Extract summary statistics from the simulated data
-        stat_sim = self.statistics_calc.statistics(y_sim)
         if not stat_sim.shape[0] == self.n_simulate:
             raise RuntimeError("The number of samples in the reference data set is not the same as the number of "
                                "samples in the generated data. Please check that `n_samples` in the `sample()` method"
@@ -205,7 +195,7 @@ class PenLogReg(Approx_likelihood, GraphTools):
         groups += groups  # duplicate it as groups need to be defined for both datasets
         m = LogitNet(alpha=1, n_splits=self.n_folds, max_iter=self.max_iter, random_state=self.seed, scoring="log_loss")
         m = m.fit(X, y, groups=groups)
-        result = -np.sum((m.intercept_ + np.sum(np.multiply(m.coef_, self.stat_obs), axis=1)), axis=0)
+        result = -np.sum((m.intercept_ + np.sum(np.multiply(m.coef_, stat_obs), axis=1)), axis=0)
 
         return result
 
