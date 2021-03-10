@@ -139,8 +139,12 @@ class SemiParametricSynLikelihood(Approx_likelihood):
 
     """
 
-    def __init__(self, statistics_calc):
+    def __init__(self, statistics_calc, bw_method_marginals="silverman"):
         super(SemiParametricSynLikelihood, self).__init__(statistics_calc)
+        # create a dict in which store the denominator of the correlation matrix for the different n values;
+        # this saves from repeating computations:
+        self.corr_matrix_denominator = {}
+        self.bw_method_marginals = bw_method_marginals  # the bw method to use in the gaussian_kde
 
     def loglikelihood(self, y_obs, y_sim):
         # this implementation aims to be equivalent to the 'BSL' R package
@@ -149,6 +153,7 @@ class SemiParametricSynLikelihood(Approx_likelihood):
         n_obs, d = stat_obs.shape
         if d < 2:
             raise RuntimeError("The dimension of the statistics need to be at least 2 in order to apply semiBSL.")
+
         # first: estimate the marginal KDEs for each coordinate
         logpdf_obs = np.zeros_like(stat_obs)  # this will contain the estimated pdf at the various observation points
         u_obs = np.zeros_like(stat_obs)  # this instead will contain the transformed u's using the estimated CDF
@@ -156,10 +161,10 @@ class SemiParametricSynLikelihood(Approx_likelihood):
             # estimate the KDE using the data in stat_sim for coordinate j. This leads to slightly different results
             # from the R package implementation due to slightly different way to estimate the factor as well as
             # different way to evaluate the kernel (they use a weird interpolation there).
-            kde = gaussian_kde(stat_sim[:, j], bw_method="silverman")
+            kde = gaussian_kde(stat_sim[:, j], bw_method=self.bw_method_marginals)
             logpdf_obs[:, j] = kde.logpdf(stat_obs[:, j])
             for i in range(n_obs):  # loop over the different observations
-                u_obs[i, j] = kde.integrate_box_1d(-np.infty, stat_obs[i, j])
+                u_obs[i, j] = kde.integrate_box_1d(-np.infty, stat_obs[i, j])  # compute the CDF
         etas_obs = norm.ppf(u_obs)
 
         # second: estimate the correlation matrix for the gaussian copula using gaussian rank correlation
@@ -184,8 +189,7 @@ class SemiParametricSynLikelihood(Approx_likelihood):
 
         return loglik
 
-    @staticmethod
-    def _estimate_gaussian_correlation(x):
+    def _estimate_gaussian_correlation(self, x):
         # this is checked with the BSL library, same result
         n, d = x.shape
         r = np.zeros_like(x)
@@ -194,9 +198,10 @@ class SemiParametricSynLikelihood(Approx_likelihood):
 
         rqnorm = norm.ppf(r / (n + 1))
 
-        # this is useless repeated computation; may store it somehow
-        # TODO optimize
-        denominator = np.sum(norm.ppf((np.arange(n) + 1) / (n + 1)) ** 2)
+        if n not in self.corr_matrix_denominator.keys():
+            # compute the denominator:
+            self.corr_matrix_denominator[n] = np.sum(norm.ppf((np.arange(n) + 1) / (n + 1)) ** 2)
+        denominator = self.corr_matrix_denominator[n]
 
         R_hat = np.einsum('ki,kj->ij', rqnorm, rqnorm) / denominator
 
