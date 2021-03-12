@@ -12,7 +12,7 @@ from abcpy.graphtools import GraphTools
 from abcpy.jointapprox_lhd import SumCombination
 from abcpy.jointdistances import LinearCombination
 from abcpy.output import Journal
-from abcpy.perturbationkernel import DefaultKernel
+from abcpy.perturbationkernel import DefaultKernel, JointPerturbationKernel
 from abcpy.probabilisticmodels import *
 from abcpy.utils import cached
 
@@ -207,8 +207,8 @@ class RejectionABC(InferenceMethod):
         epsilon: float
             Value of threshold
         full_output: integer, optional
-            If full_output==1, intermediate results are included in output journal.
-            The default value is 0, meaning the intermediate results are not saved.
+            It is actually unused in RejetionABC but left here for general compatibility with the other inference
+            classes.
 
         Returns
         -------
@@ -226,6 +226,9 @@ class RejectionABC(InferenceMethod):
         journal.configuration["n_samples"] = self.n_samples
         journal.configuration["n_samples_per_param"] = self.n_samples_per_param
         journal.configuration["epsilon"] = self.epsilon
+        journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
+        journal.configuration["type_dist_func"] = [type(distance).__name__ for distance in self.distance.distances]
+        journal.configuration["full_output"] = full_output
 
         accepted_parameters = None
 
@@ -398,11 +401,14 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
-            journal.configuration["type_dist_func"] = type(self.distance).__name__
+            journal.configuration["type_dist_func"] = [type(distance).__name__ for distance in self.distance.distances]
+            journal.configuration["steps"] = steps
+            journal.configuration["epsilon_init"] = epsilon_init
             journal.configuration["n_samples"] = self.n_samples
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
-            journal.configuration["steps"] = steps
             journal.configuration["epsilon_percentile"] = epsilon_percentile
+            journal.configuration["covFactor"] = covFactor
+            journal.configuration["full_output"] = full_output
         else:
             journal = Journal.fromFile(journal_file)
 
@@ -765,13 +771,13 @@ class PMC(BaseLikelihood, InferenceMethod):
         if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
-            journal.configuration["type_lhd_func"] = type(self.likfun).__name__
+            journal.configuration["type_lhd_func"] = [type(likfun).__name__ for likfun in self.likfun.approx_lhds]
+            journal.configuration["steps"] = steps
             journal.configuration["n_samples"] = self.n_samples
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
-            journal.configuration["steps"] = steps
             journal.configuration["covFactor"] = covFactors
             journal.configuration["iniPoints"] = iniPoints
-
+            journal.configuration["full_output"] = full_output
         else:
             journal = Journal.fromFile(journal_file)
 
@@ -1166,8 +1172,11 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
-            journal.configuration["type_dist_func"] = type(self.distance).__name__
-            journal.configuration["type_kernel_func"] = type(self.kernel)
+            journal.configuration["type_dist_func"] = [type(distance).__name__ for distance in self.distance.distances]
+            journal.configuration["type_kernel_func"] = [type(kernel).__name__ for kernel in self.kernel.kernels] if \
+                isinstance(self.kernel, JointPerturbationKernel) else type(self.kernel)
+            journal.configuration["steps"] = steps
+            journal.configuration["epsilon"] = self.epsilon
             journal.configuration["n_samples"] = self.n_samples
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
             journal.configuration["beta"] = beta
@@ -1671,8 +1680,10 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
         if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
-            journal.configuration["type_dist_func"] = type(self.distance).__name__
-            journal.configuration["type_kernel_func"] = type(self.kernel)
+            journal.configuration["type_dist_func"] = [type(distance).__name__ for distance in self.distance.distances]
+            journal.configuration["type_kernel_func"] = [type(kernel).__name__ for kernel in self.kernel.kernels] if \
+                isinstance(self.kernel, JointPerturbationKernel) else type(self.kernel)
+            journal.configuration["steps"] = steps
             journal.configuration["n_samples"] = self.n_samples
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
             journal.configuration["chain_length"] = self.chain_length
@@ -2080,10 +2091,18 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
-            journal.configuration["type_dist_func"] = type(self.distance).__name__
+            journal.configuration["type_dist_func"] = [type(distance).__name__ for distance in self.distance.distances]
+            journal.configuration["type_kernel_func"] = [type(kernel).__name__ for kernel in self.kernel.kernels] if \
+                isinstance(self.kernel, JointPerturbationKernel) else type(self.kernel)
+            journal.configuration["steps"] = steps
             journal.configuration["n_samples"] = self.n_samples
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
-            journal.configuration["steps"] = steps
+            journal.configuration["alpha"] = alpha
+            journal.configuration["epsilon_init"] = epsilon_init
+            journal.configuration["epsilon_final"] = epsilon_final
+            journal.configuration["const"] = const
+            journal.configuration["covFactor"] = covFactor
+            journal.configuration["full_output"] = full_output
         else:
             journal = Journal.fromFile(journal_file)
 
@@ -2432,10 +2451,16 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
         if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
-            journal.configuration["type_dist_func"] = type(self.distance).__name__
+            journal.configuration["type_dist_func"] = [type(distance).__name__ for distance in self.distance.distances]
+            journal.configuration["type_kernel_func"] = [type(kernel).__name__ for kernel in self.kernel.kernels] if \
+                isinstance(self.kernel, JointPerturbationKernel) else type(self.kernel)
+            journal.configuration["steps"] = steps
             journal.configuration["n_samples"] = self.n_samples
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
-            journal.configuration["steps"] = steps
+            journal.configuration["alpha"] = self.alpha
+            journal.configuration["acceptance_cutoff"] = acceptance_cutoff
+            journal.configuration["covFactor"] = covFactor
+            journal.configuration["full_output"] = full_output
         else:
             journal = Journal.fromFile(journal_file)
 
@@ -2729,8 +2754,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, epsilon_final=0.1, alpha=0.95,
-               covFactor=2, resample=None, full_output=0, which_mcmc_kernel=0, r=None,
-               journal_file=None):
+               covFactor=2, resample=None, which_mcmc_kernel=0, r=None, full_output=0, journal_file=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -2784,11 +2808,20 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
-            journal.configuration["type_dist_func"] = type(self.distance).__name__
+            journal.configuration["type_dist_func"] = [type(distance).__name__ for distance in self.distance.distances]
+            journal.configuration["type_kernel_func"] = [type(kernel).__name__ for kernel in self.kernel.kernels] if \
+                isinstance(self.kernel, JointPerturbationKernel) else type(self.kernel)
+            journal.configuration["steps"] = steps
             journal.configuration["n_samples"] = self.n_samples
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
-            journal.configuration["steps"] = steps
-            # maybe add which kernel I am using?
+            journal.configuration["epsilon_final"] = epsilon_final
+            journal.configuration["alpha"] = alpha
+            journal.configuration["covFactor"] = covFactor
+            journal.configuration["resample"] = resample
+            journal.configuration["which_mcmc_kernel"] = which_mcmc_kernel
+            journal.configuration["r"] = r
+            journal.configuration["full_output"] = full_output
+
             self.sample_from_prior(rng=self.rng)  # initialize only if you are not restarting from a journal, in order
             # to ensure reproducibility
         else:
