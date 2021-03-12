@@ -32,6 +32,10 @@ jobs:
           python: "3.8"
           env:
             - UNIT_TEST=true
+        - name: "Python 3.9"
+          python: "3.9"
+          env:
+            - UNIT_TEST=true
       # Test coverage and without Pytorch for a single version
         - name: "Coverage"
           python: "3.8"
