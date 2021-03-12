@@ -1,10 +1,12 @@
 import copy
 import logging
 import time
+import warnings
 from abc import abstractproperty
 
 import numpy as np
 from scipy import optimize
+from tqdm import tqdm
 
 from abcpy.acceptedparametersmanager import *
 from abcpy.backends import BackendDummy
@@ -12,7 +14,7 @@ from abcpy.graphtools import GraphTools
 from abcpy.jointapprox_lhd import SumCombination
 from abcpy.jointdistances import LinearCombination
 from abcpy.output import Journal
-from abcpy.perturbationkernel import DefaultKernel
+from abcpy.perturbationkernel import DefaultKernel, JointPerturbationKernel
 from abcpy.probabilisticmodels import *
 from abcpy.utils import cached
 
@@ -443,7 +445,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
                 # 3: calculate covariance
-                self.logger.info("Calculateing covariance matrix")
+                self.logger.info("Calculating covariance matrix")
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
                 # Since each entry of new_cov_mats is a numpy array, we can multiply like this
                 # accepted_cov_mats = [covFactor * new_cov_mat for new_cov_mat in new_cov_mats]
@@ -678,7 +680,7 @@ class PMC(BaseLikelihood, InferenceMethod):
     ----------
     model : list
         A list of the Probabilistic models corresponding to the observed datasets
-    loglikfun : abcpy.approx_lhd.Approx_likelihood
+    loglikfuns : abcpy.approx_lhd.Approx_likelihood
         Approx_loglikelihood object defining the approximated loglikelihood to be used.
     kernel : abcpy.distributions.Distribution
         Distribution object defining the perturbation kernel needed for the sampling.
@@ -2856,7 +2858,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 # first compute the distances for the current set of parameters and observations
                 # (notice that may have already been done somewhere before!):
                 current_distance_matrix = self._compute_distance_matrix(observations, accepted_y_sim, n_samples,
-                                                                       n_samples_per_param)
+                                                                        n_samples_per_param)
                 fun = self._def_compute_epsilon(epsilon, accepted_weights, n_samples, current_distance_matrix,
                                                 alpha)
                 epsilon_new = self._bisection(fun, epsilon_final, epsilon[-1], 0.001)
@@ -3385,6 +3387,445 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         return self.get_parameters(), y_sim, distance, counter
 
     def _compute_accepted_cov_mats(self, covFactor, new_cov_mats):
+        """
+        Update the covariance matrices computed from data by multiplying them with covFactor and adding a small term in
+        the diagonal for numerical stability.
+
+        Parameters
+        ----------
+        covFactor : float
+            factor to correct the covariance matrices
+        new_cov_mats : list
+            list of covariance matrices computed from data
+        Returns
+        -------
+        list
+            List of new accepted covariance matrices
+        """
+        # accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
+        accepted_cov_mats = []
+        for new_cov_mat in new_cov_mats:
+            if not (new_cov_mat.size == 1):
+                accepted_cov_mats.append(
+                    covFactor * new_cov_mat + 1e-20 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+            else:
+                accepted_cov_mats.append((covFactor * new_cov_mat + 1e-20 * new_cov_mat).reshape(1, 1))
+        return accepted_cov_mats
+
+
+class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
+    """
+    Simple Metropolis-Hastings MCMC working with the approximate likelihood functions Approx_likelihood, with
+    multivariate normal proposals.
+
+    Parameters
+    ----------
+    root_models : list
+        A list of the Probabilistic models corresponding to the observed datasets
+    loglikfuns : list of abcpy.approx_lhd.Approx_likelihood
+        List of Approx_loglikelihood object defining the approximated loglikelihood to be used; one for each model.
+    backend : abcpy.backends.Backend
+        Backend object defining the backend to be used.
+    kernel : abcpy.perturbationkernel.PerturbationKernel, optional
+        PerturbationKernel object defining the perturbation kernel needed for the sampling. If not provided, the
+        DefaultKernel is used.
+    seed : integer, optional
+        Optional initial seed for the random number generator. The default value is generated randomly.
+
+    """
+
+    model = None
+    likfun = None
+    kernel = None
+    rng = None
+
+    n_samples = None
+    n_samples_per_param = None
+
+    backend = None
+
+    def __init__(self, root_models, loglikfuns, backend, kernel=None, seed=None):
+        self.model = root_models
+        # We define the joint Sum of Loglikelihood functions using all the loglikelihoods for each individual models
+        self.likfun = SumCombination(root_models, loglikfuns)
+
+        if kernel is None:
+            #
+            mapping, garbage_index = self._get_mapping()
+            models = []
+            for mdl, mdl_index in mapping:
+                models.append(mdl)
+            kernel = DefaultKernel(models)
+
+        self.kernel = kernel
+        self.backend = backend
+        if not isinstance(backend, BackendDummy):
+            raise RuntimeError("MetropolisHastings inference scheme only works with Dummy Backend (as it does not"
+                               " parallelize).")
+        self.rng = np.random.RandomState(seed)
+        self.logger = logging.getLogger(__name__)
+
+        # these are usually big tables, so we broadcast them to have them once
+        # per executor instead of once per task
+        self.accepted_parameters_manager = AcceptedParametersManager(self.model)
+        # this is used to handle the data for adapting the covariance:
+        self.accepted_parameters_manager_adaptive_cov = AcceptedParametersManager(self.model)
+
+        self.simulation_counter = 0
+
+    def sample(self, observations, n_samples, n_samples_per_param=100, burnin=1000, cov_matrices=None, iniPoint=None,
+               adapt_proposal_cov_interval=100, covFactor=None, speedup_dummy=True, use_tqdm=True, journal_file=None):
+        """Samples from the posterior distribution of the model parameter given the observed
+        data observations. The MCMC is run for burnin + n_samples steps, and n_samples_per_param are used at each step
+        to estimate the approximate loglikelihood. The burnin steps are then discarded from the chain stored in the
+        journal file.
+
+        During burnin, the covariance matrix is adapted from the steps generated up to that point, in a way similar to
+        what suggested in [1], after each adapt_proposal_cov_interval steps. Differently from the original algorithm in
+        [1], here the proposal covariance matrix is fixed after the end of the burnin steps.
+
+        The returned journal file contains also information on acceptance rates.
+
+        [1] Haario, H., Saksman, E., & Tamminen, J. (2001). An adaptive Metropolis algorithm. Bernoulli, 7(2), 223-242.
+
+        Parameters
+        ----------
+        observations : list
+            A list, containing lists describing the observed data sets; one for each model.
+        n_samples : integer, optional
+            number of samples to generate. The default value is 10000.
+        n_samples_per_param : integer, optional
+            number of data points in each simulated data set. The default value is 100.
+        burnin : integer, optional
+            Number of burnin steps to discard. Defaults to 1000.
+        cov_matrices : list of matrices, optional
+            list of initial covariance matrices for the proposals. If not provided, identity matrices are used. If the 
+            sample routine is restarting from a journal file and cov_matrices is not provided, cov_matrices is set to 
+            the value used for sampling after burnin in the previous journal file (ie what is stored in 
+            `journal.configuration["actual_cov_matrices"]`).
+        iniPoint : numpy.ndarray, optional
+            parameter value from where the sampling starts. By default sampled from the prior. Not used if journal_file 
+            is passed.
+        adapt_proposal_cov_interval : integer, optional
+            the proposal covariance matrix is adapted each adapt_cov_matrix steps during burnin, by using the chain up
+            to that point. If None, no adaptation is done.
+        covFactor : float, optional
+            the factor by which to scale the empirical covariance matrix in order to obtain the covariance matrix for
+            the proposal, whenever that is updated during the burnin steps. If not provided, we use the default value
+            2.4 ** 2 / dim_theta suggested in [1].
+        speedup_dummy: boolean, optional.
+            If set to True, the map function is not used to parallelize simulations (for the new parameter value) when
+            the backend is Dummy. This can improve performance as it can exploit potential vectorization in the model.
+            However, this breaks reproducibility when using, for instance, BackendMPI with respect to BackendDummy, due
+            to the different way the random seeds are used when speedup_dummy is set to True. Please set this to False
+            if you are interested in preserving reproducibility across MPI and Dummy backend. Defaults to True.
+        use_tqdm : boolean, optional
+            Whether using tqdm or not to display progress. Defaults to True.
+        journal_file: str, optional
+            Filename of a journal file to read an already saved journal file, from which the first iteration will start.
+            That's the only information used (it does not use the previous covariance matrix).
+            The default value is None.
+
+        Returns
+        -------
+        abcpy.output.Journal
+            A journal containing simulation results, metadata and optionally intermediate results.
+        """
+
+        self.observations = observations
+        self.n_samples = n_samples
+        self.n_samples_per_param = n_samples_per_param
+        self.speedup_dummy = speedup_dummy
+        # we use this in all places which require a backend but which are not parallelized in MCMC:
+        self.dummy_backend = BackendDummy()
+
+        accepted_parameters = []
+        accepted_parameters_burnin = []
+        if journal_file is None:
+            journal = Journal(0)
+            journal.acceptance_rates = []
+            journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
+            journal.configuration["type_lhd_func"] = [type(likfun).__name__ for likfun in self.likfun.approx_lhds]
+            journal.configuration["type_kernel_func"] = [type(kernel).__name__ for kernel in self.kernel.kernels] if \
+                isinstance(self.kernel, JointPerturbationKernel) else type(self.kernel)
+            journal.configuration["n_samples"] = self.n_samples
+            journal.configuration["n_samples_per_param"] = self.n_samples_per_param
+            journal.configuration["burnin"] = burnin
+            journal.configuration["cov_matrices"] = cov_matrices
+            journal.configuration["iniPoint"] = iniPoint
+            journal.configuration["adapt_proposal_cov_interval"] = adapt_proposal_cov_interval
+            journal.configuration["covFactor"] = covFactor
+            journal.configuration["speedup_dummy"] = speedup_dummy
+            journal.configuration["use_tqdm"] = use_tqdm
+            # Initialize chain: when not supplied, randomly draw it from prior distribution
+            # It is an MCMC chain: weights are always 1; forget about them
+            # accepted_parameter will keep track of the chain position
+            if iniPoint is None:
+                self.sample_from_prior(rng=self.rng)
+                accepted_parameter = self.get_parameters()
+            else:
+                accepted_parameter = iniPoint
+            if burnin == 0:
+                accepted_parameters_burnin.append(accepted_parameter)
+            self.logger.info("Calculate approximate loglikelihood")
+            approx_log_likelihood_accepted_parameter = self._simulate_and_compute_log_lik(accepted_parameter)
+            # update the number of simulations (this tracks the number of parameters for which simulations are done;
+            # the actual number of simulations is this times n_samples_per_param))
+            self.simulation_counter += 1
+            self.acceptance_rate = 0
+        else:
+            # check the following:
+            self.logger.info("Restarting from previous journal")
+            journal = Journal.fromFile(journal_file)
+            # this is used to compute the overall acceptance rate:
+            self.acceptance_rate = journal.acceptance_rates[-1] * journal.configuration["n_samples"]
+            accepted_parameter = journal.get_accepted_parameters(-1)[-1]  # go on from last MCMC step
+            journal.configuration["n_samples"] += self.n_samples  # add the total number of samples
+            journal.configuration["burnin"] = burnin
+            if journal.configuration["n_samples_per_param"] != self.n_samples_per_param:
+                warnings.warn("You specified a different n_samples_per_param from the one used in the passed "
+                              "journal_file; the algorithm will still work fine.")
+                journal.configuration["n_samples_per_param"] = self.n_samples_per_param
+            journal.configuration["cov_matrices"] = cov_matrices
+            if cov_matrices is None:  # use the previously stored one unless the user defines it
+                cov_matrices = journal.configuration["actual_cov_matrices"]
+            journal.configuration["speedup_dummy"] = speedup_dummy
+            approx_log_likelihood_accepted_parameter = journal.final_step_loglik
+            self.simulation_counter = journal.number_of_simulations[-1]  # update the number of simulations
+
+        if covFactor is None:
+            dim = len(self.get_parameters())
+            covFactor = 2.4 ** 2 / dim
+
+        accepted_parameter_prior_pdf = self.pdf_of_prior(self.model, accepted_parameter)
+
+        # set the accepted parameter in the kernel (in order to correctly generate next proposal)
+        self._update_kernel_parameters(accepted_parameter)
+
+        # 3: calculate covariance
+        self.logger.info("Set kernel covariance matrix ")
+        if cov_matrices is None:
+            # need to set that to some value (we use identity matrices). Be careful, there need to be one
+            # covariance matrix for each kernel; not sure that this works in case of multivariate parameters.
+
+            # the kernel parameters are only used to get the exact shape of cov_matrices
+            cov_matrices = [np.eye(len(self.accepted_parameters_manager.kernel_parameters_bds.value()[0][kernel_index]))
+                            for kernel_index in range(len(self.kernel.kernels))]
+
+        self.accepted_parameters_manager.update_broadcast(self.dummy_backend, accepted_cov_mats=cov_matrices)
+
+        # main MCMC algorithm
+        self.logger.info("Starting MCMC")
+        for aStep in tqdm(range(burnin + n_samples), disable=not use_tqdm):
+
+            self.logger.debug("Step {} of MCMC algorithm".format(aStep))
+
+            # 1: Resample parameters
+            self.logger.debug("Generate proposal")
+
+            # perturb element 0 of accepted_parameters_manager.kernel_parameters_bds:
+            new_parameter = self.perturb(0, rng=self.rng)[1]
+            # for now we are only using a simple MVN proposal. For bounded parameter values, this is not great; we
+            # could also implement a proposal on transformed space, which would be better.
+            new_parameter_prior_pdf = self.pdf_of_prior(self.model, new_parameter)
+            if new_parameter_prior_pdf == 0:
+                self.logger.debug("Proposal parameter at step {} is out of prior region.".format(aStep))
+                if aStep >= burnin:
+                    accepted_parameters.append(accepted_parameter)
+                else:
+                    accepted_parameters_burnin.append(accepted_parameter)
+                continue
+
+            # 2: calculate approximate likelihood for new parameter. If the backend is MPI, we distribute simulations
+            # and then compute the approx likelihood locally
+            self.logger.debug("Calculate approximate loglikelihood")
+            approx_log_likelihood_new_parameter = self._simulate_and_compute_log_lik(new_parameter)
+            self.simulation_counter += 1  # update the number of simulations
+
+            # compute acceptance rate:
+            alpha = np.exp(approx_log_likelihood_new_parameter - approx_log_likelihood_accepted_parameter) * (
+                new_parameter_prior_pdf) / (accepted_parameter_prior_pdf)  # assumes symmetric kernel
+
+            # Metropolis-Hastings step:
+            if self.rng.uniform() < alpha:
+                # update param value and approx likelihood
+                accepted_parameter = new_parameter
+                approx_log_likelihood_accepted_parameter = approx_log_likelihood_new_parameter
+                accepted_parameter_prior_pdf = new_parameter_prior_pdf
+                # set the accepted parameter in the kernel (in order to correctly generate next proposal)
+                self._update_kernel_parameters(accepted_parameter)
+                if aStep >= burnin:
+                    self.acceptance_rate += 1
+
+            # save to the trace:
+            if aStep >= burnin:
+                accepted_parameters.append(accepted_parameter)
+            else:
+                accepted_parameters_burnin.append(accepted_parameter)
+
+                # adapt covariance of proposal:
+                if adapt_proposal_cov_interval is not None and (aStep + 1) % adapt_proposal_cov_interval == 0:
+                    # store the accepted_parameters for adapting the covariance in the kernel.
+                    # I use this piece of code as it formats the data in the right way
+                    # for the sake of using them to compute the kernel cov:
+                    self.accepted_parameters_manager_adaptive_cov.update_broadcast(
+                        self.dummy_backend, accepted_parameters=accepted_parameters_burnin)
+                    kernel_parameters = []
+                    for kernel in self.kernel.kernels:
+                        kernel_parameters.append(
+                            self.accepted_parameters_manager_adaptive_cov.get_accepted_parameters_bds_values(
+                                kernel.models))
+                    self.accepted_parameters_manager_adaptive_cov.update_kernel_values(
+                        self.dummy_backend, kernel_parameters=kernel_parameters)
+
+                    self.logger.info("Updating covariance matrix")
+                    cov_matrices = self.kernel.calculate_cov(self.accepted_parameters_manager_adaptive_cov)
+                    # this scales with the cov_Factor:
+                    cov_matrices = self._compute_accepted_cov_mats(covFactor, cov_matrices)
+                    # store it in the main AcceptedParametersManager in order to perturb data with it in the following:
+                    self.accepted_parameters_manager.update_broadcast(self.dummy_backend,
+                                                                      accepted_cov_mats=cov_matrices)
+
+        self.acceptance_rate /= journal.configuration["n_samples"]
+        self.logger.info("Saving results to output journal")
+        self.accepted_parameters_manager.update_broadcast(self.dummy_backend, accepted_parameters=accepted_parameters)
+        names_and_parameters = self._get_names_and_parameters()
+        if journal_file is not None:  # concatenate chains
+            journal.add_accepted_parameters(journal.get_accepted_parameters() + copy.deepcopy(accepted_parameters))
+            names_and_parameters = [(names_and_parameters[i][0],
+                                     journal.get_parameters()[names_and_parameters[i][0]] + names_and_parameters[i][1])
+                                    for i in range(len(names_and_parameters))]
+            journal.add_user_parameters(names_and_parameters)
+        else:
+            journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
+            journal.add_user_parameters(names_and_parameters)
+        journal.number_of_simulations.append(self.simulation_counter)
+        journal.acceptance_rates.append(self.acceptance_rate)
+        journal.add_weights(np.ones((journal.configuration['n_samples'], 1)))
+        # store the final loglik to be able to restart the journal correctly
+        journal.final_step_loglik = approx_log_likelihood_accepted_parameter
+        # store the final actual cov_matrices, in order to use this when restarting from journal
+        journal.configuration["actual_cov_matrices"] = cov_matrices
+
+        return journal
+
+    def _sample_parameter(self, rng, npc=None):
+        """
+        Generate a simulation from the model with the current value of accepted_parameter
+
+        Parameters
+        ----------
+        rng: random number generator
+            The random number generator to be used.
+        Returns
+        -------
+        np.array
+            accepted parameter
+        """
+
+        # get the new parameter value
+        theta = self.new_parameter_bds.value()
+        # Simulate the fake data from the model given the parameter value theta
+        self.logger.debug("Simulate model for parameter " + str(theta))
+        self.set_parameters(theta)
+        y_sim = self.simulate(1, rng=rng, npc=npc)
+
+        return y_sim
+
+    def _approx_log_lik_calc(self, y_sim, npc=None):
+        """
+        Compute likelihood for new parameters using approximate likelihood function
+        
+        Parameters
+        ----------
+        y_sim: list
+            A list containing self.n_samples_per_param simulations for the new parameter value
+        Returns
+        -------
+        float
+            The approximated likelihood function
+        """
+        self.logger.debug("Extracting observation.")
+        obs = self.observations
+
+        self.logger.debug("Computing likelihood...")
+        loglhd = self.likfun.loglikelihood(obs, y_sim)
+
+        self.logger.debug("LogLikelihood is :" + str(loglhd))
+
+        return loglhd
+
+    def _simulate_and_compute_log_lik(self, new_parameter):
+        """Helper function which simulates data from `new_parameter` and computes the approximate loglikelihood. 
+        In case the backend is not BackendDummy (ie parallelization is available) this parallelizes the different 
+        simulations (which are all for the same parameter value).
+         
+        Notice that, according to the used model, spreading the simulations in different tasks can be more inefficient 
+        than using one single call, according to the level of vectorization that the model uses and the overhead 
+        associated. For this reason, we do not split the simulations in different tasks when the backend is 
+        BackendDummy. 
+        
+        Parameters
+        ----------
+        new_parameter  
+            Parameter value from which to generate data with which to compute the approximate loglikelihood.
+
+        Returns
+        -------
+        float
+            The approximated likelihood function
+        """
+        if isinstance(self.backend, BackendDummy) and self.speedup_dummy:
+            # do all the required simulations here without parallellizing; however this gives different result
+            # from the other option due to the way random seeds are handled.
+            self.logger.debug('simulations')
+            theta = new_parameter
+            # Simulate the fake data from the model given the parameter value theta
+            self.logger.debug("Simulate model for parameter " + str(theta))
+            self.set_parameters(theta)
+            simulations_from_new_parameter = self.simulate(n_samples_per_param=self.n_samples_per_param, rng=self.rng)
+        else:
+            self.logger.debug('parallelize simulations for fixed parameter value')
+            seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=self.n_samples_per_param, dtype=np.uint32)
+            rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
+            rng_pds = self.backend.parallelize(rng_arr)
+
+            # need first to broadcast the new_parameter value:
+            self.new_parameter_bds = self.backend.broadcast(new_parameter)
+
+            # map step:
+            simulations_from_new_parameter_pds = self.backend.map(self._sample_parameter, rng_pds)
+            self.logger.debug("collect simulations from pds")
+            simulations_from_new_parameter = self.backend.collect(simulations_from_new_parameter_pds)
+            # now need to reshape that correctly. The first index has to be the model, then we need to have
+            # n_samples_per_param and then the size of the simulation
+            simulations_from_new_parameter = [
+                [simulations_from_new_parameter[sample_index][model_index][0] for sample_index in
+                 range(self.n_samples_per_param)] for model_index in range(len(self.model))]
+        approx_log_likelihood_new_parameter = self._approx_log_lik_calc(simulations_from_new_parameter)
+
+        return approx_log_likelihood_new_parameter
+
+    def _update_kernel_parameters(self, accepted_parameter):
+        """This stores the last accepted parameter in the kernel so that it will be used to generate the new proposal
+        with self.perturb.
+
+        Parameters
+        ----------
+        accepted_parameter
+            Parameter value from which you want to generate proposal at next iteration of MCMC.
+        """
+        # I use this piece of code as it formats the data in the right way for the sake of using it in the kernel
+        self.accepted_parameters_manager.update_broadcast(self.dummy_backend, accepted_parameters=[accepted_parameter])
+
+        kernel_parameters = []
+        for kernel in self.kernel.kernels:
+            kernel_parameters.append(
+                self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
+        self.accepted_parameters_manager.update_kernel_values(self.dummy_backend, kernel_parameters=kernel_parameters)
+
+    @staticmethod
+    def _compute_accepted_cov_mats(covFactor, new_cov_mats):
         """
         Update the covariance matrices computed from data by multiplying them with covFactor and adding a small term in
         the diagonal for numerical stability.
