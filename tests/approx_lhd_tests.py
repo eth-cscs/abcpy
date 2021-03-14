@@ -118,6 +118,8 @@ class SemiParametricSynLikelihoodTests(unittest.TestCase):
         self.mu = Uniform([[-5.0], [5.0]], name='mu')
         self.sigma = Uniform([[5.0], [10.0]], name='sigma')
         self.model = Normal([self.mu, self.sigma])
+        self.stat_calc_1 = Identity(degree=1, cross=False)
+        self.likfun_1 = SemiParametricSynLikelihood(self.stat_calc_1)
         self.stat_calc = Identity(degree=2, cross=False)
         self.likfun = SemiParametricSynLikelihood(self.stat_calc)
         # create fake simulated data
@@ -132,6 +134,10 @@ class SemiParametricSynLikelihoodTests(unittest.TestCase):
 
         # create observed data
         y_obs = [1.8]
+
+        # check whether it raises correct error with input of wrong size
+        self.assertRaises(RuntimeError, self.likfun_1.loglikelihood, y_obs, self.y_sim)
+
         # calculate the statistics of the observed data
         comp_loglikelihood = self.likfun.loglikelihood(y_obs, self.y_sim)
         expected_loglikelihood = -2.3069321875272815
