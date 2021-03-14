@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from abcpy.approx_lhd import PenLogReg, SynLikelihood
+from abcpy.approx_lhd import PenLogReg, SynLikelihood, SemiParametricSynLikelihood
 from abcpy.continuousmodels import Normal
 from abcpy.continuousmodels import Uniform
 from abcpy.statistics import Identity
@@ -101,6 +101,53 @@ class SynLikelihoodTests(unittest.TestCase):
         y_obs = [1.8, 0.9]
         comp_loglikelihood = self.likfun.loglikelihood(y_obs, self.y_sim)
         expected_loglikelihood = -1.2726154993040115
+        # This checks whether it computes a correct value and dimension is right
+        self.assertAlmostEqual(comp_loglikelihood, expected_loglikelihood)
+
+    def test_loglikelihood_additive(self):
+        y_obs = [1.8, 0.9]
+        comp_loglikelihood_a = self.likfun.loglikelihood([y_obs[0]], self.y_sim)
+        comp_loglikelihood_b = self.likfun.loglikelihood([y_obs[1]], self.y_sim)
+        comp_loglikelihood_two = self.likfun.loglikelihood(y_obs, self.y_sim)
+
+        self.assertAlmostEqual(comp_loglikelihood_two, comp_loglikelihood_a + comp_loglikelihood_b)
+
+
+class SemiParametricSynLikelihoodTests(unittest.TestCase):
+    def setUp(self):
+        self.mu = Uniform([[-5.0], [5.0]], name='mu')
+        self.sigma = Uniform([[5.0], [10.0]], name='sigma')
+        self.model = Normal([self.mu, self.sigma])
+        self.stat_calc_1 = Identity(degree=1, cross=False)
+        self.likfun_1 = SemiParametricSynLikelihood(self.stat_calc_1)
+        self.stat_calc = Identity(degree=2, cross=False)
+        self.likfun = SemiParametricSynLikelihood(self.stat_calc)
+        # create fake simulated data
+        self.mu._fixed_values = [1.1]
+        self.sigma._fixed_values = [1.0]
+        self.y_sim = self.model.forward_simulate(self.model.get_input_values(), 100, rng=np.random.RandomState(1))
+
+    def test_likelihood(self):
+        # Checks whether wrong input type produces error message
+        self.assertRaises(TypeError, self.likfun.loglikelihood, 3.4, [2, 1])
+        self.assertRaises(TypeError, self.likfun.loglikelihood, [2, 4], 3.4)
+
+        # create observed data
+        y_obs = [1.8]
+
+        # check whether it raises correct error with input of wrong size
+        self.assertRaises(RuntimeError, self.likfun_1.loglikelihood, y_obs, self.y_sim)
+
+        # calculate the statistics of the observed data
+        comp_loglikelihood = self.likfun.loglikelihood(y_obs, self.y_sim)
+        expected_loglikelihood = -2.3069321875272815
+        # This checks whether it computes a correct value and dimension is right
+        self.assertAlmostEqual(comp_loglikelihood, expected_loglikelihood)
+
+    def test_likelihood_multiple_observations(self):
+        y_obs = [1.8, 0.9]
+        comp_loglikelihood = self.likfun.loglikelihood(y_obs, self.y_sim)
+        expected_loglikelihood = -3.7537571275591683
         # This checks whether it computes a correct value and dimension is right
         self.assertAlmostEqual(comp_loglikelihood, expected_loglikelihood)
 
