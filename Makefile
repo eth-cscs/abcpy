@@ -26,6 +26,7 @@ test: unittest unittest_mpi exampletest exampletest_mpi doctest
 unittest:
 	@echo "Running standard unit tests.."
 	python3 -m unittest discover -s tests -v -p "*_tests.py" || (echo "Error in standard unit tests."; exit 1)
+	@rm net.pth scaler.pkl tmp.jnl journal_tests_testfile.pkl  # remove temporary files created during testing
 
 unittest_mpi:
 	@echo "Running MPI backend unit tests.."
