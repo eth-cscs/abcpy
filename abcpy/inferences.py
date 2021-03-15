@@ -158,10 +158,11 @@ class RejectionABC(InferenceMethod):
 
         Parameters
         ----------
-        model: list
+        root_models: list
             A list of the Probabilistic models corresponding to the observed datasets
-        distance: abcpy.distances.Distance
-            Distance object defining the distance measure to compare simulated and observed data sets.
+        distances: list of abcpy.distances.Distance
+            List of Distance objects defining the distance measure to compare simulated and observed data sets; one for 
+            each model.
         backend: abcpy.backends.Backend
             Backend object defining the backend to be used.
         seed: integer, optionaldistance
@@ -201,7 +202,7 @@ class RejectionABC(InferenceMethod):
         Parameters
         ----------
         observations: list
-            A list, containing lists describing the observed data sets
+            A list, containing lists describing the observed data sets; one for each model.
         n_samples: integer
             Number of samples to generate
         n_samples_per_param: integer
@@ -209,7 +210,7 @@ class RejectionABC(InferenceMethod):
         epsilon: float
             Value of threshold
         full_output: integer, optional
-            It is actually unused in RejetionABC but left here for general compatibility with the other inference
+            It is actually unused in RejectionABC but left here for general compatibility with the other inference
             classes.
 
         Returns
@@ -317,14 +318,16 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
 
     Parameters
     ----------
-    model : list
+    root_models: list
         A list of the Probabilistic models corresponding to the observed datasets
-    distance : abcpy.distances.Distance
-        Distance object defining the distance measure to compare simulated and observed data sets.
-    kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling.
+    distances: list of abcpy.distances.Distance
+        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for 
+        each model.
     backend : abcpy.backends.Backend
         Backend object defining the backend to be used.
+    kernel : abcpy.perturbationkernel.PerturbationKernel, optional
+        PerturbationKernel object defining the perturbation kernel needed for the sampling. If not provided, the
+        DefaultKernel is used.
     seed : integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
@@ -369,9 +372,9 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         Parameters
         ----------
         observations : list
-            A list, containing lists describing the observed data sets
+            A list, containing lists describing the observed data sets; one for each model.
         steps : integer
-            Number of iterations in the sequential algoritm ("generations")
+            Number of iterations in the sequential algorithm ("generations")
         epsilon_init : numpy.ndarray
             An array of proposed values of epsilon to be used at each steps. Can be supplied
             A single value to be used as the threshold in Step 1 or a `steps`-dimensional array of values to be
@@ -684,14 +687,15 @@ class PMC(BaseLikelihood, InferenceMethod):
 
     Parameters
     ----------
-    model : list
+    root_models : list
         A list of the Probabilistic models corresponding to the observed datasets
-    loglikfuns : abcpy.approx_lhd.Approx_likelihood
-        Approx_loglikelihood object defining the approximated loglikelihood to be used.
-    kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling.
+    loglikfuns : list of abcpy.approx_lhd.Approx_likelihood
+        List of Approx_loglikelihood object defining the approximated loglikelihood to be used; one for each model.
     backend : abcpy.backends.Backend
         Backend object defining the backend to be used.
+    kernel : abcpy.perturbationkernel.PerturbationKernel, optional
+        PerturbationKernel object defining the perturbation kernel needed for the sampling. If not provided, the
+        DefaultKernel is used.
     seed : integer, optional
         Optional initial seed for the random number generator. The default value is generated randomly.
 
@@ -739,16 +743,16 @@ class PMC(BaseLikelihood, InferenceMethod):
         Parameters
         ----------
         observations : list
-            A list, containing lists describing the observed data sets
+            A list, containing lists describing the observed data sets; one for each model.
         steps : integer
-            number of iterations in the sequential algoritm ("generations")
+            number of iterations in the sequential algorithm ("generations")
         n_samples : integer, optional
             number of samples to generate. The default value is 10000.
         n_samples_per_param : integer, optional
             number of data points in each simulated data set. The default value is 100.
         covFactors : list of float, optional
             scaling parameter of the covariance matrix. The default is a p dimensional array of 1 when p is the
-            dimension of the parameter.
+            dimension of the parameter. One for each perturbation kernel.
         inipoints : numpy.ndarray, optional
             parameter vaulues from where the sampling starts. By default sampled from the prior.
         full_output: integer, optional
@@ -1069,14 +1073,16 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
     Parameters
     ----------
-    model : list
+    root_models: list
         A list of the Probabilistic models corresponding to the observed datasets
-    distance : abcpy.distances.Distance
-        Distance object defining the distance measure used to compare simulated and observed data sets.
-    kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling.
+    distances: list of abcpy.distances.Distance
+        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for
+        each model.
     backend : abcpy.backends.Backend
         Backend object defining the backend to be used.
+    kernel : abcpy.perturbationkernel.PerturbationKernel, optional
+        PerturbationKernel object defining the perturbation kernel needed for the sampling. If not provided, the
+        DefaultKernel is used.
     seed : integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
@@ -1129,9 +1135,9 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         Parameters
         ----------
         observations : list
-            A list, containing lists describing the observed data sets
+            A list, containing lists describing the observed data sets; one for each model.
         steps : integer
-            Number of maximum iterations in the sequential algoritm ("generations")
+            Number of maximum iterations in the sequential algorithm ("generations")
         epsilon : numpy.float
             A proposed value of threshold to start with.
         n_samples : integer, optional
@@ -1592,12 +1598,14 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
     ----------
     model : list
         A list of the Probabilistic models corresponding to the observed datasets
-    distance : abcpy.distances.Distance
-        Distance object defining the distance used to compare the simulated and observed data sets.
-    kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling.
+    distances: list of abcpy.distances.Distance
+        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for 
+        each model.
     backend : abcpy.backends.Backend
         Backend object defining the backend to be used.
+    kernel : abcpy.perturbationkernel.PerturbationKernel, optional
+        PerturbationKernel object defining the perturbation kernel needed for the sampling. If not provided, the
+        DefaultKernel is used.
     seed : integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
@@ -1648,9 +1656,9 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
         Parameters
         ----------
         observations : list
-            A list, containing lists describing the observed data sets
+            A list, containing lists describing the observed data sets; one for each model.
         steps : integer
-            Number of iterations in the sequential algoritm ("generations")
+            Number of iterations in the sequential algorithm ("generations")
         n_samples : integer, optional
             Number of samples to generate. The default value is 10000.
         n_samples_per_param : integer, optional
@@ -1991,12 +1999,14 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
     ----------
     model : list
         A list of the Probabilistic models corresponding to the observed datasets
-    distance : abcpy.distances.Distance
-        Distance object defining the distance measure used to compare simulated and observed data sets.
-    kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling.
+    distances: list of abcpy.distances.Distance
+        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for 
+        each model.
     backend : abcpy.backends.Backend
         Backend object defining the backend to be used.
+    kernel : abcpy.perturbationkernel.PerturbationKernel, optional
+        PerturbationKernel object defining the perturbation kernel needed for the sampling. If not provided, the
+        DefaultKernel is used.
     seed : integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
@@ -2053,9 +2063,9 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         Parameters
         ----------
         observations : list
-            A list, containing lists describing the observed data sets
+            A list, containing lists describing the observed data sets; one for each model.
         steps : integer
-            Number of iterations in the sequential algoritm ("generations")
+            Number of iterations in the sequential algorithm ("generations")
         n_samples : integer, optional
             Number of samples to generate. The default value is 10000.
         n_samples_per_param : integer, optional
@@ -2358,12 +2368,14 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
     ----------
     model : list
         A list of the Probabilistic models corresponding to the observed datasets
-    distance : abcpy.distances.Distance
-        Distance object defining the distance measure used to compare simulated and observed data sets.
-    kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling.
+    distances: list of abcpy.distances.Distance
+        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for 
+        each model.
     backend : abcpy.backends.Backend
         Backend object defining the backend to be used.
+    kernel : abcpy.perturbationkernel.PerturbationKernel, optional
+        PerturbationKernel object defining the perturbation kernel needed for the sampling. If not provided, the
+        DefaultKernel is used.
     seed : integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
@@ -2418,9 +2430,9 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
         Parameters
         ----------
         observations : list
-            A list, containing lists describing the observed data sets
+            A list, containing lists describing the observed data sets; one for each model.
         steps : integer
-            Number of iterations in the sequential algoritm ("generations")
+            Number of iterations in the sequential algorithm ("generations")
         n_samples : integer, optional
             Number of samples to generate. The default value is 10000.
         n_samples_per_param : integer, optional
@@ -2704,12 +2716,14 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
     ----------
     model : list
         A list of the Probabilistic models corresponding to the observed datasets
-    distance : abcpy.distances.Distance
-        Distance object defining the distance measure used to compare simulated and observed data sets.
-    kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling.
+    distances: list of abcpy.distances.Distance
+        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for
+        each model.
     backend : abcpy.backends.Backend
         Backend object defining the backend to be used.
+    kernel : abcpy.perturbationkernel.PerturbationKernel, optional
+        PerturbationKernel object defining the perturbation kernel needed for the sampling. If not provided, the
+        DefaultKernel is used.
     seed : integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
@@ -2763,7 +2777,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         Parameters
         ----------
         observations : list
-            A list, containing lists describing the observed data sets
+            A list, containing lists describing the observed data sets; one for each model.
         steps : integer
             Number of iterations in the sequential algorithm ("generations")
         n_samples : integer, optional
