@@ -7,7 +7,8 @@ from abcpy.backends import BackendDummy
 from abcpy.continuousmodels import Normal
 from abcpy.continuousmodels import Uniform
 from abcpy.distances import Euclidean
-from abcpy.inferences import RejectionABC, PMC, PMCABC, SABC, ABCsubsim, SMCABC, APMCABC, RSMCABC
+from abcpy.inferences import RejectionABC, PMC, PMCABC, SABC, ABCsubsim, SMCABC, APMCABC, RSMCABC, \
+    MCMCMetropoliHastings
 from abcpy.statistics import Identity
 
 
@@ -23,7 +24,7 @@ class RejectionABCTest(unittest.TestCase):
         self.model = Normal([mu, sigma])
 
         # define sufficient statistics for the model
-        stat_calc = Identity(degree=2, cross=0)
+        stat_calc = Identity(degree=2, cross=False)
 
         # define a distance function
         dist_calc = Euclidean(stat_calc)
@@ -65,7 +66,7 @@ class PMCTests(unittest.TestCase):
         self.model = Normal([mu, sigma])
 
         # define sufficient statistics for the model
-        stat_calc = Identity(degree=2, cross=0)
+        stat_calc = Identity(degree=2, cross=False)
 
         # create fake observed data
         # y_obs = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
@@ -119,6 +120,103 @@ class PMCTests(unittest.TestCase):
         self.assertFalse(journal.number_of_simulations == 0)
 
 
+class MCMCMetropoliHastingsTests(unittest.TestCase):
+    # test if MCMCMetropoliHastings works
+
+    def setUp(self):
+        # setup backend
+        self.backend = BackendDummy()
+
+        # define a uniform prior distribution
+        mu = Uniform([[-5.0], [5.0]], name='mu')
+        sigma = Uniform([[0.0], [10.0]], name='sigma')
+        # define a Gaussian model
+        self.model = Normal([mu, sigma])
+        self.model2 = Normal([mu, sigma])
+
+        # define sufficient statistics for the model
+        stat_calc = Identity(degree=2, cross=False)
+
+        # create fake observed data
+        # y_obs = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
+        self.y_obs = [np.array(9.8)]
+        self.y_obs2 = [np.array(3.4)]
+
+        # Define the likelihood function
+        self.likfun = SynLikelihood(stat_calc)
+        self.likfun2 = SynLikelihood(stat_calc)
+
+    def test_sample(self):
+        n_sample, n_samples_per_param = 50, 20
+
+        sampler = MCMCMetropoliHastings([self.model], [self.likfun], self.backend, seed=1)
+        journal = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None,
+                                 iniPoint=None, burnin=10, adapt_proposal_cov_interval=5, use_tqdm=False)
+        # without speedup_dummy
+        sampler = MCMCMetropoliHastings([self.model], [self.likfun], self.backend, seed=1)  # to reset seed
+        journal_repr = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None, use_tqdm=False,
+                                      iniPoint=None, speedup_dummy=False, burnin=10, adapt_proposal_cov_interval=5)
+        # Compute posterior mean
+        mu_post_mean_1, sigma_post_mean_1 = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
+        mu_post_mean_2, sigma_post_mean_2 = journal_repr.posterior_mean()['mu'], journal_repr.posterior_mean()['sigma']
+
+        self.assertAlmostEqual(mu_post_mean_1, 2.842670069775938)
+        self.assertAlmostEqual(mu_post_mean_2, - 0.6026616163262013)
+        self.assertAlmostEqual(sigma_post_mean_1, 7.751847159065067)
+        self.assertAlmostEqual(sigma_post_mean_2, 7.979056904457204)
+
+    def test_sample_two_models(self):
+        n_sample, n_samples_per_param = 50, 20
+
+        sampler = MCMCMetropoliHastings([self.model, self.model2], [self.likfun, self.likfun2], self.backend,
+                                        seed=1)
+        journal = sampler.sample([self.y_obs, self.y_obs2], n_sample, n_samples_per_param, cov_matrices=None,
+                                 iniPoint=None, burnin=10, adapt_proposal_cov_interval=5, use_tqdm=False)
+        # without speedup_dummy
+        sampler = MCMCMetropoliHastings([self.model, self.model2], [self.likfun, self.likfun2], self.backend,
+                                        seed=1)  # to reset seed
+        journal_repr = sampler.sample([self.y_obs, self.y_obs2], n_sample, n_samples_per_param, cov_matrices=None,
+                                      iniPoint=None, speedup_dummy=False, burnin=10, adapt_proposal_cov_interval=5,
+                                      use_tqdm=False)
+        # Compute posterior mean
+        mu_post_mean_1, sigma_post_mean_1 = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
+        mu_post_mean_2, sigma_post_mean_2 = journal_repr.posterior_mean()['mu'], journal_repr.posterior_mean()['sigma']
+
+        self.assertAlmostEqual(mu_post_mean_1, - 0.32869265430623623)
+        self.assertAlmostEqual(mu_post_mean_2, -1.0095854412936525)
+        self.assertAlmostEqual(sigma_post_mean_1, 6.230028011091974)
+        self.assertAlmostEqual(sigma_post_mean_2, 7.539268611159257)
+
+    def test_restart_from_journal(self):
+        for speedup_dummy in [True, False]:
+            # do at once:
+            n_sample, n_samples_per_param = 40, 20
+            sampler = MCMCMetropoliHastings([self.model], [self.likfun], self.backend, seed=1)
+            journal_at_once = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None,
+                                             iniPoint=None, speedup_dummy=speedup_dummy, burnin=20,
+                                             adapt_proposal_cov_interval=10, use_tqdm=False)
+            # do separate:
+            n_sample, n_samples_per_param = 20, 20
+            sampler = MCMCMetropoliHastings([self.model], [self.likfun], self.backend, seed=1)
+            journal = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None, iniPoint=None,
+                                     speedup_dummy=speedup_dummy, burnin=20, adapt_proposal_cov_interval=10,
+                                     use_tqdm=False)
+            journal.save("tmp.jnl")
+            journal_separate = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None,
+                                              iniPoint=None, journal_file="tmp.jnl", burnin=0,
+                                              speedup_dummy=speedup_dummy, use_tqdm=False)  # restart from this journal
+
+            self.assertEqual(journal_separate.configuration['n_samples'], journal_at_once.configuration['n_samples'])
+            self.assertEqual(journal_separate.number_of_simulations[-1], journal_at_once.number_of_simulations[-1])
+            self.assertEqual(journal_separate.acceptance_rates[-1], journal_at_once.acceptance_rates[-1])
+            self.assertEqual(len(journal_separate.get_parameters()), len(journal_at_once.get_parameters()))
+            self.assertEqual(len(journal_separate.get_parameters()['mu']), len(journal_at_once.get_parameters()['mu']))
+            self.assertEqual(len(journal_separate.get_accepted_parameters()),
+                             len(journal_at_once.get_accepted_parameters()))
+            self.assertEqual(journal_separate.get_weights().shape, journal_at_once.get_weights().shape)
+            self.assertEqual(journal_separate.posterior_mean()['mu'], journal_at_once.posterior_mean()['mu'])
+
+
 class PMCABCTests(unittest.TestCase):
     def setUp(self):
         # find spark and initialize it
@@ -132,7 +230,7 @@ class PMCABCTests(unittest.TestCase):
         self.model = Normal([mu, sigma])
 
         # define a distance function
-        stat_calc = Identity(degree=2, cross=0)
+        stat_calc = Identity(degree=2, cross=False)
         self.dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
@@ -282,7 +380,7 @@ class SABCTests(unittest.TestCase):
         self.model = Normal([mu, sigma])
 
         # define a distance function
-        stat_calc = Identity(degree=2, cross=0)
+        stat_calc = Identity(degree=2, cross=False)
         self.dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
@@ -345,7 +443,7 @@ class ABCsubsimTests(unittest.TestCase):
         self.model = Normal([mu, sigma])
 
         # define a distance function
-        stat_calc = Identity(degree=2, cross=0)
+        stat_calc = Identity(degree=2, cross=False)
         self.dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
@@ -409,7 +507,7 @@ class SMCABCTests(unittest.TestCase):
         self.model = Normal([mu, sigma])
 
         # define a distance function
-        stat_calc = Identity(degree=2, cross=0)
+        stat_calc = Identity(degree=2, cross=False)
         self.dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
@@ -564,7 +662,7 @@ class APMCABCTests(unittest.TestCase):
         self.model = Normal([mu, sigma])
 
         # define a distance function
-        stat_calc = Identity(degree=2, cross=0)
+        stat_calc = Identity(degree=2, cross=False)
         self.dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
@@ -627,7 +725,7 @@ class RSMCABCTests(unittest.TestCase):
         self.model = Normal([mu, sigma])
 
         # define a distance function
-        stat_calc = Identity(degree=2, cross=0)
+        stat_calc = Identity(degree=2, cross=False)
         self.dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
