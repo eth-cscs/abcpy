@@ -160,10 +160,10 @@ class MCMCMetropoliHastingsTests(unittest.TestCase):
         mu_post_mean_1, sigma_post_mean_1 = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
         mu_post_mean_2, sigma_post_mean_2 = journal_repr.posterior_mean()['mu'], journal_repr.posterior_mean()['sigma']
 
-        self.assertAlmostEqual(mu_post_mean_1, 2.842670069775938)
-        self.assertAlmostEqual(mu_post_mean_2, - 0.6026616163262013)
-        self.assertAlmostEqual(sigma_post_mean_1, 7.751847159065067)
-        self.assertAlmostEqual(sigma_post_mean_2, 7.979056904457204)
+        self.assertAlmostEqual(mu_post_mean_1, 3.735372456561986)
+        self.assertAlmostEqual(mu_post_mean_2, -0.6946660151693353)
+        self.assertAlmostEqual(sigma_post_mean_1, 5.751158868437219)
+        self.assertAlmostEqual(sigma_post_mean_2, 8.103358539327967)
 
     def test_sample_two_models(self):
         n_sample, n_samples_per_param = 50, 20
@@ -182,9 +182,9 @@ class MCMCMetropoliHastingsTests(unittest.TestCase):
         mu_post_mean_1, sigma_post_mean_1 = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
         mu_post_mean_2, sigma_post_mean_2 = journal_repr.posterior_mean()['mu'], journal_repr.posterior_mean()['sigma']
 
-        self.assertAlmostEqual(mu_post_mean_1, - 0.32869265430623623)
+        self.assertAlmostEqual(mu_post_mean_1, 0.1920594166217264)
         self.assertAlmostEqual(mu_post_mean_2, -1.0095854412936525)
-        self.assertAlmostEqual(sigma_post_mean_1, 6.230028011091974)
+        self.assertAlmostEqual(sigma_post_mean_1, 9.143353645946233)
         self.assertAlmostEqual(sigma_post_mean_2, 7.539268611159257)
 
     def test_restart_from_journal(self):

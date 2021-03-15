@@ -3671,7 +3671,15 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             self.logger.debug("Generate proposal")
 
             # perturb element 0 of accepted_parameters_manager.kernel_parameters_bds:
-            new_parameter = self.perturb(0, rng=self.rng)[1]
+            # new_parameter = self.perturb(0, rng=self.rng)[1]  # do not use this as it leads to some weird error.
+            # rather do:
+            new_parameters = self.kernel.update(self.accepted_parameters_manager, 0, rng=self.rng)
+
+            self._reset_flags()  # not sure whether this is needed, leave it anyway
+
+            # Order the parameters provided by the kernel in depth-first search order
+            new_parameter = self.get_correct_ordering(new_parameters)
+
             # for now we are only using a simple MVN proposal. For bounded parameter values, this is not great; we
             # could also implement a proposal on transformed space, which would be better.
             new_parameter_prior_pdf = self.pdf_of_prior(self.model, new_parameter)
@@ -3774,7 +3782,9 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
         theta = self.new_parameter_bds.value()
         # Simulate the fake data from the model given the parameter value theta
         self.logger.debug("Simulate model for parameter " + str(theta))
-        self.set_parameters(theta)
+        acc = self.set_parameters(theta)
+        if acc is False:
+            self.logger.debug("Parameter " + str(theta) + "has not been accepted")
         y_sim = self.simulate(1, rng=rng, npc=npc)
 
         return y_sim
@@ -3829,7 +3839,9 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             theta = new_parameter
             # Simulate the fake data from the model given the parameter value theta
             self.logger.debug("Simulate model for parameter " + str(theta))
-            self.set_parameters(theta)
+            acc = self.set_parameters(theta)
+            if acc is False:
+                self.logger.debug("Parameter " + str(theta) + "has not been accepted")
             simulations_from_new_parameter = self.simulate(n_samples_per_param=self.n_samples_per_param, rng=self.rng)
         else:
             self.logger.debug('parallelize simulations for fixed parameter value')
