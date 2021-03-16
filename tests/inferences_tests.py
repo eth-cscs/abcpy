@@ -208,7 +208,8 @@ class MCMCMetropoliHastingsTests(unittest.TestCase):
 
             self.assertEqual(journal_separate.configuration['n_samples'], journal_at_once.configuration['n_samples'])
             self.assertEqual(journal_separate.number_of_simulations[-1], journal_at_once.number_of_simulations[-1])
-            self.assertEqual(journal_separate.acceptance_rates[-1], journal_at_once.acceptance_rates[-1])
+            self.assertEqual(journal_separate.configuration["acceptance_rates"][-1],
+                             journal_at_once.configuration["acceptance_rates"][-1])
             self.assertEqual(len(journal_separate.get_parameters()), len(journal_at_once.get_parameters()))
             self.assertEqual(len(journal_separate.get_parameters()['mu']), len(journal_at_once.get_parameters()['mu']))
             self.assertEqual(len(journal_separate.get_accepted_parameters()),
