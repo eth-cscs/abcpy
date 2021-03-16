@@ -3531,7 +3531,7 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
         what suggested in [1], after each adapt_proposal_cov_interval steps. Differently from the original algorithm in
         [1], here the proposal covariance matrix is fixed after the end of the burnin steps.
 
-        The returned journal file contains also information on acceptance rates.
+        The returned journal file contains also information on acceptance rates (in the configuration dictionary).
 
         [1] Haario, H., Saksman, E., & Tamminen, J. (2001). An adaptive Metropolis algorithm. Bernoulli, 7(2), 223-242.
 
@@ -3590,7 +3590,6 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
         accepted_parameters_burnin = []
         if journal_file is None:
             journal = Journal(0)
-            journal.acceptance_rates = []
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
             journal.configuration["type_lhd_func"] = [type(likfun).__name__ for likfun in self.likfun.approx_lhds]
             journal.configuration["type_kernel_func"] = [type(kernel).__name__ for kernel in self.kernel.kernels] if \
@@ -3604,6 +3603,7 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             journal.configuration["covFactor"] = covFactor
             journal.configuration["speedup_dummy"] = speedup_dummy
             journal.configuration["use_tqdm"] = use_tqdm
+            journal.configuration["acceptance_rates"] = []
             # Initialize chain: when not supplied, randomly draw it from prior distribution
             # It is an MCMC chain: weights are always 1; forget about them
             # accepted_parameter will keep track of the chain position
@@ -3625,7 +3625,7 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             self.logger.info("Restarting from previous journal")
             journal = Journal.fromFile(journal_file)
             # this is used to compute the overall acceptance rate:
-            self.acceptance_rate = journal.acceptance_rates[-1] * journal.configuration["n_samples"]
+            self.acceptance_rate = journal.configuration["acceptance_rates"][-1] * journal.configuration["n_samples"]
             accepted_parameter = journal.get_accepted_parameters(-1)[-1]  # go on from last MCMC step
             journal.configuration["n_samples"] += self.n_samples  # add the total number of samples
             journal.configuration["burnin"] = burnin
@@ -3755,7 +3755,7 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
             journal.add_user_parameters(names_and_parameters)
         journal.number_of_simulations.append(self.simulation_counter)
-        journal.acceptance_rates.append(self.acceptance_rate)
+        journal.configuration["acceptance_rates"].append(self.acceptance_rate)
         journal.add_weights(np.ones((journal.configuration['n_samples'], 1)))
         # store the final loglik to be able to restart the journal correctly
         journal.final_step_loglik = approx_log_likelihood_accepted_parameter
