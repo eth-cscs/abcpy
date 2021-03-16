@@ -17,6 +17,7 @@ from abcpy.output import Journal
 from abcpy.perturbationkernel import DefaultKernel, JointPerturbationKernel
 from abcpy.probabilisticmodels import *
 from abcpy.utils import cached
+from abcpy.transformers import BoundedVarTransformer, DummyTransformer
 
 
 class InferenceMethod(GraphTools, metaclass=ABCMeta):
@@ -3496,12 +3497,16 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
         # We define the joint Sum of Loglikelihood functions using all the loglikelihoods for each individual models
         self.likfun = SumCombination(root_models, loglikfuns)
 
+        mapping, garbage_index = self._get_mapping()
+        models = []
+        self.parameter_names_with_index = {}
+        for mdl, mdl_index in mapping:
+            models.append(mdl)
+            self.parameter_names_with_index[mdl.name] = mdl_index  # dict storing param names with index
+
+        self.parameter_names = [model.name for model in models]  # store parameter names
+
         if kernel is None:
-            #
-            mapping, garbage_index = self._get_mapping()
-            models = []
-            for mdl, mdl_index in mapping:
-                models.append(mdl)
             kernel = DefaultKernel(models)
 
         self.kernel = kernel
@@ -3521,7 +3526,8 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, n_samples, n_samples_per_param=100, burnin=1000, cov_matrices=None, iniPoint=None,
-               adapt_proposal_cov_interval=100, covFactor=None, speedup_dummy=True, use_tqdm=True, journal_file=None):
+               adapt_proposal_cov_interval=100, covFactor=None, bounds=None, speedup_dummy=True, use_tqdm=True,
+               journal_file=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations. The MCMC is run for burnin + n_samples steps, and n_samples_per_param are used at each step
         to estimate the approximate loglikelihood. The burnin steps are then discarded from the chain stored in the
@@ -3530,6 +3536,12 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
         During burnin, the covariance matrix is adapted from the steps generated up to that point, in a way similar to
         what suggested in [1], after each adapt_proposal_cov_interval steps. Differently from the original algorithm in
         [1], here the proposal covariance matrix is fixed after the end of the burnin steps.
+
+        In case the original parameter space is bounded (for instance with uniform prior on an interval), the MCMC can
+        be optionally run on a transformed space. Therefore, the covariance matrix describes proposals on the
+        transformed space; the acceptance rate then takes into account the Jacobian of the transformation. In order to
+        use MCMC with transformed space, you need to specify lower and upper bounds in the corresponding parameters (see
+        details in the description of `bounds`).
 
         The returned journal file contains also information on acceptance rates (in the configuration dictionary).
 
@@ -3560,6 +3572,15 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             the factor by which to scale the empirical covariance matrix in order to obtain the covariance matrix for
             the proposal, whenever that is updated during the burnin steps. If not provided, we use the default value
             2.4 ** 2 / dim_theta suggested in [1].
+        bounds : dictionary, optional
+            dictionary containing the lower and upper bound for the transformation to be applied to the parameters. The
+            key of each entry is the name of the parameter as defined in the model, while the value if a tuple (or list)
+            with `(lower_bound, upper_bound)` content. If the parameter is bounded on one side only, the other bound
+            should be set to 'None'. If a parameter is not in this dictionary, no transformation is applied to it.
+            If a parameter is bounded on two sides, the used transformation is based on the logit. If conversely it is
+            lower bounded, we apply instead a log transformation. Notice that we do not implement yet the transformation
+            for upper bounded variables. If no value is provided, the default value is None, which means no
+            transformation at all is applied.
         speedup_dummy: boolean, optional.
             If set to True, the map function is not used to parallelize simulations (for the new parameter value) when
             the backend is Dummy. This can improve performance as it can exploit potential vectorization in the model.
@@ -3585,6 +3606,35 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
         self.speedup_dummy = speedup_dummy
         # we use this in all places which require a backend but which are not parallelized in MCMC:
         self.dummy_backend = BackendDummy()
+        dim = len(self.parameter_names)
+
+        if bounds is None:
+            # no transformation is performed
+            self.transformer = DummyTransformer()
+        else:
+            if not isinstance(bounds, dict):
+                raise TypeError("Argument `bounds` need to be a dictionary")
+            bounds_keys = bounds.keys()
+            for key in bounds_keys:
+                if key not in self.parameter_names:
+                    raise KeyError("The keys in argument `bounds` need to correspond to the parameter names used "
+                                   "in defining the model")
+                if not hasattr(bounds[key], "__len__") or len(bounds[key]) != 2:
+                    raise RuntimeError("Each entry in `bounds` need to be a tuple with 2 value, representing the lower "
+                                       "and upper bound of the corresponding parameter. If the parameter is bounded on "
+                                       "one side only, the other bound should be set to 'None'.")
+
+            # create lower_bounds and upper_bounds_vector:
+            lower_bound_transformer = np.array([None] * dim)
+            upper_bound_transformer = np.array([None] * dim)
+
+            for key in bounds_keys:
+                lower_bound_transformer[self.parameter_names_with_index[key]] = bounds[key][0]
+                upper_bound_transformer[self.parameter_names_with_index[key]] = bounds[key][1]
+
+            # initialize transformer:
+            self.transformer = BoundedVarTransformer(np.array(lower_bound_transformer),
+                                                     np.array(upper_bound_transformer))
 
         accepted_parameters = []
         accepted_parameters_burnin = []
@@ -3601,6 +3651,7 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             journal.configuration["iniPoint"] = iniPoint
             journal.configuration["adapt_proposal_cov_interval"] = adapt_proposal_cov_interval
             journal.configuration["covFactor"] = covFactor
+            journal.configuration["bounds"] = bounds
             journal.configuration["speedup_dummy"] = speedup_dummy
             journal.configuration["use_tqdm"] = use_tqdm
             journal.configuration["acceptance_rates"] = []
@@ -3634,6 +3685,7 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
                               "journal_file; the algorithm will still work fine.")
                 journal.configuration["n_samples_per_param"] = self.n_samples_per_param
             journal.configuration["cov_matrices"] = cov_matrices
+            journal.configuration["bounds"] = bounds  # overwrite
             if cov_matrices is None:  # use the previously stored one unless the user defines it
                 cov_matrices = journal.configuration["actual_cov_matrices"]
             journal.configuration["speedup_dummy"] = speedup_dummy
@@ -3641,13 +3693,17 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             self.simulation_counter = journal.number_of_simulations[-1]  # update the number of simulations
 
         if covFactor is None:
-            dim = len(self.get_parameters())
             covFactor = 2.4 ** 2 / dim
 
         accepted_parameter_prior_pdf = self.pdf_of_prior(self.model, accepted_parameter)
 
         # set the accepted parameter in the kernel (in order to correctly generate next proposal)
-        self._update_kernel_parameters(accepted_parameter)
+        # do this on transformed parameter
+        accepted_parameter_transformed = self.transformer.transform(accepted_parameter)
+        self._update_kernel_parameters(accepted_parameter_transformed)
+
+        # compute jacobian
+        log_det_jac_accepted_param = self.transformer.jac_log_det(accepted_parameter)
 
         # 3: calculate covariance
         self.logger.info("Set kernel covariance matrix ")
@@ -3673,12 +3729,15 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             # perturb element 0 of accepted_parameters_manager.kernel_parameters_bds:
             # new_parameter = self.perturb(0, rng=self.rng)[1]  # do not use this as it leads to some weird error.
             # rather do:
-            new_parameters = self.kernel.update(self.accepted_parameters_manager, 0, rng=self.rng)
+            new_parameters_transformed = self.kernel.update(self.accepted_parameters_manager, 0, rng=self.rng)
 
             self._reset_flags()  # not sure whether this is needed, leave it anyway
 
             # Order the parameters provided by the kernel in depth-first search order
-            new_parameter = self.get_correct_ordering(new_parameters)
+            new_parameter_transformed = self.get_correct_ordering(new_parameters_transformed)
+
+            # transform back
+            new_parameter = self.transformer.inverse_transform(new_parameter_transformed)
 
             # for now we are only using a simple MVN proposal. For bounded parameter values, this is not great; we
             # could also implement a proposal on transformed space, which would be better.
@@ -3697,18 +3756,25 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             approx_log_likelihood_new_parameter = self._simulate_and_compute_log_lik(new_parameter)
             self.simulation_counter += 1  # update the number of simulations
 
+            log_det_jac_new_param = self.transformer.jac_log_det(new_parameter)
+            # log_det_jac_accepted_param = self.transformer.jac_log_det(accepted_parameter)
+            log_jac_term = log_det_jac_accepted_param - log_det_jac_new_param
+
             # compute acceptance rate:
-            alpha = np.exp(approx_log_likelihood_new_parameter - approx_log_likelihood_accepted_parameter) * (
-                new_parameter_prior_pdf) / (accepted_parameter_prior_pdf)  # assumes symmetric kernel
+            alpha = np.exp(
+                log_jac_term + approx_log_likelihood_new_parameter - approx_log_likelihood_accepted_parameter) * (
+                        new_parameter_prior_pdf) / (accepted_parameter_prior_pdf)  # assumes symmetric kernel
 
             # Metropolis-Hastings step:
             if self.rng.uniform() < alpha:
                 # update param value and approx likelihood
+                accepted_parameter_transformed = new_parameter_transformed
                 accepted_parameter = new_parameter
                 approx_log_likelihood_accepted_parameter = approx_log_likelihood_new_parameter
                 accepted_parameter_prior_pdf = new_parameter_prior_pdf
+                log_det_jac_accepted_param = log_det_jac_new_param
                 # set the accepted parameter in the kernel (in order to correctly generate next proposal)
-                self._update_kernel_parameters(accepted_parameter)
+                self._update_kernel_parameters(accepted_parameter_transformed)
                 if aStep >= burnin:
                     self.acceptance_rate += 1
 
@@ -3792,7 +3858,7 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
     def _approx_log_lik_calc(self, y_sim, npc=None):
         """
         Compute likelihood for new parameters using approximate likelihood function
-        
+
         Parameters
         ----------
         y_sim: list
@@ -3813,18 +3879,18 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
         return loglhd
 
     def _simulate_and_compute_log_lik(self, new_parameter):
-        """Helper function which simulates data from `new_parameter` and computes the approximate loglikelihood. 
-        In case the backend is not BackendDummy (ie parallelization is available) this parallelizes the different 
+        """Helper function which simulates data from `new_parameter` and computes the approximate loglikelihood.
+        In case the backend is not BackendDummy (ie parallelization is available) this parallelizes the different
         simulations (which are all for the same parameter value).
-         
-        Notice that, according to the used model, spreading the simulations in different tasks can be more inefficient 
-        than using one single call, according to the level of vectorization that the model uses and the overhead 
-        associated. For this reason, we do not split the simulations in different tasks when the backend is 
-        BackendDummy. 
-        
+
+        Notice that, according to the used model, spreading the simulations in different tasks can be more inefficient
+        than using one single call, according to the level of vectorization that the model uses and the overhead
+        associated. For this reason, we do not split the simulations in different tasks when the backend is
+        BackendDummy.
+
         Parameters
         ----------
-        new_parameter  
+        new_parameter
             Parameter value from which to generate data with which to compute the approximate loglikelihood.
 
         Returns

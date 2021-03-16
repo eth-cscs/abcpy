@@ -146,6 +146,8 @@ class MCMCMetropoliHastingsTests(unittest.TestCase):
         self.likfun = SynLikelihood(stat_calc)
         self.likfun2 = SynLikelihood(stat_calc)
 
+        self.bounds = {"mu": [-5, 5], "sigma": (0, 10)}
+
     def test_sample(self):
         n_sample, n_samples_per_param = 50, 20
 
@@ -164,6 +166,30 @@ class MCMCMetropoliHastingsTests(unittest.TestCase):
         self.assertAlmostEqual(mu_post_mean_2, -0.6946660151693353)
         self.assertAlmostEqual(sigma_post_mean_1, 5.751158868437219)
         self.assertAlmostEqual(sigma_post_mean_2, 8.103358539327967)
+
+    def test_sample_with_transformer(self):
+        n_sample, n_samples_per_param = 50, 20
+
+        sampler = MCMCMetropoliHastings([self.model], [self.likfun], self.backend, seed=1)
+        journal = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None,
+                                 iniPoint=None, burnin=10, adapt_proposal_cov_interval=5, use_tqdm=False,
+                                 bounds=self.bounds)
+        # Compute posterior mean
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
+
+        self.assertAlmostEqual(mu_post_mean, 1.3797371606192235)
+        self.assertAlmostEqual(sigma_post_mean, 8.097776586316062)
+
+        # test raises correct errors:
+        with self.assertRaises(TypeError):
+            journal = sampler.sample([self.y_obs], n_sample, bounds=[0,1])
+        with self.assertRaises(KeyError):
+            journal = sampler.sample([self.y_obs], n_sample, bounds={"hello": (0,1)})
+        with self.assertRaises(RuntimeError):
+            journal = sampler.sample([self.y_obs], n_sample, bounds={"mu": (0)})
+        with self.assertRaises(RuntimeError):
+            journal = sampler.sample([self.y_obs], n_sample, bounds={"mu": (0,1,2)})
+
 
     def test_sample_two_models(self):
         n_sample, n_samples_per_param = 50, 20
@@ -216,6 +242,38 @@ class MCMCMetropoliHastingsTests(unittest.TestCase):
                              len(journal_at_once.get_accepted_parameters()))
             self.assertEqual(journal_separate.get_weights().shape, journal_at_once.get_weights().shape)
             self.assertEqual(journal_separate.posterior_mean()['mu'], journal_at_once.posterior_mean()['mu'])
+
+    def test_restart_from_journal_with_transformer(self):
+        for speedup_dummy in [True, False]:
+            # do at once:
+            n_sample, n_samples_per_param = 40, 20
+            sampler = MCMCMetropoliHastings([self.model], [self.likfun], self.backend, seed=1)
+            journal_at_once = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None,
+                                             iniPoint=None, speedup_dummy=speedup_dummy, burnin=20,
+                                             adapt_proposal_cov_interval=10, use_tqdm=False, bounds=self.bounds)
+            # do separate:
+            n_sample, n_samples_per_param = 20, 20
+            sampler = MCMCMetropoliHastings([self.model], [self.likfun], self.backend, seed=1)
+            journal = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None, iniPoint=None,
+                                     speedup_dummy=speedup_dummy, burnin=20, adapt_proposal_cov_interval=10,
+                                     use_tqdm=False, bounds=self.bounds)
+
+            journal.save("tmp.jnl")
+            journal_separate = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None,
+                                              iniPoint=None, journal_file="tmp.jnl", burnin=0,
+                                              speedup_dummy=speedup_dummy, use_tqdm=False,
+                                              bounds=self.bounds)  # restart from this journal
+
+            self.assertEqual(journal_separate.configuration['n_samples'], journal_at_once.configuration['n_samples'])
+            self.assertEqual(journal_separate.number_of_simulations[-1], journal_at_once.number_of_simulations[-1])
+            self.assertEqual(journal_separate.configuration["acceptance_rates"][-1],
+                             journal_at_once.configuration["acceptance_rates"][-1])
+            self.assertEqual(len(journal_separate.get_parameters()), len(journal_at_once.get_parameters()))
+            self.assertEqual(len(journal_separate.get_parameters()['mu']), len(journal_at_once.get_parameters()['mu']))
+            self.assertEqual(len(journal_separate.get_accepted_parameters()),
+                             len(journal_at_once.get_accepted_parameters()))
+            self.assertEqual(journal_separate.get_weights().shape, journal_at_once.get_weights().shape)
+            self.assertAlmostEqual(journal_separate.posterior_mean()['mu'], journal_at_once.posterior_mean()['mu'])
 
 
 class PMCABCTests(unittest.TestCase):
