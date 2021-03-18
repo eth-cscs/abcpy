@@ -3526,7 +3526,7 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, n_samples, n_samples_per_param=100, burnin=1000, cov_matrices=None, iniPoint=None,
-               adapt_proposal_cov_interval=100, covFactor=None, bounds=None, speedup_dummy=True, use_tqdm=True,
+               adapt_proposal_cov_interval=None, covFactor=None, bounds=None, speedup_dummy=True, use_tqdm=True,
                journal_file=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations. The MCMC is run for burnin + n_samples steps, and n_samples_per_param are used at each step
@@ -3567,11 +3567,21 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             is passed.
         adapt_proposal_cov_interval : integer, optional
             the proposal covariance matrix is adapted each adapt_cov_matrix steps during burnin, by using the chain up
-            to that point. If None, no adaptation is done.
+            to that point. If None, no adaptation is done. Default value is None. Use with care as, if the likelihood
+            estimate is very noisy, the adaptation may work pooly (see `covFactor` parameter).
         covFactor : float, optional
             the factor by which to scale the empirical covariance matrix in order to obtain the covariance matrix for
             the proposal, whenever that is updated during the burnin steps. If not provided, we use the default value
             2.4 ** 2 / dim_theta suggested in [1].
+            Notice that this value was shown to be optimal (at least in some
+            limit sense) in the case in which the likelihood is fully known. In the present case, in which the
+            likelihood is estimated from data, that value may turn out to be too large; specifically, if
+            the likelihood estimate is very noisy, that choice may lead to a very bad adaptation which may give rise
+            to an MCMC which does not explore the space well (for instance, the obtained covariance matrix may turn out
+            to be too small). If that happens, we suggest to set covFactor to a smaller value than the default one, in
+            which case the acceptance rate of the chain will likely be smaller but the exploration will be better.
+            Alternatively, it is possible to reduce the noise in the likelihood estimate by increasing
+            `n_samples_per_param`.
         bounds : dictionary, optional
             dictionary containing the lower and upper bound for the transformation to be applied to the parameters. The
             key of each entry is the name of the parameter as defined in the model, while the value if a tuple (or list)
