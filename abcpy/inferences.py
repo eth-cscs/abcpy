@@ -2770,8 +2770,9 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
         self.simulation_counter = 0
 
-    def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, epsilon_final=0.1, alpha=0.95,
-               covFactor=2, resample=None, which_mcmc_kernel=0, r=None, full_output=0, journal_file=None):
+    def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, epsilon_final=0.1, alpha=None,
+               covFactor=2, resample=None, full_output=0, which_mcmc_kernel=0, r=None, divergence=False,
+               journal_file=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -2789,14 +2790,17 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             The final threshold value of epsilon to be reached; if at some iteration you reach a lower epsilon than
             epsilon_final, the algorithm will stop and not proceed with further iterations. The default value is 0.1.
         alpha : float, optional
-            A parameter taking values between [0,1], determinining the rate of change of the threshold epsilon. The
-            default value is 0.95.
+            A parameter taking values between [0,1], determining the rate of change of the threshold epsilon. If
+            divergence is True, epsilon is chosen in order to guarantee a proportion of unique particles equal to alpha
+            after resampling. If divergence is False, epsilon is chosen such that the ESS (Effective Sample Size) with
+            the new threshold value is alpha times the ESS with the old threshold value. The default value is None,
+            in which case 0.95 is used if divergence is False, or 0.5 if divergence is True.
         covFactor : float, optional
             scaling parameter of the covariance matrix. The default value is 2.
         resample  : float, optional
             It defines the resample step: introduce a resample step, after the particles have been
-            perturbed and the new weights have been computed, if the effective sample size is smaller than resample. If
-            not provided, resample is set to 0.5 * n_samples.
+            perturbed and the new weights have been computed, if the effective sample size is smaller than resample.
+            Ignored if divergence is set to True. If not provided, resample is set to 0.5 * n_samples.
         full_output: integer, optional
             If full_output==1, intermediate results are included in output journal.
             The default value is 0, meaning the intermediate results are not saved.
@@ -2808,6 +2812,10 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             Specifies the value of 'r' (the number of wanted hits) in the r-hits kernels. It is therefore ignored if
             'which_mcmc_kernel==0'. If no value is provided, the first version of r-hit kernel uses r=3, while the
             second uses r=2. The default value is None.
+        divergence: boolean
+            Specifies which SMCABC sampler to be used: True uses the one suggested in [3], if False uses the one suggested
+            in [1]. More specifically, this computes directly the distance between datasets, while if divergence=False
+            it does some other stuff. The default is False.
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
@@ -2852,6 +2860,9 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         # Define the resample parameter
         if resample is None:
             resample = n_samples * 0.5
+
+        if alpha is None:
+            alpha = 0.5 if divergence else 0.95
 
         # Define maximum value of epsilon
         if not np.isinf(self.distance.dist_max()):
@@ -2903,13 +2914,29 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             if accepted_y_sim != None:
                 self.logger.info(
                     "Compute epsilon, might take a while; previous epsilon value: {:.4f}".format(epsilon[-1]))
-                # first compute the distances for the current set of parameters and observations
-                # (notice that may have already been done somewhere before!):
-                current_distance_matrix = self._compute_distance_matrix(observations, accepted_y_sim, n_samples,
-                                                                        n_samples_per_param)
-                fun = self._def_compute_epsilon(epsilon, accepted_weights, n_samples, current_distance_matrix,
-                                                alpha)
-                epsilon_new = self._bisection(fun, epsilon_final, epsilon[-1], 0.001)
+                if divergence:
+                    # for the divergence setup, the distances have already been computed before during the acceptance
+                    # step. This however holds only when the r-hit kernels are used
+
+                    # first compute the distances for the current set of parameters and observations
+                    # (notice that may have already been done somewhere before!):
+                    # current_distance_matrix = self._compute_distance_matrix_divergence(observations, accepted_y_sim,
+                    #                                                                   n_samples)
+                    # assert np.allclose(current_distance_matrix, distances)
+                    current_distance_matrix = distances
+
+                    # Compute epsilon for next step
+                    fun = self._def_compute_epsilon_divergence_unique_particles(n_samples,
+                                                                                current_distance_matrix, alpha)
+                    epsilon_new = self._bisection(fun, epsilon_final, epsilon[-1], 0.001)
+                else:
+                    # first compute the distances for the current set of parameters and observations
+                    # (notice that may have already been done somewhere before!):
+                    current_distance_matrix = self._compute_distance_matrix(observations, accepted_y_sim, n_samples,
+                                                                            n_samples_per_param)
+                    fun = self._def_compute_epsilon(epsilon, accepted_weights, n_samples, current_distance_matrix,
+                                                    alpha)
+                    epsilon_new = self._bisection(fun, epsilon_final, epsilon[-1], 0.001)
                 if epsilon_new < epsilon_final:
                     epsilon_new = epsilon_final
                 epsilon.append(epsilon_new)
@@ -2917,21 +2944,25 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             # 1: calculate weights for new parameters
             self.logger.info("Calculating weights")
             if accepted_y_sim is not None:
-                numerators = np.sum(current_distance_matrix < epsilon[-1], axis=1)
-                denominators = np.sum(current_distance_matrix < epsilon[-2], axis=1)
+                if divergence:
+                    new_weights = (current_distance_matrix < epsilon[-1]) * 1
+                else:
+                    numerators = np.sum(current_distance_matrix < epsilon[-1], axis=1)
+                    denominators = np.sum(current_distance_matrix < epsilon[-2], axis=1)
 
-                non_zero_denominator = denominators != 0
-                new_weights = np.zeros(shape=n_samples)
+                    non_zero_denominator = denominators != 0
+                    new_weights = np.zeros(shape=n_samples)
 
-                new_weights[non_zero_denominator] = accepted_weights.flatten()[non_zero_denominator] * (
-                        numerators[non_zero_denominator] / denominators[non_zero_denominator])
+                    new_weights[non_zero_denominator] = accepted_weights.flatten()[non_zero_denominator] * (
+                            numerators[non_zero_denominator] / denominators[non_zero_denominator])
 
                 new_weights = new_weights / sum(new_weights)
             else:
                 new_weights = np.ones(shape=n_samples, ) * (1.0 / n_samples)
-
-            # 2: Resample
-            if accepted_y_sim is not None and pow(sum(pow(new_weights, 2)), -1) < resample:
+            # 2: Resample; we resample always when using the divergence, as in that case weights can only be
+            # proportional to 1 or 0; if not divergence, instead, the weights can have fractional values -> use the
+            # resample threshold
+            if accepted_y_sim is not None and (divergence or pow(sum(pow(new_weights, 2)), -1) < resample):
                 self.logger.info("Resampling")
                 # Weighted resampling:
                 index_resampled = self.rng.choice(n_samples, n_samples, replace=True, p=new_weights)
@@ -3023,6 +3054,13 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                         distance_matrix[ind1, ind2]))
         return distance_matrix
 
+    def _compute_distance_matrix_divergence(self, observations, accepted_y_sim, n_samples):
+        distance_matrix = np.zeros(n_samples)
+        for ind1 in range(n_samples):
+            distance_matrix[ind1] = self.distance.distance(observations, [accepted_y_sim[ind1][0]])
+            self.logger.debug('Computed distance matrix for weights:' + str(distance_matrix[ind1]))
+        return distance_matrix
+
     @staticmethod
     def _def_compute_epsilon(epsilon, accepted_weights, n_samples, distance_matrix, alpha):
         """
@@ -3092,6 +3130,45 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             return result
 
         return _compute_epsilon
+
+    def _def_compute_epsilon_divergence_unique_particles(self, n_samples, distance_matrix, alpha):
+        """
+        Parameters
+        ----------
+        n_samples: integer
+            Number of samples to generate.
+        alpha: float
+
+        Returns
+        -------
+        callable
+            The function used in the bisection routine
+        """
+
+        def _compute_epsilon_divergence_unique_particles(epsilon_new):
+            """
+            Parameters
+            ----------
+            epsilon_new: float
+                New value for epsilon.
+            Returns
+            -------
+            float
+                proportion of unique particles after resampling
+            """
+            new_weights = (distance_matrix < epsilon_new) * 1
+            self.logger.debug('New weights:' + str(new_weights))
+            if sum(new_weights) != 0:
+                new_weights = new_weights / sum(new_weights)
+                rng = np.random.RandomState(1)  # this fixes the randomness across iterations; it makes sense therefore
+                # Here we want a proportion of unique particles equal to alpha after resampling
+                result = (len(
+                    np.unique(rng.choice(n_samples, n_samples, replace=True, p=new_weights))) / n_samples) - alpha
+            else:
+                result = - alpha
+            return result
+
+        return _compute_epsilon_divergence_unique_particles
 
     def _bisection(self, func, low, high, tol):
         # cache computed values, as we call func below
