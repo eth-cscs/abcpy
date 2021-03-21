@@ -440,6 +440,7 @@ class SABCTests(unittest.TestCase):
         # define a distance function
         stat_calc = Identity(degree=2, cross=False)
         self.dist_calc = Euclidean(stat_calc)
+        self.dist_calc_mmd = MMD(stat_calc, biased_estimator=False)
 
         # create fake observed data
         # self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
@@ -487,6 +488,10 @@ class SABCTests(unittest.TestCase):
         self.assertLess(sigma_post_mean - 7.03987723, 10e-2)
 
         self.assertFalse(journal.number_of_simulations == 0)
+
+        # check whether it raises the correct error with MMD:
+        with self.assertRaises(RuntimeError):
+            sampler = SABC([self.model], [self.dist_calc_mmd], self.backend, seed=1)
 
 
 class ABCsubsimTests(unittest.TestCase):

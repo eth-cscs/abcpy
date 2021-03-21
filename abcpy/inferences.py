@@ -1108,6 +1108,12 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         # We define the joint Linear combination distance using all the distances for each individual models
         self.distance = LinearCombination(root_models, distances)
 
+        # check if the distance estimators are always positive
+        if np.any([isinstance(distance, Divergence) and not distance._estimate_always_positive()
+                   for distance in distances]):
+            raise RuntimeError("SABC does not work with estimates of divergences which may be negative. Use another "
+                               "inference algorithm or a different estimator.")
+
         if kernel is None:
 
             mapping, garbage_index = self._get_mapping()
