@@ -142,7 +142,12 @@ class Divergence(Distance, metaclass=ABCMeta):
     """This is an abstract class which subclasses Distance, and is used as a parent class for all divergence
     estimators; more specifically, it is used for all Distances which compare the empirical distribution of simulations
     and observations."""
-    pass
+
+    @abstractmethod
+    def _estimate_always_positive(self):
+        """This returns whether the implemented divergence always returns positive values or not. In fact, some 
+        estimators may return negative values, which may break some inference algorithms"""
+        raise NotImplementedError
 
 
 class Euclidean(Distance):
@@ -150,16 +155,16 @@ class Euclidean(Distance):
     This class implements the Euclidean distance between two vectors.
 
     The maximum value of the distance is np.inf.
+
+    Parameters
+    ----------
+    statistics_calc : abcpy.statistics.Statistics
+        Statistics extractor object that conforms to the Statistics class.
+
     """
 
-    def __init__(self, statistics):
-        """
-        Parameters
-        ----------
-        statistics_calc : abcpy.statistics.Statistics
-            Statistics extractor object that conforms to the Statistics class.
-        """
-        super(Euclidean, self).__init__(statistics)
+    def __init__(self, statistics_calc):
+        super(Euclidean, self).__init__(statistics_calc)
 
     def distance(self, d1, d2):
         """Calculates the distance between two datasets, by computing Euclidean distance between each element of d1 and
@@ -214,16 +219,15 @@ class PenLogReg(Divergence):
     [2] Friedman, J., Hastie, T., and Tibshirani, R. (2010). Regularization
     paths for generalized linear models via coordinate descent. Journal of Statistical
     Software, 33(1), 1–22.
+
+    Parameters
+    ----------
+    statistics_calc : abcpy.statistics.Statistics
+        Statistics extractor object that conforms to the Statistics class.
     """
 
-    def __init__(self, statistics):
-        """
-        Parameters
-        ----------
-        statistics_calc : abcpy.statistics.Statistics
-            Statistics extractor object that conforms to the Statistics class.
-        """
-        super(PenLogReg, self).__init__(statistics)
+    def __init__(self, statistics_calc):
+        super(PenLogReg, self).__init__(statistics_calc)
 
         self.n_folds = 10  # for cross validation in PenLogReg
 
@@ -275,6 +279,9 @@ class PenLogReg(Divergence):
         """
         return 1.0
 
+    def _estimate_always_positive(self):
+        return False
+
 
 class LogReg(Divergence):
     """This class implements a distance measure based on the classification
@@ -285,20 +292,18 @@ class LogReg(Divergence):
 
     [1] Gutmann, M. U., Dutta, R., Kaski, S., & Corander, J. (2018). Likelihood-free inference via classification.
     Statistics and Computing, 28(2), 411-425.
+
+    Parameters
+    ----------
+    statistics_calc : abcpy.statistics.Statistics
+        Statistics extractor object that conforms to the Statistics class.
+    seed : integer, optionl
+        Seed used to initialize the Random Numbers Generator used to determine the (random) cross validation split
+        in the Logistic Regression classifier.
     """
 
-    def __init__(self, statistics, seed=None):
-        """
-        Parameters
-        ----------
-        statistics_calc : abcpy.statistics.Statistics
-            Statistics extractor object that conforms to the Statistics class.
-        seed : integer, optionl
-            Seed used to initialize the Random Numbers Generator used to determine the (random) cross validation split
-            in the Logistic Regression classifier.
-        """
-
-        super(LogReg, self).__init__(statistics)
+    def __init__(self, statistics_calc, seed=None):
+        super(LogReg, self).__init__(statistics_calc)
         # seed is used for a RandomState for the random split in the LogisticRegression classifier:
         self.rng = np.random.RandomState(seed=seed)
 
@@ -343,133 +348,11 @@ class LogReg(Divergence):
         """
         return 1.0
 
-
-# the following two functions are taken from
-# https://github.com/PythonOT/POT/blob/78b44af2434f494c8f9e4c8c91003fbc0e1d4415/ot/sliced.py
-# Author: Adrien Corenflos <adrien.corenflos@aalto.fi>
-#
-# License: MIT License
-
-def get_random_projections(n_projections, d, seed=None):
-    r"""
-    Generates n_projections samples from the uniform on the unit sphere of dimension d-1: :math:`\mathcal{U}(\mathcal{S}^{d-1})`
-    Parameters
-    ----------
-    n_projections : int
-        number of samples requested
-    d : int
-        dimension of the space
-    seed: int or RandomState, optional
-        Seed used for numpy random number generator
-    Returns
-    -------
-    out: ndarray, shape (n_projections, d)
-        The uniform unit vectors on the sphere
-    Examples
-    --------
-    >>> n_projections = 100
-    >>> d = 5
-    >>> projs = get_random_projections(n_projections, d)
-    >>> np.allclose(np.sum(np.square(projs), 1), 1.)  # doctest: +NORMALIZE_WHITESPACE
-    True
-    """
-
-    if not isinstance(seed, np.random.RandomState):
-        random_state = np.random.RandomState(seed)
-    else:
-        random_state = seed
-
-    projections = random_state.normal(0., 1., [n_projections, d])
-    norm = np.linalg.norm(projections, ord=2, axis=1, keepdims=True)
-    projections = projections / norm
-    return projections
+    def _estimate_always_positive(self):
+        return False
 
 
-def sliced_wasserstein_distance(X_s, X_t, a=None, b=None, n_projections=50, seed=None, log=False):
-    r"""
-    Computes a Monte-Carlo approximation of the 2-Sliced Wasserstein distance
-    .. math::
-        \mathcal{SWD}_2(\mu, \nu) = \underset{\theta \sim \mathcal{U}(\mathbb{S}^{d-1})}{\mathbb{E}}[\mathcal{W}_2^2(\theta_\# \mu, \theta_\# \nu)]^{\frac{1}{2}}
-    where :
-    - :math:`\theta_\# \mu` stands for the pushforwars of the projection :math:`\mathbb{R}^d \ni X \mapsto \langle \theta, X \rangle`
-    Parameters
-    ----------
-    X_s : ndarray, shape (n_samples_a, dim)
-        samples in the source domain
-    X_t : ndarray, shape (n_samples_b, dim)
-        samples in the target domain
-    a : ndarray, shape (n_samples_a,), optional
-        samples weights in the source domain
-    b : ndarray, shape (n_samples_b,), optional
-        samples weights in the target domain
-    n_projections : int, optional
-        Number of projections used for the Monte-Carlo approximation
-    seed: int or RandomState or None, optional
-        Seed used for numpy random number generator
-    log: bool, optional
-        if True, sliced_wasserstein_distance returns the projections used and their associated EMD.
-    Returns
-    -------
-    cost: float
-        Sliced Wasserstein Cost
-    log : dict, optional
-        log dictionary return only if log==True in parameters
-    Examples
-    --------
-    >>> n_samples_a = 20
-    >>> reg = 0.1
-    >>> X = np.random.normal(0., 1., (n_samples_a, 5))
-    >>> sliced_wasserstein_distance(X, X, seed=0)  # doctest: +NORMALIZE_WHITESPACE
-    0.0
-    References
-    ----------
-    .. [31] Bonneel, Nicolas, et al. "Sliced and radon wasserstein barycenters of measures." Journal of Mathematical Imaging and Vision 51.1 (2015): 22-45
-    """
-    from ot.lp import emd2_1d
-
-    X_s = np.asanyarray(X_s)
-    X_t = np.asanyarray(X_t)
-
-    n = X_s.shape[0]
-    m = X_t.shape[0]
-
-    if X_s.shape[1] != X_t.shape[1]:
-        raise ValueError(
-            "X_s and X_t must have the same number of dimensions {} and {} respectively given".format(X_s.shape[1],
-                                                                                                      X_t.shape[1]))
-
-    if a is None:
-        a = np.full(n, 1 / n)
-    if b is None:
-        b = np.full(m, 1 / m)
-
-    d = X_s.shape[1]
-
-    projections = get_random_projections(n_projections, d, seed)
-
-    X_s_projections = np.dot(projections, X_s.T)
-    X_t_projections = np.dot(projections, X_t.T)
-
-    if log:
-        projected_emd = np.empty(n_projections)
-    else:
-        projected_emd = None
-
-    res = 0.
-
-    for i, (X_s_proj, X_t_proj) in enumerate(zip(X_s_projections, X_t_projections)):
-        emd = emd2_1d(X_s_proj, X_t_proj, a, b, log=False, dense=False)
-        if projected_emd is not None:
-            projected_emd[i] = emd
-        res += emd
-
-    res = (res / n_projections) ** 0.5
-    if log:
-        return res, {"projections": projections, "projected_emds": projected_emd}
-    return res
-
-
-class SlicedWasserstein(Divergence):
+class Wasserstein(Divergence):
     """This class implements a distance measure based on the 2-Wasserstein distance, as used in [1]. This considers the
     several simulations/observations in the datasets as iid samples from the model for a fixed parameter value/from the
     data generating model, and computes the 2-Wasserstein distance between the empirical distributions those
@@ -477,84 +360,25 @@ class SlicedWasserstein(Divergence):
 
     [1] Bernton, E., Jacob, P.E., Gerber, M. and Robert, C.P. (2019), Approximate Bayesian computation with the
     Wasserstein distance. J. R. Stat. Soc. B, 81: 235-269. doi:10.1111/rssb.12312
+
+    Parameters
+    ----------
+    statistics_calc : abcpy.statistics.Statistics
+        Statistics extractor object that conforms to the Statistics class.
+    num_iter_max : integer, optional
+        The maximum number of iterations in the linear programming algorithm to estimate the Wasserstein distance.
+        Default to 100000.
+
     """
 
-    def __init__(self, statistics, n_projections=50, rng=np.random.RandomState()):
-        """
-        Parameters
-        ----------
-        statistics_calc : abcpy.statistics.Statistics
-            Statistics extractor object that conforms to the Statistics class.
-        num_iter_max : integer, optional
-            The maximum number of iterations in the linear programming algorithm to estimate the Wasserstein distance.
-            Default to 100000.
-        """
-
-        super(SlicedWasserstein, self).__init__(statistics)
-
-        self.n_projections = n_projections
-        self.rng = rng
-
-    def distance(self, d1, d2):
-        """Calculates the distance between two datasets.
-
-        Parameters
-        ----------
-        d1: Python list
-            Contains n1 data points.
-        d2: Python list
-            Contains n2 data points.
-
-        Returns
-        -------
-        numpy.float
-            The distance between the two input data sets.
-        """
-        s1, s2 = self._calculate_summary_stat(d1, d2)
-
-        # compute the Wasserstein distance between the empirical distributions:
-        return sliced_wasserstein_distance(X_s=s1, X_t=s2, n_projections=self.n_projections, seed=self.rng)
-
-    def dist_max(self):
-        """
-        Returns
-        -------
-        numpy.float
-            The maximal possible value of the desired distance function.
-        """
-
-        # As the statistics are positive, the max possible value is 1
-        return np.inf
-
-
-class Wasserstein(Divergence):
-    """This class implements a distance measure based on the 2-Wasserstein distance, as used in [1]. This considers the 
-    several simulations/observations in the datasets as iid samples from the model for a fixed parameter value/from the 
-    data generating model, and computes the 2-Wasserstein distance between the empirical distributions those 
-    simulations/observations define.  
-
-    [1] Bernton, E., Jacob, P.E., Gerber, M. and Robert, C.P. (2019), Approximate Bayesian computation with the
-    Wasserstein distance. J. R. Stat. Soc. B, 81: 235-269. doi:10.1111/rssb.12312
-    """
-
-    def __init__(self, statistics, num_iter_max=100000):
-        """
-        Parameters
-        ----------
-        statistics_calc : abcpy.statistics.Statistics
-            Statistics extractor object that conforms to the Statistics class.
-        num_iter_max : integer, optional
-            The maximum number of iterations in the linear programming algorithm to estimate the Wasserstein distance.
-            Default to 100000.
-        """
-
-        super(Wasserstein, self).__init__(statistics)
+    def __init__(self, statistics_calc, num_iter_max=100000):
+        super(Wasserstein, self).__init__(statistics_calc)
 
         self.num_iter_max = num_iter_max
 
     def distance(self, d1, d2):
         """Calculates the distance between two datasets.
-        
+
         Parameters
         ----------
         d1: Python list
@@ -583,25 +407,223 @@ class Wasserstein(Divergence):
         # As the statistics are positive, the max possible value is 1
         return np.inf
 
+    def _estimate_always_positive(self):
+        return True
 
-class GammaDivergence(Divergence):
-    """ This considers the
-    several simulations/observations in the datasets as iid samples from the model for a fixed parameter value/from the
-    data generating model, and computes the 2-Wasserstein distance between the empirical distributions those
-    simulations/observations define.
 
-    Need to understand here the role of gam.
+class SlicedWasserstein(Divergence):
+    """This class implements a distance measure based on the sliced 2-Wasserstein distance, as used in [1].
+    This considers the several simulations/observations in the datasets as iid samples from the model for a fixed
+    parameter value/from the data generating model, and computes the sliced 2-Wasserstein distance between the
+    empirical distributions those simulations/observations define. Specifically, the sliced Wasserstein distance
+    is a cheaper version of the Wasserstein distance which consists of projecting the multivariate data on 1d directions
+    and computing the 1d Wasserstein distance, which is computationally cheap. The resulting sliced Wasserstein
+    distance is obtained by averaging over a given number of projections.
+
+    [1] Nadjahi, K., De Bortoli, V., Durmus, A., Badeau, R., & Şimşekli, U. (2020, May). Approximate bayesian
+    computation with the sliced-wasserstein distance. In ICASSP 2020-2020 IEEE International Conference on Acoustics,
+    Speech and Signal Processing (ICASSP) (pp. 5470-5474). IEEE.
+
+    Parameters
+    ----------
+    statistics_calc : abcpy.statistics.Statistics
+        Statistics extractor object that conforms to the Statistics class.
+    n_projections : int, optional
+        Number of 1d projections used for estimating the sliced Wasserstein distance. Default value is 50.
+    rng : np.random.RandomState, optional
+        random number generators used to generate the projections. If not provided, a new one is instantiated.
     """
 
-    def __init__(self, statistics, k=1, gam=0.1):
-        """
+    def __init__(self, statistics_calc, n_projections=50, rng=np.random.RandomState()):
+        super(SlicedWasserstein, self).__init__(statistics_calc)
+
+        self.n_projections = n_projections
+        self.rng = rng
+
+    def distance(self, d1, d2):
+        """Calculates the distance between two datasets.
+
         Parameters
         ----------
-        statistics_calc : abcpy.statistics.Statistics
-            Statistics extractor object that conforms to the Statistics class.
+        d1: Python list
+            Contains n1 data points.
+        d2: Python list
+            Contains n2 data points.
+
+        Returns
+        -------
+        numpy.float
+            The distance between the two input data sets.
+        """
+        s1, s2 = self._calculate_summary_stat(d1, d2)
+
+        # compute the Wasserstein distance between the empirical distributions:
+        return self.sliced_wasserstein_distance(X_s=s1, X_t=s2, n_projections=self.n_projections, seed=self.rng)
+
+    def dist_max(self):
+        """
+        Returns
+        -------
+        numpy.float
+            The maximal possible value of the desired distance function.
         """
 
-        super(GammaDivergence, self).__init__(statistics)
+        # As the statistics are positive, the max possible value is 1
+        return np.inf
+
+    def _estimate_always_positive(self):
+        return True
+
+    # the following two functions are taken from
+    # https://github.com/PythonOT/POT/blob/78b44af2434f494c8f9e4c8c91003fbc0e1d4415/ot/sliced.py
+    # Author: Adrien Corenflos <adrien.corenflos@aalto.fi>
+    #
+    # License: MIT License
+    @staticmethod
+    def get_random_projections(n_projections, d, seed=None):
+        r"""
+        Generates n_projections samples from the uniform on the unit sphere of dimension d-1: :math:`\mathcal{U}(\mathcal{S}^{d-1})`
+        Parameters
+        ----------
+        n_projections : int
+            number of samples requested
+        d : int
+            dimension of the space
+        seed: int or RandomState, optional
+            Seed used for numpy random number generator
+        Returns
+        -------
+        out: ndarray, shape (n_projections, d)
+            The uniform unit vectors on the sphere
+        Examples
+        --------
+        >>> n_projections = 100
+        >>> d = 5
+        >>> projs = get_random_projections(n_projections, d)
+        >>> np.allclose(np.sum(np.square(projs), 1), 1.)  # doctest: +NORMALIZE_WHITESPACE
+        True
+        """
+
+        if not isinstance(seed, np.random.RandomState):
+            random_state = np.random.RandomState(seed)
+        else:
+            random_state = seed
+
+        projections = random_state.normal(0., 1., [n_projections, d])
+        norm = np.linalg.norm(projections, ord=2, axis=1, keepdims=True)
+        projections = projections / norm
+        return projections
+
+    def sliced_wasserstein_distance(self, X_s, X_t, a=None, b=None, n_projections=50, seed=None, log=False):
+        r"""
+        Computes a Monte-Carlo approximation of the 2-Sliced Wasserstein distance
+        .. math::
+            \mathcal{SWD}_2(\mu, \nu) = \underset{\theta \sim \mathcal{U}(\mathbb{S}^{d-1})}{\mathbb{E}}[\mathcal{W}_2^2(\theta_\# \mu, \theta_\# \nu)]^{\frac{1}{2}}
+        where :
+        - :math:`\theta_\# \mu` stands for the pushforwars of the projection :math:`\mathbb{R}^d \ni X \mapsto \langle \theta, X \rangle`
+        Parameters
+        ----------
+        X_s : ndarray, shape (n_samples_a, dim)
+            samples in the source domain
+        X_t : ndarray, shape (n_samples_b, dim)
+            samples in the target domain
+        a : ndarray, shape (n_samples_a,), optional
+            samples weights in the source domain
+        b : ndarray, shape (n_samples_b,), optional
+            samples weights in the target domain
+        n_projections : int, optional
+            Number of projections used for the Monte-Carlo approximation
+        seed: int or RandomState or None, optional
+            Seed used for numpy random number generator
+        log: bool, optional
+            if True, sliced_wasserstein_distance returns the projections used and their associated EMD.
+        Returns
+        -------
+        cost: float
+            Sliced Wasserstein Cost
+        log : dict, optional
+            log dictionary return only if log==True in parameters
+        Examples
+        --------
+        >>> n_samples_a = 20
+        >>> reg = 0.1
+        >>> X = np.random.normal(0., 1., (n_samples_a, 5))
+        >>> sliced_wasserstein_distance(X, X, seed=0)  # doctest: +NORMALIZE_WHITESPACE
+        0.0
+        References
+        ----------
+        .. [31] Bonneel, Nicolas, et al. "Sliced and radon wasserstein barycenters of measures." Journal of Mathematical Imaging and Vision 51.1 (2015): 22-45
+        """
+        from ot.lp import emd2_1d
+
+        X_s = np.asanyarray(X_s)
+        X_t = np.asanyarray(X_t)
+
+        n = X_s.shape[0]
+        m = X_t.shape[0]
+
+        if X_s.shape[1] != X_t.shape[1]:
+            raise ValueError(
+                "X_s and X_t must have the same number of dimensions {} and {} respectively given".format(X_s.shape[1],
+                                                                                                          X_t.shape[1]))
+
+        if a is None:
+            a = np.full(n, 1 / n)
+        if b is None:
+            b = np.full(m, 1 / m)
+
+        d = X_s.shape[1]
+
+        projections = self.get_random_projections(n_projections, d, seed)
+
+        X_s_projections = np.dot(projections, X_s.T)
+        X_t_projections = np.dot(projections, X_t.T)
+
+        if log:
+            projected_emd = np.empty(n_projections)
+        else:
+            projected_emd = None
+
+        res = 0.
+
+        for i, (X_s_proj, X_t_proj) in enumerate(zip(X_s_projections, X_t_projections)):
+            emd = emd2_1d(X_s_proj, X_t_proj, a, b, log=False, dense=False)
+            if projected_emd is not None:
+                projected_emd[i] = emd
+            res += emd
+
+        res = (res / n_projections) ** 0.5
+        if log:
+            return res, {"projections": projections, "projected_emds": projected_emd}
+        return res
+
+
+class GammaDivergence(Divergence):
+    """
+    This implements an empirical estimator of the gamma-divergence for ABC as suggested in [1]. In [1], the
+    gamma-divergence was proposed as a divergence which is robust to outliers. The estimator is based on a nearest
+    neighbor density estimate.
+    Specifically, this considers the
+    several simulations/observations in the datasets as iid samples from the model for a fixed parameter value/from the
+    data generating model, and estimates the divergence between the empirical distributions those
+    simulations/observations define.
+
+    [1] Fujisawa, M., Teshima, T., & Sato, I. (2020). $\gamma $-ABC: Outlier-Robust Approximate Bayesian Computation
+    based on Robust Divergence Estimator. arXiv preprint arXiv:2006.07571.
+
+    Parameters
+    ----------
+    statistics_calc : abcpy.statistics.Statistics
+        Statistics extractor object that conforms to the Statistics class.
+    k : int, optional
+        nearest neighbor number for the density estimate. Default value is 1
+    gam : float, optional
+        the gamma parameter in the definition of the divergence. Default value is 0.1
+
+    """
+
+    def __init__(self, statistics_calc, k=1, gam=0.1):
+        super(GammaDivergence, self).__init__(statistics_calc)
 
         self.k = k  # number of nearest neighbors used in the estimation algorithm
         self.gam = gam
@@ -701,26 +723,32 @@ class GammaDivergence(Divergence):
         D = (1 / (gam * (gam + 1))) * (np.log((second_term * third_term) / fourth_term))
         return D
 
+    def _estimate_always_positive(self):
+        return False
+
 
 class KLDivergence(Divergence):
-    """ This considers the
-        several simulations/observations in the datasets as iid samples from the model for a fixed parameter value/from the
-        data generating model, and computes the 2-Wasserstein distance between the empirical distributions those
-        simulations/observations define.
+    """
+    This implements an empirical estimator of the KL divergence for ABC as suggested in [1]. The estimator is based
+    on a nearest neighbor density estimate.
+    Specifically, this considers the
+    several simulations/observations in the datasets as iid samples from the model for a fixed parameter value/from the
+    data generating model, and estimates the divergence between the empirical distributions those
+    simulations/observations define.
 
-        Bai-Jiang's one.
+    [1] Jiang, B. (2018, March). Approximate Bayesian computation with Kullback-Leibler divergence as data discrepancy.
+    In International Conference on Artificial Intelligence and Statistics (pp. 1711-1721). PMLR.
 
-        """
+    Parameters
+    ----------
+    statistics_calc : abcpy.statistics.Statistics
+        Statistics extractor object that conforms to the Statistics class.
+    k : int, optional
+        nearest neighbor number for the density estimate. Default value is 1
+    """
 
-    def __init__(self, statistics, k=1):
-        """
-        Parameters
-        ----------
-        statistics_calc : abcpy.statistics.Statistics
-            Statistics extractor object that conforms to the Statistics class.
-        """
-
-        super(KLDivergence, self).__init__(statistics)
+    def __init__(self, statistics_calc, k=1):
+        super(KLDivergence, self).__init__(statistics_calc)
 
         self.k = k  # number of nearest neighbors used in the estimation algorithm
 
@@ -794,31 +822,42 @@ class KLDivergence(Divergence):
 
         return (d / n) * D + np.log(m / (n - 1))  # this second term should be enough for it to be valid for m \neq n
 
+    def _estimate_always_positive(self):
+        return False
+
 
 class MMD(Divergence):
-    """ This considers the
+    """
+    This implements an empirical estimator of the MMD for ABC as suggested in [1]. This class implements a gaussian
+    kernel by default but allows specifying different kernel functions. Notice that the original version in [1]
+    suggested an unbiased estimate, which however can return negative values. We also provide a biased but provably
+    positive estimator following the remarks in [2].
+    Specifically, this considers the
     several simulations/observations in the datasets as iid samples from the model for a fixed parameter value/from the
-    data generating model, and computes the 2-Wasserstein distance between the empirical distributions those
+    data generating model, and estimates the MMD between the empirical distributions those
     simulations/observations define.
 
-    Notice that this returns the square of the estimated MMD; in fact, the (unbiased) estimator which we use here can
-    also take negative values, so that taking square root does not make sense; should we investigate using the biased
-    positive estimator?
+    [1] Park, M., Jitkrittum, W., & Sejdinovic, D. (2016, May). K2-ABC: Approximate Bayesian computation with
+    kernel embeddings. In Artificial Intelligence and Statistics (pp. 398-407). PMLR.
+    [2] Nguyen, H. D., Arbel, J., Lü, H., & Forbes, F. (2020). Approximate Bayesian computation via the energy
+    statistic. IEEE Access, 8, 131683-131698.
+
+    Parameters
+    ----------
+    statistics_calc : abcpy.statistics.Statistics
+        Statistics extractor object that conforms to the Statistics class.
+    kernel : str or callable
+        Can be a string denoting the kernel, or a function. If a string, only gaussian is implemented for now; in
+        that case, you can also provide an additional keyword parameter 'sigma' which is used as the sigma in the
+        kernel. Default is the gaussian kernel.
+    biased_estimator : boolean, optional
+        Whether to use the biased (but always positive) or unbiased estimator; by default, it uses the biased one.
+    kernel_kwargs
+        Additional keyword arguments to be passed to the distance calculator.
     """
 
-    def __init__(self, statistics, kernel="gaussian", biased_estimator=False, **kernel_kwargs):
-        """
-        Parameters
-        ----------
-        statistics_calc : abcpy.statistics.Statistics
-            Statistics extractor object that conforms to the Statistics class.
-        kernel : str or callable
-            Can be a string denoting the kernel, or a function. If a string, only gaussian is implemented for now; in
-            that case, you can also provide an additional keywork parameter 'sigma' which is used as the sigma in the
-            kernel.
-        """
-
-        super(MMD, self).__init__(statistics)
+    def __init__(self, statistics_calc, kernel="gaussian", biased_estimator=False, **kernel_kwargs):
+        super(MMD, self).__init__(statistics_calc)
 
         if not isinstance(kernel, str) and not callable(kernel):
             raise RuntimeError("'kernel' must be either a string or a function.")
@@ -936,29 +975,41 @@ class MMD(Divergence):
 
         return MMDsquared
 
+    def _estimate_always_positive(self):
+        return self.biased_estimator
+
 
 class EnergyDistance(MMD):
-    """ This considers the
+    """
+    This implements an empirical estimator of the Energy Distance for ABC as suggested in [1].
+    This class uses the Euclidean distance by default as a base distance, but allows to pass different distances.
+    Moreover, when the Euclidean distance is specified, it is possible to pass an additional keyword argument `beta`
+    which denotes the power of the distance to consider.
+    In [1], the authors suggest to use a biased but provably positive estimator; we also provide an unbiased estimate,
+    which however can return negative values.
+    Specifically, this considers the
     several simulations/observations in the datasets as iid samples from the model for a fixed parameter value/from the
-    data generating model, and computes the 2-Wasserstein distance between the empirical distributions those
+    data generating model, and estimates the MMD between the empirical distributions those
     simulations/observations define.
 
-    Notice that for energy distance you don't need to consider the sqrt.
+    [1] Nguyen, H. D., Arbel, J., Lü, H., & Forbes, F. (2020). Approximate Bayesian computation via the energy
+    statistic. IEEE Access, 8, 131683-131698.
 
+    Parameters
+    ----------
+    statistics_calc : abcpy.statistics.Statistics
+        Statistics extractor object that conforms to the Statistics class.
+    base_distance : str or callable
+        Can be a string denoting the kernel, or a function. If a string, only Euclidean distance is implemented
+        for now; in that case, you can also provide an additional keyword parameter 'beta' which is the power
+        of the distance to consider. By default, this uses the Euclidean distance.
+    biased_estimator : boolean, optional
+        Whether to use the biased (but always positive) or unbiased estimator; by default, it uses the biased one.
+    base_distance_kwargs
+        Additional keyword arguments to be passed to the distance calculator.
     """
 
-    def __init__(self, statistics, base_distance="Euclidean", biased_estimator=True, **base_distance_kwargs):
-        """
-        Parameters
-        ----------
-        statistics_calc : abcpy.statistics.Statistics
-            Statistics extractor object that conforms to the Statistics class.
-        kernel : str or callable
-            Can be a string denoting the kernel, or a function. If a string, only gaussian is implemented for now; in
-            that case, you can also provide an additional keywork parameter 'sigma' which is used as the sigma in the
-            kernel.
-        """
-
+    def __init__(self, statistics_calc, base_distance="Euclidean", biased_estimator=True, **base_distance_kwargs):
         if not isinstance(base_distance, str) and not callable(base_distance):
             raise RuntimeError("'base_distance' must be either a string or a function.")
         if isinstance(base_distance, str):
@@ -974,7 +1025,7 @@ class EnergyDistance(MMD):
         def negative_distance(*args):
             return - self.base_distance(*args)
 
-        super(EnergyDistance, self).__init__(statistics, kernel=negative_distance,
+        super(EnergyDistance, self).__init__(statistics_calc, kernel=negative_distance,
                                              biased_estimator=self.biased_estimator)
 
     def dist_max(self):
@@ -1004,23 +1055,28 @@ class EnergyDistance(MMD):
 
 
 class SquaredHellingerDistance(Divergence):
-    """ This considers the
+    """
+    This implements an empirical estimator of the squared Hellinger distance for ABC. Using the Hellinger distance was
+    suggested originally in [1], but as that work did not provide originally any implementation details, this
+    implementation is original. The estimator is based on a nearest neighbor density estimate.
+    Specifically, this considers the
     several simulations/observations in the datasets as iid samples from the model for a fixed parameter value/from the
-    data generating model, and computes the 2-Wasserstein distance between the empirical distributions those
+    data generating model, and estimates the divergence between the empirical distributions those
     simulations/observations define.
 
-    Need to understand here the role of gam.
+    [1] Frazier, D. T. (2020). Robust and Efficient Approximate Bayesian Computation: A Minimum Distance Approach.
+    arXiv preprint arXiv:2006.14126.
+
+    Parameters
+    ----------
+    statistics_calc : abcpy.statistics.Statistics
+        Statistics extractor object that conforms to the Statistics class.
+    k : int, optional
+        nearest neighbor number for the density estimate. Default value is 1
     """
 
-    def __init__(self, statistics, k=1):
-        """
-        Parameters
-        ----------
-        statistics_calc : abcpy.statistics.Statistics
-            Statistics extractor object that conforms to the Statistics class.
-        """
-
-        super(SquaredHellingerDistance, self).__init__(statistics)
+    def __init__(self, statistics_calc, k=1):
+        super(SquaredHellingerDistance, self).__init__(statistics_calc)
 
         self.k = k  # number of nearest neighbors used in the estimation algorithm
 
@@ -1123,3 +1179,6 @@ class SquaredHellingerDistance(Divergence):
         final_estimator = 0.5 * (first_estimator + second_estimator)
 
         return final_estimator
+
+    def _estimate_always_positive(self):
+        return True
