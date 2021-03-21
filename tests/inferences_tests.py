@@ -6,7 +6,7 @@ from abcpy.approx_lhd import SynLikelihood
 from abcpy.backends import BackendDummy
 from abcpy.continuousmodels import Normal
 from abcpy.continuousmodels import Uniform
-from abcpy.distances import Euclidean
+from abcpy.distances import Euclidean, MMD
 from abcpy.inferences import RejectionABC, PMC, PMCABC, SABC, ABCsubsim, SMCABC, APMCABC, RSMCABC, \
     MCMCMetropoliHastings
 from abcpy.statistics import Identity
@@ -182,14 +182,13 @@ class MCMCMetropoliHastingsTests(unittest.TestCase):
 
         # test raises correct errors:
         with self.assertRaises(TypeError):
-            journal = sampler.sample([self.y_obs], n_sample, bounds=[0,1])
+            journal = sampler.sample([self.y_obs], n_sample, bounds=[0, 1])
         with self.assertRaises(KeyError):
-            journal = sampler.sample([self.y_obs], n_sample, bounds={"hello": (0,1)})
+            journal = sampler.sample([self.y_obs], n_sample, bounds={"hello": (0, 1)})
         with self.assertRaises(RuntimeError):
             journal = sampler.sample([self.y_obs], n_sample, bounds={"mu": (0)})
         with self.assertRaises(RuntimeError):
-            journal = sampler.sample([self.y_obs], n_sample, bounds={"mu": (0,1,2)})
-
+            journal = sampler.sample([self.y_obs], n_sample, bounds={"mu": (0, 1, 2)})
 
     def test_sample_two_models(self):
         n_sample, n_samples_per_param = 50, 20
@@ -441,6 +440,7 @@ class SABCTests(unittest.TestCase):
         # define a distance function
         stat_calc = Identity(degree=2, cross=False)
         self.dist_calc = Euclidean(stat_calc)
+        self.dist_calc_mmd = MMD(stat_calc, biased_estimator=False)
 
         # create fake observed data
         # self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
@@ -488,6 +488,10 @@ class SABCTests(unittest.TestCase):
         self.assertLess(sigma_post_mean - 7.03987723, 10e-2)
 
         self.assertFalse(journal.number_of_simulations == 0)
+
+        # check whether it raises the correct error with MMD:
+        with self.assertRaises(RuntimeError):
+            sampler = SABC([self.model], [self.dist_calc_mmd], self.backend, seed=1)
 
 
 class ABCsubsimTests(unittest.TestCase):
@@ -570,10 +574,19 @@ class SMCABCTests(unittest.TestCase):
         self.dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
-        # self.observation = self.model.forward_simulate(1, np.random.RandomState(1))[0].tolist()
         self.observation = [np.array(9.8)]
 
-    def test_sample(self):
+        # set up for the Bernton et al. implementation:
+        # define a distance function
+        stat_calc_2 = Identity(degree=1, cross=False)
+        self.dist_calc_2 = MMD(stat_calc_2)
+        # create fake observed data
+        seed = 12
+        self.rng = np.random.RandomState(seed)
+        self.observation_2 = self.rng.normal(loc=0, scale=1, size=10)
+        self.observation_2 = [x for x in self.observation_2]
+
+    def test_sample_delmoral(self):
         # use the SMCABC scheme for T = 1
         steps, n_sample, n_simulate = 1, 10, 1
         sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
@@ -661,52 +674,109 @@ class SMCABCTests(unittest.TestCase):
 
         self.assertFalse(journal.number_of_simulations == 0)
 
-    def test_restart_from_journal(self):
+    def test_sample_bernton(self):
+        # check using the standard MCMC kernel raises error:
+        sampler = SMCABC([self.model], [self.dist_calc_2], self.backend, seed=1, version="Bernton")
+        with self.assertRaises(RuntimeError):
+            journal = sampler.sample([self.observation_2], 1, 10, 10, which_mcmc_kernel=0, alpha=0.5,
+                                     epsilon_final=0)
+
+        # try now with the r-hit kernel version 1:
+        T, n_sample, n_simulate = 3, 10, 10
+        sampler = SMCABC([self.model], [self.dist_calc_2], self.backend, seed=1, version="Bernton")
+        journal = sampler.sample([self.observation_2], T, n_sample, n_simulate, which_mcmc_kernel=1, alpha=0.5,
+                                 epsilon_final=0)
+        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
+            journal.get_parameters()['sigma']), np.array(journal.get_weights())
+
+        # Compute posterior mean
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
+
+        # test shape of sample
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                                                    (len(sigma_post_sample),
+                                                                     sigma_post_sample[0].shape[1]), post_weights.shape
+        self.assertEqual(mu_sample_shape, (10, 1))
+        self.assertEqual(sigma_sample_shape, (10, 1))
+        self.assertEqual(weights_sample_shape, (10, 1))
+        self.assertAlmostEqual(mu_post_mean, -0.7294075767448996, delta=10e-3)
+        self.assertAlmostEqual(sigma_post_mean, 3.406347345226374, delta=10e-3)
+
+        self.assertEqual(journal.number_of_simulations[-1], 2286)
+
+        # try now with the r-hit kernel version 2:
+        T, n_sample, n_simulate = 3, 10, 10
+        sampler = SMCABC([self.model], [self.dist_calc_2], self.backend, seed=1, version="Bernton")
+        journal = sampler.sample([self.observation_2], T, n_sample, n_simulate, which_mcmc_kernel=2,
+                                 epsilon_final=0.1)
+        mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
+            journal.get_parameters()['sigma']), np.array(journal.get_weights())
+
+        # Compute posterior mean
+        mu_post_mean, sigma_post_mean = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
+
+        # test shape of sample
+        mu_sample_shape, sigma_sample_shape, weights_sample_shape = (len(mu_post_sample), mu_post_sample[0].shape[1]), \
+                                                                    (len(sigma_post_sample),
+                                                                     sigma_post_sample[0].shape[1]), post_weights.shape
+        self.assertEqual(mu_sample_shape, (10, 1))
+        self.assertEqual(sigma_sample_shape, (10, 1))
+        self.assertEqual(weights_sample_shape, (10, 1))
+        self.assertAlmostEqual(mu_post_mean, -2.1412732987491303, delta=10e-3)
+        self.assertAlmostEqual(sigma_post_mean, 5.146988585331478, delta=10e-3)
+
+        self.assertEqual(journal.number_of_simulations[-1], 127)
+
+    def test_restart_from_journal_delmoral(self):
         n_sample, n_simulate = 10, 1
+        # loop over standard MCMC kernel, r-hit kernel version 1 and r-hit kernel version 2
+        for which_mcmc_kernel in [0, 1, 2]:
+            # 2 steps with intermediate journal:
+            sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
+            journal_intermediate = sampler.sample([self.observation], 2, n_sample, n_simulate,
+                                                  which_mcmc_kernel=which_mcmc_kernel)
+            journal_intermediate.save("tmp.jnl")
+            journal_final_1 = sampler.sample([self.observation], 1, n_sample, n_simulate,
+                                             which_mcmc_kernel=which_mcmc_kernel,
+                                             journal_file="tmp.jnl")
 
-        # standard MCMC kernel
-        # 2 steps with intermediate journal:
-        sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
-        journal_intermediate = sampler.sample([self.observation], 2, n_sample, n_simulate)
-        journal_intermediate.save("tmp.jnl")
-        journal_final_1 = sampler.sample([self.observation], 1, n_sample, n_simulate,
-                                         journal_file="tmp.jnl")
+            # 2 steps directly
+            sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
+            journal_final_2 = sampler.sample([self.observation], 3, n_sample, n_simulate, full_output=1,
+                                             which_mcmc_kernel=which_mcmc_kernel)
+            self.assertEqual(journal_final_1.configuration["epsilon_arr"], journal_final_2.configuration["epsilon_arr"])
+            self.assertEqual(journal_final_1.posterior_mean()['mu'], journal_final_2.posterior_mean()['mu'])
 
-        # 2 steps directly
-        sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
-        journal_final_2 = sampler.sample([self.observation], 3, n_sample, n_simulate, full_output=1)
-        self.assertEqual(journal_final_1.configuration["epsilon_arr"], journal_final_2.configuration["epsilon_arr"])
-        self.assertEqual(journal_final_1.posterior_mean()['mu'], journal_final_2.posterior_mean()['mu'])
+    def test_restart_from_journal_bernton(self):
+        n_sample, n_simulate = 10, 10
+        # loop over standard MCMC kernel, r-hit kernel version 1 and r-hit kernel version 2
+        for which_mcmc_kernel in [1, 2]:
+            # 2 steps with intermediate journal:
+            sampler = SMCABC([self.model], [self.dist_calc_2], self.backend, seed=1, version="Bernton")
+            journal_intermediate = sampler.sample([self.observation_2], 1, n_sample, n_simulate,
+                                                  which_mcmc_kernel=which_mcmc_kernel)
+            journal_intermediate.save("tmp.jnl")
+            journal_final_1 = sampler.sample([self.observation_2], 1, n_sample, n_simulate,
+                                             which_mcmc_kernel=which_mcmc_kernel,
+                                             journal_file="tmp.jnl")
 
-        # r-hit kernel version 1
-        # 2 steps with intermediate journal:
-        sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
-        journal_intermediate = sampler.sample([self.observation], 2, n_sample, n_simulate, which_mcmc_kernel=1)
-        journal_intermediate.save("tmp.jnl")
-        journal_final_1 = sampler.sample([self.observation], 1, n_sample, n_simulate, which_mcmc_kernel=1,
-                                         journal_file="tmp.jnl")
+            # 2 steps directly
+            sampler = SMCABC([self.model], [self.dist_calc_2], self.backend, seed=1, version="Bernton")
+            journal_final_2 = sampler.sample([self.observation_2], 2, n_sample, n_simulate, full_output=1,
+                                             which_mcmc_kernel=which_mcmc_kernel)
+            self.assertEqual(journal_final_1.configuration["epsilon_arr"], journal_final_2.configuration["epsilon_arr"])
+            self.assertEqual(journal_final_1.posterior_mean()['mu'], journal_final_2.posterior_mean()['mu'])
 
-        # 2 steps directly
-        sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
-        journal_final_2 = sampler.sample([self.observation], 3, n_sample, n_simulate, full_output=1,
-                                         which_mcmc_kernel=1)
-        self.assertEqual(journal_final_1.configuration["epsilon_arr"], journal_final_2.configuration["epsilon_arr"])
-        self.assertEqual(journal_final_1.posterior_mean()['mu'], journal_final_2.posterior_mean()['mu'])
+    def test_errors(self):
+        with self.assertRaises(RuntimeError):
+            sampler = SMCABC([self.model], [self.dist_calc_2], self.backend, seed=1, version="DelMoral")
+        with self.assertRaises(RuntimeError):
+            sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1, version="Ciao")
 
-        # r-hit kernel version 2
-        # 2 steps with intermediate journal:
-        sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
-        journal_intermediate = sampler.sample([self.observation], 2, n_sample, n_simulate, which_mcmc_kernel=2)
-        journal_intermediate.save("tmp.jnl")
-        journal_final_1 = sampler.sample([self.observation], 1, n_sample, n_simulate, which_mcmc_kernel=2,
-                                         journal_file="tmp.jnl")
-
-        # 2 steps directly
-        sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
-        journal_final_2 = sampler.sample([self.observation], 3, n_sample, n_simulate, full_output=1,
-                                         which_mcmc_kernel=2)
-        self.assertEqual(journal_final_1.configuration["epsilon_arr"], journal_final_2.configuration["epsilon_arr"])
-        self.assertEqual(journal_final_1.posterior_mean()['mu'], journal_final_2.posterior_mean()['mu'])
+        sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1, version="Bernton")
+        with self.assertRaises(RuntimeError):
+            journal = sampler.sample([self.observation], 1, 10, 10, which_mcmc_kernel=4, alpha=0.5,
+                                     epsilon_final=0)
 
 
 class APMCABCTests(unittest.TestCase):

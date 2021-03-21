@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 from abcpy.acceptedparametersmanager import *
 from abcpy.backends import BackendDummy
+from abcpy.distances import Divergence
 from abcpy.graphtools import GraphTools
 from abcpy.jointapprox_lhd import SumCombination
 from abcpy.jointdistances import LinearCombination
@@ -1106,6 +1107,12 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         self.model = root_models
         # We define the joint Linear combination distance using all the distances for each individual models
         self.distance = LinearCombination(root_models, distances)
+
+        # check if the distance estimators are always positive
+        if np.any([isinstance(distance, Divergence) and not distance._estimate_always_positive()
+                   for distance in distances]):
+            raise RuntimeError("SABC does not work with estimates of divergences which may be negative. Use another "
+                               "inference algorithm or a different estimator.")
 
         if kernel is None:
 
@@ -2701,8 +2708,14 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
 
 
 class SMCABC(BaseDiscrepancy, InferenceMethod):
-    """This class implements Sequential Monte Carlo Approximate Bayesian computation of
-    Del Moral et al. [1].
+    """This class implements two versions of Sequential Monte Carlo Approximate Bayesian computation, following either
+     the original in Del Moral et al. [1] or the newer version in Bernton et al. [3]. The first one is commonly used
+     when standard statistics based ABC is done (for instance with Euclidean distance), while the second one is instead
+     used when divergence-ABC is done (for instance, ABC with the Wasserstein distance, with the KL divergence and so
+     on). The first implementation in fact does not work in that case, as it assumes the distance can be computed with
+     respect to one single observation. Additionally, our implementation of the algorithm by Bernton et al.
+     does not work with the standard MCMC kernel, but requires using the r-hit kernel [2], which is arguably more
+     efficient (even if it leads to an algorithm for which the number of simulations is not known a priori).
 
     [1] P. Del Moral, A. Doucet, A. Jasra, An adaptive sequential Monte Carlo method for approximate
     Bayesian computation. Statistics and Computing, 22(5):1009–1020, 2012.
@@ -2725,6 +2738,9 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
     kernel : abcpy.perturbationkernel.PerturbationKernel, optional
         PerturbationKernel object defining the perturbation kernel needed for the sampling. If not provided, the
         DefaultKernel is used.
+    version : string, optional
+        Denotes which version to use, either the one by Del Moral et al. [1] ("DelMoral") or the newer version in
+        Bernton et al. [3] ("Bernton"). By default, uses "DelMoral".
     seed : integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
@@ -2743,7 +2759,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
     backend = None
 
-    def __init__(self, root_models, distances, backend, kernel=None, seed=None):
+    def __init__(self, root_models, distances, backend, kernel=None, version="DelMoral", seed=None):
         self.model = root_models
         # We define the joint Linear combination distance using all the distances for each individual models
         self.distance = LinearCombination(root_models, distances)
@@ -2758,6 +2774,22 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
         self.kernel = kernel
         self.backend = backend
+        if version not in ["DelMoral", "Bernton"]:
+            raise RuntimeError('The only implemented SMCABC methods are the one by Del Moral et al. ("DelMoral") or'
+                               ' the one by Bernton et al. [3] ("Bernton"). Please set version'
+                               ' to one of these two.')
+        else:
+            self.bernton = version == "Bernton"
+            self.version = version
+
+        # check now if we are using divergences and in that case return error if using DelMoral version as that does
+        # not work:
+        if not self.bernton and np.any([isinstance(distance, Divergence) for distance in distances]):
+            raise RuntimeError("You requested to use the SMCABC algorithm by Del Moral et al. "
+                               "together with divergences "
+                               "between empirical measures. That algorithm however only works for standard statistics "
+                               "based ABC.")
+
         self.logger = logging.getLogger(__name__)
 
         self.epsilon = None
@@ -2770,8 +2802,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
         self.simulation_counter = 0
 
-    def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, epsilon_final=0.1, alpha=0.95,
-               covFactor=2, resample=None, which_mcmc_kernel=0, r=None, full_output=0, journal_file=None):
+    def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, epsilon_final=0.1, alpha=None,
+               covFactor=2, resample=None, full_output=0, which_mcmc_kernel=None, r=None, journal_file=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -2789,21 +2821,30 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             The final threshold value of epsilon to be reached; if at some iteration you reach a lower epsilon than
             epsilon_final, the algorithm will stop and not proceed with further iterations. The default value is 0.1.
         alpha : float, optional
-            A parameter taking values between [0,1], determinining the rate of change of the threshold epsilon. The
-            default value is 0.95.
+            A parameter taking values between [0,1], determining the rate of change of the threshold epsilon. If
+            the algorithm by Bernton et al. is used, epsilon is chosen in order to guarantee a
+            proportion of unique particles equal to alpha
+            after resampling. If instead the algorithm by Del Moral et al. is used,
+            epsilon is chosen such that the ESS (Effective Sample Size) with
+            the new threshold value is alpha times the ESS with the old threshold value. The default value is None,
+            in which case 0.95 is used for Del Moral et al. algorithm, or 0.5 for Bernton et al. algorithm.
         covFactor : float, optional
             scaling parameter of the covariance matrix. The default value is 2.
         resample  : float, optional
             It defines the resample step: introduce a resample step, after the particles have been
-            perturbed and the new weights have been computed, if the effective sample size is smaller than resample. If
-            not provided, resample is set to 0.5 * n_samples.
+            perturbed and the new weights have been computed, if the effective sample size is smaller than resample.
+            Notice that the algorithm by Bernton et al. always uses resample (as the weight values in that setup can
+            only be equal to 0 or 1), so that this parameter is ignored in that case.
+            If not provided, resample is set to 0.5 * n_samples.
         full_output: integer, optional
             If full_output==1, intermediate results are included in output journal.
             The default value is 0, meaning the intermediate results are not saved.
         which_mcmc_kernel: integer, optional
-            Specifies which MCMC kernel to be used: '0' kernel suggested in [1], '1' uses the first version of r-hit
-            kernel suggested by Anthony Lee (Alg. 5 in [2]), while '2' uses the second version of r-hit kernel
-            suggested by Anthony Lee (Alg. 6 in [2]). The default value is 0.
+            Specifies which MCMC kernel to be used: '0' is the standard MCMC kernel used in the algorithm by
+            Del Moral et al [1], '1' uses the first version of r-hit kernel suggested by Anthony Lee (Alg. 5 in [2]),
+            while '2' uses the second version of r-hit kernel suggested by Anthony Lee (Alg. 6 in [2]).
+            The default value is 2 if the used algorithm is the one by Bernton et al, and is 0 for the algorithm by
+            Del Moral et al.
         r: integer, optional:
             Specifies the value of 'r' (the number of wanted hits) in the r-hits kernels. It is therefore ignored if
             'which_mcmc_kernel==0'. If no value is provided, the first version of r-hit kernel uses r=3, while the
@@ -2838,7 +2879,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             journal.configuration["which_mcmc_kernel"] = which_mcmc_kernel
             journal.configuration["r"] = r
             journal.configuration["full_output"] = full_output
-
+            journal.configuration["version"] = self.version
             self.sample_from_prior(rng=self.rng)  # initialize only if you are not restarting from a journal, in order
             # to ensure reproducibility
         else:
@@ -2853,11 +2894,17 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         if resample is None:
             resample = n_samples * 0.5
 
+        if alpha is None:
+            alpha = 0.5 if self.bernton else 0.95
+
         # Define maximum value of epsilon
         if not np.isinf(self.distance.dist_max()):
             epsilon = [self.distance.dist_max()]
         else:
             epsilon = [1e5]
+
+        if which_mcmc_kernel is None:
+            which_mcmc_kernel = 2 if self.bernton else 0
 
         if which_mcmc_kernel not in [0, 1, 2]:
             raise NotImplementedError("'which_mcmc_kernel' was given wrong value. It specifies which MCMC kernel to be"
@@ -2865,6 +2912,10 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                                       "kernel suggested by Anthony Lee (Alg. 5 in [2]), while '2' uses the second "
                                       "version of r-hit kernel"
                                       "suggested by Anthony Lee (Alg. 6 in [2]). The default value is 0.")
+
+        if self.bernton and which_mcmc_kernel == 0:
+            raise RuntimeError("The algorithm by Bernton et al. does not work with the standard MCMC kernel.")
+
         self.r = r
 
         # main SMC ABC algorithm
@@ -2903,13 +2954,29 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             if accepted_y_sim != None:
                 self.logger.info(
                     "Compute epsilon, might take a while; previous epsilon value: {:.4f}".format(epsilon[-1]))
-                # first compute the distances for the current set of parameters and observations
-                # (notice that may have already been done somewhere before!):
-                current_distance_matrix = self._compute_distance_matrix(observations, accepted_y_sim, n_samples,
-                                                                        n_samples_per_param)
-                fun = self._def_compute_epsilon(epsilon, accepted_weights, n_samples, current_distance_matrix,
-                                                alpha)
-                epsilon_new = self._bisection(fun, epsilon_final, epsilon[-1], 0.001)
+                if self.bernton:
+                    # for the Bernton algorithm, the distances have already been computed before during the acceptance
+                    # step. This however holds only when the r-hit kernels are used
+
+                    # first compute the distances for the current set of parameters and observations
+                    # (notice that may have already been done somewhere before!):
+                    # current_distance_matrix = self._compute_distance_matrix_divergence(observations, accepted_y_sim,
+                    #                                                                   n_samples)
+                    # assert np.allclose(current_distance_matrix, distances)
+                    current_distance_matrix = distances
+
+                    # Compute epsilon for next step
+                    fun = self._def_compute_epsilon_divergence_unique_particles(n_samples,
+                                                                                current_distance_matrix, alpha)
+                    epsilon_new = self._bisection(fun, epsilon_final, epsilon[-1], 0.001)
+                else:
+                    # first compute the distances for the current set of parameters and observations
+                    # (notice that may have already been done somewhere before!):
+                    current_distance_matrix = self._compute_distance_matrix(observations, accepted_y_sim, n_samples,
+                                                                            n_samples_per_param)
+                    fun = self._def_compute_epsilon(epsilon, accepted_weights, n_samples, current_distance_matrix,
+                                                    alpha)
+                    epsilon_new = self._bisection(fun, epsilon_final, epsilon[-1], 0.001)
                 if epsilon_new < epsilon_final:
                     epsilon_new = epsilon_final
                 epsilon.append(epsilon_new)
@@ -2917,21 +2984,25 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             # 1: calculate weights for new parameters
             self.logger.info("Calculating weights")
             if accepted_y_sim is not None:
-                numerators = np.sum(current_distance_matrix < epsilon[-1], axis=1)
-                denominators = np.sum(current_distance_matrix < epsilon[-2], axis=1)
+                if self.bernton:
+                    new_weights = (current_distance_matrix < epsilon[-1]) * 1
+                else:
+                    numerators = np.sum(current_distance_matrix < epsilon[-1], axis=1)
+                    denominators = np.sum(current_distance_matrix < epsilon[-2], axis=1)
 
-                non_zero_denominator = denominators != 0
-                new_weights = np.zeros(shape=n_samples)
+                    non_zero_denominator = denominators != 0
+                    new_weights = np.zeros(shape=n_samples)
 
-                new_weights[non_zero_denominator] = accepted_weights.flatten()[non_zero_denominator] * (
-                        numerators[non_zero_denominator] / denominators[non_zero_denominator])
+                    new_weights[non_zero_denominator] = accepted_weights.flatten()[non_zero_denominator] * (
+                            numerators[non_zero_denominator] / denominators[non_zero_denominator])
 
                 new_weights = new_weights / sum(new_weights)
             else:
                 new_weights = np.ones(shape=n_samples, ) * (1.0 / n_samples)
-
-            # 2: Resample
-            if accepted_y_sim is not None and pow(sum(pow(new_weights, 2)), -1) < resample:
+            # 2: Resample; we resample always when using the Bernton et al. algorithm, as in that case weights
+            # can only be proportional to 1 or 0; if we use the Del Moral version, instead, the
+            # weights can have fractional values -> use the # resample threshold
+            if accepted_y_sim is not None and (self.bernton or pow(sum(pow(new_weights, 2)), -1) < resample):
                 self.logger.info("Resampling")
                 # Weighted resampling:
                 index_resampled = self.rng.choice(n_samples, n_samples, replace=True, p=new_weights)
@@ -3007,8 +3078,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.add_user_parameters(names_and_parameters)
                 journal.number_of_simulations.append(self.simulation_counter)
 
-        # Add epsilon_arr to the journal
-        journal.configuration["epsilon_arr"] = epsilon
+            # Add epsilon_arr to the journal
+            journal.configuration["epsilon_arr"] = epsilon
 
         return journal
 
@@ -3021,6 +3092,13 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 self.logger.debug(
                     'Computed distance inside for weights:' + str(
                         distance_matrix[ind1, ind2]))
+        return distance_matrix
+
+    def _compute_distance_matrix_divergence(self, observations, accepted_y_sim, n_samples):
+        distance_matrix = np.zeros(n_samples)
+        for ind1 in range(n_samples):
+            distance_matrix[ind1] = self.distance.distance(observations, [accepted_y_sim[ind1][0]])
+            self.logger.debug('Computed distance matrix for weights:' + str(distance_matrix[ind1]))
         return distance_matrix
 
     @staticmethod
@@ -3092,6 +3170,45 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             return result
 
         return _compute_epsilon
+
+    def _def_compute_epsilon_divergence_unique_particles(self, n_samples, distance_matrix, alpha):
+        """
+        Parameters
+        ----------
+        n_samples: integer
+            Number of samples to generate.
+        alpha: float
+
+        Returns
+        -------
+        callable
+            The function used in the bisection routine
+        """
+
+        def _compute_epsilon_divergence_unique_particles(epsilon_new):
+            """
+            Parameters
+            ----------
+            epsilon_new: float
+                New value for epsilon.
+            Returns
+            -------
+            float
+                proportion of unique particles after resampling
+            """
+            new_weights = (distance_matrix < epsilon_new) * 1
+            self.logger.debug('New weights:' + str(new_weights))
+            if sum(new_weights) != 0:
+                new_weights = new_weights / sum(new_weights)
+                rng = np.random.RandomState(1)  # this fixes the randomness across iterations; it makes sense therefore
+                # Here we want a proportion of unique particles equal to alpha after resampling
+                result = (len(
+                    np.unique(rng.choice(n_samples, n_samples, replace=True, p=new_weights))) / n_samples) - alpha
+            else:
+                result = - alpha
+            return result
+
+        return _compute_epsilon_divergence_unique_particles
 
     def _bisection(self, func, low, high, tol):
         # cache computed values, as we call func below
