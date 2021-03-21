@@ -196,3 +196,12 @@ abcpy.statisticslearning module
    :special-members: __init__
    :undoc-members:
    :show-inheritance:
+
+abcpy.transformers module
+-------------------------------
+
+.. automodule:: abcpy.transformers
+   :members:
+   :special-members: __init__
+   :undoc-members:
+   :show-inheritance:
