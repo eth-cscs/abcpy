@@ -36,6 +36,11 @@ class LogNormalTAPITests(AbstractAPIImplementationTests, unittest.TestCase):
     model_inputs = [[0, 1]]
 
 
+class ExponentialTAPITests(AbstractAPIImplementationTests, unittest.TestCase):
+    model_types = [Exponential]
+    model_inputs = [[0.4]]
+
+
 class CheckParametersAtInitializationTests(unittest.TestCase):
     """Tests that no probabilistic model with invalid parameters can be initialized."""
 
@@ -81,6 +86,10 @@ class CheckParametersAtInitializationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             LogNormal([1, -1])
 
+    def test_Exponential(self):
+        with self.assertRaises(ValueError):
+            Exponential([[1], [-1]])
+
 
 class DimensionTests(unittest.TestCase):
     """Tests whether the dimensions of all continuous models are defined in the correct way."""
@@ -108,6 +117,10 @@ class DimensionTests(unittest.TestCase):
     def test_LogNormal(self):
         LN = LogNormal([3, 1])
         self.assertTrue(LN.get_output_dimension() == 1)
+
+    def test_LogNormal(self):
+        EXP = Exponential([3])
+        self.assertTrue(EXP.get_output_dimension() == 1)
 
 
 class SampleFromDistributionTests(unittest.TestCase):
@@ -149,6 +162,12 @@ class SampleFromDistributionTests(unittest.TestCase):
         self.assertTrue(isinstance(samples, list))
         self.assertTrue(len(samples) == 3)
 
+    def test_LogNormal(self):
+        EXP = Exponential([3])
+        samples = EXP.forward_simulate(EXP.get_input_values(), 3)
+        self.assertTrue(isinstance(samples, list))
+        self.assertTrue(len(samples) == 3)
+
 
 class CheckParametersBeforeSamplingTests(unittest.TestCase):
     """Tests whether False will be returned if the input parameters of _check_parameters_before_sampling are not accepted."""
@@ -184,6 +203,11 @@ class CheckParametersBeforeSamplingTests(unittest.TestCase):
     def test_LogNormal(self):
         LN = LogNormal([3, 1])
         self.assertFalse(LN._check_input([3, -1]))
+
+    def test_Exponential(self):
+        EXP = Exponential([3])
+        self.assertFalse(EXP._check_input([-3]))
+        self.assertFalse(EXP._check_input([-3, 1]))
 
 
 if __name__ == '__main__':
