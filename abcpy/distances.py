@@ -608,8 +608,13 @@ class GammaDivergence(Divergence):
     data generating model, and estimates the divergence between the empirical distributions those
     simulations/observations define.
 
-    [1] Fujisawa, M., Teshima, T., & Sato, I. (2020). $\gamma $-ABC: Outlier-Robust Approximate Bayesian Computation
-    based on Robust Divergence Estimator. arXiv preprint arXiv:2006.07571.
+    [1] Fujisawa, M., Teshima, T., Sato, I., & Sugiyama, M.
+    γ-ABC: Outlier-robust approximate Bayesian computation based on a
+    robust divergence estimator.
+    In A. Banerjee and K. Fukumizu (Eds.), Proceedings of 24th
+    International Conference on Artificial Intelligence and Statistics
+    (AISTATS2021), Proceedings of Machine Learning Research, vol.130,
+    pp.1783-1791, online, Apr. 13-15, 2021.
 
     Parameters
     ----------
