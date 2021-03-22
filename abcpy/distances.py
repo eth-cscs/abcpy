@@ -864,11 +864,13 @@ class MMD(Divergence):
     def __init__(self, statistics_calc, kernel="gaussian", biased_estimator=False, **kernel_kwargs):
         super(MMD, self).__init__(statistics_calc)
 
+        self.kernel_vectorized = False
         if not isinstance(kernel, str) and not callable(kernel):
             raise RuntimeError("'kernel' must be either a string or a function.")
         if isinstance(kernel, str):
             if kernel == "gaussian":
                 self.kernel = self.def_gaussian_kernel(**kernel_kwargs)
+                self.kernel_vectorized = True  # the gaussian kernel is vectorized
             else:
                 raise NotImplementedError("The required kernel is not implemented.")
         else:
@@ -918,37 +920,47 @@ class MMD(Divergence):
         # notice in the MMD paper they set sigma to a median value over the observation; check that.
         sigma_2 = 2 * sigma ** 2
 
-        def Gaussian_kernel(x, y):
-            xy = x - y
-            # assert np.allclose(np.dot(xy, xy), np.linalg.norm(xy) ** 2)
-            return np.exp(- np.dot(xy, xy) / sigma_2)
+        # def Gaussian_kernel(x, y):
+        #     xy = x - y
+        #     # assert np.allclose(np.dot(xy, xy), np.linalg.norm(xy) ** 2)
+        #     return np.exp(- np.dot(xy, xy) / sigma_2)
+        def Gaussian_kernel_vectorized(X, Y):
+            """Here X and Y have shape (n_samples_x, n_features) and (n_samples_y, n_features);
+            this directly computes the kernel for all pairwise components"""
+            XY = X.reshape(X.shape[0], 1, -1) - Y.reshape(1, Y.shape[0], -1)  # pairwise differences
+            return np.exp(- np.einsum('xyi,xyi->xy', XY, XY) / sigma_2)
 
-        return Gaussian_kernel
+        return Gaussian_kernel_vectorized
 
     def compute_Gram_matrix(self, s1, s2):
-        m = s1.shape[0]
-        n = s2.shape[0]
 
-        K11 = np.zeros((m, m))
-        K22 = np.zeros((n, n))
-        K12 = np.zeros((m, n))
+        if self.kernel_vectorized:
+            K11 = self.kernel(s1, s1)
+            K22 = self.kernel(s2, s2)
+            K12 = self.kernel(s1, s2)
+        else:
+            m = s1.shape[0]
+            n = s2.shape[0]
 
-        for i in range(m):
-            # we assume the function to be symmetric; this saves some steps:
-            for j in range(i, m):
-                K11[j, i] = K11[i, j] = self.kernel(s1[i], s1[j])
+            K11 = np.zeros((m, m))
+            K22 = np.zeros((n, n))
+            K12 = np.zeros((m, n))
 
-        for i in range(n):
-            # we assume the function to be symmetric; this saves some steps:
-            for j in range(i, n):
-                K22[j, i] = K22[i, j] = self.kernel(s2[i], s2[j])
+            for i in range(m):
+                # we assume the function to be symmetric; this saves some steps:
+                for j in range(i, m):
+                    K11[j, i] = K11[i, j] = self.kernel(s1[i], s1[j])
 
-        for i in range(m):
-            for j in range(n):
-                K12[i, j] = self.kernel(s1[i], s2[j])
+            for i in range(n):
+                # we assume the function to be symmetric; this saves some steps:
+                for j in range(i, n):
+                    K22[j, i] = K22[i, j] = self.kernel(s2[i], s2[j])
+
+            for i in range(m):
+                for j in range(n):
+                    K12[i, j] = self.kernel(s1[i], s2[j])
 
         # can we improve the above? Could use map but would not change too much likely.
-
         return K11, K22, K12
 
     @staticmethod
