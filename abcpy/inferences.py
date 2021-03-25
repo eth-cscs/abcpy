@@ -3628,9 +3628,6 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
 
         self.kernel = kernel
         self.backend = backend
-        if not isinstance(backend, BackendDummy):
-            raise RuntimeError("MetropolisHastings inference scheme only works with Dummy Backend (as it does not"
-                               " parallelize).")
         self.rng = np.random.RandomState(seed)
         self.logger = logging.getLogger(__name__)
 
