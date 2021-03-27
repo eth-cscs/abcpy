@@ -196,7 +196,7 @@ class RejectionABC(InferenceMethod):
         # counts the number of simulate calls
         self.simulation_counter = 0
 
-    def sample(self, observations, n_samples, n_samples_per_param, epsilon, full_output=0):
+    def sample(self, observations, n_samples, n_samples_per_param, epsilon, full_output=0, path_to_save_journal=None):
         """
         Samples from the posterior distribution of the model parameter given the observed
         data observations.
@@ -214,7 +214,9 @@ class RejectionABC(InferenceMethod):
         full_output: integer, optional
             It is actually unused in RejectionABC but left here for general compatibility with the other inference
             classes.
-
+        path_to_save_journal: str, optional
+            If provided, save the journal after inference at the provided path.
+            
         Returns
         -------
         abcpy.output.Journal
@@ -260,6 +262,11 @@ class RejectionABC(InferenceMethod):
         names_and_parameters = self._get_names_and_parameters()
         journal.add_user_parameters(names_and_parameters)
         journal.number_of_simulations.append(self.simulation_counter)
+        
+        if path_to_save_journal is not None:
+            # save journal there
+            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else path_to_save_journal + '.jnl'
+            journal.save(path_to_save_journal)
 
         return journal
 
@@ -367,7 +374,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, steps, epsilon_init, n_samples=10000, n_samples_per_param=1, epsilon_percentile=10,
-               covFactor=2, full_output=0, journal_file=None):
+               covFactor=2, full_output=0, journal_file=None, path_to_save_journal=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -395,6 +402,11 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
+        path_to_save_journal: str, optional
+            If provided, save the journal at the provided path. The journal is saved (and overwritten) after each step
+            of the sequential inference routine, so that partial results are stored to the disk in case the
+            inference routine does not end correctly; recall that you need to set full_output=1 to obtain the
+            full partial results.
 
         Returns
         -------
@@ -404,6 +416,10 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         self.accepted_parameters_manager.broadcast(self.backend, observations)
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
+
+        if path_to_save_journal is not None:
+            # save journal there
+            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else path_to_save_journal + '.jnl'
 
         if journal_file is None:
             journal = Journal(full_output)
@@ -543,11 +559,14 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.add_user_parameters(names_and_parameters)
                 journal.number_of_simulations.append(self.simulation_counter)
 
-        # Add epsilon_arr to the journal
-        if journal_file is not None and "epsilon_arr" in journal.configuration.keys():
-            journal.configuration["epsilon_arr"] += epsilon_arr
-        else:
-            journal.configuration["epsilon_arr"] = epsilon_arr
+            # Add epsilon_arr to the journal
+            if journal_file is not None and "epsilon_arr" in journal.configuration.keys():
+                journal.configuration["epsilon_arr"] += epsilon_arr
+            else:
+                journal.configuration["epsilon_arr"] = epsilon_arr
+
+            if path_to_save_journal is not None:  # save journal
+                journal.save(path_to_save_journal)
 
         return journal
 
@@ -738,7 +757,7 @@ class PMC(BaseLikelihood, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, steps, n_samples=10000, n_samples_per_param=100, covFactors=None, iniPoints=None,
-               full_output=0, journal_file=None):
+               full_output=0, journal_file=None, path_to_save_journal=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -763,7 +782,11 @@ class PMC(BaseLikelihood, InferenceMethod):
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
-
+        path_to_save_journal: str, optional
+            If provided, save the journal at the provided path. The journal is saved (and overwritten) after each step
+            of the sequential inference routine, so that partial results are stored to the disk in case the
+            inference routine does not end correctly; recall that you need to set full_output=1 to obtain the
+            full partial results.
 
         Returns
         -------
@@ -775,6 +798,9 @@ class PMC(BaseLikelihood, InferenceMethod):
         self.accepted_parameters_manager.broadcast(self.backend, observations)
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
+
+        if path_to_save_journal is not None:
+            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else path_to_save_journal + '.jnl'
 
         if journal_file is None:
             journal = Journal(full_output)
@@ -962,6 +988,9 @@ class PMC(BaseLikelihood, InferenceMethod):
                 journal.add_user_parameters(names_and_parameters)
                 journal.number_of_simulations.append(self.simulation_counter)
 
+            if path_to_save_journal is not None:  # save journal
+                journal.save(path_to_save_journal)
+
         return journal
 
     # define helper functions for map step
@@ -1136,7 +1165,8 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, steps, epsilon, n_samples=10000, n_samples_per_param=1, beta=2, delta=0.2,
-               v=0.3, ar_cutoff=0.1, resample=None, n_update=None, full_output=0, journal_file=None):
+               v=0.3, ar_cutoff=0.1, resample=None, n_update=None, full_output=0, journal_file=None,
+               path_to_save_journal=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -1172,6 +1202,11 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
+        path_to_save_journal: str, optional
+            If provided, save the journal at the provided path. The journal is saved (and overwritten) after each step
+            of the sequential inference routine, so that partial results are stored to the disk in case the
+            inference routine does not end correctly; recall that you need to set full_output=1 to obtain the
+            full partial results.
 
         Returns
         -------
@@ -1184,6 +1219,9 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         self.epsilon = epsilon
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
+
+        if path_to_save_journal is not None:
+            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else path_to_save_journal + '.jnl'
 
         if journal_file is None:
             journal = Journal(full_output)
@@ -1405,21 +1443,24 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                     journal.add_user_parameters(names_and_parameters)
                     journal.number_of_simulations.append(self.simulation_counter)
 
-        # Add epsilon_arr, number of final steps and final output to the journal
-        # print("INFO: Saving final configuration to output journal.")
-        if (full_output == 0) or (full_output == 1 and broken_preemptively and aStep <= steps - 1):
-            journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
-            journal.add_weights(copy.deepcopy(accepted_weights))
-            journal.add_ESS_estimate(accepted_weights)
-            journal.add_distances(copy.deepcopy(distances))
-            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
-                                                              accepted_weights=accepted_weights)
-            names_and_parameters = self._get_names_and_parameters()
-            journal.add_user_parameters(names_and_parameters)
-            journal.number_of_simulations.append(self.simulation_counter)
+            # Add epsilon_arr, number of final steps and final output to the journal
+            # print("INFO: Saving final configuration to output journal.")
+            if (full_output == 0) or (full_output == 1 and broken_preemptively and aStep <= steps - 1):
+                journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
+                journal.add_weights(copy.deepcopy(accepted_weights))
+                journal.add_ESS_estimate(accepted_weights)
+                journal.add_distances(copy.deepcopy(distances))
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
+                                                                  accepted_weights=accepted_weights)
+                names_and_parameters = self._get_names_and_parameters()
+                journal.add_user_parameters(names_and_parameters)
+                journal.number_of_simulations.append(self.simulation_counter)
 
-        journal.configuration["steps"] = aStep + 1
-        journal.configuration["epsilon"] = epsilon
+            journal.configuration["steps"] = aStep + 1
+            journal.configuration["epsilon"] = epsilon
+
+            if path_to_save_journal is not None:  # save journal
+                journal.save(path_to_save_journal)
 
         return journal
 
@@ -1657,7 +1698,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, chain_length=10, ap_change_cutoff=10,
-               full_output=0, journal_file=None):
+               full_output=0, journal_file=None, path_to_save_journal=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -1682,6 +1723,11 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
+        path_to_save_journal: str, optional
+            If provided, save the journal at the provided path. The journal is saved (and overwritten) after each step
+            of the sequential inference routine, so that partial results are stored to the disk in case the
+            inference routine does not end correctly; recall that you need to set full_output=1 to obtain the
+            full partial results.
 
         Returns
         -------
@@ -1694,6 +1740,8 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
         self.chain_length = chain_length
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
+        if path_to_save_journal is not None:
+            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else path_to_save_journal + '.jnl'
 
         if journal_file is None:
             journal = Journal(full_output)
@@ -1836,6 +1884,8 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             self.logger.info(msg)
             if anneal_parameter_change_percentage < ap_change_cutoff:
                 break
+            if path_to_save_journal is not None:  # save journal
+                journal.save(path_to_save_journal)
 
         # Add anneal_parameter, number of final steps and final output to the journal
         # print("INFO: Saving final configuration to output journal.")
@@ -1853,6 +1903,9 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
         journal.configuration["steps"] = aStep + 1
         journal.configuration["anneal_parameter"] = anneal_parameter
+
+        if path_to_save_journal is not None:  # save journal
+            journal.save(path_to_save_journal)
 
         return journal
 
@@ -2063,7 +2116,8 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, alpha=0.1, epsilon_init=100,
-               epsilon_final=0.1, const=0.01, covFactor=2.0, full_output=0, journal_file=None):
+               epsilon_final=0.1, const=0.01, covFactor=2.0, full_output=0, journal_file=None, 
+               path_to_save_journal=None):
         """
         Samples from the posterior distribution of the model parameter given the observed
         data observations.
@@ -2094,6 +2148,11 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
+        path_to_save_journal: str, optional
+            If provided, save the journal at the provided path. The journal is saved (and overwritten) after each step
+            of the sequential inference routine, so that partial results are stored to the disk in case the
+            inference routine does not end correctly; recall that you need to set full_output=1 to obtain the
+            full partial results.
 
         Returns
         -------
@@ -2107,6 +2166,8 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         self.alpha = alpha
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
+        if path_to_save_journal is not None:
+            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else path_to_save_journal + '.jnl'
 
         if journal_file is None:
             journal = Journal(full_output)
@@ -2263,8 +2324,11 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_weights=accepted_weights,
                                                               accepted_parameters=accepted_parameters)
 
-        # Add epsilon_arr to the journal
-        journal.configuration["epsilon_arr"] = epsilon
+            # Add epsilon_arr to the journal
+            journal.configuration["epsilon_arr"] = epsilon
+
+            if path_to_save_journal is not None:  # save journal
+                journal.save(path_to_save_journal)
 
         return journal
 
@@ -2431,7 +2495,7 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, alpha=0.1, acceptance_cutoff=0.03,
-               covFactor=2.0, full_output=0, journal_file=None):
+               covFactor=2.0, full_output=0, journal_file=None, path_to_save_journal=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -2457,6 +2521,11 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
+        path_to_save_journal: str, optional
+            If provided, save the journal at the provided path. The journal is saved (and overwritten) after each step
+            of the sequential inference routine, so that partial results are stored to the disk in case the
+            inference routine does not end correctly; recall that you need to set full_output=1 to obtain the
+            full partial results.
 
         Returns
         -------
@@ -2469,6 +2538,8 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
         self.alpha = alpha
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
+        if path_to_save_journal is not None:
+            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else path_to_save_journal + '.jnl'
 
         if journal_file is None:
             journal = Journal(full_output)
@@ -2611,8 +2682,11 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
             if prob_acceptance < acceptance_cutoff:
                 break
 
-        # Add epsilon_arr to the journal
-        journal.configuration["epsilon_arr"] = epsilon
+            # Add epsilon_arr to the journal
+            journal.configuration["epsilon_arr"] = epsilon
+
+            if path_to_save_journal is not None:  # save journal
+                journal.save(path_to_save_journal)
 
         return journal
 
@@ -2803,7 +2877,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, epsilon_final=0.1, alpha=None,
-               covFactor=2, resample=None, full_output=0, which_mcmc_kernel=None, r=None, journal_file=None):
+               covFactor=2, resample=None, full_output=0, which_mcmc_kernel=None, r=None, journal_file=None,
+               path_to_save_journal=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -2852,6 +2927,11 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
+        path_to_save_journal: str, optional
+            If provided, save the journal at the provided path. The journal is saved (and overwritten) after each step
+            of the sequential inference routine, so that partial results are stored to the disk in case the
+            inference routine does not end correctly; recall that you need to set full_output=1 to obtain the
+            full partial results.
 
         Returns
         -------
@@ -2862,6 +2942,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         self.accepted_parameters_manager.broadcast(self.backend, observations)
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
+        if path_to_save_journal is not None:
+            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else path_to_save_journal + '.jnl'
 
         if journal_file is None:
             journal = Journal(full_output)
@@ -3080,6 +3162,9 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
             # Add epsilon_arr to the journal
             journal.configuration["epsilon_arr"] = epsilon
+
+            if path_to_save_journal is not None:  # save journal
+                journal.save(path_to_save_journal)
 
         return journal
 
@@ -3641,7 +3726,7 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
 
     def sample(self, observations, n_samples, n_samples_per_param=100, burnin=1000, cov_matrices=None, iniPoint=None,
                adapt_proposal_cov_interval=None, covFactor=None, bounds=None, speedup_dummy=True, use_tqdm=True,
-               journal_file=None):
+               journal_file=None, path_to_save_journal=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations. The MCMC is run for burnin + n_samples steps, and n_samples_per_param are used at each step
         to estimate the approximate loglikelihood. The burnin steps are then discarded from the chain stored in the
@@ -3717,6 +3802,8 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             That's the only information used (it does not use the previous covariance matrix).
             The default value is None.
+        path_to_save_journal: str, optional
+            If provided, save the journal at the provided path at the end of the inference routine.
 
         Returns
         -------
@@ -3731,6 +3818,9 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
         # we use this in all places which require a backend but which are not parallelized in MCMC:
         self.dummy_backend = BackendDummy()
         dim = len(self.parameter_names)
+
+        if path_to_save_journal is not None:
+            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else path_to_save_journal + '.jnl'
 
         if bounds is None:
             # no transformation is performed
@@ -3951,6 +4041,9 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
         journal.final_step_loglik = approx_log_likelihood_accepted_parameter
         # store the final actual cov_matrices, in order to use this when restarting from journal
         journal.configuration["actual_cov_matrices"] = cov_matrices
+
+        if path_to_save_journal is not None:  # save journal
+            journal.save(path_to_save_journal)
 
         return journal
 

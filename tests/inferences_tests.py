@@ -34,7 +34,7 @@ class RejectionABCTest(unittest.TestCase):
 
         # use the rejection sampling scheme
         sampler = RejectionABC([self.model], [dist_calc], dummy, seed=1)
-        journal = sampler.sample([y_obs], 10, 1, 10)
+        journal = sampler.sample([y_obs], 10, 1, 10, path_to_save_journal="tmp.jnl")
         mu_sample = np.array(journal.get_parameters()['mu'])
         sigma_sample = np.array(journal.get_parameters()['sigma'])
 
@@ -78,7 +78,7 @@ class PMCTests(unittest.TestCase):
         T, n_sample, n_samples_per_param = 1, 10, 100
         sampler = PMC([self.model], [likfun], backend, seed=1)
         journal = sampler.sample([y_obs], T, n_sample, n_samples_per_param, covFactors=np.array([.1, .1]),
-                                 iniPoints=None)
+                                 iniPoints=None, path_to_save_journal="tmp.jnl")
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
             journal.get_parameters()['sigma']), np.array(journal.get_weights())
 
@@ -153,7 +153,8 @@ class MCMCMetropoliHastingsTests(unittest.TestCase):
 
         sampler = MCMCMetropoliHastings([self.model], [self.likfun], self.backend, seed=1)
         journal = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None,
-                                 iniPoint=None, burnin=10, adapt_proposal_cov_interval=5, use_tqdm=False)
+                                 iniPoint=None, burnin=10, adapt_proposal_cov_interval=5, use_tqdm=False,
+                                 path_to_save_journal="tmp.jnl")
         # without speedup_dummy
         sampler = MCMCMetropoliHastings([self.model], [self.likfun], self.backend, seed=1)  # to reset seed
         journal_repr = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None, use_tqdm=False,
@@ -225,8 +226,8 @@ class MCMCMetropoliHastingsTests(unittest.TestCase):
             sampler = MCMCMetropoliHastings([self.model], [self.likfun], self.backend, seed=1)
             journal = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None, iniPoint=None,
                                      speedup_dummy=speedup_dummy, burnin=20, adapt_proposal_cov_interval=10,
-                                     use_tqdm=False)
-            journal.save("tmp.jnl")
+                                     use_tqdm=False, path_to_save_journal="tmp.jnl")
+
             journal_separate = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None,
                                               iniPoint=None, journal_file="tmp.jnl", burnin=0,
                                               speedup_dummy=speedup_dummy, use_tqdm=False)  # restart from this journal
@@ -255,9 +256,8 @@ class MCMCMetropoliHastingsTests(unittest.TestCase):
             sampler = MCMCMetropoliHastings([self.model], [self.likfun], self.backend, seed=1)
             journal = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None, iniPoint=None,
                                      speedup_dummy=speedup_dummy, burnin=20, adapt_proposal_cov_interval=10,
-                                     use_tqdm=False, bounds=self.bounds)
+                                     use_tqdm=False, bounds=self.bounds, path_to_save_journal="tmp.jnl")
 
-            journal.save("tmp.jnl")
             journal_separate = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None,
                                               iniPoint=None, journal_file="tmp.jnl", burnin=0,
                                               speedup_dummy=speedup_dummy, use_tqdm=False,
@@ -396,8 +396,9 @@ class PMCABCTests(unittest.TestCase):
         # 2 steps with intermediate journal:
         sampler = PMCABC([self.model], [self.dist_calc], self.backend, seed=1)
         sampler.sample_from_prior(rng=np.random.RandomState(1))
-        journal_intermediate = sampler.sample([self.observation], 1, [eps_arr[0]], n_sample, n_simulate, eps_percentile)
-        journal_intermediate.save("tmp.jnl")
+        journal_intermediate = sampler.sample([self.observation], 1, [eps_arr[0]], n_sample, n_simulate, eps_percentile,
+                                              path_to_save_journal="tmp.jnl")
+
         journal_final_1 = sampler.sample([self.observation], 1, [eps_arr[1]], n_sample, n_simulate, eps_percentile,
                                          journal_file="tmp.jnl")
         # 2 steps directly
@@ -469,7 +470,8 @@ class SABCTests(unittest.TestCase):
         # use the SABC scheme for T = 2
         steps, epsilon, n_samples, n_samples_per_param = 2, 10, 10, 1
         sampler = SABC([self.model], [self.dist_calc], self.backend, seed=1)
-        journal = sampler.sample([self.observation], steps, epsilon, n_samples, n_samples_per_param)
+        journal = sampler.sample([self.observation], steps, epsilon, n_samples, n_samples_per_param, full_output=1,
+                                 path_to_save_journal="tmp")
         mu_post_sample, sigma_post_sample, post_weights = np.array(journal.get_parameters()['mu']), np.array(
             journal.get_parameters()['sigma']), np.array(journal.get_weights())
 
