@@ -19,7 +19,7 @@ def contrastive_training(samples, similarity_set, embedding_net, cuda, batch_siz
                          samples_val=None, similarity_set_val=None, early_stopping=False,
                          epochs_early_stopping_interval=1,
                          start_epoch_early_stopping=10, positive_weight=None, load_all_data_GPU=False, margin=1.,
-                         lr=None, optimizer=None, scheduler=None, start_epoch_training=0,
+                         lr=None, optimizer=None, scheduler=None, start_epoch_training=0, use_tqdm=True,
                          optimizer_kwargs={}, scheduler_kwargs={}, loader_kwargs={}):
     """ Implements the algorithm for the contrastive distance learning training of a neural network; need to be
      provided with a set of samples and the corresponding similarity matrix"""
@@ -84,7 +84,8 @@ def contrastive_training(samples, similarity_set, embedding_net, cuda, batch_siz
     fit(pairs_train_loader, model_contrastive, loss_fn, optimizer, scheduler, n_epochs, cuda,
         val_loader=pairs_train_loader_val,
         early_stopping=early_stopping, start_epoch_early_stopping=start_epoch_early_stopping,
-        epochs_early_stopping_interval=epochs_early_stopping_interval, start_epoch_training=start_epoch_training)
+        epochs_early_stopping_interval=epochs_early_stopping_interval, start_epoch_training=start_epoch_training,
+        use_tqdm=use_tqdm)
 
     return embedding_net
 
@@ -93,7 +94,7 @@ def triplet_training(samples, similarity_set, embedding_net, cuda, batch_size=16
                      samples_val=None, similarity_set_val=None, early_stopping=False, epochs_early_stopping_interval=1,
                      start_epoch_early_stopping=10,
                      load_all_data_GPU=False, margin=1., lr=None, optimizer=None, scheduler=None,
-                     start_epoch_training=0,
+                     start_epoch_training=0, use_tqdm=True,
                      optimizer_kwargs={}, scheduler_kwargs={}, loader_kwargs={}):
     """ Implements the algorithm for the triplet distance learning training of a neural network; need to be
      provided with a set of samples and the corresponding similarity matrix"""
@@ -157,7 +158,7 @@ def triplet_training(samples, similarity_set, embedding_net, cuda, batch_size=16
     fit(triplets_train_loader, model_triplet, loss_fn, optimizer, scheduler, n_epochs, cuda,
         val_loader=triplets_train_loader_val,
         early_stopping=early_stopping, start_epoch_early_stopping=start_epoch_early_stopping,
-        epochs_early_stopping_interval=epochs_early_stopping_interval, start_epoch_training=start_epoch_training)
+        epochs_early_stopping_interval=epochs_early_stopping_interval, start_epoch_training=start_epoch_training, use_tqdm=use_tqdm)
 
     return embedding_net
 
@@ -165,7 +166,7 @@ def triplet_training(samples, similarity_set, embedding_net, cuda, batch_size=16
 def FP_nn_training(samples, target, embedding_net, cuda, batch_size=1, n_epochs=50, samples_val=None, target_val=None,
                    early_stopping=False, epochs_early_stopping_interval=1, start_epoch_early_stopping=10,
                    load_all_data_GPU=False,
-                   lr=1e-3, optimizer=None, scheduler=None, start_epoch_training=0, optimizer_kwargs={},
+                   lr=1e-3, optimizer=None, scheduler=None, start_epoch_training=0, use_tqdm=True, optimizer_kwargs={},
                    scheduler_kwargs={}, loader_kwargs={}):
     """ Implements the algorithm for the training of a neural network based on regressing the values of the parameters
     on the corresponding simulation outcomes; it is effectively a training with a mean squared error loss. Needs to be
@@ -224,6 +225,6 @@ def FP_nn_training(samples, target, embedding_net, cuda, batch_size=1, n_epochs=
     fit(data_loader_FP_nn, embedding_net, loss_fn, optimizer, scheduler, n_epochs, cuda,
         val_loader=data_loader_FP_nn_val,
         early_stopping=early_stopping, start_epoch_early_stopping=start_epoch_early_stopping,
-        epochs_early_stopping_interval=epochs_early_stopping_interval, start_epoch_training=start_epoch_training)
+        epochs_early_stopping_interval=epochs_early_stopping_interval, start_epoch_training=start_epoch_training, use_tqdm=use_tqdm)
 
     return embedding_net

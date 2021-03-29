@@ -4,10 +4,10 @@ MAKEDIRS=$(shell find examples -name Makefile -exec dirname {} \;)
 whl_file = abcpy-${VERSION}-py3-none-any.whl
 
 .DEFAULT: help
-.PHONY: help clean doc doctest exampletest package test uninstall unittest unittest_mpi install reinstall $(MAKEDIRS)
+.PHONY: help clean doc doctest exampletest exampletest_mpi package test uninstall unittest unittest_mpi install reinstall $(MAKEDIRS)
 
 help:
-	@echo Targets are: clean, doc, doctest, exampletest, package, uninstall, unittest, unittest_mpi	, test
+	@echo Targets are: clean, doc, doctest, exampletest, exampletest_mpi, package, uninstall, unittest, unittest_mpi, test
 
 clean:
 	find . -name "*.pyc" -type f -delete
@@ -26,6 +26,11 @@ test: unittest unittest_mpi exampletest exampletest_mpi doctest
 unittest:
 	@echo "Running standard unit tests.."
 	python3 -m unittest discover -s tests -v -p "*_tests.py" || (echo "Error in standard unit tests."; exit 1)
+	@# remove temporary files created during testing
+	@if test -f net.pth; then rm net.pth; fi
+	@if test -f scaler.pkl; then rm scaler.pkl; fi
+	@if test -f tmp.jnl; then rm tmp.jnl; fi
+	@if test -f journal_tests_testfile.pkl; then rm journal_tests_testfile.pkl; fi
 
 unittest_mpi:
 	@echo "Running MPI backend unit tests.."

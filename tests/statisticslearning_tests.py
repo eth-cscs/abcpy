@@ -65,11 +65,12 @@ class SemiautomaticNNTests(unittest.TestCase):
         if has_torch:
             # Initialize statistics learning
             self.statisticslearning = SemiautomaticNN([self.Y], self.statistics_cal, self.backend, n_samples=100,
-                                                      n_samples_per_param=1, seed=1, n_epochs=10, scale_samples=False)
+                                                      n_samples_per_param=1, seed=1, n_epochs=10, scale_samples=False,
+                                                      use_tqdm=False)
             # with sample scaler:
             self.statisticslearning_with_scaler = SemiautomaticNN([self.Y], self.statistics_cal, self.backend,
                                                                   n_samples=100, n_samples_per_param=1, seed=1,
-                                                                  n_epochs=10, scale_samples=True)
+                                                                  n_epochs=10, scale_samples=True, use_tqdm=False)
 
     def test_initialization(self):
         if not has_torch:
@@ -164,12 +165,12 @@ class ContrastiveDistanceLearningTests(unittest.TestCase):
             # Initialize statistics learning
             self.statisticslearning = ContrastiveDistanceLearning([self.Y], self.statistics_cal, self.backend,
                                                                   n_samples=100, n_samples_per_param=1, seed=1,
-                                                                  n_epochs=10, scale_samples=False)
+                                                                  n_epochs=10, scale_samples=False, use_tqdm=False)
             # with sample scaler:
             self.statisticslearning_with_scaler = ContrastiveDistanceLearning([self.Y], self.statistics_cal,
                                                                               self.backend, n_samples=100,
                                                                               n_samples_per_param=1, seed=1,
-                                                                              n_epochs=10, scale_samples=True)
+                                                                              n_epochs=10, scale_samples=True, use_tqdm=False)
 
     def test_initialization(self):
         if not has_torch:
@@ -212,11 +213,11 @@ class TripletDistanceLearningTests(unittest.TestCase):
         if has_torch:
             # Initialize statistics learning
             self.statisticslearning = TripletDistanceLearning([self.Y], self.statistics_cal, self.backend,
-                                                              scale_samples=False,
+                                                              scale_samples=False, use_tqdm=False,
                                                               n_samples=100, n_samples_per_param=1, seed=1, n_epochs=10)
             # with sample scaler:
             self.statisticslearning_with_scaler = TripletDistanceLearning([self.Y], self.statistics_cal, self.backend,
-                                                                          scale_samples=True,
+                                                                          scale_samples=True, use_tqdm=False,
                                                                           n_samples=100, n_samples_per_param=1, seed=1,
                                                                           n_epochs=10)
 

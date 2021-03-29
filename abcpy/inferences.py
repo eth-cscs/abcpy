@@ -1,19 +1,24 @@
 import copy
 import logging
 import time
+import warnings
 from abc import abstractproperty
 
 import numpy as np
 from scipy import optimize
+from tqdm import tqdm
 
 from abcpy.acceptedparametersmanager import *
+from abcpy.backends import BackendDummy
+from abcpy.distances import Divergence
 from abcpy.graphtools import GraphTools
 from abcpy.jointapprox_lhd import SumCombination
 from abcpy.jointdistances import LinearCombination
 from abcpy.output import Journal
-from abcpy.perturbationkernel import DefaultKernel
+from abcpy.perturbationkernel import DefaultKernel, JointPerturbationKernel
 from abcpy.probabilisticmodels import *
 from abcpy.utils import cached
+from abcpy.transformers import BoundedVarTransformer, DummyTransformer
 
 
 class InferenceMethod(GraphTools, metaclass=ABCMeta):
@@ -77,7 +82,7 @@ class BaseMethodsWithKernel(metaclass=ABCMeta):
         """To be overwritten by any sub-class: an attribute specifying the transition or perturbation kernel."""
         raise NotImplementedError
 
-    def perturb(self, column_index, epochs=10, rng=np.random.RandomState()):
+    def perturb(self, column_index, epochs=10, rng=np.random.RandomState(), accepted_parameters_manager=None):
         """
         Perturbs all free parameters, given the current weights.
         Commonly used during inference.
@@ -88,6 +93,9 @@ class BaseMethodsWithKernel(metaclass=ABCMeta):
             The index of the column in the accepted_parameters_bds that should be used for perturbation
         epochs: integer
             The number of times perturbation should happen before the algorithm is terminated
+        accepted_parameters_manager: AcceptedParametersManager
+            The AcceptedParametersManager to use; if not provided, use the one stored in
+            self.accepted_parameters_manager
 
         Returns
         -------
@@ -96,10 +104,13 @@ class BaseMethodsWithKernel(metaclass=ABCMeta):
         """
         current_epoch = 0
 
+        if accepted_parameters_manager is None:
+            accepted_parameters_manager = self.accepted_parameters_manager
+
         while current_epoch < epochs:
 
             # Get new parameters of the graph
-            new_parameters = self.kernel.update(self.accepted_parameters_manager, column_index, rng=rng)
+            new_parameters = self.kernel.update(accepted_parameters_manager, column_index, rng=rng)
 
             self._reset_flags()
 
@@ -149,10 +160,11 @@ class RejectionABC(InferenceMethod):
 
         Parameters
         ----------
-        model: list
+        root_models: list
             A list of the Probabilistic models corresponding to the observed datasets
-        distance: abcpy.distances.Distance
-            Distance object defining the distance measure to compare simulated and observed data sets.
+        distances: list of abcpy.distances.Distance
+            List of Distance objects defining the distance measure to compare simulated and observed data sets; one for 
+            each model.
         backend: abcpy.backends.Backend
             Backend object defining the backend to be used.
         seed: integer, optionaldistance
@@ -184,7 +196,7 @@ class RejectionABC(InferenceMethod):
         # counts the number of simulate calls
         self.simulation_counter = 0
 
-    def sample(self, observations, n_samples, n_samples_per_param, epsilon, full_output=0):
+    def sample(self, observations, n_samples, n_samples_per_param, epsilon, full_output=0, path_to_save_journal=None):
         """
         Samples from the posterior distribution of the model parameter given the observed
         data observations.
@@ -192,7 +204,7 @@ class RejectionABC(InferenceMethod):
         Parameters
         ----------
         observations: list
-            A list, containing lists describing the observed data sets
+            A list, containing lists describing the observed data sets; one for each model.
         n_samples: integer
             Number of samples to generate
         n_samples_per_param: integer
@@ -200,9 +212,11 @@ class RejectionABC(InferenceMethod):
         epsilon: float
             Value of threshold
         full_output: integer, optional
-            If full_output==1, intermediate results are included in output journal.
-            The default value is 0, meaning the intermediate results are not saved.
-
+            It is actually unused in RejectionABC but left here for general compatibility with the other inference
+            classes.
+        path_to_save_journal: str, optional
+            If provided, save the journal after inference at the provided path.
+            
         Returns
         -------
         abcpy.output.Journal
@@ -219,6 +233,9 @@ class RejectionABC(InferenceMethod):
         journal.configuration["n_samples"] = self.n_samples
         journal.configuration["n_samples_per_param"] = self.n_samples_per_param
         journal.configuration["epsilon"] = self.epsilon
+        journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
+        journal.configuration["type_dist_func"] = [type(distance).__name__ for distance in self.distance.distances]
+        journal.configuration["full_output"] = full_output
 
         accepted_parameters = None
 
@@ -245,6 +262,11 @@ class RejectionABC(InferenceMethod):
         names_and_parameters = self._get_names_and_parameters()
         journal.add_user_parameters(names_and_parameters)
         journal.number_of_simulations.append(self.simulation_counter)
+        
+        if path_to_save_journal is not None:
+            # save journal there
+            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else path_to_save_journal + '.jnl'
+            journal.save(path_to_save_journal)
 
         return journal
 
@@ -305,14 +327,16 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
 
     Parameters
     ----------
-    model : list
+    root_models: list
         A list of the Probabilistic models corresponding to the observed datasets
-    distance : abcpy.distances.Distance
-        Distance object defining the distance measure to compare simulated and observed data sets.
-    kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling.
+    distances: list of abcpy.distances.Distance
+        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for 
+        each model.
     backend : abcpy.backends.Backend
         Backend object defining the backend to be used.
+    kernel : abcpy.perturbationkernel.PerturbationKernel, optional
+        PerturbationKernel object defining the perturbation kernel needed for the sampling. If not provided, the
+        DefaultKernel is used.
     seed : integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
@@ -350,16 +374,16 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, steps, epsilon_init, n_samples=10000, n_samples_per_param=1, epsilon_percentile=10,
-               covFactor=2, full_output=0, journal_file=None):
+               covFactor=2, full_output=0, journal_file=None, path_to_save_journal=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
         Parameters
         ----------
         observations : list
-            A list, containing lists describing the observed data sets
+            A list, containing lists describing the observed data sets; one for each model.
         steps : integer
-            Number of iterations in the sequential algoritm ("generations")
+            Number of iterations in the sequential algorithm ("generations")
         epsilon_init : numpy.ndarray
             An array of proposed values of epsilon to be used at each steps. Can be supplied
             A single value to be used as the threshold in Step 1 or a `steps`-dimensional array of values to be
@@ -378,6 +402,11 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
+        path_to_save_journal: str, optional
+            If provided, save the journal at the provided path. The journal is saved (and overwritten) after each step
+            of the sequential inference routine, so that partial results are stored to the disk in case the
+            inference routine does not end correctly; recall that you need to set full_output=1 to obtain the
+            full partial results.
 
         Returns
         -------
@@ -388,14 +417,21 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
 
+        if path_to_save_journal is not None:
+            # save journal there
+            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else path_to_save_journal + '.jnl'
+
         if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
-            journal.configuration["type_dist_func"] = type(self.distance).__name__
+            journal.configuration["type_dist_func"] = [type(distance).__name__ for distance in self.distance.distances]
+            journal.configuration["steps"] = steps
+            journal.configuration["epsilon_init"] = epsilon_init
             journal.configuration["n_samples"] = self.n_samples
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
-            journal.configuration["steps"] = steps
             journal.configuration["epsilon_percentile"] = epsilon_percentile
+            journal.configuration["covFactor"] = covFactor
+            journal.configuration["full_output"] = full_output
         else:
             journal = Journal.fromFile(journal_file)
 
@@ -408,7 +444,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
             epsilon_arr = epsilon_init
         elif len(epsilon_init) == 1:
             epsilon_arr = [None] * steps
-            epsilon_arr[0] = epsilon_init
+            epsilon_arr[0] = epsilon_init[0]
         else:
             raise ValueError("The length of epsilon_init can only be equal to 1 or steps.")
 
@@ -420,7 +456,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 accepted_parameters = journal.get_accepted_parameters(-1)
                 accepted_weights = journal.get_weights(-1)
 
-                if  hasattr(journal, "distances"):
+                if hasattr(journal, "distances"):
                     # if restarting from a journal, use the previous distances to check determine a new epsilon
                     # (it if is larger than the epsilon_arr[0] provided here)
                     self.logger.info("Calculating acceptances threshold from provided journal file")
@@ -436,7 +472,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 self.accepted_parameters_manager.update_kernel_values(self.backend, kernel_parameters=kernel_parameters)
 
                 # 3: calculate covariance
-                self.logger.info("Calculateing covariance matrix")
+                self.logger.info("Calculating covariance matrix")
                 new_cov_mats = self.kernel.calculate_cov(self.accepted_parameters_manager)
                 # Since each entry of new_cov_mats is a numpy array, we can multiply like this
                 # accepted_cov_mats = [covFactor * new_cov_mat for new_cov_mat in new_cov_mats]
@@ -523,11 +559,14 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.add_user_parameters(names_and_parameters)
                 journal.number_of_simulations.append(self.simulation_counter)
 
-        # Add epsilon_arr to the journal
-        if journal_file is not None and "epsilon_arr" in journal.configuration.keys():
-            journal.configuration["epsilon_arr"] += epsilon_arr
-        else:
-            journal.configuration["epsilon_arr"] = epsilon_arr
+            # Add epsilon_arr to the journal
+            if journal_file is not None and "epsilon_arr" in journal.configuration.keys():
+                journal.configuration["epsilon_arr"] += epsilon_arr
+            else:
+                journal.configuration["epsilon_arr"] = epsilon_arr
+
+            if path_to_save_journal is not None:  # save journal
+                journal.save(path_to_save_journal)
 
         return journal
 
@@ -655,7 +694,7 @@ class PMC(BaseLikelihood, InferenceMethod):
     Population Monte Carlo based inference scheme of Cappé et. al. [1].
 
     This algorithm assumes a likelihood function is available and can be evaluated
-    at any parameter value given the oberved dataset.  In absence of the
+    at any parameter value given the observed dataset.  In absence of the
     likelihood function or when it can't be evaluated with a rational
     computational expenses, we use the approximated likelihood functions in
     abcpy.approx_lhd module, for which the argument of the consistency of the
@@ -669,14 +708,15 @@ class PMC(BaseLikelihood, InferenceMethod):
 
     Parameters
     ----------
-    model : list
+    root_models : list
         A list of the Probabilistic models corresponding to the observed datasets
-    loglikfun : abcpy.approx_lhd.Approx_likelihood
-        Approx_loglikelihood object defining the approximated loglikelihood to be used.
-    kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling.
+    loglikfuns : list of abcpy.approx_lhd.Approx_likelihood
+        List of Approx_loglikelihood object defining the approximated loglikelihood to be used; one for each model.
     backend : abcpy.backends.Backend
         Backend object defining the backend to be used.
+    kernel : abcpy.perturbationkernel.PerturbationKernel, optional
+        PerturbationKernel object defining the perturbation kernel needed for the sampling. If not provided, the
+        DefaultKernel is used.
     seed : integer, optional
         Optional initial seed for the random number generator. The default value is generated randomly.
 
@@ -717,23 +757,23 @@ class PMC(BaseLikelihood, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, steps, n_samples=10000, n_samples_per_param=100, covFactors=None, iniPoints=None,
-               full_output=0, journal_file=None):
+               full_output=0, journal_file=None, path_to_save_journal=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
         Parameters
         ----------
         observations : list
-            A list, containing lists describing the observed data sets
+            A list, containing lists describing the observed data sets; one for each model.
         steps : integer
-            number of iterations in the sequential algoritm ("generations")
+            number of iterations in the sequential algorithm ("generations")
         n_samples : integer, optional
             number of samples to generate. The default value is 10000.
         n_samples_per_param : integer, optional
             number of data points in each simulated data set. The default value is 100.
         covFactors : list of float, optional
             scaling parameter of the covariance matrix. The default is a p dimensional array of 1 when p is the
-            dimension of the parameter.
+            dimension of the parameter. One for each perturbation kernel.
         inipoints : numpy.ndarray, optional
             parameter vaulues from where the sampling starts. By default sampled from the prior.
         full_output: integer, optional
@@ -742,7 +782,11 @@ class PMC(BaseLikelihood, InferenceMethod):
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
-
+        path_to_save_journal: str, optional
+            If provided, save the journal at the provided path. The journal is saved (and overwritten) after each step
+            of the sequential inference routine, so that partial results are stored to the disk in case the
+            inference routine does not end correctly; recall that you need to set full_output=1 to obtain the
+            full partial results.
 
         Returns
         -------
@@ -755,16 +799,19 @@ class PMC(BaseLikelihood, InferenceMethod):
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
 
+        if path_to_save_journal is not None:
+            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else path_to_save_journal + '.jnl'
+
         if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
-            journal.configuration["type_lhd_func"] = type(self.likfun).__name__
+            journal.configuration["type_lhd_func"] = [type(likfun).__name__ for likfun in self.likfun.approx_lhds]
+            journal.configuration["steps"] = steps
             journal.configuration["n_samples"] = self.n_samples
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
-            journal.configuration["steps"] = steps
             journal.configuration["covFactor"] = covFactors
             journal.configuration["iniPoints"] = iniPoints
-
+            journal.configuration["full_output"] = full_output
         else:
             journal = Journal.fromFile(journal_file)
 
@@ -941,6 +988,9 @@ class PMC(BaseLikelihood, InferenceMethod):
                 journal.add_user_parameters(names_and_parameters)
                 journal.number_of_simulations.append(self.simulation_counter)
 
+            if path_to_save_journal is not None:  # save journal
+                journal.save(path_to_save_journal)
+
         return journal
 
     # define helper functions for map step
@@ -1054,14 +1104,16 @@ class SABC(BaseDiscrepancy, InferenceMethod):
 
     Parameters
     ----------
-    model : list
+    root_models: list
         A list of the Probabilistic models corresponding to the observed datasets
-    distance : abcpy.distances.Distance
-        Distance object defining the distance measure used to compare simulated and observed data sets.
-    kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling.
+    distances: list of abcpy.distances.Distance
+        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for
+        each model.
     backend : abcpy.backends.Backend
         Backend object defining the backend to be used.
+    kernel : abcpy.perturbationkernel.PerturbationKernel, optional
+        PerturbationKernel object defining the perturbation kernel needed for the sampling. If not provided, the
+        DefaultKernel is used.
     seed : integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
@@ -1085,6 +1137,12 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         # We define the joint Linear combination distance using all the distances for each individual models
         self.distance = LinearCombination(root_models, distances)
 
+        # check if the distance estimators are always positive
+        if np.any([isinstance(distance, Divergence) and not distance._estimate_always_positive()
+                   for distance in distances]):
+            raise RuntimeError("SABC does not work with estimates of divergences which may be negative. Use another "
+                               "inference algorithm or a different estimator.")
+
         if kernel is None:
 
             mapping, garbage_index = self._get_mapping()
@@ -1107,16 +1165,17 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, steps, epsilon, n_samples=10000, n_samples_per_param=1, beta=2, delta=0.2,
-               v=0.3, ar_cutoff=0.1, resample=None, n_update=None, full_output=0, journal_file=None):
+               v=0.3, ar_cutoff=0.1, resample=None, n_update=None, full_output=0, journal_file=None,
+               path_to_save_journal=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
         Parameters
         ----------
         observations : list
-            A list, containing lists describing the observed data sets
+            A list, containing lists describing the observed data sets; one for each model.
         steps : integer
-            Number of maximum iterations in the sequential algoritm ("generations")
+            Number of maximum iterations in the sequential algorithm ("generations")
         epsilon : numpy.float
             A proposed value of threshold to start with.
         n_samples : integer, optional
@@ -1143,6 +1202,11 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
+        path_to_save_journal: str, optional
+            If provided, save the journal at the provided path. The journal is saved (and overwritten) after each step
+            of the sequential inference routine, so that partial results are stored to the disk in case the
+            inference routine does not end correctly; recall that you need to set full_output=1 to obtain the
+            full partial results.
 
         Returns
         -------
@@ -1156,11 +1220,17 @@ class SABC(BaseDiscrepancy, InferenceMethod):
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
 
+        if path_to_save_journal is not None:
+            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else path_to_save_journal + '.jnl'
+
         if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
-            journal.configuration["type_dist_func"] = type(self.distance).__name__
-            journal.configuration["type_kernel_func"] = type(self.kernel)
+            journal.configuration["type_dist_func"] = [type(distance).__name__ for distance in self.distance.distances]
+            journal.configuration["type_kernel_func"] = [type(kernel).__name__ for kernel in self.kernel.kernels] if \
+                isinstance(self.kernel, JointPerturbationKernel) else type(self.kernel)
+            journal.configuration["steps"] = steps
+            journal.configuration["epsilon"] = self.epsilon
             journal.configuration["n_samples"] = self.n_samples
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
             journal.configuration["beta"] = beta
@@ -1373,21 +1443,24 @@ class SABC(BaseDiscrepancy, InferenceMethod):
                     journal.add_user_parameters(names_and_parameters)
                     journal.number_of_simulations.append(self.simulation_counter)
 
-        # Add epsilon_arr, number of final steps and final output to the journal
-        # print("INFO: Saving final configuration to output journal.")
-        if (full_output == 0) or (full_output == 1 and broken_preemptively and aStep <= steps - 1):
-            journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
-            journal.add_weights(copy.deepcopy(accepted_weights))
-            journal.add_ESS_estimate(accepted_weights)
-            journal.add_distances(copy.deepcopy(distances))
-            self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
-                                                              accepted_weights=accepted_weights)
-            names_and_parameters = self._get_names_and_parameters()
-            journal.add_user_parameters(names_and_parameters)
-            journal.number_of_simulations.append(self.simulation_counter)
+            # Add epsilon_arr, number of final steps and final output to the journal
+            # print("INFO: Saving final configuration to output journal.")
+            if (full_output == 0) or (full_output == 1 and broken_preemptively and aStep <= steps - 1):
+                journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
+                journal.add_weights(copy.deepcopy(accepted_weights))
+                journal.add_ESS_estimate(accepted_weights)
+                journal.add_distances(copy.deepcopy(distances))
+                self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
+                                                                  accepted_weights=accepted_weights)
+                names_and_parameters = self._get_names_and_parameters()
+                journal.add_user_parameters(names_and_parameters)
+                journal.number_of_simulations.append(self.simulation_counter)
 
-        journal.configuration["steps"] = aStep + 1
-        journal.configuration["epsilon"] = epsilon
+            journal.configuration["steps"] = aStep + 1
+            journal.configuration["epsilon"] = epsilon
+
+            if path_to_save_journal is not None:  # save journal
+                journal.save(path_to_save_journal)
 
         return journal
 
@@ -1574,12 +1647,14 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
     ----------
     model : list
         A list of the Probabilistic models corresponding to the observed datasets
-    distance : abcpy.distances.Distance
-        Distance object defining the distance used to compare the simulated and observed data sets.
-    kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling.
+    distances: list of abcpy.distances.Distance
+        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for 
+        each model.
     backend : abcpy.backends.Backend
         Backend object defining the backend to be used.
+    kernel : abcpy.perturbationkernel.PerturbationKernel, optional
+        PerturbationKernel object defining the perturbation kernel needed for the sampling. If not provided, the
+        DefaultKernel is used.
     seed : integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
@@ -1623,16 +1698,16 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, chain_length=10, ap_change_cutoff=10,
-               full_output=0, journal_file=None):
+               full_output=0, journal_file=None, path_to_save_journal=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
         Parameters
         ----------
         observations : list
-            A list, containing lists describing the observed data sets
+            A list, containing lists describing the observed data sets; one for each model.
         steps : integer
-            Number of iterations in the sequential algoritm ("generations")
+            Number of iterations in the sequential algorithm ("generations")
         n_samples : integer, optional
             Number of samples to generate. The default value is 10000.
         n_samples_per_param : integer, optional
@@ -1648,6 +1723,11 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
+        path_to_save_journal: str, optional
+            If provided, save the journal at the provided path. The journal is saved (and overwritten) after each step
+            of the sequential inference routine, so that partial results are stored to the disk in case the
+            inference routine does not end correctly; recall that you need to set full_output=1 to obtain the
+            full partial results.
 
         Returns
         -------
@@ -1660,12 +1740,16 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
         self.chain_length = chain_length
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
+        if path_to_save_journal is not None:
+            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else path_to_save_journal + '.jnl'
 
         if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
-            journal.configuration["type_dist_func"] = type(self.distance).__name__
-            journal.configuration["type_kernel_func"] = type(self.kernel)
+            journal.configuration["type_dist_func"] = [type(distance).__name__ for distance in self.distance.distances]
+            journal.configuration["type_kernel_func"] = [type(kernel).__name__ for kernel in self.kernel.kernels] if \
+                isinstance(self.kernel, JointPerturbationKernel) else type(self.kernel)
+            journal.configuration["steps"] = steps
             journal.configuration["n_samples"] = self.n_samples
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
             journal.configuration["chain_length"] = self.chain_length
@@ -1800,6 +1884,8 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             self.logger.info(msg)
             if anneal_parameter_change_percentage < ap_change_cutoff:
                 break
+            if path_to_save_journal is not None:  # save journal
+                journal.save(path_to_save_journal)
 
         # Add anneal_parameter, number of final steps and final output to the journal
         # print("INFO: Saving final configuration to output journal.")
@@ -1817,6 +1903,9 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
 
         journal.configuration["steps"] = aStep + 1
         journal.configuration["anneal_parameter"] = anneal_parameter
+
+        if path_to_save_journal is not None:  # save journal
+            journal.save(path_to_save_journal)
 
         return journal
 
@@ -1971,12 +2060,14 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
     ----------
     model : list
         A list of the Probabilistic models corresponding to the observed datasets
-    distance : abcpy.distances.Distance
-        Distance object defining the distance measure used to compare simulated and observed data sets.
-    kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling.
+    distances: list of abcpy.distances.Distance
+        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for 
+        each model.
     backend : abcpy.backends.Backend
         Backend object defining the backend to be used.
+    kernel : abcpy.perturbationkernel.PerturbationKernel, optional
+        PerturbationKernel object defining the perturbation kernel needed for the sampling. If not provided, the
+        DefaultKernel is used.
     seed : integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
@@ -2025,7 +2116,8 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, alpha=0.1, epsilon_init=100,
-               epsilon_final=0.1, const=0.01, covFactor=2.0, full_output=0, journal_file=None):
+               epsilon_final=0.1, const=0.01, covFactor=2.0, full_output=0, journal_file=None, 
+               path_to_save_journal=None):
         """
         Samples from the posterior distribution of the model parameter given the observed
         data observations.
@@ -2033,9 +2125,9 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         Parameters
         ----------
         observations : list
-            A list, containing lists describing the observed data sets
+            A list, containing lists describing the observed data sets; one for each model.
         steps : integer
-            Number of iterations in the sequential algoritm ("generations")
+            Number of iterations in the sequential algorithm ("generations")
         n_samples : integer, optional
             Number of samples to generate. The default value is 10000.
         n_samples_per_param : integer, optional
@@ -2056,6 +2148,11 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
+        path_to_save_journal: str, optional
+            If provided, save the journal at the provided path. The journal is saved (and overwritten) after each step
+            of the sequential inference routine, so that partial results are stored to the disk in case the
+            inference routine does not end correctly; recall that you need to set full_output=1 to obtain the
+            full partial results.
 
         Returns
         -------
@@ -2069,14 +2166,24 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         self.alpha = alpha
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
+        if path_to_save_journal is not None:
+            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else path_to_save_journal + '.jnl'
 
         if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
-            journal.configuration["type_dist_func"] = type(self.distance).__name__
+            journal.configuration["type_dist_func"] = [type(distance).__name__ for distance in self.distance.distances]
+            journal.configuration["type_kernel_func"] = [type(kernel).__name__ for kernel in self.kernel.kernels] if \
+                isinstance(self.kernel, JointPerturbationKernel) else type(self.kernel)
+            journal.configuration["steps"] = steps
             journal.configuration["n_samples"] = self.n_samples
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
-            journal.configuration["steps"] = steps
+            journal.configuration["alpha"] = alpha
+            journal.configuration["epsilon_init"] = epsilon_init
+            journal.configuration["epsilon_final"] = epsilon_final
+            journal.configuration["const"] = const
+            journal.configuration["covFactor"] = covFactor
+            journal.configuration["full_output"] = full_output
         else:
             journal = Journal.fromFile(journal_file)
 
@@ -2217,8 +2324,11 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_weights=accepted_weights,
                                                               accepted_parameters=accepted_parameters)
 
-        # Add epsilon_arr to the journal
-        journal.configuration["epsilon_arr"] = epsilon
+            # Add epsilon_arr to the journal
+            journal.configuration["epsilon_arr"] = epsilon
+
+            if path_to_save_journal is not None:  # save journal
+                journal.save(path_to_save_journal)
 
         return journal
 
@@ -2330,12 +2440,14 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
     ----------
     model : list
         A list of the Probabilistic models corresponding to the observed datasets
-    distance : abcpy.distances.Distance
-        Distance object defining the distance measure used to compare simulated and observed data sets.
-    kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling.
+    distances: list of abcpy.distances.Distance
+        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for 
+        each model.
     backend : abcpy.backends.Backend
         Backend object defining the backend to be used.
+    kernel : abcpy.perturbationkernel.PerturbationKernel, optional
+        PerturbationKernel object defining the perturbation kernel needed for the sampling. If not provided, the
+        DefaultKernel is used.
     seed : integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
@@ -2383,16 +2495,16 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, alpha=0.1, acceptance_cutoff=0.03,
-               covFactor=2.0, full_output=0, journal_file=None):
+               covFactor=2.0, full_output=0, journal_file=None, path_to_save_journal=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
         Parameters
         ----------
         observations : list
-            A list, containing lists describing the observed data sets
+            A list, containing lists describing the observed data sets; one for each model.
         steps : integer
-            Number of iterations in the sequential algoritm ("generations")
+            Number of iterations in the sequential algorithm ("generations")
         n_samples : integer, optional
             Number of samples to generate. The default value is 10000.
         n_samples_per_param : integer, optional
@@ -2409,6 +2521,11 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
+        path_to_save_journal: str, optional
+            If provided, save the journal at the provided path. The journal is saved (and overwritten) after each step
+            of the sequential inference routine, so that partial results are stored to the disk in case the
+            inference routine does not end correctly; recall that you need to set full_output=1 to obtain the
+            full partial results.
 
         Returns
         -------
@@ -2421,14 +2538,22 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
         self.alpha = alpha
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
+        if path_to_save_journal is not None:
+            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else path_to_save_journal + '.jnl'
 
         if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
-            journal.configuration["type_dist_func"] = type(self.distance).__name__
+            journal.configuration["type_dist_func"] = [type(distance).__name__ for distance in self.distance.distances]
+            journal.configuration["type_kernel_func"] = [type(kernel).__name__ for kernel in self.kernel.kernels] if \
+                isinstance(self.kernel, JointPerturbationKernel) else type(self.kernel)
+            journal.configuration["steps"] = steps
             journal.configuration["n_samples"] = self.n_samples
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
-            journal.configuration["steps"] = steps
+            journal.configuration["alpha"] = self.alpha
+            journal.configuration["acceptance_cutoff"] = acceptance_cutoff
+            journal.configuration["covFactor"] = covFactor
+            journal.configuration["full_output"] = full_output
         else:
             journal = Journal.fromFile(journal_file)
 
@@ -2557,8 +2682,11 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
             if prob_acceptance < acceptance_cutoff:
                 break
 
-        # Add epsilon_arr to the journal
-        journal.configuration["epsilon_arr"] = epsilon
+            # Add epsilon_arr to the journal
+            journal.configuration["epsilon_arr"] = epsilon
+
+            if path_to_save_journal is not None:  # save journal
+                journal.save(path_to_save_journal)
 
         return journal
 
@@ -2654,8 +2782,14 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
 
 
 class SMCABC(BaseDiscrepancy, InferenceMethod):
-    """This class implements Sequential Monte Carlo Approximate Bayesian computation of
-    Del Moral et al. [1].
+    """This class implements two versions of Sequential Monte Carlo Approximate Bayesian computation, following either
+     the original in Del Moral et al. [1] or the newer version in Bernton et al. [3]. The first one is commonly used
+     when standard statistics based ABC is done (for instance with Euclidean distance), while the second one is instead
+     used when divergence-ABC is done (for instance, ABC with the Wasserstein distance, with the KL divergence and so
+     on). The first implementation in fact does not work in that case, as it assumes the distance can be computed with
+     respect to one single observation. Additionally, our implementation of the algorithm by Bernton et al.
+     does not work with the standard MCMC kernel, but requires using the r-hit kernel [2], which is arguably more
+     efficient (even if it leads to an algorithm for which the number of simulations is not known a priori).
 
     [1] P. Del Moral, A. Doucet, A. Jasra, An adaptive sequential Monte Carlo method for approximate
     Bayesian computation. Statistics and Computing, 22(5):1009–1020, 2012.
@@ -2663,16 +2797,24 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
     [2] Lee, Anthony. "n the choice of MCMC kernels for approximate Bayesian computation with SMC samplers.
     Proceedings of the 2012 Winter Simulation Conference (WSC). IEEE, 2012.
 
+    [3] Bernton, E., Jacob, P. E., Gerber, M., & Robert, C. P. (2019). Approximate Bayesian computation with the
+    Wasserstein distance. Journal of the Royal Statistical Society Series B, 81(2), 235-269.
+
     Parameters
     ----------
     model : list
         A list of the Probabilistic models corresponding to the observed datasets
-    distance : abcpy.distances.Distance
-        Distance object defining the distance measure used to compare simulated and observed data sets.
-    kernel : abcpy.distributions.Distribution
-        Distribution object defining the perturbation kernel needed for the sampling.
+    distances: list of abcpy.distances.Distance
+        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for
+        each model.
     backend : abcpy.backends.Backend
         Backend object defining the backend to be used.
+    kernel : abcpy.perturbationkernel.PerturbationKernel, optional
+        PerturbationKernel object defining the perturbation kernel needed for the sampling. If not provided, the
+        DefaultKernel is used.
+    version : string, optional
+        Denotes which version to use, either the one by Del Moral et al. [1] ("DelMoral") or the newer version in
+        Bernton et al. [3] ("Bernton"). By default, uses "DelMoral".
     seed : integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
     """
@@ -2691,7 +2833,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
     backend = None
 
-    def __init__(self, root_models, distances, backend, kernel=None, seed=None):
+    def __init__(self, root_models, distances, backend, kernel=None, version="DelMoral", seed=None):
         self.model = root_models
         # We define the joint Linear combination distance using all the distances for each individual models
         self.distance = LinearCombination(root_models, distances)
@@ -2706,6 +2848,22 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
         self.kernel = kernel
         self.backend = backend
+        if version not in ["DelMoral", "Bernton"]:
+            raise RuntimeError('The only implemented SMCABC methods are the one by Del Moral et al. ("DelMoral") or'
+                               ' the one by Bernton et al. [3] ("Bernton"). Please set version'
+                               ' to one of these two.')
+        else:
+            self.bernton = version == "Bernton"
+            self.version = version
+
+        # check now if we are using divergences and in that case return error if using DelMoral version as that does
+        # not work:
+        if not self.bernton and np.any([isinstance(distance, Divergence) for distance in distances]):
+            raise RuntimeError("You requested to use the SMCABC algorithm by Del Moral et al. "
+                               "together with divergences "
+                               "between empirical measures. That algorithm however only works for standard statistics "
+                               "based ABC.")
+
         self.logger = logging.getLogger(__name__)
 
         self.epsilon = None
@@ -2718,17 +2876,18 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
         self.simulation_counter = 0
 
-    def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, epsilon_final=0.1, alpha=0.95,
-               covFactor=2, resample=None, full_output=0, which_mcmc_kernel=0, journal_file=None):
+    def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, epsilon_final=0.1, alpha=None,
+               covFactor=2, resample=None, full_output=0, which_mcmc_kernel=None, r=None, journal_file=None,
+               path_to_save_journal=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
         Parameters
         ----------
         observations : list
-            A list, containing lists describing the observed data sets
+            A list, containing lists describing the observed data sets; one for each model.
         steps : integer
-            Number of iterations in the sequential algoritm ("generations")
+            Number of iterations in the sequential algorithm ("generations")
         n_samples : integer, optional
             Number of samples to generate. The default value is 10000.
         n_samples_per_param : integer, optional
@@ -2737,43 +2896,74 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             The final threshold value of epsilon to be reached; if at some iteration you reach a lower epsilon than
             epsilon_final, the algorithm will stop and not proceed with further iterations. The default value is 0.1.
         alpha : float, optional
-            A parameter taking values between [0,1], determinining the rate of change of the threshold epsilon. The
-            default value is 0.95.
+            A parameter taking values between [0,1], determining the rate of change of the threshold epsilon. If
+            the algorithm by Bernton et al. is used, epsilon is chosen in order to guarantee a
+            proportion of unique particles equal to alpha
+            after resampling. If instead the algorithm by Del Moral et al. is used,
+            epsilon is chosen such that the ESS (Effective Sample Size) with
+            the new threshold value is alpha times the ESS with the old threshold value. The default value is None,
+            in which case 0.95 is used for Del Moral et al. algorithm, or 0.5 for Bernton et al. algorithm.
         covFactor : float, optional
             scaling parameter of the covariance matrix. The default value is 2.
         resample  : float, optional
             It defines the resample step: introduce a resample step, after the particles have been
-            perturbed and the new weights have been computed, if the effective sample size is smaller than resample. If
-            not provided, resample is set to 0.5 * n_samples.
+            perturbed and the new weights have been computed, if the effective sample size is smaller than resample.
+            Notice that the algorithm by Bernton et al. always uses resample (as the weight values in that setup can
+            only be equal to 0 or 1), so that this parameter is ignored in that case.
+            If not provided, resample is set to 0.5 * n_samples.
         full_output: integer, optional
             If full_output==1, intermediate results are included in output journal.
             The default value is 0, meaning the intermediate results are not saved.
         which_mcmc_kernel: integer, optional
-            Specifies which MCMC kernel to be used: '0' kernel suggested in [1], any other value will use r-hit kernel
-            suggested by Anthony Lee [2]. The default value is 0.
+            Specifies which MCMC kernel to be used: '0' is the standard MCMC kernel used in the algorithm by
+            Del Moral et al [1], '1' uses the first version of r-hit kernel suggested by Anthony Lee (Alg. 5 in [2]),
+            while '2' uses the second version of r-hit kernel suggested by Anthony Lee (Alg. 6 in [2]).
+            The default value is 2 if the used algorithm is the one by Bernton et al, and is 0 for the algorithm by
+            Del Moral et al.
+        r: integer, optional:
+            Specifies the value of 'r' (the number of wanted hits) in the r-hits kernels. It is therefore ignored if
+            'which_mcmc_kernel==0'. If no value is provided, the first version of r-hit kernel uses r=3, while the
+            second uses r=2. The default value is None.
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
+        path_to_save_journal: str, optional
+            If provided, save the journal at the provided path. The journal is saved (and overwritten) after each step
+            of the sequential inference routine, so that partial results are stored to the disk in case the
+            inference routine does not end correctly; recall that you need to set full_output=1 to obtain the
+            full partial results.
 
         Returns
         -------
         abcpy.output.Journal
             A journal containing simulation results, metadata and optionally intermediate results.
         """
-        self.sample_from_prior(rng=self.rng)
 
         self.accepted_parameters_manager.broadcast(self.backend, observations)
         self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
+        if path_to_save_journal is not None:
+            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else path_to_save_journal + '.jnl'
 
         if journal_file is None:
             journal = Journal(full_output)
             journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
-            journal.configuration["type_dist_func"] = type(self.distance).__name__
+            journal.configuration["type_dist_func"] = [type(distance).__name__ for distance in self.distance.distances]
+            journal.configuration["type_kernel_func"] = [type(kernel).__name__ for kernel in self.kernel.kernels] if \
+                isinstance(self.kernel, JointPerturbationKernel) else type(self.kernel)
+            journal.configuration["steps"] = steps
             journal.configuration["n_samples"] = self.n_samples
             journal.configuration["n_samples_per_param"] = self.n_samples_per_param
-            journal.configuration["steps"] = steps
-            # maybe add which kernel I am using?
+            journal.configuration["epsilon_final"] = epsilon_final
+            journal.configuration["alpha"] = alpha
+            journal.configuration["covFactor"] = covFactor
+            journal.configuration["resample"] = resample
+            journal.configuration["which_mcmc_kernel"] = which_mcmc_kernel
+            journal.configuration["r"] = r
+            journal.configuration["full_output"] = full_output
+            journal.configuration["version"] = self.version
+            self.sample_from_prior(rng=self.rng)  # initialize only if you are not restarting from a journal, in order
+            # to ensure reproducibility
         else:
             journal = Journal.fromFile(journal_file)
 
@@ -2786,8 +2976,29 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         if resample is None:
             resample = n_samples * 0.5
 
-        # Define epsilon_init
-        epsilon = [10000]
+        if alpha is None:
+            alpha = 0.5 if self.bernton else 0.95
+
+        # Define maximum value of epsilon
+        if not np.isinf(self.distance.dist_max()):
+            epsilon = [self.distance.dist_max()]
+        else:
+            epsilon = [1e5]
+
+        if which_mcmc_kernel is None:
+            which_mcmc_kernel = 2 if self.bernton else 0
+
+        if which_mcmc_kernel not in [0, 1, 2]:
+            raise NotImplementedError("'which_mcmc_kernel' was given wrong value. It specifies which MCMC kernel to be"
+                                      " used: '0' kernel suggested in [1], '1' uses the first version of r-hit"
+                                      "kernel suggested by Anthony Lee (Alg. 5 in [2]), while '2' uses the second "
+                                      "version of r-hit kernel"
+                                      "suggested by Anthony Lee (Alg. 6 in [2]). The default value is 0.")
+
+        if self.bernton and which_mcmc_kernel == 0:
+            raise RuntimeError("The algorithm by Bernton et al. does not work with the standard MCMC kernel.")
+
+        self.r = r
 
         # main SMC ABC algorithm
         for aStep in range(0, steps):
@@ -2797,6 +3008,9 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 accepted_parameters = journal.get_accepted_parameters(-1)
                 accepted_weights = journal.get_weights(-1)
                 accepted_y_sim = journal.opt_values[-1]
+                distances = journal.get_distances(-1)
+
+                epsilon = journal.configuration["epsilon_arr"]
 
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                                   accepted_weights=accepted_weights)
@@ -2820,39 +3034,57 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
             # 0: Compute the Epsilon
             if accepted_y_sim != None:
-                self.logger.info("Compute epsilon, might take a while")
-                # Compute epsilon for next step
-                fun = lambda epsilon_var: self._compute_epsilon(epsilon_var, \
-                                                                epsilon, observations, accepted_y_sim, accepted_weights,
-                                                                n_samples, n_samples_per_param, alpha)
-                epsilon_new = self._bisection(fun, epsilon_final, epsilon[-1], 0.001)
+                self.logger.info(
+                    "Compute epsilon, might take a while; previous epsilon value: {:.4f}".format(epsilon[-1]))
+                if self.bernton:
+                    # for the Bernton algorithm, the distances have already been computed before during the acceptance
+                    # step. This however holds only when the r-hit kernels are used
+
+                    # first compute the distances for the current set of parameters and observations
+                    # (notice that may have already been done somewhere before!):
+                    # current_distance_matrix = self._compute_distance_matrix_divergence(observations, accepted_y_sim,
+                    #                                                                   n_samples)
+                    # assert np.allclose(current_distance_matrix, distances)
+                    current_distance_matrix = distances
+
+                    # Compute epsilon for next step
+                    fun = self._def_compute_epsilon_divergence_unique_particles(n_samples,
+                                                                                current_distance_matrix, alpha)
+                    epsilon_new = self._bisection(fun, epsilon_final, epsilon[-1], 0.001)
+                else:
+                    # first compute the distances for the current set of parameters and observations
+                    # (notice that may have already been done somewhere before!):
+                    current_distance_matrix = self._compute_distance_matrix(observations, accepted_y_sim, n_samples,
+                                                                            n_samples_per_param)
+                    fun = self._def_compute_epsilon(epsilon, accepted_weights, n_samples, current_distance_matrix,
+                                                    alpha)
+                    epsilon_new = self._bisection(fun, epsilon_final, epsilon[-1], 0.001)
                 if epsilon_new < epsilon_final:
                     epsilon_new = epsilon_final
                 epsilon.append(epsilon_new)
 
             # 1: calculate weights for new parameters
             self.logger.info("Calculating weights")
-            if accepted_y_sim != None:
-                new_weights = np.zeros(shape=n_samples, )
-                for ind1 in range(n_samples):
-                    numerator = 0.0
-                    denominator = 0.0
-                    for ind2 in range(n_samples_per_param):
-                        numerator += (self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]]) < epsilon[
-                            -1])
-                        denominator += (
-                                self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]]) < epsilon[-2])
-                    if denominator != 0.0:
-                        new_weights[ind1] = accepted_weights[ind1] * (numerator / denominator)
-                    else:
-                        new_weights[ind1] = 0
+            if accepted_y_sim is not None:
+                if self.bernton:
+                    new_weights = (current_distance_matrix < epsilon[-1]) * 1
+                else:
+                    numerators = np.sum(current_distance_matrix < epsilon[-1], axis=1)
+                    denominators = np.sum(current_distance_matrix < epsilon[-2], axis=1)
+
+                    non_zero_denominator = denominators != 0
+                    new_weights = np.zeros(shape=n_samples)
+
+                    new_weights[non_zero_denominator] = accepted_weights.flatten()[non_zero_denominator] * (
+                            numerators[non_zero_denominator] / denominators[non_zero_denominator])
 
                 new_weights = new_weights / sum(new_weights)
             else:
                 new_weights = np.ones(shape=n_samples, ) * (1.0 / n_samples)
-
-            # 2: Resample
-            if accepted_y_sim is not None and pow(sum(pow(new_weights, 2)), -1) < resample:
+            # 2: Resample; we resample always when using the Bernton et al. algorithm, as in that case weights
+            # can only be proportional to 1 or 0; if we use the Del Moral version, instead, the
+            # weights can have fractional values -> use the # resample threshold
+            if accepted_y_sim is not None and (self.bernton or pow(sum(pow(new_weights, 2)), -1) < resample):
                 self.logger.info("Resampling")
                 # Weighted resampling:
                 index_resampled = self.rng.choice(n_samples, n_samples, replace=True, p=new_weights)
@@ -2897,11 +3129,13 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             self._update_broadcasts(accepted_y_sim)
 
             # calculate resample parameters
-            self.logger.info("Drawing perturbed sampless")
+            self.logger.info("Drawing perturbed samples")
             if which_mcmc_kernel == 0:
                 params_and_ysim_pds = self.backend.map(self._accept_parameter, rng_and_index_pds)
-            else:
+            elif which_mcmc_kernel == 1:
                 params_and_ysim_pds = self.backend.map(self._accept_parameter_r_hit_kernel, rng_and_index_pds)
+            elif which_mcmc_kernel == 2:
+                params_and_ysim_pds = self.backend.map(self._accept_parameter_r_hit_kernel_version_2, rng_and_index_pds)
             params_and_ysim = self.backend.collect(params_and_ysim_pds)
             new_parameters, new_y_sim, distances, counter = [list(t) for t in zip(*params_and_ysim)]
             distances = np.array(distances)
@@ -2926,57 +3160,140 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.add_user_parameters(names_and_parameters)
                 journal.number_of_simulations.append(self.simulation_counter)
 
-        # Add epsilon_arr to the journal
-        journal.configuration["epsilon_arr"] = epsilon
+            # Add epsilon_arr to the journal
+            journal.configuration["epsilon_arr"] = epsilon
+
+            if path_to_save_journal is not None:  # save journal
+                journal.save(path_to_save_journal)
 
         return journal
 
-    def _compute_epsilon(self, epsilon_new, epsilon, observations, accepted_y_sim, accepted_weights, n_samples,
-                         n_samples_per_param, alpha):
+    def _compute_distance_matrix(self, observations, accepted_y_sim, n_samples, n_samples_per_param):
+        distance_matrix = np.zeros((n_samples, n_samples_per_param))
+
+        for ind1 in range(n_samples):
+            for ind2 in range(n_samples_per_param):
+                distance_matrix[ind1, ind2] = self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]])
+                self.logger.debug(
+                    'Computed distance inside for weights:' + str(
+                        distance_matrix[ind1, ind2]))
+        return distance_matrix
+
+    def _compute_distance_matrix_divergence(self, observations, accepted_y_sim, n_samples):
+        distance_matrix = np.zeros(n_samples)
+        for ind1 in range(n_samples):
+            distance_matrix[ind1] = self.distance.distance(observations, [accepted_y_sim[ind1][0]])
+            self.logger.debug('Computed distance matrix for weights:' + str(distance_matrix[ind1]))
+        return distance_matrix
+
+    @staticmethod
+    def _def_compute_epsilon(epsilon, accepted_weights, n_samples, distance_matrix, alpha):
         """
+        Returns a function of 'epsilon_new' that is used in the bisection routine.
+        The distances are computed just once in the definition of the function; this therefore avoids computing them
+        repeatedly during the _bisection routine for the same input values, which is inefficient.
+
         Parameters
         ----------
-        epsilon_new: float
-            New value for epsilon.
         epsilon: float
             Current threshold.
-        observations: numpy.ndarray
-            Observed data.
-        accepted_y_sim: numpy.ndarray
-            Accepted simulated data.
         accepted_weights: numpy.ndarray
             Accepted weights.
         n_samples: integer
             Number of samples to generate.
-        n_samples_per_param: integer
-            Number of data points in each simulated data set.
+        distance_matrix: np.ndarray:
+            the distance matrix between observation and data used to compute the weights
         alpha: float
 
         Returns
         -------
-        float
-            Newly computed value for threshold.
+        callable
+            The function used in the bisection routine
         """
 
         RHS = alpha * pow(sum(pow(accepted_weights, 2)), -1)
-        LHS = np.zeros(shape=n_samples, )
-        for ind1 in range(n_samples):
-            numerator = 0.0
-            denominator = 0.0
-            for ind2 in range(n_samples_per_param):
-                numerator += (self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]]) < epsilon_new)
-                denominator += (self.distance.distance(observations, [[accepted_y_sim[ind1][0][ind2]]]) < epsilon[-1])
-            if denominator == 0:
-                LHS[ind1] = 0
+        denominators = np.sum(distance_matrix < epsilon[-1], axis=1)
+        non_zero_denominator = denominators != 0
+
+        def _compute_epsilon(epsilon_new):
+            """
+            Parameters
+            ----------
+            epsilon_new: float
+                New value for epsilon.
+
+            Returns
+            -------
+            float
+                Newly computed value for threshold.
+            """
+            # old version (not optimized):
+            # for ind1 in range(n_samples):
+            #     numerator = 0.0
+            #     denominator = 0.0
+            #     for ind2 in range(n_samples_per_param):
+            #         numerator += (distance_matrix[ind1, ind2] < epsilon_new)
+            #         denominator += (distance_matrix[ind1, ind2] < epsilon[-1])
+            #     if denominator == 0:
+            #         LHS[ind1] = 0
+            #     else:
+            #         LHS[ind1] = accepted_weights[ind1] * (numerator / denominator)
+
+            numerators = np.sum(distance_matrix < epsilon_new, axis=1)
+
+            LHS = np.zeros(shape=n_samples)
+
+            LHS[non_zero_denominator] = accepted_weights.flatten()[non_zero_denominator] * (
+                    numerators[non_zero_denominator] / denominators[non_zero_denominator])
+            if sum(LHS) == 0:
+                result = RHS
             else:
-                LHS[ind1] = accepted_weights[ind1] * (numerator / denominator)
-        if sum(LHS) == 0:
-            result = RHS
-        else:
-            LHS = LHS / sum(LHS)
-            LHS = pow(sum(pow(LHS, 2)), -1)
-            result = RHS - LHS
-        return result
+                LHS = LHS / sum(LHS)  # normalize weights.
+                LHS = pow(sum(pow(LHS, 2)), -1)
+                result = RHS - LHS
+
+            return result
+
+        return _compute_epsilon
+
+    def _def_compute_epsilon_divergence_unique_particles(self, n_samples, distance_matrix, alpha):
+        """
+        Parameters
+        ----------
+        n_samples: integer
+            Number of samples to generate.
+        alpha: float
+
+        Returns
+        -------
+        callable
+            The function used in the bisection routine
+        """
+
+        def _compute_epsilon_divergence_unique_particles(epsilon_new):
+            """
+            Parameters
+            ----------
+            epsilon_new: float
+                New value for epsilon.
+            Returns
+            -------
+            float
+                proportion of unique particles after resampling
+            """
+            new_weights = (distance_matrix < epsilon_new) * 1
+            self.logger.debug('New weights:' + str(new_weights))
+            if sum(new_weights) != 0:
+                new_weights = new_weights / sum(new_weights)
+                rng = np.random.RandomState(1)  # this fixes the randomness across iterations; it makes sense therefore
+                # Here we want a proportion of unique particles equal to alpha after resampling
+                result = (len(
+                    np.unique(rng.choice(n_samples, n_samples, replace=True, p=new_weights))) / n_samples) - alpha
+            else:
+                result = - alpha
+            return result
+
+        return _compute_epsilon_divergence_unique_particles
 
     def _bisection(self, func, low, high, tol):
         # cache computed values, as we call func below
@@ -3054,6 +3371,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 for ind in range(self.n_samples_per_param):
                     numerator += (self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),
                                                          [[y_sim[0][ind]]]) < self.epsilon[-1])
+                    # we have most likely already computed this distance before, but hard to keep track. Moreover this
+                    # is parallelized -> should not impact too much on computing time
                     denominator += (self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),
                                                            [[y_sim_old[0][ind]]]) < self.epsilon[-1])
                 if denominator == 0:
@@ -3084,7 +3403,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
     def _accept_parameter_r_hit_kernel(self, rng_and_index, npc=None):
         """
         This implements algorithm 5 in Lee (2012) [2] which is used as an MCMC kernel in SMCABC. This implementation
-        uses r=3.
+        uses r=3 as default value.
 
         Parameters
         ----------
@@ -3105,7 +3424,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
 
         # Set value of r for r-hit kernel
-        r = 3
+        r = 3 if self.r is None else self.r
         mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(
             self.accepted_parameters_manager.model)
 
@@ -3114,35 +3433,41 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         if self.accepted_parameters_manager.accepted_parameters_bds is None:
             self.sample_from_prior(rng=rng)
             y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
+            # the following is was probably already computed before, but hard to keep track:
+            distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
             counter += 1
         else:
             if self.accepted_parameters_manager.accepted_weights_bds.value()[index] > 0:
                 theta = self.accepted_parameters_manager.accepted_parameters_bds.value()[index]
 
-                # Sample from theta until we get 'r-1' y_sim inside the epsilon ball
+                # Sample from theta until we get 'r-1' y_sim inside the epsilon ball (line 4 in Alg 5 in [3])
                 self.set_parameters(theta)
-                accept_old_arr, y_sim_old_arr, N_old = [], [], 0
-                while sum(accept_old_arr) < r - 1:
+                accept_old_arr, N_old = [], 0
+                # y_sim_old_arr = []  this is actually not used.
+                while len(accept_old_arr) < r - 1:
                     y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
-                    y_sim_old_arr.append(y_sim)
+                    # y_sim_old_arr.append(y_sim)
                     if self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),
                                               y_sim) < self.epsilon[-1]:
                         accept_old_arr.append(N_old)
                     N_old += 1
                     counter += 1
 
-                # Perturb and sample from the perturbed theta until we get 'r' y_sim inside the epsilon ball
+                # Perturb and sample from the perturbed theta until we get 'r' y_sim inside the epsilon ball 
+                # (line 2 in Alg 5 in [3])
                 while True:
                     perturbation_output = self.perturb(index, rng=rng)
                     if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
                         break
-                accept_new_arr, y_sim_new_arr, N = [], [], 0
-                while sum(accept_new_arr) < r:
+                accept_new_arr, y_sim_new_arr, distance_new_arr, N = [], [], [], 0
+                while len(accept_new_arr) < r:
                     y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
                     y_sim_new_arr.append(y_sim)
-                    if self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),
-                                              y_sim) < self.epsilon[-1]:
+                    distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),
+                                                      y_sim)
+                    if distance < self.epsilon[-1]:
                         accept_new_arr.append(N)
+                    distance_new_arr.append(distance)
                     counter += 1
                     N += 1
 
@@ -3159,19 +3484,690 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
                 if rng.binomial(1, acceptance_prob) == 1:
                     self.set_parameters(perturbation_output[1])
-                    # Randomly sample index J
-                    J = rng.choice(accept_new_arr).astype(int)
+                    # Randomly sample index J between the first r-1 hits
+                    J = rng.choice(accept_new_arr[:-1]).astype(int)
                     y_sim = y_sim_new_arr[J]
+                    distance = distance_new_arr[J]
                 else:
                     self.set_parameters(theta)
                     y_sim = self.accepted_y_sim_bds.value()[index]
+                    # the following is was probably already computed before, but hard to keep track:
+                    distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
             else:
                 self.set_parameters(self.accepted_parameters_manager.accepted_parameters_bds.value()[index])
                 y_sim = self.accepted_y_sim_bds.value()[index]
-        distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+                # the following distance was probably already computed before?
+                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+        return self.get_parameters(), y_sim, distance, counter
+
+    def _accept_parameter_r_hit_kernel_version_2(self, rng_and_index, npc=None):
+        """
+        This implements algorithm 6 in Lee (2012) [2] which is used as an MCMC kernel in SMCABC. This implementation
+        uses r=2 as default value.
+
+        Parameters
+        ----------
+        rng_and_index: numpy.ndarray
+            2 dimensional array. The first entry is a random number generator.
+            The second entry defines the index in the data set.
+
+        Returns
+        -------
+        Tuple
+            The first entry of the tuple is the accepted parameters. The second entry is the simulated data set.
+            The third one is the distance between the simulated data set and the observation, while the fourth one is
+            the number of simulations needed to obtain the accepted parameter.
+        """
+
+        rng = rng_and_index[0]
+        index = rng_and_index[1]
+        rng.seed(rng.randint(np.iinfo(np.uint32).max, dtype=np.uint32))
+
+        # Set value of r for r-hit kernel
+        r = 2 if self.r is None else self.r
+        mapping_for_kernels, garbage_index = self.accepted_parameters_manager.get_mapping(
+            self.accepted_parameters_manager.model)
+
+        counter = 0
+        # print("on seed " + str(seed) + " distance: " + str(distance) + " epsilon: " + str(self.epsilon))
+        if self.accepted_parameters_manager.accepted_parameters_bds is None:
+            self.sample_from_prior(rng=rng)
+            y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
+            distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+            # the following is was probably already computed before, but hard to keep track:
+            counter += 1
+        else:
+            if self.accepted_parameters_manager.accepted_weights_bds.value()[index] > 0:
+                theta = self.accepted_parameters_manager.accepted_parameters_bds.value()[index]
+
+                # Generate different perturbed values from theta and sample from model until we get 'r' y_sim
+                # inside the epsilon ball (line 1 in Alg 6 in [3])
+                accept_prime_arr, z_sim_arr, theta_prime_arr, distance_arr, N_prime = [], [], [], [], 0
+                while len(accept_prime_arr) < r:
+                    # first perturb:
+                    while True:
+                        # this perturbs using the current theta value
+                        perturbation_output = self.perturb(index, rng=rng)
+                        if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
+                            break
+                    theta_prime_arr.append(perturbation_output[1])
+                    # now simulate
+                    z_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
+                    z_sim_arr.append(z_sim)  # could store here only the accepted ones... Can improve
+                    distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), z_sim)
+                    if distance < self.epsilon[-1]:
+                        accept_prime_arr.append(N_prime)
+                    distance_arr.append(distance)
+                    N_prime += 1
+                    counter += 1
+                # select the index among the first r-1 hits (line 2 in Alg 6)
+                L = rng.choice(accept_prime_arr[:-1]).astype(int)
+                theta_prime_L = theta_prime_arr[L]
+
+                # create a new AcceptedParametersManager storing the theta_prime_L in order to draw perturbations from
+                # it:
+                inner_accepted_parameters_manager = AcceptedParametersManager(self.model)
+                # define a dummy backend:
+                backend_inner = BackendDummy()
+                # need to pass the covariance matrix (take it from the overall AcceptedParametersManager) and the
+                # theta_prime_L:
+                inner_accepted_parameters_manager.update_broadcast(backend_inner, accepted_parameters=[theta_prime_L],
+                                                                   accepted_cov_mats=self.accepted_parameters_manager.accepted_cov_mats_bds.value())
+
+                # in kernel_parameters you need to store theta_prime_L
+                # inner_accepted_parameters_manager.update_kernel_values(backend_inner,
+                #                                                        kernel_parameters=[[theta_prime_L]])
+
+                # update the kernel parameters (which is used to perturb - this is more general than the one above which
+                # works with one kernel only)
+                kernel_parameters = []
+                for kernel in self.kernel.kernels:
+                    kernel_parameters.append(
+                        inner_accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
+
+                inner_accepted_parameters_manager.update_kernel_values(backend_inner,
+                                                                       kernel_parameters=kernel_parameters)
+
+                # in kernel_parameters you need to store theta_prime_L
+                # inner_accepted_parameters_manager.update_kernel_values(backend_inner,
+                #                                                        kernel_parameters=[[theta_prime_L]])
+
+                # Generate different perturbed values from the parameter value selected above and sample from model
+                # until we get 'r-1' y_sim inside the epsilon ball (line 3 in Alg 6 in [3])
+                accept_arr, N = [], 0
+                while len(accept_arr) < r - 1:
+                    while True:
+                        perturbation_output = self.perturb(0, rng=rng,
+                                                           accepted_parameters_manager=inner_accepted_parameters_manager)
+                        if perturbation_output[0] and self.pdf_of_prior(self.model, perturbation_output[1]) != 0:
+                            break
+                    x_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)  #
+                    # y_sim_new_arr.append(y_sim)
+                    if self.distance.distance(self.accepted_parameters_manager.observations_bds.value(),
+                                              x_sim) < self.epsilon[-1]:
+                        accept_arr.append(N)
+                    counter += 1
+                    N += 1
+
+                # Calculate acceptance probability (line 4 in Alg 6)
+                ratio_prior_prob = self.pdf_of_prior(self.model, theta_prime_L) / self.pdf_of_prior(self.model,
+                                                                                                    theta)
+                kernel_numerator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager,
+                                                   theta_prime_L, theta)
+                kernel_denominator = self.kernel.pdf(mapping_for_kernels, self.accepted_parameters_manager, theta,
+                                                     theta_prime_L)
+                ratio_likelihood_prob = kernel_numerator / kernel_denominator
+
+                acceptance_prob = min(1, (N / (N_prime - 1)) * ratio_prior_prob * ratio_likelihood_prob)
+
+                if rng.binomial(1, acceptance_prob) == 1:
+                    self.set_parameters(theta_prime_L)
+                    y_sim = z_sim_arr[L]
+                    distance = distance_arr[L]
+                else:
+                    self.set_parameters(theta)
+                    y_sim = self.accepted_y_sim_bds.value()[index]
+                    # the following is was probably already computed before, but hard to keep track:
+                    distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
+            else:
+                self.set_parameters(self.accepted_parameters_manager.accepted_parameters_bds.value()[index])
+                y_sim = self.accepted_y_sim_bds.value()[index]
+                # the following is was probably already computed before, but hard to keep track:
+                distance = self.distance.distance(self.accepted_parameters_manager.observations_bds.value(), y_sim)
         return self.get_parameters(), y_sim, distance, counter
 
     def _compute_accepted_cov_mats(self, covFactor, new_cov_mats):
+        """
+        Update the covariance matrices computed from data by multiplying them with covFactor and adding a small term in
+        the diagonal for numerical stability.
+
+        Parameters
+        ----------
+        covFactor : float
+            factor to correct the covariance matrices
+        new_cov_mats : list
+            list of covariance matrices computed from data
+        Returns
+        -------
+        list
+            List of new accepted covariance matrices
+        """
+        # accepted_cov_mats = [covFactor * cov_mat for cov_mat in accepted_cov_mats]
+        accepted_cov_mats = []
+        for new_cov_mat in new_cov_mats:
+            if not (new_cov_mat.size == 1):
+                accepted_cov_mats.append(
+                    covFactor * new_cov_mat + 1e-20 * np.trace(new_cov_mat) * np.eye(new_cov_mat.shape[0]))
+            else:
+                accepted_cov_mats.append((covFactor * new_cov_mat + 1e-20 * new_cov_mat).reshape(1, 1))
+        return accepted_cov_mats
+
+
+class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
+    """
+    Simple Metropolis-Hastings MCMC working with the approximate likelihood functions Approx_likelihood, with
+    multivariate normal proposals.
+
+    Parameters
+    ----------
+    root_models : list
+        A list of the Probabilistic models corresponding to the observed datasets
+    loglikfuns : list of abcpy.approx_lhd.Approx_likelihood
+        List of Approx_loglikelihood object defining the approximated loglikelihood to be used; one for each model.
+    backend : abcpy.backends.Backend
+        Backend object defining the backend to be used.
+    kernel : abcpy.perturbationkernel.PerturbationKernel, optional
+        PerturbationKernel object defining the perturbation kernel needed for the sampling. If not provided, the
+        DefaultKernel is used.
+    seed : integer, optional
+        Optional initial seed for the random number generator. The default value is generated randomly.
+
+    """
+
+    model = None
+    likfun = None
+    kernel = None
+    rng = None
+
+    n_samples = None
+    n_samples_per_param = None
+
+    backend = None
+
+    def __init__(self, root_models, loglikfuns, backend, kernel=None, seed=None):
+        self.model = root_models
+        # We define the joint Sum of Loglikelihood functions using all the loglikelihoods for each individual models
+        self.likfun = SumCombination(root_models, loglikfuns)
+
+        mapping, garbage_index = self._get_mapping()
+        models = []
+        self.parameter_names_with_index = {}
+        for mdl, mdl_index in mapping:
+            models.append(mdl)
+            self.parameter_names_with_index[mdl.name] = mdl_index  # dict storing param names with index
+
+        self.parameter_names = [model.name for model in models]  # store parameter names
+
+        if kernel is None:
+            kernel = DefaultKernel(models)
+
+        self.kernel = kernel
+        self.backend = backend
+        self.rng = np.random.RandomState(seed)
+        self.logger = logging.getLogger(__name__)
+
+        # these are usually big tables, so we broadcast them to have them once
+        # per executor instead of once per task
+        self.accepted_parameters_manager = AcceptedParametersManager(self.model)
+        # this is used to handle the data for adapting the covariance:
+        self.accepted_parameters_manager_adaptive_cov = AcceptedParametersManager(self.model)
+
+        self.simulation_counter = 0
+
+    def sample(self, observations, n_samples, n_samples_per_param=100, burnin=1000, cov_matrices=None, iniPoint=None,
+               adapt_proposal_cov_interval=None, covFactor=None, bounds=None, speedup_dummy=True, use_tqdm=True,
+               journal_file=None, path_to_save_journal=None):
+        """Samples from the posterior distribution of the model parameter given the observed
+        data observations. The MCMC is run for burnin + n_samples steps, and n_samples_per_param are used at each step
+        to estimate the approximate loglikelihood. The burnin steps are then discarded from the chain stored in the
+        journal file.
+
+        During burnin, the covariance matrix is adapted from the steps generated up to that point, in a way similar to
+        what suggested in [1], after each adapt_proposal_cov_interval steps. Differently from the original algorithm in
+        [1], here the proposal covariance matrix is fixed after the end of the burnin steps.
+
+        In case the original parameter space is bounded (for instance with uniform prior on an interval), the MCMC can
+        be optionally run on a transformed space. Therefore, the covariance matrix describes proposals on the
+        transformed space; the acceptance rate then takes into account the Jacobian of the transformation. In order to
+        use MCMC with transformed space, you need to specify lower and upper bounds in the corresponding parameters (see
+        details in the description of `bounds`).
+
+        The returned journal file contains also information on acceptance rates (in the configuration dictionary).
+
+        [1] Haario, H., Saksman, E., & Tamminen, J. (2001). An adaptive Metropolis algorithm. Bernoulli, 7(2), 223-242.
+
+        Parameters
+        ----------
+        observations : list
+            A list, containing lists describing the observed data sets; one for each model.
+        n_samples : integer, optional
+            number of samples to generate. The default value is 10000.
+        n_samples_per_param : integer, optional
+            number of data points in each simulated data set. The default value is 100.
+        burnin : integer, optional
+            Number of burnin steps to discard. Defaults to 1000.
+        cov_matrices : list of matrices, optional
+            list of initial covariance matrices for the proposals. If not provided, identity matrices are used. If the 
+            sample routine is restarting from a journal file and cov_matrices is not provided, cov_matrices is set to 
+            the value used for sampling after burnin in the previous journal file (ie what is stored in 
+            `journal.configuration["actual_cov_matrices"]`).
+        iniPoint : numpy.ndarray, optional
+            parameter value from where the sampling starts. By default sampled from the prior. Not used if journal_file 
+            is passed.
+        adapt_proposal_cov_interval : integer, optional
+            the proposal covariance matrix is adapted each adapt_cov_matrix steps during burnin, by using the chain up
+            to that point. If None, no adaptation is done. Default value is None. Use with care as, if the likelihood
+            estimate is very noisy, the adaptation may work pooly (see `covFactor` parameter).
+        covFactor : float, optional
+            the factor by which to scale the empirical covariance matrix in order to obtain the covariance matrix for
+            the proposal, whenever that is updated during the burnin steps. If not provided, we use the default value
+            2.4 ** 2 / dim_theta suggested in [1].
+            Notice that this value was shown to be optimal (at least in some
+            limit sense) in the case in which the likelihood is fully known. In the present case, in which the
+            likelihood is estimated from data, that value may turn out to be too large; specifically, if
+            the likelihood estimate is very noisy, that choice may lead to a very bad adaptation which may give rise
+            to an MCMC which does not explore the space well (for instance, the obtained covariance matrix may turn out
+            to be too small). If that happens, we suggest to set covFactor to a smaller value than the default one, in
+            which case the acceptance rate of the chain will likely be smaller but the exploration will be better.
+            Alternatively, it is possible to reduce the noise in the likelihood estimate by increasing
+            `n_samples_per_param`.
+        bounds : dictionary, optional
+            dictionary containing the lower and upper bound for the transformation to be applied to the parameters. The
+            key of each entry is the name of the parameter as defined in the model, while the value if a tuple (or list)
+            with `(lower_bound, upper_bound)` content. If the parameter is bounded on one side only, the other bound
+            should be set to 'None'. If a parameter is not in this dictionary, no transformation is applied to it.
+            If a parameter is bounded on two sides, the used transformation is based on the logit. If conversely it is
+            lower bounded, we apply instead a log transformation. Notice that we do not implement yet the transformation
+            for upper bounded variables. If no value is provided, the default value is None, which means no
+            transformation at all is applied.
+        speedup_dummy: boolean, optional.
+            If set to True, the map function is not used to parallelize simulations (for the new parameter value) when
+            the backend is Dummy. This can improve performance as it can exploit potential vectorization in the model.
+            However, this breaks reproducibility when using, for instance, BackendMPI with respect to BackendDummy, due
+            to the different way the random seeds are used when speedup_dummy is set to True. Please set this to False
+            if you are interested in preserving reproducibility across MPI and Dummy backend. Defaults to True.
+        use_tqdm : boolean, optional
+            Whether using tqdm or not to display progress. Defaults to True.
+        journal_file: str, optional
+            Filename of a journal file to read an already saved journal file, from which the first iteration will start.
+            That's the only information used (it does not use the previous covariance matrix).
+            The default value is None.
+        path_to_save_journal: str, optional
+            If provided, save the journal at the provided path at the end of the inference routine.
+
+        Returns
+        -------
+        abcpy.output.Journal
+            A journal containing simulation results, metadata and optionally intermediate results.
+        """
+
+        self.observations = observations
+        self.n_samples = n_samples
+        self.n_samples_per_param = n_samples_per_param
+        self.speedup_dummy = speedup_dummy
+        # we use this in all places which require a backend but which are not parallelized in MCMC:
+        self.dummy_backend = BackendDummy()
+        dim = len(self.parameter_names)
+
+        if path_to_save_journal is not None:
+            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else path_to_save_journal + '.jnl'
+
+        if bounds is None:
+            # no transformation is performed
+            self.transformer = DummyTransformer()
+        else:
+            if not isinstance(bounds, dict):
+                raise TypeError("Argument `bounds` need to be a dictionary")
+            bounds_keys = bounds.keys()
+            for key in bounds_keys:
+                if key not in self.parameter_names:
+                    raise KeyError("The keys in argument `bounds` need to correspond to the parameter names used "
+                                   "in defining the model")
+                if not hasattr(bounds[key], "__len__") or len(bounds[key]) != 2:
+                    raise RuntimeError("Each entry in `bounds` need to be a tuple with 2 value, representing the lower "
+                                       "and upper bound of the corresponding parameter. If the parameter is bounded on "
+                                       "one side only, the other bound should be set to 'None'.")
+
+            # create lower_bounds and upper_bounds_vector:
+            lower_bound_transformer = np.array([None] * dim)
+            upper_bound_transformer = np.array([None] * dim)
+
+            for key in bounds_keys:
+                lower_bound_transformer[self.parameter_names_with_index[key]] = bounds[key][0]
+                upper_bound_transformer[self.parameter_names_with_index[key]] = bounds[key][1]
+
+            # initialize transformer:
+            self.transformer = BoundedVarTransformer(np.array(lower_bound_transformer),
+                                                     np.array(upper_bound_transformer))
+
+        accepted_parameters = []
+        accepted_parameters_burnin = []
+        if journal_file is None:
+            journal = Journal(0)
+            journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
+            journal.configuration["type_lhd_func"] = [type(likfun).__name__ for likfun in self.likfun.approx_lhds]
+            journal.configuration["type_kernel_func"] = [type(kernel).__name__ for kernel in self.kernel.kernels] if \
+                isinstance(self.kernel, JointPerturbationKernel) else type(self.kernel)
+            journal.configuration["n_samples"] = self.n_samples
+            journal.configuration["n_samples_per_param"] = self.n_samples_per_param
+            journal.configuration["burnin"] = burnin
+            journal.configuration["cov_matrices"] = cov_matrices
+            journal.configuration["iniPoint"] = iniPoint
+            journal.configuration["adapt_proposal_cov_interval"] = adapt_proposal_cov_interval
+            journal.configuration["covFactor"] = covFactor
+            journal.configuration["bounds"] = bounds
+            journal.configuration["speedup_dummy"] = speedup_dummy
+            journal.configuration["use_tqdm"] = use_tqdm
+            journal.configuration["acceptance_rates"] = []
+            # Initialize chain: when not supplied, randomly draw it from prior distribution
+            # It is an MCMC chain: weights are always 1; forget about them
+            # accepted_parameter will keep track of the chain position
+            if iniPoint is None:
+                self.sample_from_prior(rng=self.rng)
+                accepted_parameter = self.get_parameters()
+            else:
+                accepted_parameter = iniPoint
+            if burnin == 0:
+                accepted_parameters_burnin.append(accepted_parameter)
+            self.logger.info("Calculate approximate loglikelihood")
+            approx_log_likelihood_accepted_parameter = self._simulate_and_compute_log_lik(accepted_parameter)
+            # update the number of simulations (this tracks the number of parameters for which simulations are done;
+            # the actual number of simulations is this times n_samples_per_param))
+            self.simulation_counter += 1
+            self.acceptance_rate = 0
+        else:
+            # check the following:
+            self.logger.info("Restarting from previous journal")
+            journal = Journal.fromFile(journal_file)
+            # this is used to compute the overall acceptance rate:
+            self.acceptance_rate = journal.configuration["acceptance_rates"][-1] * journal.configuration["n_samples"]
+            accepted_parameter = journal.get_accepted_parameters(-1)[-1]  # go on from last MCMC step
+            journal.configuration["n_samples"] += self.n_samples  # add the total number of samples
+            journal.configuration["burnin"] = burnin
+            if journal.configuration["n_samples_per_param"] != self.n_samples_per_param:
+                warnings.warn("You specified a different n_samples_per_param from the one used in the passed "
+                              "journal_file; the algorithm will still work fine.")
+                journal.configuration["n_samples_per_param"] = self.n_samples_per_param
+            journal.configuration["cov_matrices"] = cov_matrices
+            journal.configuration["bounds"] = bounds  # overwrite
+            if cov_matrices is None:  # use the previously stored one unless the user defines it
+                cov_matrices = journal.configuration["actual_cov_matrices"]
+            journal.configuration["speedup_dummy"] = speedup_dummy
+            approx_log_likelihood_accepted_parameter = journal.final_step_loglik
+            self.simulation_counter = journal.number_of_simulations[-1]  # update the number of simulations
+
+        if covFactor is None:
+            covFactor = 2.4 ** 2 / dim
+
+        accepted_parameter_prior_pdf = self.pdf_of_prior(self.model, accepted_parameter)
+
+        # set the accepted parameter in the kernel (in order to correctly generate next proposal)
+        # do this on transformed parameter
+        accepted_parameter_transformed = self.transformer.transform(accepted_parameter)
+        self._update_kernel_parameters(accepted_parameter_transformed)
+
+        # compute jacobian
+        log_det_jac_accepted_param = self.transformer.jac_log_det(accepted_parameter)
+
+        # 3: calculate covariance
+        self.logger.info("Set kernel covariance matrix ")
+        if cov_matrices is None:
+            # need to set that to some value (we use identity matrices). Be careful, there need to be one
+            # covariance matrix for each kernel; not sure that this works in case of multivariate parameters.
+
+            # the kernel parameters are only used to get the exact shape of cov_matrices
+            cov_matrices = [np.eye(len(self.accepted_parameters_manager.kernel_parameters_bds.value()[0][kernel_index]))
+                            for kernel_index in range(len(self.kernel.kernels))]
+
+        self.accepted_parameters_manager.update_broadcast(self.dummy_backend, accepted_cov_mats=cov_matrices)
+
+        # main MCMC algorithm
+        self.logger.info("Starting MCMC")
+        for aStep in tqdm(range(burnin + n_samples), disable=not use_tqdm):
+
+            self.logger.debug("Step {} of MCMC algorithm".format(aStep))
+
+            # 1: Resample parameters
+            self.logger.debug("Generate proposal")
+
+            # perturb element 0 of accepted_parameters_manager.kernel_parameters_bds:
+            # new_parameter = self.perturb(0, rng=self.rng)[1]  # do not use this as it leads to some weird error.
+            # rather do:
+            new_parameters_transformed = self.kernel.update(self.accepted_parameters_manager, 0, rng=self.rng)
+
+            self._reset_flags()  # not sure whether this is needed, leave it anyway
+
+            # Order the parameters provided by the kernel in depth-first search order
+            new_parameter_transformed = self.get_correct_ordering(new_parameters_transformed)
+
+            # transform back
+            new_parameter = self.transformer.inverse_transform(new_parameter_transformed)
+
+            # for now we are only using a simple MVN proposal. For bounded parameter values, this is not great; we
+            # could also implement a proposal on transformed space, which would be better.
+            new_parameter_prior_pdf = self.pdf_of_prior(self.model, new_parameter)
+            if new_parameter_prior_pdf == 0:
+                self.logger.debug("Proposal parameter at step {} is out of prior region.".format(aStep))
+                if aStep >= burnin:
+                    accepted_parameters.append(accepted_parameter)
+                else:
+                    accepted_parameters_burnin.append(accepted_parameter)
+                continue
+
+            # 2: calculate approximate likelihood for new parameter. If the backend is MPI, we distribute simulations
+            # and then compute the approx likelihood locally
+            self.logger.debug("Calculate approximate loglikelihood")
+            approx_log_likelihood_new_parameter = self._simulate_and_compute_log_lik(new_parameter)
+            self.simulation_counter += 1  # update the number of simulations
+
+            log_det_jac_new_param = self.transformer.jac_log_det(new_parameter)
+            # log_det_jac_accepted_param = self.transformer.jac_log_det(accepted_parameter)
+            log_jac_term = log_det_jac_accepted_param - log_det_jac_new_param
+
+            # compute acceptance rate:
+            alpha = np.exp(
+                log_jac_term + approx_log_likelihood_new_parameter - approx_log_likelihood_accepted_parameter) * (
+                        new_parameter_prior_pdf) / (accepted_parameter_prior_pdf)  # assumes symmetric kernel
+
+            # Metropolis-Hastings step:
+            if self.rng.uniform() < alpha:
+                # update param value and approx likelihood
+                accepted_parameter_transformed = new_parameter_transformed
+                accepted_parameter = new_parameter
+                approx_log_likelihood_accepted_parameter = approx_log_likelihood_new_parameter
+                accepted_parameter_prior_pdf = new_parameter_prior_pdf
+                log_det_jac_accepted_param = log_det_jac_new_param
+                # set the accepted parameter in the kernel (in order to correctly generate next proposal)
+                self._update_kernel_parameters(accepted_parameter_transformed)
+                if aStep >= burnin:
+                    self.acceptance_rate += 1
+
+            # save to the trace:
+            if aStep >= burnin:
+                accepted_parameters.append(accepted_parameter)
+            else:
+                accepted_parameters_burnin.append(accepted_parameter)
+
+                # adapt covariance of proposal:
+                if adapt_proposal_cov_interval is not None and (aStep + 1) % adapt_proposal_cov_interval == 0:
+                    # store the accepted_parameters for adapting the covariance in the kernel.
+                    # I use this piece of code as it formats the data in the right way
+                    # for the sake of using them to compute the kernel cov:
+                    self.accepted_parameters_manager_adaptive_cov.update_broadcast(
+                        self.dummy_backend, accepted_parameters=accepted_parameters_burnin)
+                    kernel_parameters = []
+                    for kernel in self.kernel.kernels:
+                        kernel_parameters.append(
+                            self.accepted_parameters_manager_adaptive_cov.get_accepted_parameters_bds_values(
+                                kernel.models))
+                    self.accepted_parameters_manager_adaptive_cov.update_kernel_values(
+                        self.dummy_backend, kernel_parameters=kernel_parameters)
+
+                    self.logger.info("Updating covariance matrix")
+                    cov_matrices = self.kernel.calculate_cov(self.accepted_parameters_manager_adaptive_cov)
+                    # this scales with the cov_Factor:
+                    cov_matrices = self._compute_accepted_cov_mats(covFactor, cov_matrices)
+                    # store it in the main AcceptedParametersManager in order to perturb data with it in the following:
+                    self.accepted_parameters_manager.update_broadcast(self.dummy_backend,
+                                                                      accepted_cov_mats=cov_matrices)
+
+        self.acceptance_rate /= journal.configuration["n_samples"]
+        self.logger.info("Saving results to output journal")
+        self.accepted_parameters_manager.update_broadcast(self.dummy_backend, accepted_parameters=accepted_parameters)
+        names_and_parameters = self._get_names_and_parameters()
+        if journal_file is not None:  # concatenate chains
+            journal.add_accepted_parameters(journal.get_accepted_parameters() + copy.deepcopy(accepted_parameters))
+            names_and_parameters = [(names_and_parameters[i][0],
+                                     journal.get_parameters()[names_and_parameters[i][0]] + names_and_parameters[i][1])
+                                    for i in range(len(names_and_parameters))]
+            journal.add_user_parameters(names_and_parameters)
+        else:
+            journal.add_accepted_parameters(copy.deepcopy(accepted_parameters))
+            journal.add_user_parameters(names_and_parameters)
+        journal.number_of_simulations.append(self.simulation_counter)
+        journal.configuration["acceptance_rates"].append(self.acceptance_rate)
+        journal.add_weights(np.ones((journal.configuration['n_samples'], 1)))
+        # store the final loglik to be able to restart the journal correctly
+        journal.final_step_loglik = approx_log_likelihood_accepted_parameter
+        # store the final actual cov_matrices, in order to use this when restarting from journal
+        journal.configuration["actual_cov_matrices"] = cov_matrices
+
+        if path_to_save_journal is not None:  # save journal
+            journal.save(path_to_save_journal)
+
+        return journal
+
+    def _sample_parameter(self, rng, npc=None):
+        """
+        Generate a simulation from the model with the current value of accepted_parameter
+
+        Parameters
+        ----------
+        rng: random number generator
+            The random number generator to be used.
+        Returns
+        -------
+        np.array
+            accepted parameter
+        """
+
+        # get the new parameter value
+        theta = self.new_parameter_bds.value()
+        # Simulate the fake data from the model given the parameter value theta
+        self.logger.debug("Simulate model for parameter " + str(theta))
+        acc = self.set_parameters(theta)
+        if acc is False:
+            self.logger.debug("Parameter " + str(theta) + "has not been accepted")
+        y_sim = self.simulate(1, rng=rng, npc=npc)
+
+        return y_sim
+
+    def _approx_log_lik_calc(self, y_sim, npc=None):
+        """
+        Compute likelihood for new parameters using approximate likelihood function
+
+        Parameters
+        ----------
+        y_sim: list
+            A list containing self.n_samples_per_param simulations for the new parameter value
+        Returns
+        -------
+        float
+            The approximated likelihood function
+        """
+        self.logger.debug("Extracting observation.")
+        obs = self.observations
+
+        self.logger.debug("Computing likelihood...")
+        loglhd = self.likfun.loglikelihood(obs, y_sim)
+
+        self.logger.debug("LogLikelihood is :" + str(loglhd))
+
+        return loglhd
+
+    def _simulate_and_compute_log_lik(self, new_parameter):
+        """Helper function which simulates data from `new_parameter` and computes the approximate loglikelihood.
+        In case the backend is not BackendDummy (ie parallelization is available) this parallelizes the different
+        simulations (which are all for the same parameter value).
+
+        Notice that, according to the used model, spreading the simulations in different tasks can be more inefficient
+        than using one single call, according to the level of vectorization that the model uses and the overhead
+        associated. For this reason, we do not split the simulations in different tasks when the backend is
+        BackendDummy.
+
+        Parameters
+        ----------
+        new_parameter
+            Parameter value from which to generate data with which to compute the approximate loglikelihood.
+
+        Returns
+        -------
+        float
+            The approximated likelihood function
+        """
+        if isinstance(self.backend, BackendDummy) and self.speedup_dummy:
+            # do all the required simulations here without parallellizing; however this gives different result
+            # from the other option due to the way random seeds are handled.
+            self.logger.debug('simulations')
+            theta = new_parameter
+            # Simulate the fake data from the model given the parameter value theta
+            self.logger.debug("Simulate model for parameter " + str(theta))
+            acc = self.set_parameters(theta)
+            if acc is False:
+                self.logger.debug("Parameter " + str(theta) + "has not been accepted")
+            simulations_from_new_parameter = self.simulate(n_samples_per_param=self.n_samples_per_param, rng=self.rng)
+        else:
+            self.logger.debug('parallelize simulations for fixed parameter value')
+            seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=self.n_samples_per_param, dtype=np.uint32)
+            rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
+            rng_pds = self.backend.parallelize(rng_arr)
+
+            # need first to broadcast the new_parameter value:
+            self.new_parameter_bds = self.backend.broadcast(new_parameter)
+
+            # map step:
+            simulations_from_new_parameter_pds = self.backend.map(self._sample_parameter, rng_pds)
+            self.logger.debug("collect simulations from pds")
+            simulations_from_new_parameter = self.backend.collect(simulations_from_new_parameter_pds)
+            # now need to reshape that correctly. The first index has to be the model, then we need to have
+            # n_samples_per_param and then the size of the simulation
+            simulations_from_new_parameter = [
+                [simulations_from_new_parameter[sample_index][model_index][0] for sample_index in
+                 range(self.n_samples_per_param)] for model_index in range(len(self.model))]
+        approx_log_likelihood_new_parameter = self._approx_log_lik_calc(simulations_from_new_parameter)
+
+        return approx_log_likelihood_new_parameter
+
+    def _update_kernel_parameters(self, accepted_parameter):
+        """This stores the last accepted parameter in the kernel so that it will be used to generate the new proposal
+        with self.perturb.
+
+        Parameters
+        ----------
+        accepted_parameter
+            Parameter value from which you want to generate proposal at next iteration of MCMC.
+        """
+        # I use this piece of code as it formats the data in the right way for the sake of using it in the kernel
+        self.accepted_parameters_manager.update_broadcast(self.dummy_backend, accepted_parameters=[accepted_parameter])
+
+        kernel_parameters = []
+        for kernel in self.kernel.kernels:
+            kernel_parameters.append(
+                self.accepted_parameters_manager.get_accepted_parameters_bds_values(kernel.models))
+        self.accepted_parameters_manager.update_kernel_values(self.dummy_backend, kernel_parameters=kernel_parameters)
+
+    @staticmethod
+    def _compute_accepted_cov_mats(covFactor, new_cov_mats):
         """
         Update the covariance matrices computed from data by multiplying them with covFactor and adding a small term in
         the diagonal for numerical stability.

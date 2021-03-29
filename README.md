@@ -2,7 +2,11 @@
 
 ABCpy is a scientific library written in Python for Bayesian uncertainty quantification in
 absence of likelihood function, which parallelizes existing approximate Bayesian computation (ABC) 
-algorithms and other likelihood-free inference schemes. It presently includes:
+algorithms and other likelihood-free inference schemes. 
+
+# Content
+
+ABCpy presently includes the following **ABC algorithms**:
 
 * RejectionABC
 * PMCABC (Population Monte Carlo ABC)
@@ -11,10 +15,37 @@ algorithms and other likelihood-free inference schemes. It presently includes:
 * APMCABC (Adaptive Population Monte Carlo ABC)
 * SABC (Simulated Annealing ABC)
 * ABCsubsim (ABC using subset simulation)
-* PMC (Population Monte Carlo) using approximations of likelihood functions
+
+The above can be used with the following **distances**: 
+
+* Euclidean Distance
+* Logistic Regression and Penalised Logistic Regression (classification accuracy)
+* Divergences between datasets: 
+  * Wasserstein
+  * Sliced Wasserstein
+  * Gamma DivergenceS
+  * KL Divergence
+  * MMD
+  * Energy Distance
+  * Squared Hellinger Distance
+  
+Moreover, we provide the following methods for directly **approximating the likelihood functions**:
+* Bayesian Synthetic Likelihood
+* Semiparametric Bayesian Synthetic Likelihood
+* Penalised Logistic Regression for Ratio Estimation
+
+The above likelihood approximation methods can be used with the following samplers: 
+
+* PMC (Population Monte Carlo)
+* Metropolis-Hastings MCMC (Markov Chain Monte Carlo)
+
+Additional **features** are:
+* plotting utilities for the obtained posterior
+* several methods for summary selection:
+  * Semi-automatic summary selection (with Neural networks)
+  * summary selection using distance learning (with Neural networks)
 * Random Forest Model Selection Scheme
-* Semi-automatic summary selection (with Neural networks)
-* summary selection using distance learning (with Neural networks)
+
 
 ABCpy addresses the needs of domain scientists and data
 scientists by providing
