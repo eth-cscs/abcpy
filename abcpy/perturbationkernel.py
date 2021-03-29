@@ -622,7 +622,7 @@ class RandomWalkKernel(PerturbationKernel, DiscreteKernel):
         float
             The pmf evaluated at point x.
         """
-        if np.abs(mean-x) > self.jump:
+        if np.abs(mean[0]-x[0]) > self.jump:
             return 0
         else:
             return 1. / (2 * self.jump + 1)
