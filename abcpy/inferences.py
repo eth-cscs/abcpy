@@ -82,7 +82,7 @@ class BaseMethodsWithKernel(metaclass=ABCMeta):
         """To be overwritten by any sub-class: an attribute specifying the transition or perturbation kernel."""
         raise NotImplementedError
 
-    def perturb(self, column_index, epochs=10, rng=np.random.RandomState(), accepted_parameters_manager=None):
+    def perturb(self, column_index, epochs=100, rng=np.random.RandomState(), accepted_parameters_manager=None):
         """
         Perturbs all free parameters, given the current weights.
         Commonly used during inference.
