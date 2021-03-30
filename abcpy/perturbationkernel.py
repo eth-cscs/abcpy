@@ -63,7 +63,6 @@ class PerturbationKernel(metaclass=ABCMeta):
 
         raise NotImplementedError
 
-
     def pdf(self, accepted_parameters_manager, kernel_index, mean, x):
         """
         Calculates the pdf of the kernel at point x.
@@ -243,7 +242,6 @@ class MultivariateNormalKernel(PerturbationKernel, ContinuousKernel):
 
     def __init__(self, models):
         self.models = models
-
 
     def calculate_cov(self, accepted_parameters_manager, kernel_index):
         """
@@ -571,7 +569,8 @@ class RandomWalkKernel(PerturbationKernel, DiscreteKernel):
             perturbed_discrete_values = []
             # Implement a random walk for the discrete parameter values
             for discrete_value in discrete_model_values:
-                perturbed_discrete_values.append(rng.randint(discrete_value - self.jump, discrete_value + self.jump + 1))
+                perturbed_discrete_values.append(
+                    rng.randint(discrete_value - self.jump, discrete_value + self.jump + 1))
             perturbed_discrete_values = np.array(perturbed_discrete_values)
         else:
             # Learn the structure
@@ -586,7 +585,8 @@ class RandomWalkKernel(PerturbationKernel, DiscreteKernel):
             perturbed_discrete_values = []
             # Implement a random walk for the discrete parameter values
             for discrete_value in discrete_model_values:
-                perturbed_discrete_values.append(rng.randint(discrete_value - self.jump, discrete_value + self.jump + 1))
+                perturbed_discrete_values.append(
+                    rng.randint(discrete_value - self.jump, discrete_value + self.jump + 1))
             perturbed_discrete_values = np.array(perturbed_discrete_values)
             # Perturbed values anc split according to the structure
             perturbed_discrete_values = np.split(perturbed_discrete_values, struct)[:-1]
@@ -622,10 +622,11 @@ class RandomWalkKernel(PerturbationKernel, DiscreteKernel):
         float
             The pmf evaluated at point x.
         """
-        if np.abs(mean[0]-x[0]) > self.jump:
+        if np.abs(mean[0] - x[0]) > self.jump:
             return 0
         else:
             return 1. / (2 * self.jump + 1)
+
 
 class NetworkRandomWalkKernel(PerturbationKernel, DiscreteKernel):
     def __init__(self, models, network, name_weight):
@@ -749,7 +750,7 @@ class NetworkRandomWalkKernel(PerturbationKernel, DiscreteKernel):
                     weight[ind2] = self.network[discrete_value][nodes_proposed[ind2]][self.name_weight]
                 weight = weight / sum(weight)
                 if x[ind1] in nodes_proposed:
-                    density = density * weight[np.where(nodes_proposed==x[ind1])[0]][0]
+                    density = density * weight[np.where(nodes_proposed == x[ind1])[0]][0]
                 else:
                     density = density * 0
             return density
@@ -763,10 +764,11 @@ class NetworkRandomWalkKernel(PerturbationKernel, DiscreteKernel):
                     weight[ind2] = self.network[discrete_value][nodes_proposed[ind2]][self.name_weight]
                 weight = weight / sum(weight)
                 if x[ind1] in nodes_proposed:
-                    density = density * weight[np.where(nodes_proposed==x[ind1])[0]][0]
+                    density = density * weight[np.where(nodes_proposed == x[ind1])[0]][0]
                 else:
                     density = density * 0
             return density
+
 
 class DefaultKernel(JointPerturbationKernel):
     def __init__(self, models):
