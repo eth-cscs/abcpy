@@ -289,24 +289,31 @@ In ABCpy, we implement widely used and advanced variants of ABC inferential sche
 
 * Rejection ABC :py:class:`abcpy.inferences.RejectionABC`,
 * Population Monte Carlo ABC :py:class:`abcpy.inferences.PMCABC`,
-* Sequential Monte Carlo ABC :py:class:`abcpy.inferences.SMCABC`,
+* Two versions of Sequential Monte Carlo ABC :py:class:`abcpy.inferences.SMCABC`,
 * Replenishment sequential Monte Carlo ABC (RSMC-ABC) :py:class:`abcpy.inferences.RSMCABC`,
 * Adaptive population Monte Carlo ABC (APMC-ABC) :py:class:`abcpy.inferences.APMCABC`,
 * ABC with subset simulation (ABCsubsim) :py:class:`abcpy.inferences.ABCsubsim`, and
 * Simulated annealing ABC (SABC) :py:class:`abcpy.inferences.SABC`.
 
-To perform ABC algorithms, we provide different standard distance functions between datasets, e.g., a discrepancy
-measured by achievable classification accuracy between two datasets
+To perform ABC algorithms, we provide different the standard Euclidean distance function
+(:py:class:`abcpy.distances.Euclidean`) as well as discrepancy measures between empirical datasets
+(eg, achievable classification accuracy between two datasets
 
-* :py:class:`abcpy.distances.Euclidean`,
-* :py:class:`abcpy.distances.LogReg`,
-* :py:class:`abcpy.distances.PenLogReg`.
+*  classification accuracy (:py:class:`abcpy.distances.LogReg`, :py:class:`abcpy.distances.PenLogReg`)
+* :py:class:`abcpy.distances.Wasserstein`
+* :py:class:`abcpy.distances.SlicedWasserstein`
+* :py:class:`abcpy.distances.GammaDivergence`
+* :py:class:`abcpy.distances.KLDivergence`
+* :py:class:`abcpy.distances.MMD`
+* :py:class:`abcpy.distances.EnergyDistance`
+* :py:class:`abcpy.distances.SquaredHellingerDistance`.
 
-We also have implemented the population Monte Carlo :py:class:`abcpy.inferences.PMC` algorithm to infer parameters when
+We also have implemented the standard Metropolis-Hastings MCMC :py:class:`abcpy.inferences.MCMCMetropoliHastings` and population Monte Carlo :py:class:`abcpy.inferences.PMC` algorithm to infer parameters when
 the likelihood or approximate likelihood function is available. For approximation of the likelihood function we provide
-two methods:
+the following methods methods:
 
-* Synthetic likelihood approximation :py:class:`abcpy.approx_lhd.SynLikelihood`, and another method using
+* Synthetic likelihood approximation :py:class:`abcpy.approx_lhd.SynLikelihood`,
+* Semiparametric Synthetic likelihood :py:class:`abcpy.approx_lhd.SemiParametricSynLikelihood`, and another method using
 * penalized logistic regression :py:class:`abcpy.approx_lhd.PenLogReg`.
 
 Next we explain how we can use PMC algorithm using approximation of the
@@ -336,6 +343,7 @@ Further possibilities of combination will be made available in later versions of
 
 The source code can be found in `examples/approx_lhd/pmc_hierarchical_models.py`.
 
+For an example using MCMC instead of PMC, check out `examples/approx_lhd/mcmc_hierarchical_models.py`.
 
 Statistics Learning
 ~~~~~~~~~~~~~~~~~~~

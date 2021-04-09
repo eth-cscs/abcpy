@@ -27,7 +27,7 @@ class ExampleGaussianMPITest(unittest.TestCase):
         from examples.backends.mpi.pmcabc_gaussian import infer_parameters
         journal = infer_parameters(backend_mpi, steps=3, n_sample=50)
         test_result = journal.posterior_mean()['mu']
-        expected_result = 174.94735914414332
+        expected_result = 174.94717012502286
         self.assertAlmostEqual(test_result, expected_result)
 
 

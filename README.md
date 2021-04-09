@@ -2,19 +2,50 @@
 
 ABCpy is a scientific library written in Python for Bayesian uncertainty quantification in
 absence of likelihood function, which parallelizes existing approximate Bayesian computation (ABC) 
-algorithms and other likelihood-free inference schemes. It presently includes:
+algorithms and other likelihood-free inference schemes. 
 
-* RejectionABC
-* PMCABC (Population Monte Carlo ABC)
-* SMCABC (Sequential Monte Carlo ABC) 
-* RSMCABC (Replenishment SMC-ABC)
-* APMCABC (Adaptive Population Monte Carlo ABC)
-* SABC (Simulated Annealing ABC)
-* ABCsubsim (ABC using subset simulation)
-* PMC (Population Monte Carlo) using approximations of likelihood functions
-* Random Forest Model Selection Scheme
-* Semi-automatic summary selection (with Neural networks)
-* summary selection using distance learning (with Neural networks)
+# Content
+
+ABCpy presently includes the following **ABC algorithms**:
+
+* [RejectionABC](https://www.genetics.org/content/145/2/505)
+* [PMCABC (Population Monte Carlo ABC)](https://www.annualreviews.org/doi/abs/10.1146/annurev-ecolsys-102209-144621)
+* [SMCABC (Sequential Monte Carlo ABC)](https://link.springer.com/article/10.1007/s11222-011-9271-y)
+* [RSMCABC (Replenishment SMC-ABC)](https://onlinelibrary.wiley.com/doi/abs/10.1111/j.1541-0420.2010.01410.x)
+* [APMCABC (Adaptive Population Monte Carlo ABC)](https://link.springer.com/article/10.1007/s00180-013-0428-3)
+* [SABC (Simulated Annealing ABC)](https://link.springer.com/article/10.1007/s11222-014-9507-8)
+* [ABCsubsim (ABC using subset simulation)](https://epubs.siam.org/doi/10.1137/130932831)
+
+The above can be used with the following **distances**: 
+
+* Euclidean Distance
+* [Logistic Regression and Penalised Logistic Regression (classification accuracy)](https://link.springer.com/article/10.1007/s11222-017-9738-6)
+* Divergences between datasets: 
+  * [Wasserstein Distance](https://rss.onlinelibrary.wiley.com/doi/abs/10.1111/rssb.12312)
+  * [Sliced Wasserstein Distance](https://ieeexplore.ieee.org/abstract/document/9054735)
+  * [Gamma Divergence](http://proceedings.mlr.press/v130/fujisawa21a/fujisawa21a.pdf)
+  * [Kullback Liebler Divergence](http://proceedings.mlr.press/v84/jiang18a/jiang18a.pdf)
+  * [Maximum Mean Discrepancy](http://proceedings.mlr.press/v51/park16.pdf)
+  * [Energy Distance](https://arxiv.org/abs/1905.05884)
+  * [Squared Hellinger Distance](https://arxiv.org/pdf/2006.14126.pdf)
+  
+Moreover, we provide the following methods for directly **approximating the likelihood functions**:
+* [Bayesian Synthetic Likelihood](https://www.tandfonline.com/doi/abs/10.1080/10618600.2017.1302882?journalCode=ucgs20)
+* [Semiparametric Bayesian Synthetic Likelihood](https://link.springer.com/article/10.1007/s11222-019-09904-x)
+* [Penalised Logistic Regression for Ratio Estimation](https://projecteuclid.org/journals/bayesian-analysis/advance-publication/Likelihood-Free-Inference-by-Ratio-Estimation/10.1214/20-BA1238.full)
+
+The above likelihood approximation methods can be used with the following samplers: 
+
+* [PMC (Population Monte Carlo)](https://www.tandfonline.com/doi/abs/10.1198/106186004X12803)
+* Metropolis-Hastings MCMC (Markov Chain Monte Carlo)
+
+Additional **features** are:
+* plotting utilities for the obtained posterior
+* several methods for summary selection:
+  * [Semi-automatic summary selection (with Neural networks)](http://proceedings.mlr.press/v97/wiqvist19a/wiqvist19a.pdf)
+  * [summary selection using distance learning (with Neural networks)](https://link.springer.com/article/10.1007/s13571-019-00208-8)
+* [Random Forest Model Selection Scheme](https://academic.oup.com/bioinformatics/article/32/6/859/1744513)
+
 
 ABCpy addresses the needs of domain scientists and data
 scientists by providing
@@ -27,9 +58,9 @@ scientists by providing
 # Documentation
 For more information, check out the
 
-* [Documentation](http://abcpy.readthedocs.io/en/v0.6.1) 
-* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.6.1/examples) directory and
-* [Reference](http://abcpy.readthedocs.io/en/v0.6.1/abcpy.html)
+* [Documentation](http://abcpy.readthedocs.io/en/v0.6.2) 
+* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.6.2/examples) directory and
+* [Reference](http://abcpy.readthedocs.io/en/v0.6.2/abcpy.html)
 
 
 Further, we provide a
@@ -93,33 +124,25 @@ ABCpy for your publication, we would appreciate a citation. You can use
 
 Publications in which ABCpy was applied:
 
+* L. Pacchiardi, R. Dutta. "Generalized Bayesian Likelihood-Free Inference Using Scoring Rules Estimators", 2021, arXiv:2104.03889.
+
 * L. Pacchiardi, R. Dutta. "Score Matched Conditional Exponential Families for Likelihood-Free Inference", 2020, arXiv:2012.10903.
 
-* R. Dutta, K. Zouaoui-Boudjeltia, C. Kotsalos, A. Rousseau, D. Ribeiro de Sousa, J. M. Desmet, 
-A. Van Meerhaeghe, A. Mira, and B. Chopard. "Interpretable pathological test for Cardio-vascular 
-disease: Approximate Bayesian computation with distance learning.", 2020, arXiv:2010.06465.
+* R. Dutta, K. Zouaoui-Boudjeltia, C. Kotsalos, A. Rousseau, D. Ribeiro de Sousa, J. M. Desmet, A. Van Meerhaeghe, A. Mira, and B. Chopard. "Interpretable pathological test for Cardio-vascular disease: Approximate Bayesian computation with distance learning.", 2020, arXiv:2010.06465.
 
-* R. Dutta, S. Gomes, D. Kalise, L. Pacchiardi. "Using mobility data in the design of optimal 
-lockdown strategies for the COVID-19 pandemic in England.", 2020, arXiv:2006.16059.
+* R. Dutta, S. Gomes, D. Kalise, L. Pacchiardi. "Using mobility data in the design of optimal lockdown strategies for the COVID-19 pandemic in England.", 2020, arXiv:2006.16059.
 
-* L. Pacchiardi, P. K&#252;nzli, M. Sch&#246;ngens, B. Chopard, R. Dutta, "Distance-Learning for 
-Approximate Bayesian Computation to Model a Volcanic Eruption", 2020, Sankhya B, ISSN 0976-8394, 
-  [DOI: 10.1007/s13571-019-00208-8](https://doi.org/10.1007/s13571-019-00208-8).
+* L. Pacchiardi, P. K&#252;nzli, M. Sch&#246;ngens, B. Chopard, R. Dutta, "Distance-Learning for Approximate Bayesian Computation to Model a Volcanic Eruption", 2020, Sankhya B, 1-30.
 
-* R. Dutta, J. P.  Onnela, A. Mira, "Bayesian Inference of Spreading Processes
-  on Networks", 2018, Proc. R. Soc. A, 474(2215), 20180129.
+* R. Dutta, J. P.  Onnela, A. Mira, "Bayesian Inference of Spreading Processes on Networks", 2018, Proceedings of Royal Society A, 474(2215), 20180129.
 
-* R. Dutta, Z. Faidon Brotzakis and A. Mira, "Bayesian Calibration of
-  Force-fields from Experimental Data: TIP4P Water", 2018, Journal of Chemical Physics 149, 154110.
+* R. Dutta, Z. Faidon Brotzakis and A. Mira, "Bayesian Calibration of   Force-fields from Experimental Data: TIP4P Water", 2018, Journal of Chemical Physics 149, 154110.
   
-* R. Dutta, B. Chopard, J. Lätt, F. Dubois, K. Zouaoui Boudjeltia and A. Mira,
-  "Parameter Estimation of Platelets Deposition: Approximate Bayesian
-  Computation with High Performance Computing", 2018, Frontiers in physiology, 9.
+* R. Dutta, B. Chopard, J. Lätt, F. Dubois, K. Zouaoui Boudjeltia and A. Mira, "Parameter Estimation of Platelets Deposition: Approximate Bayesian Computation with High Performance Computing", 2018, Frontiers in physiology, 9.
 
-* A. Ebert, R. Dutta, P. Wu, K. Mengersen and A. Mira, "Likelihood-Free
-  Parameter Estimation for Dynamic Queueing Networks", 2018, arXiv:1804.02526.
+* A. Ebert, R. Dutta, P. Wu, K. Mengersen and A. Mira, "Likelihood-Free Parameter Estimation for Dynamic Queueing Networks", 2018, arXiv:1804.02526, To apear in Jouranl of Royal Statistical Scoiety: Series C.
 
-* R. Dutta, M. Schoengens, L. Pacchiardi, A. Ummadisingu, N. Widerman, J. P.  Onnela, A. Mira, "ABCpy:       A High-Performance Computing Perspective to Approximate Bayesian Computation", 2020, arXiv:1711.04694.
+* R. Dutta, M. Schoengens, L. Pacchiardi, A. Ummadisingu, N. Widerman, P. K&#252;nzli, J. P.  Onnela, A. Mira, "ABCpy: A High-Performance Computing Perspective to Approximate Bayesian Computation", 2018, arXiv:1711.04694, To appear in Journal of Statistical Software.
 
 ## License
 ABCpy is published under the BSD 3-clause license, see [here](LICENSE).

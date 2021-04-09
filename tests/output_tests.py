@@ -135,7 +135,7 @@ class JournalTests(unittest.TestCase):
         journal_3.add_weights(weights_identical)
         self.assertRaises(RuntimeError, journal_3.Wass_convergence_plot)
         journal_4 = Journal(1)
-        journal_4.add_accepted_parameters(np.array([np.array([1]), np.array([1, 2])]))
+        journal_4.add_accepted_parameters(np.array([np.array([1]), np.array([1, 2])], dtype="object"))
         print(len(journal_4.accepted_parameters))
         self.assertRaises(RuntimeError, journal_4.Wass_convergence_plot)
 
@@ -168,6 +168,21 @@ class JournalTests(unittest.TestCase):
             journal.plot_posterior_distr(ranges_parameters={"par1": [-1]})
         with self.assertRaises(TypeError):
             journal.plot_posterior_distr(ranges_parameters={"par1": np.zeros(1)})
+
+    def test_traceplot(self):
+        rng = np.random.RandomState(1)
+        weights_identical = np.ones((100, 1))
+        params = rng.randn(100).reshape(-1, 1)
+        journal = Journal(1)
+        journal.add_weights(weights_identical)
+        journal.add_accepted_parameters(params)
+        journal.add_user_parameters([("mu", params[:, 0])])
+        self.assertRaises(RuntimeError, journal.traceplot)  # as it does not have "acceptance_rates" in configuration
+        journal.configuration["acceptance_rates"] = [0.3]
+        with self.assertRaises(KeyError):
+            journal.traceplot(parameters_to_show=["sigma"])
+        # now try correctly:
+        fig, ax = journal.traceplot()
 
 
 if __name__ == '__main__':
