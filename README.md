@@ -58,9 +58,9 @@ scientists by providing
 # Documentation
 For more information, check out the
 
-* [Documentation](http://abcpy.readthedocs.io/en/v0.6.1) 
-* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.6.1/examples) directory and
-* [Reference](http://abcpy.readthedocs.io/en/v0.6.1/abcpy.html)
+* [Documentation](http://abcpy.readthedocs.io/en/latest) 
+* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.6.2/examples) directory and
+* [Reference](http://abcpy.readthedocs.io/en/v0.6.2/abcpy.html)
 
 
 Further, we provide a
@@ -123,6 +123,8 @@ ABCpy for your publication, we would appreciate a citation. You can use
 ## Other References
 
 Publications in which ABCpy was applied:
+
+* L. Pacchiardi, R. Dutta. "Generalized Bayesian Likelihood-Free Inference Using Scoring Rules Estimators", 2021, arXiv:2104.03889.
 
 * L. Pacchiardi, R. Dutta. "Score Matched Conditional Exponential Families for Likelihood-Free Inference", 2020, arXiv:2012.10903.
 
