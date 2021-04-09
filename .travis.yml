@@ -11,6 +11,7 @@ addons:
     - gfortran
     - libboost-random-dev
     - python3.7-dev
+    - python3.9-dev
     - python3-numpy
     - swig
     - libmpich-dev
@@ -29,6 +30,10 @@ jobs:
             - UNIT_TEST=true
         - name: "Python 3.8"
           python: "3.8"
+          env:
+            - UNIT_TEST=true
+        - name: "Python 3.9"
+          python: "3.9"
           env:
             - UNIT_TEST=true
       # Test coverage and without Pytorch for a single version
@@ -61,6 +66,7 @@ jobs:
 
 install:
 - sudo apt-get install -y r-base  # install R for testing example
+- pip install cython
 - pip install rpy2  # install the rpy2 library for testing example with R
 - pip install -r requirements.txt
 - pip install -r requirements/backend-spark.txt

@@ -286,7 +286,7 @@ class StatisticsLearningNN(StatisticsLearning, GraphTools):
     def __init__(self, model, statistics_calc, backend, training_routine, distance_learning, embedding_net=None,
                  n_samples=1000, n_samples_val=0, n_samples_per_param=1, parameters=None, simulations=None,
                  parameters_val=None, simulations_val=None, seed=None, cuda=None, scale_samples=True, quantile=0.1,
-                 **training_routine_kwargs):
+                 use_tqdm=True, **training_routine_kwargs):
         """
         Parameters
         ----------
@@ -355,6 +355,8 @@ class StatisticsLearningNN(StatisticsLearning, GraphTools):
             Default value is True. 
         quantile: float, optional
             quantile used to define the similarity set if distance_learning is True. Default to 0.1.
+        use_tqdm : boolean, optional
+            Whether using tqdm or not to display progress. Defaults to True.
         training_routine_kwargs:
             additional kwargs to be passed to the underlying training routine.
         """
@@ -439,12 +441,12 @@ class StatisticsLearningNN(StatisticsLearning, GraphTools):
 
         if distance_learning:
             self.embedding_net = training_routine(simulations, similarity_set, embedding_net=self.embedding_net,
-                                                  cuda=cuda, samples_val=simulations_val,
+                                                  cuda=cuda, samples_val=simulations_val, use_tqdm=use_tqdm,
                                                   similarity_set_val=similarity_set_val, **training_routine_kwargs)
         else:
             self.embedding_net = training_routine(simulations, target, embedding_net=self.embedding_net,
                                                   cuda=cuda, samples_val=simulations_val, target_val=target_val,
-                                                  **training_routine_kwargs)
+                                                  use_tqdm=use_tqdm, **training_routine_kwargs)
 
         self.logger.info("Finished learning the transformation.")
 
@@ -486,8 +488,8 @@ class SemiautomaticNN(StatisticsLearningNN):
                  n_samples_per_param=1, parameters=None, simulations=None, parameters_val=None, simulations_val=None,
                  early_stopping=False, epochs_early_stopping_interval=1, start_epoch_early_stopping=10,
                  seed=None, cuda=None, scale_samples=True, batch_size=16, n_epochs=200, load_all_data_GPU=False,
-                 lr=1e-3, optimizer=None,
-                 scheduler=None, start_epoch_training=0, optimizer_kwargs={}, scheduler_kwargs={}, loader_kwargs={}):
+                 lr=1e-3, optimizer=None, scheduler=None, start_epoch_training=0, use_tqdm=True,
+                 optimizer_kwargs={}, scheduler_kwargs={}, loader_kwargs={}):
         """
         Parameters
         ----------
@@ -583,6 +585,8 @@ class SemiautomaticNN(StatisticsLearningNN):
             the scheduler and the optimizer at each epoch. Default to 0.
         verbose: boolean, optional
             if True, prints more information from the training routine. Default to False.
+        use_tqdm : boolean, optional
+            Whether using tqdm or not to display progress. Defaults to True.
         optimizer_kwargs: Python dictionary, optional
             dictionary containing optional keyword arguments for the optimizer.
         scheduler_kwargs: Python dictionary, optional
@@ -602,7 +606,7 @@ class SemiautomaticNN(StatisticsLearningNN):
                                               seed=seed, cuda=cuda, scale_samples=scale_samples, batch_size=batch_size,
                                               n_epochs=n_epochs, load_all_data_GPU=load_all_data_GPU, lr=lr,
                                               optimizer=optimizer, scheduler=scheduler,
-                                              start_epoch_training=start_epoch_training,
+                                              start_epoch_training=start_epoch_training, use_tqdm=use_tqdm,
                                               optimizer_kwargs=optimizer_kwargs,
                                               scheduler_kwargs=scheduler_kwargs, loader_kwargs=loader_kwargs)
 
@@ -625,7 +629,8 @@ class TripletDistanceLearning(StatisticsLearningNN):
                  early_stopping=False, epochs_early_stopping_interval=1, start_epoch_early_stopping=10, seed=None,
                  cuda=None, scale_samples=True,
                  quantile=0.1, batch_size=16, n_epochs=200, load_all_data_GPU=False, margin=1., lr=None, optimizer=None,
-                 scheduler=None, start_epoch_training=0, optimizer_kwargs={}, scheduler_kwargs={}, loader_kwargs={}):
+                 scheduler=None, start_epoch_training=0, use_tqdm=True, optimizer_kwargs={}, scheduler_kwargs={},
+                 loader_kwargs={}):
         """
         Parameters
         ----------
@@ -726,6 +731,8 @@ class TripletDistanceLearning(StatisticsLearningNN):
             the scheduler and the optimizer at each epoch. Default to 0.
         verbose: boolean, optional
             if True, prints more information from the training routine. Default to False.
+        use_tqdm : boolean, optional
+            Whether using tqdm or not to display progress. Defaults to True.
         optimizer_kwargs: Python dictionary, optional
             dictionary containing optional keyword arguments for the optimizer.
         scheduler_kwargs: Python dictionary, optional
@@ -748,6 +755,7 @@ class TripletDistanceLearning(StatisticsLearningNN):
                                                       quantile=quantile, batch_size=batch_size,
                                                       n_epochs=n_epochs, load_all_data_GPU=load_all_data_GPU,
                                                       margin=margin, lr=lr, optimizer=optimizer, scheduler=scheduler,
+                                                      use_tqdm=use_tqdm,
                                                       start_epoch_training=start_epoch_training,
                                                       optimizer_kwargs=optimizer_kwargs,
                                                       scheduler_kwargs=scheduler_kwargs, loader_kwargs=loader_kwargs)
@@ -772,7 +780,7 @@ class ContrastiveDistanceLearning(StatisticsLearningNN):
                  early_stopping=False, epochs_early_stopping_interval=1, start_epoch_early_stopping=10, seed=None,
                  cuda=None, scale_samples=True, quantile=0.1, batch_size=16, n_epochs=200, positive_weight=None,
                  load_all_data_GPU=False, margin=1., lr=None, optimizer=None, scheduler=None,
-                 start_epoch_training=0, optimizer_kwargs={}, scheduler_kwargs={}, loader_kwargs={}):
+                 start_epoch_training=0, use_tqdm=True, optimizer_kwargs={}, scheduler_kwargs={}, loader_kwargs={}):
         """
         Parameters
         ----------
@@ -851,6 +859,8 @@ class ContrastiveDistanceLearning(StatisticsLearningNN):
             the scheduler and the optimizer at each epoch. Default to 0.
         verbose: boolean, optional
             if True, prints more information from the training routine. Default to False.
+        use_tqdm : boolean, optional
+            Whether using tqdm or not to display progress. Defaults to True.
         optimizer_kwargs: Python dictionary, optional
             dictionary containing optional keyword arguments for the optimizer.
         scheduler_kwargs: Python dictionary, optional
@@ -876,6 +886,7 @@ class ContrastiveDistanceLearning(StatisticsLearningNN):
                                                           load_all_data_GPU=load_all_data_GPU, margin=margin, lr=lr,
                                                           optimizer=optimizer, scheduler=scheduler,
                                                           start_epoch_training=start_epoch_training,
+                                                          use_tqdm=use_tqdm,
                                                           optimizer_kwargs=optimizer_kwargs,
                                                           scheduler_kwargs=scheduler_kwargs,
                                                           loader_kwargs=loader_kwargs)

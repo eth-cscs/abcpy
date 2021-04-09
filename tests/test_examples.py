@@ -14,7 +14,7 @@ class ExampleApproxLhdTest(unittest.TestCase):
         from examples.approx_lhd.pmc_hierarchical_models import infer_parameters
         journal = infer_parameters(steps=1, n_sample=50)
         test_result = journal.posterior_mean()["school_location"]
-        expected_result = 0.2566394909510058
+        expected_result = 0.2569671145768137
         self.assertAlmostEqual(test_result, expected_result)
 
 

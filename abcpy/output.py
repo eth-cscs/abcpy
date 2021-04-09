@@ -386,7 +386,7 @@ class Journal:
         H, edges = np.histogramdd(np.hstack(joined_params), bins=n_bins, weights=weights.reshape(len(weights), ))
         return [H, edges]
 
-    # TODO this does not work for multidimensional parameters
+    # TODO this does not work for multidimensional parameters and discrete distributions
     def plot_posterior_distr(self, parameters_to_show=None, ranges_parameters=None, iteration=None, show_samples=None,
                              single_marginals_only=False, double_marginals_only=False, write_posterior_mean=True,
                              show_posterior_mean=True, true_parameter_values=None, contour_levels=14, figsize=None,
@@ -873,7 +873,58 @@ class Journal:
         ax.set_xlabel("Iteration")
         ax.set_ylabel("Wasserstein distance")
         ax.legend()
-        # put horizontal line at the largest value ESS can get:
         ax.set_xticks(np.arange(len(self.weights) - 1) + 1)
 
         return fig, ax, wass_dist_lists
+
+    def traceplot(self, parameters_to_show=None, iteration=None, **kwargs):
+        """
+        Produces a traceplot for the MCMC inference scheme. This only works for journal files which were created by the
+        `MCMCMetropolisHastings` inference scheme.
+
+
+        Parameters
+        ----------
+        parameters_to_show : list, optional
+            a list of the parameters for which you want to plot the traceplot. For each parameter, you need
+            to provide the name string as it was defined in the model. For instance,
+            `jrnl.traceplot(parameters_to_show=["mu"])` will only plot the traceplot for the
+            parameter named "mu" in the list of parameters.
+            If `None`, then all parameters will be displayed.
+        iteration : int, optional
+            specify the iteration for which to plot the posterior distribution, in the case of a sequential algorithm.
+            If `None`, then the last iteration will be used.
+        kwargs
+            Additional arguments passed to matplotlib.pyplot.plot
+
+        Returns
+        -------
+        tuple
+            a tuple containing the matplotlib "fig, axes" objects defining the plot. Can be useful for further
+            modifications.
+        """
+
+        if not "acceptance_rates" in self.configuration.keys():
+            raise RuntimeError("The traceplot can be produced only for journal files which were created by the"
+                               " MCMCMetropolisHastings inference scheme")
+
+        if parameters_to_show is None:
+            parameters_to_show = list(self.names_and_parameters[0].keys())
+        else:
+            for param_name in parameters_to_show:
+                if param_name not in self.names_and_parameters[0].keys():
+                    raise KeyError("Parameter '{}' is not a parameter of the model.".format(param_name))
+
+        param_dict = self.get_parameters(iteration)
+        n_plots = len(parameters_to_show)
+
+        fig, ax = plt.subplots(1, n_plots, figsize=(4 * n_plots, 4))
+        fig.suptitle("Traceplot")
+        if n_plots == 1:
+            ax = [ax]
+        for i, name in enumerate(parameters_to_show):
+            ax[i].plot(np.squeeze(param_dict[name]))
+            ax[i].set_title(name)
+            ax[i].set_xlabel("MCMC step")
+
+        return fig, ax

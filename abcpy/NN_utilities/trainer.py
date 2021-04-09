@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 
 def fit(train_loader, model, loss_fn, optimizer, scheduler, n_epochs, cuda, val_loader=None, early_stopping=False,
-        epochs_early_stopping_interval=1, start_epoch_early_stopping=10, start_epoch_training=0):
+        epochs_early_stopping_interval=1, start_epoch_early_stopping=10, start_epoch_training=0, use_tqdm=True):
     """
     Basic function to train a neural network given a train_loader, a loss function and an optimizer.
 
@@ -26,7 +26,7 @@ def fit(train_loader, model, loss_fn, optimizer, scheduler, n_epochs, cuda, val_
     for epoch in range(0, start_epoch_training):
         scheduler.step()
 
-    for epoch in tqdm(range(start_epoch_training, n_epochs)):
+    for epoch in tqdm(range(start_epoch_training, n_epochs), disable=not use_tqdm):
         # Train stage
         train_loss = train_epoch(train_loader, model, loss_fn, optimizer, cuda)
 
