@@ -13,7 +13,7 @@ from abcpy.statistics import Identity
 
 
 class RejectionABCTest(unittest.TestCase):
-    def test_sample(self):
+    def setUp(self):
         # setup backend
         dummy = BackendDummy()
 
@@ -30,27 +30,79 @@ class RejectionABCTest(unittest.TestCase):
         dist_calc = Euclidean(stat_calc)
 
         # create fake observed data
-        y_obs = [np.array(9.8)]
+        self.y_obs = [np.array(9.8)]
 
+        # for correct seeding define 2 samplers
+        self.sampler = RejectionABC([self.model], [dist_calc], dummy, seed=1)
+        self.sampler2 = RejectionABC([self.model], [dist_calc], dummy, seed=1)
+
+    def test_sample_n_samples(self):
         # use the rejection sampling scheme
-        sampler = RejectionABC([self.model], [dist_calc], dummy, seed=1)
-        journal = sampler.sample([y_obs], 10, 1, 10, path_to_save_journal="tmp.jnl")
+        journal = self.sampler.sample([self.y_obs], 10, 1, 10, path_to_save_journal="tmp.jnl")
         mu_sample = np.array(journal.get_parameters()['mu'])
         sigma_sample = np.array(journal.get_parameters()['sigma'])
 
         # test shape of samples
         mu_shape, sigma_shape = (len(mu_sample), mu_sample[0].shape[1]), \
-                                (len(sigma_sample),
-                                 sigma_sample[0].shape[1])
+                                (len(sigma_sample), sigma_sample[0].shape[1])
         self.assertEqual(mu_shape, (10, 1))
         self.assertEqual(sigma_shape, (10, 1))
 
         # Compute posterior mean
         # self.assertAlmostEqual(np.average(np.asarray(samples[:,0])),1.22301,10e-2)
-        self.assertLess(np.average(mu_sample) - 1.22301, 1e-2)
-        self.assertLess(np.average(sigma_sample) - 6.992218, 10e-2)
+        self.assertAlmostEqual(np.average(mu_sample), 1.223012836345375)
+        self.assertAlmostEqual(np.average(sigma_sample), 6.992218962395242)
 
-        self.assertFalse(journal.number_of_simulations == 0)
+        self.assertFalse(journal.number_of_simulations[0] == 0)
+        self.assertEqual(journal.configuration["epsilon"], 10)
+
+    def test_sample_simulation_budget(self):
+        # use the rejection sampling scheme with epsilon first
+        journal = self.sampler2.sample([self.y_obs], n_samples=None, simulation_budget=100, epsilon=20)
+        mu_sample = np.array(journal.get_parameters()['mu'])
+        sigma_sample = np.array(journal.get_parameters()['sigma'])
+
+        mu_shape, sigma_shape = (len(mu_sample), mu_sample[0].shape[1]), \
+                                (len(sigma_sample), sigma_sample[0].shape[1])
+        self.assertEqual(mu_shape, (3, 1))
+        self.assertEqual(sigma_shape, (3, 1))
+
+        # Compute posterior mean
+        # self.assertAlmostEqual(np.average(np.asarray(samples[:,0])),1.22301,10e-2)
+        self.assertAlmostEqual(np.average(mu_sample), 0.8175361535037666)
+        self.assertAlmostEqual(np.average(sigma_sample), 8.155647092489977)
+
+        self.assertEqual(journal.number_of_simulations[0], 100)
+        self.assertEqual(journal.configuration["epsilon"], 20)
+
+        # use the rejection sampling scheme with the quantile
+        journal = self.sampler2.sample([self.y_obs], n_samples=None, simulation_budget=100, quantile=0.1)
+        mu_sample = np.array(journal.get_parameters()['mu'])
+        sigma_sample = np.array(journal.get_parameters()['sigma'])
+
+        mu_shape, sigma_shape = (len(mu_sample), mu_sample[0].shape[1]), \
+                                (len(sigma_sample), sigma_sample[0].shape[1])
+        self.assertEqual(mu_shape, (10, 1))
+        self.assertEqual(sigma_shape, (10, 1))
+
+        # Compute posterior mean
+        # self.assertAlmostEqual(np.average(np.asarray(samples[:,0])),1.22301,10e-2)
+        self.assertAlmostEqual(np.average(mu_sample), 0.10394992719538543)
+        self.assertAlmostEqual(np.average(sigma_sample), 6.746940834914168)
+
+        self.assertEqual(journal.number_of_simulations[0], 200)
+
+    def test_errors(self):
+        with self.assertRaises(RuntimeError):
+            self.sampler.sample([self.y_obs], n_samples=10, simulation_budget=10)
+        with self.assertRaises(RuntimeError):
+            self.sampler.sample([self.y_obs], n_samples=10, quantile=0.1)
+        with self.assertRaises(RuntimeError):
+            self.sampler.sample([self.y_obs], n_samples=10, epsilon=None)
+        with self.assertRaises(RuntimeError):
+            self.sampler.sample([self.y_obs], n_samples=None, simulation_budget=100, quantile=0.1, epsilon=1)
+        with self.assertRaises(RuntimeError):
+            self.sampler.sample([self.y_obs], n_samples=None, simulation_budget=100, quantile=None, epsilon=None)
 
 
 class PMCTests(unittest.TestCase):
