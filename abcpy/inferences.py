@@ -196,10 +196,19 @@ class RejectionABC(InferenceMethod):
         # counts the number of simulate calls
         self.simulation_counter = 0
 
-    def sample(self, observations, n_samples, n_samples_per_param, epsilon, full_output=0, path_to_save_journal=None):
+    def sample(self, observations, n_samples=100, n_samples_per_param=1, epsilon=None, simulation_budget=None,
+               quantile=None, full_output=0, path_to_save_journal=None):
         """
         Samples from the posterior distribution of the model parameter given the observed
         data observations.
+
+        You can either specify the required number of posterior samples `n_samples`, or the
+        `simulation_budget`. In the former case, the threshold value `epsilon` is required, so that the algorithm
+        will produce `n_samples` posterior samples for which the ABC distance was smaller than `epsilon`. In the latter
+        case, you can specify either `epsilon` or `quantile`; in this case, the number of simulations specified in the
+        simulation budget will be run, and only the parameter values for which the ABC distance was smaller than
+        `epsilon` (or alternatively the ones for which the ABC distance is in the smaller specified quantile) will
+        be returned.
 
         Parameters
         ----------
@@ -211,6 +220,13 @@ class RejectionABC(InferenceMethod):
             Number of data points in each simulated data set.
         epsilon: float
             Value of threshold
+        simulation_budget : integer, optional
+            Simulation budget to be considered (ie number of parameter values for which the ABC distance is computed).
+            Alternative to `n_samples`, which needs to be set explicitly to None to use this. Defaults to None.
+        quantile : float, optional
+            If `simulation_budget` is used, only the samples which achieve performance less than the specified quantile
+            of the ABC distances, will be retained in the set of posterior samples. This is alternative to epsilon.
+            Defaults to None.
         full_output: integer, optional
             It is actually unused in RejectionABC but left here for general compatibility with the other inference
             classes.
@@ -223,22 +239,70 @@ class RejectionABC(InferenceMethod):
             a journal containing simulation results, metadata and optionally intermediate results.
         """
 
+        if (n_samples is None) == (simulation_budget is None):
+            raise RuntimeError("One and only one of `n_samples` and `simulation_budget` needs to be specified.")
+        if n_samples is not None and quantile is not None:
+            raise RuntimeError("`quantile` can be specified only when the simulation budget is fixed with "
+                               "`simulation_budget`.")
+        if n_samples is not None and epsilon is None:
+            raise RuntimeError("`epsilon` needs to be specified when the `n_samples` is given ")
+        if simulation_budget is not None and ((quantile is None) == (epsilon is None)):
+            raise RuntimeError("One and only one of `quantile` and `epsilon` needs to be specified when "
+                               "`simulation_budget` is used.")
+
+        self.fixed_budget = True if simulation_budget is not None else False
+
         self.accepted_parameters_manager.broadcast(self.backend, observations)
 
-        self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
-        self.epsilon = epsilon
 
+        # instantiate journal (common to both approaches); this will be overwritten if self.fixed_budget is True
         journal = Journal(full_output)
-        journal.configuration["n_samples"] = self.n_samples
+        journal.configuration["n_samples"] = n_samples
         journal.configuration["n_samples_per_param"] = self.n_samples_per_param
-        journal.configuration["epsilon"] = self.epsilon
+        journal.configuration["epsilon"] = epsilon
         journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
         journal.configuration["type_dist_func"] = [type(distance).__name__ for distance in self.distance.distances]
         journal.configuration["full_output"] = full_output
 
-        accepted_parameters = None
+        if self.fixed_budget:
+            # sample simulation_budget number of samples with super high epsilon
+            n_samples = simulation_budget
+            self.epsilon = 1.7976931348623157e+308  # max possible numpy value
 
+            # call sample routine
+            journal = self._sample_n_samples_epsilon(n_samples, journal)
+
+            # then replace that journal with a new one selecting the correct samples only, with either epsilon or
+            # quantile (only one of them will not be None)
+            journal = self._journal_cleanup(journal, quantile, epsilon)
+        else:
+            self.epsilon = epsilon
+
+            # call sample routine
+            journal = self._sample_n_samples_epsilon(n_samples, journal)
+
+        if path_to_save_journal is not None:
+            # save journal there
+            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else \
+                path_to_save_journal + '.jnl'
+            journal.save(path_to_save_journal)
+
+        return journal
+
+    def _sample_n_samples_epsilon(self, n_samples, journal):
+        """Obtains `n_samples` posterior samples with threshold `self.epsilon`, and stores them into the journal.
+        Parameters
+        ----------
+        n_samples: integer
+            Number of samples to generate
+        journal: abcpy.output.Journal
+            Journal file where to store results
+        Returns
+        -------
+        abcpy.output.Journal
+            a journal containing simulation results, metadata and optionally intermediate results.
+        """
         # main Rejection ABC algorithm
         seed_arr = self.rng.randint(1, n_samples * n_samples, size=n_samples, dtype=np.int32)
         rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
@@ -262,13 +326,70 @@ class RejectionABC(InferenceMethod):
         names_and_parameters = self._get_names_and_parameters()
         journal.add_user_parameters(names_and_parameters)
         journal.number_of_simulations.append(self.simulation_counter)
-        
-        if path_to_save_journal is not None:
-            # save journal there
-            path_to_save_journal = path_to_save_journal if '.jnl' in path_to_save_journal else path_to_save_journal + '.jnl'
-            journal.save(path_to_save_journal)
 
         return journal
+
+    def _journal_cleanup(self, journal, quantile=None, threshold=None):
+        """This function takes a Journal file (typically produced by an Rejection ABC run with very large epsilon value)
+        and keeps only the samples which achieve performance less than either some quantile of the ABC distances,
+        or either some specified threshold. It is a very simple way to obtain a Rejection ABC which
+        works on a percentile of the obtained distances.
+
+        It creates a new Journal file storing the results.
+
+        Parameters
+        ----------
+        journal: abcpy.output.Journal
+            Journal file where to store results
+        quantile : float, optional
+            If `simulation_budget` is used, only the samples which achieve performance less than the specified quantile
+            of the ABC distances, will be retained in the set of posterior samples. This is alternative to epsilon.
+            Defaults to None.
+        threshold: float
+            Value of threshold
+
+        Returns
+        -------
+        abcpy.output.Journal
+            a new journal containing simulation results, metadata and optionally intermediate results.
+        """
+
+        if quantile is not None:
+            distance_cutoff = np.quantile(journal.distances[-1], quantile)
+        else:
+            distance_cutoff = threshold
+        picked_simulations = journal.distances[-1] < distance_cutoff
+        new_distances = journal.distances[-1][picked_simulations]
+        n_reduced_samples = np.sum(picked_simulations)
+        if n_reduced_samples == 0:
+            raise RuntimeError(
+                "The specified value of threshold is too low, no simulations from the ones generated with the fixed "
+                "simulation budget are accepted."
+            )
+        new_journal = Journal(journal._type)
+        new_journal.configuration["n_samples"] = n_reduced_samples
+        new_journal.configuration["n_samples_per_param"] = journal.configuration[
+            "n_samples_per_param"
+        ]
+        new_journal.configuration["epsilon"] = distance_cutoff
+
+        new_accepted_parameters = []
+        param_names = journal.get_parameters().keys()
+        new_names_and_parameters = {name: [] for name in param_names}
+        for i in np.where(picked_simulations)[0]:
+            if picked_simulations[i]:
+                new_accepted_parameters.append(journal.get_accepted_parameters()[i])
+                for name in param_names:
+                    new_names_and_parameters[name].append(journal.get_parameters()[name][i])
+
+        new_journal.add_accepted_parameters(new_accepted_parameters)
+        new_journal.add_weights(np.ones((n_reduced_samples, 1)))
+        new_journal.add_ESS_estimate(np.ones((n_reduced_samples, 1)))
+        new_journal.add_distances(new_distances)
+        new_journal.add_user_parameters(new_names_and_parameters)
+        new_journal.number_of_simulations.append(journal.number_of_simulations[-1])
+
+        return new_journal
 
     def _sample_parameter(self, rng, npc=None):
         """
@@ -2116,7 +2237,7 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, alpha=0.1, epsilon_init=100,
-               epsilon_final=0.1, const=0.01, covFactor=2.0, full_output=0, journal_file=None, 
+               epsilon_final=0.1, const=0.01, covFactor=2.0, full_output=0, journal_file=None,
                path_to_save_journal=None):
         """
         Samples from the posterior distribution of the model parameter given the observed
@@ -2794,7 +2915,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
     [1] P. Del Moral, A. Doucet, A. Jasra, An adaptive sequential Monte Carlo method for approximate
     Bayesian computation. Statistics and Computing, 22(5):1009–1020, 2012.
 
-    [2] Lee, Anthony. "n the choice of MCMC kernels for approximate Bayesian computation with SMC samplers.
+    [2] Lee, Anthony. "On the choice of MCMC kernels for approximate Bayesian computation with SMC samplers.
     Proceedings of the 2012 Winter Simulation Conference (WSC). IEEE, 2012.
 
     [3] Bernton, E., Jacob, P. E., Gerber, M., & Robert, C. P. (2019). Approximate Bayesian computation with the
