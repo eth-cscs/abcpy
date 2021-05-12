@@ -4,5 +4,6 @@ dependencies:
 - openmpi
 - mpi4py
 - numpy
+- pip
 - pip:
   - abcpy
