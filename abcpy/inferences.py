@@ -3998,6 +3998,10 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
                 accepted_parameter = self.get_parameters()
             else:
                 accepted_parameter = iniPoint
+                if isinstance(accepted_parameter, np.ndarray) and len(accepted_parameter.shape) == 1 or isinstance(
+                        accepted_parameter, list) and not hasattr(accepted_parameter[0], "__len__"):
+                    # reshape whether we pass a 1d array or list.
+                    accepted_parameter = [np.array([x]) for x in accepted_parameter]  # give correct shape for later
             if burnin == 0:
                 accepted_parameters_burnin.append(accepted_parameter)
             self.logger.info("Calculate approximate loglikelihood")

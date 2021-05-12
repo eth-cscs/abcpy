@@ -220,6 +220,33 @@ class MCMCMetropoliHastingsTests(unittest.TestCase):
         self.assertAlmostEqual(sigma_post_mean_1, 5.751158868437219)
         self.assertAlmostEqual(sigma_post_mean_2, 8.103358539327967)
 
+    def test_sample_with_inipoint(self):
+        # we check whether we can compute the posterior covariance, which means the right reshaping of inipoint is used.
+
+        n_sample, n_samples_per_param = 50, 20
+
+        sampler = MCMCMetropoliHastings([self.model], [self.likfun], self.backend, seed=1)
+        journal1 = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None,
+                                  iniPoint=np.array([-0.8, 7]), burnin=10, adapt_proposal_cov_interval=5,
+                                  use_tqdm=False, path_to_save_journal="tmp.jnl")
+
+        journal2 = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None,
+                                  iniPoint=np.array([np.array([-0.8]), np.array([7])]), burnin=10,
+                                  adapt_proposal_cov_interval=5, use_tqdm=False, path_to_save_journal="tmp.jnl")
+
+        journal3 = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None,
+                                  iniPoint=[-0.8, 7], burnin=10, adapt_proposal_cov_interval=5, use_tqdm=False,
+                                  path_to_save_journal="tmp.jnl")
+
+        journal4 = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None,
+                                  iniPoint=[np.array([-0.8]), np.array([7])], burnin=10, adapt_proposal_cov_interval=5,
+                                  use_tqdm=False, path_to_save_journal="tmp.jnl")
+
+        cov1 = journal1.posterior_cov()
+        cov2 = journal2.posterior_cov()
+        cov3 = journal3.posterior_cov()
+        cov4 = journal3.posterior_cov()
+
     def test_sample_with_transformer(self):
         n_sample, n_samples_per_param = 50, 20
 
