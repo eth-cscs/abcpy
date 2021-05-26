@@ -81,13 +81,13 @@ def contrastive_training(samples, similarity_set, embedding_net, cuda, batch_siz
         scheduler = scheduler(optimizer, **scheduler_kwargs)
 
     # now train:
-    fit(pairs_train_loader, model_contrastive, loss_fn, optimizer, scheduler, n_epochs, cuda,
+    train_losses, test_losses = fit(pairs_train_loader, model_contrastive, loss_fn, optimizer, scheduler, n_epochs, cuda,
         val_loader=pairs_train_loader_val,
         early_stopping=early_stopping, start_epoch_early_stopping=start_epoch_early_stopping,
         epochs_early_stopping_interval=epochs_early_stopping_interval, start_epoch_training=start_epoch_training,
         use_tqdm=use_tqdm)
 
-    return embedding_net
+    return embedding_net, train_losses, test_losses
 
 
 def triplet_training(samples, similarity_set, embedding_net, cuda, batch_size=16, n_epochs=400,
@@ -155,12 +155,12 @@ def triplet_training(samples, similarity_set, embedding_net, cuda, batch_size=16
         scheduler = scheduler(optimizer, **scheduler_kwargs)
 
     # now train:
-    fit(triplets_train_loader, model_triplet, loss_fn, optimizer, scheduler, n_epochs, cuda,
+    train_losses, test_losses = fit(triplets_train_loader, model_triplet, loss_fn, optimizer, scheduler, n_epochs, cuda,
         val_loader=triplets_train_loader_val,
         early_stopping=early_stopping, start_epoch_early_stopping=start_epoch_early_stopping,
         epochs_early_stopping_interval=epochs_early_stopping_interval, start_epoch_training=start_epoch_training, use_tqdm=use_tqdm)
 
-    return embedding_net
+    return embedding_net, train_losses, test_losses
 
 
 def FP_nn_training(samples, target, embedding_net, cuda, batch_size=1, n_epochs=50, samples_val=None, target_val=None,
@@ -222,9 +222,9 @@ def FP_nn_training(samples, target, embedding_net, cuda, batch_size=1, n_epochs=
         scheduler = scheduler(optimizer, **scheduler_kwargs)
 
     # now train:
-    fit(data_loader_FP_nn, embedding_net, loss_fn, optimizer, scheduler, n_epochs, cuda,
+    train_losses, test_losses = fit(data_loader_FP_nn, embedding_net, loss_fn, optimizer, scheduler, n_epochs, cuda,
         val_loader=data_loader_FP_nn_val,
         early_stopping=early_stopping, start_epoch_early_stopping=start_epoch_early_stopping,
         epochs_early_stopping_interval=epochs_early_stopping_interval, start_epoch_training=start_epoch_training, use_tqdm=use_tqdm)
 
-    return embedding_net
+    return embedding_net, train_losses, test_losses

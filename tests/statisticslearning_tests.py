@@ -65,8 +65,11 @@ class SemiautomaticNNTests(unittest.TestCase):
         if has_torch:
             # Initialize statistics learning
             self.statisticslearning = SemiautomaticNN([self.Y], self.statistics_cal, self.backend, n_samples=100,
-                                                      n_samples_per_param=1, seed=1, n_epochs=10, scale_samples=False,
-                                                      use_tqdm=False)
+                                                      n_samples_val=100, n_samples_per_param=1, seed=1, n_epochs=10,
+                                                      scale_samples=False, use_tqdm=False)
+            self.statisticslearning2 = SemiautomaticNN([self.Y], self.statistics_cal, self.backend, n_samples=10,
+                                                       n_samples_val=10, n_samples_per_param=1, seed=1, n_epochs=5,
+                                                       scale_samples=False, use_tqdm=False)
             # with sample scaler:
             self.statisticslearning_with_scaler = SemiautomaticNN([self.Y], self.statistics_cal, self.backend,
                                                                   n_samples=100, n_samples_per_param=1, seed=1,
@@ -146,6 +149,17 @@ class SemiautomaticNNTests(unittest.TestCase):
                                                           n_samples_per_param=1, seed=1,
                                                           parameters_val=[i for i in range(10)],
                                                           simulations_val=[i for i in range(10)])
+            with self.assertRaises(RuntimeError):
+                self.statisticslearning2.test_losses = [4, 2, 1]
+                self.statisticslearning2.plot_losses()
+            with self.assertRaises(NotImplementedError):
+                self.statisticslearning.plot_losses(which_losses="foo")
+
+    def test_plots(self):
+        if has_torch:
+            self.statisticslearning.plot_losses()
+            self.statisticslearning.plot_losses(which_losses="train")
+            self.statisticslearning.plot_losses(which_losses="test")
 
 
 class ContrastiveDistanceLearningTests(unittest.TestCase):
@@ -164,13 +178,15 @@ class ContrastiveDistanceLearningTests(unittest.TestCase):
         if has_torch:
             # Initialize statistics learning
             self.statisticslearning = ContrastiveDistanceLearning([self.Y], self.statistics_cal, self.backend,
-                                                                  n_samples=100, n_samples_per_param=1, seed=1,
-                                                                  n_epochs=10, scale_samples=False, use_tqdm=False)
+                                                                  n_samples=100, n_samples_val=100,
+                                                                  n_samples_per_param=1, seed=1, n_epochs=10,
+                                                                  scale_samples=False, use_tqdm=False)
             # with sample scaler:
             self.statisticslearning_with_scaler = ContrastiveDistanceLearning([self.Y], self.statistics_cal,
                                                                               self.backend, n_samples=100,
                                                                               n_samples_per_param=1, seed=1,
-                                                                              n_epochs=10, scale_samples=True, use_tqdm=False)
+                                                                              n_epochs=10, scale_samples=True,
+                                                                              use_tqdm=False)
 
     def test_initialization(self):
         if not has_torch:
@@ -196,6 +212,12 @@ class ContrastiveDistanceLearningTests(unittest.TestCase):
 
             self.assertRaises(ValueError, self.new_statistics_calculator_with_scaler.statistics, [np.array([1, 2])])
 
+    def test_plots(self):
+        if has_torch:
+            self.statisticslearning.plot_losses()
+            self.statisticslearning.plot_losses(which_losses="train")
+            self.statisticslearning.plot_losses(which_losses="test")
+
 
 class TripletDistanceLearningTests(unittest.TestCase):
     def setUp(self):
@@ -213,8 +235,8 @@ class TripletDistanceLearningTests(unittest.TestCase):
         if has_torch:
             # Initialize statistics learning
             self.statisticslearning = TripletDistanceLearning([self.Y], self.statistics_cal, self.backend,
-                                                              scale_samples=False, use_tqdm=False,
-                                                              n_samples=100, n_samples_per_param=1, seed=1, n_epochs=10)
+                                                              n_samples=100, n_samples_val=100, n_samples_per_param=1,
+                                                              seed=1, n_epochs=10, scale_samples=False, use_tqdm=False)
             # with sample scaler:
             self.statisticslearning_with_scaler = TripletDistanceLearning([self.Y], self.statistics_cal, self.backend,
                                                                           scale_samples=True, use_tqdm=False,
@@ -243,6 +265,12 @@ class TripletDistanceLearningTests(unittest.TestCase):
             self.assertEqual(np.shape(extracted_statistics), (1, 2))
 
             self.assertRaises(ValueError, self.new_statistics_calculator_with_scaler.statistics, [np.array([1, 2])])
+
+    def test_plots(self):
+        if has_torch:
+            self.statisticslearning.plot_losses()
+            self.statisticslearning.plot_losses(which_losses="train")
+            self.statisticslearning.plot_losses(which_losses="test")
 
 
 if __name__ == '__main__':
