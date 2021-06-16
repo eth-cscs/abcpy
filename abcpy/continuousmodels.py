@@ -690,8 +690,9 @@ class Exponential(ProbabilisticModel, Continuous):
         ----------
         parameters: list
             Contains the probabilistic models and hyperparameters from which the model derives.
-            The list has one entry: the rate $\lambda$ of the exponential distribution, that has therefore pdf:
-                            f(x; \lambda) = \lambda \exp(-\lambda x ),
+            The list has one entry: the rate :math:`\lambda` of the exponential distribution, that has therefore pdf:
+            :math:`f(x; \lambda) = \lambda \exp(-\lambda x )`
+
         name: string
             The name that should be given to the probabilistic model in the journal file.
         """

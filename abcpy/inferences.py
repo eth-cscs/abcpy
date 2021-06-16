@@ -167,7 +167,7 @@ class RejectionABC(InferenceMethod):
             each model.
         backend: abcpy.backends.Backend
             Backend object defining the backend to be used.
-        seed: integer, optionaldistance
+        seed: integer, optional
              Optional initial seed for the random number generator. The default value is generated randomly.
         """
 
@@ -411,8 +411,8 @@ class RejectionABC(InferenceMethod):
         distance = self.distance.dist_max()
 
         if distance < self.epsilon and self.logger:
-            self.logger.warn("initial epsilon {:e} is larger than dist_max {:e}"
-                             .format(float(self.epsilon), distance))
+            self.logger.warning("initial epsilon {:e} is larger than dist_max {:e}"
+                                .format(float(self.epsilon), distance))
 
         counter = 0
 

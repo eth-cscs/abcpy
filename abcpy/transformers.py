@@ -124,7 +124,7 @@ class BoundedVarTransformer:
         Parameters
         ----------
         x : list of len n_parameters
-            Input data, living in the original space (with lower bound constraints).
+            Input data, living in the original space (with bounds).
         Returns
         -------
         res : float
