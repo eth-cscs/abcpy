@@ -151,6 +151,246 @@ class BaseDiscrepancy(InferenceMethod, BaseMethodsWithKernel, metaclass=ABCMeta)
         raise NotImplementedError
 
 
+class DrawFromPrior(InferenceMethod):
+    """Helper class to obtain samples from the prior for a model.
+
+    The `sample` method follows similar API to the other InferenceMethod's (returning a journal file), while the
+    `sample_par_sim_pairs` method generates (parameter, simulation) pairs, which can be used for instance as a training
+    dataset for the automatic learning of summary statistics with the StatisticsLearning classes.
+
+    Parameters
+    ----------
+    root_models: list
+        A list of the Probabilistic models corresponding to the observed datasets
+    backend: abcpy.backends.Backend
+        Backend object defining the backend to be used.
+    seed: integer, optional
+         Optional initial seed for the random number generator. The default value is generated randomly.
+    discard_too_large_values: boolean
+         If set to True, the simulation is discarded (and repeated) if at least one element of it is too large
+         to fit in float32, which therefore may be converted to infinite value in numpy. Defaults to False.
+    """
+
+    model = None
+    rng = None
+    n_samples = None
+    backend = None
+
+    n_samples_per_param = None  # this needs to be there otherwise it does not instantiate correctly
+
+    def __init__(self, root_models, backend, seed=None, discard_too_large_values=False):
+        self.model = root_models
+        self.backend = backend
+        self.rng = np.random.RandomState(seed)
+        self.discard_too_large_values = discard_too_large_values
+        # An object managing the bds objects
+        self.accepted_parameters_manager = AcceptedParametersManager(self.model)
+        self.logger = logging.getLogger(__name__)
+
+    def sample(self, n_samples, path_to_save_journal=None):
+        """
+        Samples model parameters from the prior distribution.
+
+        Parameters
+        ----------
+        n_samples: integer
+            Number of samples to generate
+        path_to_save_journal: str, optional
+            If provided, save the journal after inference at the provided path.
+
+        Returns
+        -------
+        abcpy.output.Journal
+            a journal containing results and metadata.
+        """
+
+        journal = Journal(1)
+        journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
+        journal.configuration["n_samples"] = self.n_samples
+
+        # the following lines are similar to the RejectionABC code but only sample from the prior.
+        # now generate an array of seeds that need to be different one from the other. One way to do it is the
+        # following.
+        # Moreover, you cannot use int64 as seeds need to be < 2**32 - 1. How to fix this?
+        # Note that this is not perfect; you still have small possibility of having some seeds that are equal. Is there
+        # a better way? This would likely not change much the performance
+        # An idea would be to use rng.choice but that is too expensive
+        seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
+        # check how many equal seeds there are and remove them:
+        sorted_seed_arr = np.sort(seed_arr)
+        indices = sorted_seed_arr[:-1] == sorted_seed_arr[1:]
+        if np.sum(indices) > 0:
+            # the following removes the equal seeds in case there are some
+            sorted_seed_arr[:-1][indices] = sorted_seed_arr[:-1][indices] + 1
+        rng_arr = np.array([np.random.RandomState(seed) for seed in sorted_seed_arr])
+        rng_pds = self.backend.parallelize(rng_arr)
+
+        parameters_pds = self.backend.map(self._sample_parameter_only, rng_pds)
+        parameters = self.backend.collect(parameters_pds)
+        # accepted_parameters, distances, counter = [list(t) for t in zip(*accepted_parameters_distances_counter)]
+
+        self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=parameters)
+        journal.add_accepted_parameters(copy.deepcopy(parameters))
+        journal.add_weights(np.ones((n_samples, 1)))
+        journal.add_ESS_estimate(np.ones((n_samples, 1)))
+        self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=parameters)
+        names_and_parameters = self._get_names_and_parameters()
+        journal.add_user_parameters(names_and_parameters)
+        journal.number_of_simulations.append(0)
+
+        if path_to_save_journal is not None:  # save journal
+            journal.save(path_to_save_journal)
+
+        return journal
+
+    def sample_par_sim_pairs(self, n_samples, n_samples_per_param, max_chunk_size=10 ** 4):
+        """
+        Samples (parameter, simulation) pairs from the prior distribution from the model distribution. Specifically,
+        parameter values are sampled from the prior and used to generate the specified number of simulations per
+        parameter value. This returns arrays.
+
+        When generating large datasets with MPI backend, pickling may give overflow error; for this reason, the function
+        splits the generation in "chunks" of the specified size on which the parallelization is used.
+
+        Parameters
+        ----------
+        n_samples: integer
+            Number of samples to generate
+        n_samples_per_param: integer
+            Number of data points in each simulated data set.
+        max_chunk_size: integer, optional
+            Maximum size of chunks in which to split the data generation. Defaults to 10**4
+
+        Returns
+        -------
+        tuple
+            A tuple of numpy.ndarray's containing parameter and simulation values. The first element of the tuple is an
+            array with shape (n_samples, d_theta), where d_theta is the dimension of the parameters. The second element
+            of the tuple is an array with shape (n_samples, n_samples_per_param, d_x), where d_x is the dimension of
+            each simulation.
+        """
+
+        parameters_list = []
+        simulations_list = []
+        samples_to_sample = n_samples
+        while samples_to_sample > 0:
+            parameters_part, simulations_part = self._sample_par_sim_pairs(min(samples_to_sample, max_chunk_size),
+                                                                           n_samples_per_param)
+            samples_to_sample -= max_chunk_size
+            parameters_list.append(parameters_part)
+            simulations_list.append(simulations_part)
+        parameters = np.concatenate(parameters_list)
+        simulations = np.concatenate(simulations_list)
+        return parameters, simulations
+
+    def _sample_par_sim_pairs(self, n_samples, n_samples_per_param):
+        """
+        Not for end use; please use `sample_par_sim_pairs`.
+
+        Samples (parameter, simulation) pairs from the prior distribution from the model distribution. Specifically,
+        parameter values are sampled from the prior and used to generate the specified number of simulations per
+        parameter value. This returns arrays.
+
+        Parameters
+        ----------
+        n_samples: integer
+            Number of samples to generate
+        n_samples_per_param: integer
+            Number of data points in each simulated data set.
+        max_chunk_size: integer, optional
+            Maximum size of chunks in which to split the data generation. Defaults to 10**4
+
+        Returns
+        -------
+        tuple
+            A tuple of numpy.ndarray's containing parameter and simulation values. The first element of the tuple is an
+            array with shape (n_samples, d_theta), where d_theta is the dimension of the parameters. The second element
+            of the tuple is an array with shape (n_samples, n_samples_per_param, d_x), where d_x is the dimension of
+            each simulation.
+        """
+        self.n_samples = n_samples
+        self.n_samples_per_param = n_samples_per_param
+        self.accepted_parameters_manager.broadcast(self.backend, 1)
+
+        # now generate an array of seeds that need to be different one from the other. One way to do it is the
+        # following.
+        # Moreover, you cannot use int64 as seeds need to be < 2**32 - 1. How to fix this?
+        # Note that this is not perfect; you still have small possibility of having some seeds that are equal. Is there
+        # a better way? This would likely not change much the performance
+        # An idea would be to use rng.choice but that is too expensive
+        seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
+        # check how many equal seeds there are and remove them:
+        sorted_seed_arr = np.sort(seed_arr)
+        indices = sorted_seed_arr[:-1] == sorted_seed_arr[1:]
+        if np.sum(indices) > 0:
+            # the following removes the equal seeds in case there are some
+            sorted_seed_arr[:-1][indices] = sorted_seed_arr[:-1][indices] + 1
+        rng_arr = np.array([np.random.RandomState(seed) for seed in sorted_seed_arr])
+        rng_pds = self.backend.parallelize(rng_arr)
+
+        parameters_simulations_pds = self.backend.map(self._sample_parameter_simulation, rng_pds)
+        parameters_simulations = self.backend.collect(parameters_simulations_pds)
+        parameters, simulations = [list(t) for t in zip(*parameters_simulations)]
+
+        parameters = np.array(parameters)
+        simulations = np.array(simulations)
+
+        parameters = parameters.reshape((parameters.shape[0], parameters.shape[1]))
+        simulations = simulations.reshape((simulations.shape[0], simulations.shape[2], simulations.shape[3],))
+
+        return parameters, simulations
+
+    def _sample_parameter_simulation(self, rng, npc=None):
+        """
+        Samples a single model parameter and simulates from it.
+
+        Parameters
+        ----------
+        rng: random number generator
+            The random number generator to be used.
+        Returns
+        -------
+        Tuple
+            The first entry of the tuple is the parameter.
+            The second entry is the the simulation drawn from it.
+        """
+
+        ok_flag = False
+
+        while not ok_flag:
+            self.sample_from_prior(rng=rng)
+            theta = self.get_parameters(self.model)
+            y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
+
+            # if there are no potential infinities there (or if we do not check for those).
+            # For instance, Lorenz model may give too large values sometimes (quite rarely).
+            if self.discard_too_large_values and np.sum(np.isinf(np.array(y_sim).astype("float32"))) > 0:
+                self.logger.warning("y_sim contained too large values for float32; simulating again.")
+            else:
+                ok_flag = True
+
+        return theta, y_sim
+
+    def _sample_parameter_only(self, rng, npc=None):
+        """
+        Samples a single model parameter from the prior.
+
+        Parameters
+        ----------
+        rng: random number generator
+            The random number generator to be used.
+        Returns
+        -------
+        list
+            The sampled parameter values
+        """
+
+        self.sample_from_prior(rng=rng)
+        theta = self.get_parameters(self.model)
+
+        return theta
+
+
 class RejectionABC(InferenceMethod):
     """This class implements the rejection algorithm based inference scheme [1] for
         Approximate Bayesian Computation.
