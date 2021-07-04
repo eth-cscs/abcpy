@@ -7,9 +7,76 @@ from abcpy.backends import BackendDummy
 from abcpy.continuousmodels import Normal
 from abcpy.continuousmodels import Uniform
 from abcpy.distances import Euclidean, MMD
-from abcpy.inferences import RejectionABC, PMC, PMCABC, SABC, ABCsubsim, SMCABC, APMCABC, RSMCABC, \
+from abcpy.inferences import DrawFromPrior, RejectionABC, PMC, PMCABC, SABC, ABCsubsim, SMCABC, APMCABC, RSMCABC, \
     MCMCMetropoliHastings
 from abcpy.statistics import Identity
+
+
+class DrawFromPriorTest(unittest.TestCase):
+    def setUp(self):
+        # setup backend
+        dummy = BackendDummy()
+
+        # define a uniform prior distribution
+        mu = Uniform([[-5.0], [5.0]], name='mu')
+        sigma = Uniform([[0.0], [10.0]], name='sigma')
+        # define a Gaussian model
+        self.model = Normal([mu, sigma])
+
+        # create fake observed data
+        self.y_obs = [np.array(9.8)]
+
+        # for correct seeding define 2 samplers (and discard large values in the second to test if that works)
+        self.sampler = DrawFromPrior([self.model], dummy, seed=1)
+        self.sampler2 = DrawFromPrior([self.model], dummy, seed=1, discard_too_large_values=True)
+
+        # expected mean values from 100 prior samples:
+        self.mu_mean = -0.24621316447913139
+        self.sigma_mean = 5.182264389159227
+
+    def test_sample_n_samples(self):
+        # test drawing parameter values from the prior in a similar fashion to the other InferenceMethdod's
+        journal = self.sampler.sample(100, path_to_save_journal="tmp.jnl")
+        mu_sample = np.array(journal.get_parameters()['mu'])
+        sigma_sample = np.array(journal.get_parameters()['sigma'])
+
+        accepted_parameters = journal.get_accepted_parameters()
+        self.assertEqual(len(accepted_parameters), 100)
+        self.assertEqual(len(accepted_parameters[0]), 2)
+
+        # test shape of samples
+        mu_shape, sigma_shape = (len(mu_sample), mu_sample[0].shape[1]), \
+                                (len(sigma_sample), sigma_sample[0].shape[1])
+        self.assertEqual(mu_shape, (100, 1))
+        self.assertEqual(sigma_shape, (100, 1))
+
+        # Compute posterior mean
+        self.assertAlmostEqual(np.average(mu_sample), self.mu_mean)
+        self.assertAlmostEqual(np.average(sigma_sample), self.sigma_mean)
+
+        self.assertTrue(journal.number_of_simulations[0] == 0)
+
+    def test_param_simulation_pairs(self):
+        # sample single simulation for each par value
+        parameters, simulations = self.sampler.sample_par_sim_pairs(10, 1)
+        self.assertEqual(parameters.shape, (10, 2))
+        self.assertEqual(simulations.shape, (10, 1, 1))
+
+        # sample multiple simulations for each par value
+        parameters, simulations = self.sampler.sample_par_sim_pairs(10, 3)
+        self.assertEqual(parameters.shape, (10, 2))
+        self.assertEqual(simulations.shape, (10, 3, 1))
+
+        # try with smaller max_chunk_size
+        parameters, simulations = self.sampler.sample_par_sim_pairs(10, 3, max_chunk_size=2)
+        self.assertEqual(parameters.shape, (10, 2))
+        self.assertEqual(simulations.shape, (10, 3, 1))
+
+        # now run with the new sampler to check if the means are the same as with `.sample` method:
+        parameters, simulations = self.sampler2.sample_par_sim_pairs(100, 1)
+        means = np.mean(parameters, axis=0)
+        self.assertAlmostEqual(means[0], self.mu_mean)
+        self.assertAlmostEqual(means[1], self.sigma_mean)
 
 
 class RejectionABCTest(unittest.TestCase):
@@ -49,7 +116,6 @@ class RejectionABCTest(unittest.TestCase):
         self.assertEqual(sigma_shape, (10, 1))
 
         # Compute posterior mean
-        # self.assertAlmostEqual(np.average(np.asarray(samples[:,0])),1.22301,10e-2)
         self.assertAlmostEqual(np.average(mu_sample), 1.223012836345375)
         self.assertAlmostEqual(np.average(sigma_sample), 6.992218962395242)
 
@@ -68,7 +134,6 @@ class RejectionABCTest(unittest.TestCase):
         self.assertEqual(sigma_shape, (3, 1))
 
         # Compute posterior mean
-        # self.assertAlmostEqual(np.average(np.asarray(samples[:,0])),1.22301,10e-2)
         self.assertAlmostEqual(np.average(mu_sample), 0.8175361535037666)
         self.assertAlmostEqual(np.average(sigma_sample), 8.155647092489977)
 
@@ -86,7 +151,6 @@ class RejectionABCTest(unittest.TestCase):
         self.assertEqual(sigma_shape, (10, 1))
 
         # Compute posterior mean
-        # self.assertAlmostEqual(np.average(np.asarray(samples[:,0])),1.22301,10e-2)
         self.assertAlmostEqual(np.average(mu_sample), 0.10394992719538543)
         self.assertAlmostEqual(np.average(sigma_sample), 6.746940834914168)
 
