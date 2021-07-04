@@ -491,6 +491,7 @@ class SlicedWasserstein(Divergence):
         License: MIT License
 
         Generates n_projections samples from the uniform on the unit sphere of dimension d-1: :math:`\mathcal{U}(\mathcal{S}^{d-1})`
+
         Parameters
         ----------
         n_projections : int
@@ -499,6 +500,7 @@ class SlicedWasserstein(Divergence):
             dimension of the space
         seed: int or RandomState, optional
             Seed used for numpy random number generator
+
         Returns
         -------
         out: ndarray, shape (n_projections, d)
@@ -568,7 +570,7 @@ class SlicedWasserstein(Divergence):
         0.0
         References
         ----------
-        .. [31] Bonneel, Nicolas, et al. "Sliced and radon wasserstein barycenters of measures." Journal of Mathematical Imaging and Vision 51.1 (2015): 22-45
+        Bonneel, Nicolas, et al. "Sliced and radon wasserstein barycenters of measures." Journal of Mathematical Imaging and Vision 51.1 (2015): 22-45
         """
         from ot.lp import emd2_1d
 

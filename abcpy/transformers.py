@@ -70,10 +70,12 @@ class BoundedVarTransformer:
 
     def transform(self, x):
         """Scale features of x according to feature_range.
+
         Parameters
         ----------
-        x : list of len n_parameters
+        x : list of length n_parameters
             Input data that will be transformed.
+
         Returns
         -------
         Xt : array-like of shape (n_samples, n_features)
@@ -95,10 +97,12 @@ class BoundedVarTransformer:
 
     def inverse_transform(self, x):
         """Undo the scaling of x according to feature_range.
+
         Parameters
         ----------
         x : list of len n_parameters
             Input data that will be transformed. It cannot be sparse.
+
         Returns
         -------
         Xt : array-like of shape (n_samples, n_features)
@@ -119,7 +123,7 @@ class BoundedVarTransformer:
         return inv_x
 
     def jac_log_det(self, x):
-        """Returns the log determinant of the Jacobian: log |J_t(x)|.
+        """Returns the log determinant of the Jacobian: :math:`\log |J_t(x)|`.
 
         Parameters
         ----------
@@ -144,16 +148,16 @@ class BoundedVarTransformer:
 
     def jac_log_det_inverse_transform(self, x):
         """Returns the log determinant of the Jacobian evaluated in the inverse transform:
-        log |J_t(t^{-1}(x))| = - log |J_{t^{-1}}(x)|
+        :math:`\log |J_t(t^{-1}(x))| = - log |J_{t^{-1}}(x)|`
 
         Parameters
         ----------
         x : list of len n_parameters
-            Input data, living in the transformed space (spanning the whole R^d).
+            Input data, living in the transformed space (spanning the whole :math:`R^d`).
         Returns
         -------
         res : float
-            log determinant of the jacobian evaluated in t^{-1}(x)
+            log determinant of the jacobian evaluated in :math:`t^{-1}(x)`
         """
         x = self._array_from_list(x)
 
