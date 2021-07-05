@@ -66,13 +66,13 @@ def infer_parameters(steps=2, n_sample=50, n_samples_per_param=1, logging_level=
     from abcpy.statistics import Identity
     identity = Identity()  # to apply before computing the statistics
 
-    print("semiNN")
+    logging.info("semiNN")
     from abcpy.statisticslearning import SemiautomaticNN, TripletDistanceLearning
     semiNN = SemiautomaticNN([height], identity, backend=backend, parameters=parameters,
                              simulations=simulations, parameters_val=parameters_val, simulations_val=simulations,
                              early_stopping=True,  # early stopping
                              seed=1, n_epochs=10, scale_samples=False)
-    print("triplet")
+    logging.info("triplet")
     triplet = TripletDistanceLearning([height], identity, backend=backend, parameters=parameters,
                                       simulations=simulations, parameters_val=parameters_val,
                                       simulations_val=simulations,

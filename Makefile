@@ -40,6 +40,10 @@ unittest_mpi:
 exampletest: $(MAKEDIRS)
 	@echo "Testing standard examples.."
 	python3 -m unittest -v tests/test_examples.py || (echo "Error in example tests."; exit 1)
+	@if test -f scaler.pkl; then rm scaler.pkl; fi
+	@if test -f seminn_net.pth; then rm seminn_net.pth; fi
+	@if test -f triplet_net.pth; then rm triplet_net.pth; fi
+	@if test -f tmp.jnl; then rm tmp.jnl; fi
 
 exampletest_mpi:
 	@echo "Testing MPI backend examples.."
