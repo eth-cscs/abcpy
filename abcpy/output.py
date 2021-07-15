@@ -39,6 +39,7 @@ class Journal:
 
         self.accepted_parameters = []
         self.names_and_parameters = []
+        self.accepted_simulations = []
         self.weights = []
         self.ESS = []
         self.distances = []
@@ -113,6 +114,22 @@ class Journal:
 
         if self._type == 1:
             self.accepted_parameters.append(accepted_parameters)
+
+    def add_accepted_simulations(self, accepted_simulations):
+        """
+        Saves provided accepted simulations by appending them to the journal. If type==0, old accepted simulations get
+        overwritten.
+
+        Parameters
+        ----------
+        accepted_simulations: list
+        """
+
+        if self._type == 0:
+            self.accepted_simulations = [accepted_simulations]
+
+        if self._type == 1:
+            self.accepted_simulations.append(accepted_simulations)
 
     def add_weights(self, weights):
         """
@@ -237,9 +254,8 @@ class Journal:
 
         Returns
         -------
-        accepted_parameters: dictionary
-            Samples from the specified iteration (last, if not specified) returned as a disctionary with names of the
-            random variables
+        accepted_parameters: numpy.ndarray
+            Numpy array containing samples from the specified iteration (last, if not specified)
         """
 
         if iteration is None:
@@ -247,6 +263,32 @@ class Journal:
 
         else:
             return self.accepted_parameters[iteration]
+
+    def get_accepted_simulations(self, iteration=None):
+        """
+        Returns the accepted simulations from a sampling scheme.
+
+        For intermediate results, pass the iteration.
+
+        simulations
+        ----------
+        iteration: int
+            specify the iteration for which to return accepted simulations
+
+        Returns
+        -------
+        accepted_simulations: numpy.ndarray
+            Numpy array containing simulations corresponding to accepted samples from the specified
+            iteration (last, if not specified)
+        """
+
+        if iteration is None:
+            if len(self.accepted_simulations) == 0:
+                return []
+            return self.accepted_simulations[-1]
+
+        else:
+            return self.accepted_simulations[iteration]
 
     def get_weights(self, iteration=None):
         """

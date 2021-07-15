@@ -3368,7 +3368,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             if aStep == 0 and journal_file is not None:
                 accepted_parameters = journal.get_accepted_parameters(-1)
                 accepted_weights = journal.get_weights(-1)
-                accepted_y_sim = journal.opt_values[-1]
+                accepted_y_sim = journal.get_accepted_simulations(-1)
                 distances = journal.get_distances(-1)
 
                 epsilon = journal.configuration["epsilon_arr"]
@@ -3515,7 +3515,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.add_distances(copy.deepcopy(distances))
                 journal.add_weights(copy.deepcopy(accepted_weights))
                 journal.add_ESS_estimate(accepted_weights)
-                journal.add_opt_values(copy.deepcopy(accepted_y_sim))
+                journal.add_accepted_simulations(copy.deepcopy(accepted_y_sim))
 
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)
