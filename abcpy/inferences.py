@@ -2131,7 +2131,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             if aStep == 0 and journal_file is not None:
                 accepted_parameters = journal.get_accepted_parameters(-1)
                 accepted_weights = journal.get_weights(-1)
-                accepted_cov_mats = journal.opt_values[-1]
+                accepted_cov_mats = journal.get_accepted_cov_mats(-1)
 
             # main ABCsubsim algorithm
             self.logger.info("Initialization of ABCsubsim")
@@ -2230,7 +2230,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
                 journal.add_distances(copy.deepcopy(distances))
                 journal.add_weights(copy.deepcopy(accepted_weights))
                 journal.add_ESS_estimate(accepted_weights)
-                journal.add_opt_values(accepted_cov_mats)
+                journal.add_accepted_cov_mats(accepted_cov_mats)
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                                   accepted_weights=accepted_weights)
                 names_and_parameters = self._get_names_and_parameters()
@@ -2255,7 +2255,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             journal.add_distances(copy.deepcopy(distances))
             journal.add_weights(copy.deepcopy(accepted_weights))
             journal.add_ESS_estimate(accepted_weights)
-            journal.add_opt_values(accepted_cov_mats)
+            journal.add_accepted_cov_mats(accepted_cov_mats)
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                               accepted_weights=accepted_weights)
             names_and_parameters = self._get_names_and_parameters()

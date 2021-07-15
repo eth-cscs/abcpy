@@ -44,25 +44,6 @@ class JournalTests(unittest.TestCase):
         np.testing.assert_equal(journal_recon.weights[0], weights1)
         np.testing.assert_equal(journal_recon.weights[1], weights2)
 
-    def test_add_opt_values(self):
-        opt_values1 = np.zeros((2, 4))
-        opt_values2 = np.ones((2, 4))
-
-        # test whether production mode only stores the last set of parameters
-        journal_prod = Journal(0)
-        journal_prod.add_opt_values(opt_values1)
-        journal_prod.add_opt_values(opt_values2)
-        self.assertEqual(len(journal_prod.opt_values), 1)
-        np.testing.assert_equal(journal_prod.opt_values[0], opt_values2)
-
-        # test whether reconstruction mode stores all parameter sets
-        journal_recon = Journal(1)
-        journal_recon.add_opt_values(opt_values1)
-        journal_recon.add_opt_values(opt_values2)
-        self.assertEqual(len(journal_recon.opt_values), 2)
-        np.testing.assert_equal(journal_recon.opt_values[0], opt_values1)
-        np.testing.assert_equal(journal_recon.opt_values[1], opt_values2)
-
     def test_load_and_save(self):
         params1 = np.zeros((2, 4))
         weights1 = np.zeros((2, 4))
