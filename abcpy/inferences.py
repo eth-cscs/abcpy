@@ -2131,7 +2131,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             if aStep == 0 and journal_file is not None:
                 accepted_parameters = journal.get_accepted_parameters(-1)
                 accepted_weights = journal.get_weights(-1)
-                accepted_cov_mats = journal.get_accepted_cov_mats(-1)
+                accepted_cov_mats = journal.get_accepted_cov_mats()
 
             # main ABCsubsim algorithm
             self.logger.info("Initialization of ABCsubsim")
@@ -3238,8 +3238,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, epsilon_final=0.1, alpha=None,
-               covFactor=2, resample=None, full_output=0, which_mcmc_kernel=None, r=None, journal_file=None,
-               path_to_save_journal=None):
+               covFactor=2, resample=None, full_output=0, which_mcmc_kernel=None, r=None,
+               store_simulations_in_journal=True, journal_file=None, path_to_save_journal=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -3285,6 +3285,13 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             Specifies the value of 'r' (the number of wanted hits) in the r-hits kernels. It is therefore ignored if
             'which_mcmc_kernel==0'. If no value is provided, the first version of r-hit kernel uses r=3, while the
             second uses r=2. The default value is None.
+        store_simulations_in_journal : boolean, optional
+            Every step of the SMCABC algorithm uses the accepted simulations from previous step. Therefore, the accepted
+            simulations at the final step are stored in the Journal file to allow restarting the inference
+            correctly. If each simulation is large, however, that means that the accepted Journal will be large in
+            memory. If you want to *not* save the simulations in the journal, set this to False; however, you will not
+            be able to restart the inference from the returned Journal. The default value is True, meaning simulations
+            are stored in the Journal.
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
@@ -3332,6 +3339,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         accepted_weights = None
         accepted_cov_mats = None
         accepted_y_sim = None
+        distances = None
 
         # Define the resample parameter
         if resample is None:
@@ -3368,7 +3376,11 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             if aStep == 0 and journal_file is not None:
                 accepted_parameters = journal.get_accepted_parameters(-1)
                 accepted_weights = journal.get_weights(-1)
-                accepted_y_sim = journal.get_accepted_simulations(-1)
+                accepted_y_sim = journal.get_accepted_simulations()
+                if accepted_y_sim is None:
+                    raise RuntimeError("You cannot restart the inference from this Journal file as you did not store "
+                                       "the simulations in it. In order to do that, the inference scheme needs to be"
+                                       "called with `store_simulations_in_journal=True`.")
                 distances = journal.get_distances(-1)
 
                 epsilon = journal.configuration["epsilon_arr"]
@@ -3394,7 +3406,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 break
 
             # 0: Compute the Epsilon
-            if accepted_y_sim != None:
+            if distances is not None:
                 self.logger.info(
                     "Compute epsilon, might take a while; previous epsilon value: {:.4f}".format(epsilon[-1]))
                 if self.bernton:
@@ -3426,7 +3438,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
             # 1: calculate weights for new parameters
             self.logger.info("Calculating weights")
-            if accepted_y_sim is not None:
+            if distances is not None:
                 if self.bernton:
                     new_weights = (current_distance_matrix < epsilon[-1]) * 1
                 else:
@@ -3445,7 +3457,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             # 2: Resample; we resample always when using the Bernton et al. algorithm, as in that case weights
             # can only be proportional to 1 or 0; if we use the Del Moral version, instead, the
             # weights can have fractional values -> use the # resample threshold
-            if accepted_y_sim is not None and (self.bernton or pow(sum(pow(new_weights, 2)), -1) < resample):
+            if distances is not None and (self.bernton or pow(sum(pow(new_weights, 2)), -1) < resample):
                 self.logger.info("Resampling")
                 # Weighted resampling:
                 index_resampled = self.rng.choice(n_samples, n_samples, replace=True, p=new_weights)
@@ -3461,7 +3473,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                               accepted_weights=accepted_weights)
-            if accepted_y_sim is not None:
+            if distances is not None:
                 kernel_parameters = []
                 for kernel in self.kernel.kernels:
                     kernel_parameters.append(
@@ -3515,7 +3527,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.add_distances(copy.deepcopy(distances))
                 journal.add_weights(copy.deepcopy(accepted_weights))
                 journal.add_ESS_estimate(accepted_weights)
-                journal.add_accepted_simulations(copy.deepcopy(accepted_y_sim))
+                if store_simulations_in_journal:
+                    journal.add_accepted_simulations(copy.deepcopy(accepted_y_sim))
 
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)

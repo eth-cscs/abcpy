@@ -892,6 +892,17 @@ class SMCABCTests(unittest.TestCase):
             self.assertEqual(journal_final_1.configuration["epsilon_arr"], journal_final_2.configuration["epsilon_arr"])
             self.assertEqual(journal_final_1.posterior_mean()['mu'], journal_final_2.posterior_mean()['mu'])
 
+        # test now that restarting fails if I do not store simulations in the Journal at the first .sample call
+        sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
+        journal_intermediate = sampler.sample([self.observation], 2, n_sample, n_simulate,
+                                              which_mcmc_kernel=which_mcmc_kernel,
+                                              store_simulations_in_journal=False)
+        journal_intermediate.save("tmp.jnl")
+        with self.assertRaises(RuntimeError):
+            journal_final_1 = sampler.sample([self.observation], 1, n_sample, n_simulate,
+                                         which_mcmc_kernel=which_mcmc_kernel,
+                                         journal_file="tmp.jnl")
+
     def test_restart_from_journal_bernton(self):
         n_sample, n_simulate = 10, 10
         # loop over standard MCMC kernel, r-hit kernel version 1 and r-hit kernel version 2
@@ -911,6 +922,17 @@ class SMCABCTests(unittest.TestCase):
                                              which_mcmc_kernel=which_mcmc_kernel)
             self.assertEqual(journal_final_1.configuration["epsilon_arr"], journal_final_2.configuration["epsilon_arr"])
             self.assertEqual(journal_final_1.posterior_mean()['mu'], journal_final_2.posterior_mean()['mu'])
+
+        # test now that restarting fails if I do not store simulations in the Journal at the first .sample call
+        sampler = SMCABC([self.model], [self.dist_calc_2], self.backend, seed=1, version="Bernton")
+        journal_intermediate = sampler.sample([self.observation_2], 1, n_sample, n_simulate,
+                                              which_mcmc_kernel=which_mcmc_kernel,
+                                              store_simulations_in_journal=False)
+        journal_intermediate.save("tmp.jnl")
+        with self.assertRaises(RuntimeError):
+            journal_final_1 = sampler.sample([self.observation_2], 1, n_sample, n_simulate,
+                                         which_mcmc_kernel=which_mcmc_kernel,
+                                         journal_file="tmp.jnl")
 
     def test_errors(self):
         with self.assertRaises(RuntimeError):
