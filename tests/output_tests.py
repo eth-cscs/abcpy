@@ -44,6 +44,53 @@ class JournalTests(unittest.TestCase):
         np.testing.assert_equal(journal_recon.weights[0], weights1)
         np.testing.assert_equal(journal_recon.weights[1], weights2)
 
+    def test_add_simulations(self):
+        simulations1 = np.zeros((2, 4))
+        simulations2 = np.ones((2, 4))
+
+        # test whether production mode only stores the last set of parameters
+        journal_prod = Journal(0)
+        journal_prod.add_accepted_simulations(simulations1)
+        journal_prod.add_accepted_simulations(simulations2)
+        self.assertEqual(len(journal_prod.get_accepted_simulations()), 2)
+        np.testing.assert_equal(journal_prod.get_accepted_simulations(), simulations2)
+
+        # test whether reconstruction mode stores all parameter sets
+        journal_recon = Journal(1)
+        journal_recon.add_accepted_simulations(simulations1)
+        journal_recon.add_accepted_simulations(simulations2)
+        self.assertEqual(len(journal_recon.get_accepted_simulations()), 2)
+        np.testing.assert_equal(journal_recon.get_accepted_simulations(0), simulations1)
+        np.testing.assert_equal(journal_recon.get_accepted_simulations(1), simulations2)
+
+        # test whether not storing it returns the correct value
+        journal_empty = Journal(0)
+        self.assertIsNone(journal_empty.get_accepted_simulations())
+
+    def test_add_cov_mats(self):
+        cov_mats1 = np.zeros((2, 4))
+        cov_mats2 = np.ones((2, 4))
+
+        # test whether production mode only stores the last set of parameters
+        journal_prod = Journal(0)
+        journal_prod.add_accepted_cov_mats(cov_mats1)
+        journal_prod.add_accepted_cov_mats(cov_mats2)
+        self.assertEqual(len(journal_prod.get_accepted_cov_mats()), 2)
+        np.testing.assert_equal(journal_prod.get_accepted_cov_mats(), cov_mats2)
+
+        # test whether reconstruction mode stores all parameter sets
+        journal_recon = Journal(1)
+        journal_recon.add_accepted_cov_mats(cov_mats1)
+        journal_recon.add_accepted_cov_mats(cov_mats2)
+        self.assertEqual(len(journal_recon.get_accepted_cov_mats()), 2)
+        np.testing.assert_equal(journal_recon.get_accepted_cov_mats(0), cov_mats1)
+        np.testing.assert_equal(journal_recon.get_accepted_cov_mats(1), cov_mats2)
+
+        # test whether not storing it returns the correct value
+        journal_empty = Journal(0)
+        self.assertIsNone(journal_empty.get_accepted_cov_mats())
+
+
     def test_load_and_save(self):
         params1 = np.zeros((2, 4))
         weights1 = np.zeros((2, 4))
