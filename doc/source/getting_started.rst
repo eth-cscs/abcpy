@@ -407,6 +407,13 @@ We remark that the minimal amount of coding needed for using the neural network 
 
 And similarly for the other two approaches.
 
+We remark how :py:class:`abcpy.statisticslearning.SemiautomaticNN` (as well as the other NN-based statistics learning approaches) allow to specify a neural network through the optional `embedding_net` parameter. According to the value given to it, different NNs are used:
+
+* a torch.nn object can be passed to `embedding_net` to be used as the NN to learn summary statistics.
+* Alternatively, a list with some integer numbers denoting the width of the hidden layers of a fully connected NN can be specified (with the length of the list corresponding to the number of hidden layers). In this case, the input and output sizes are determined so that things work correctly: input size correspond to the data size after the provided `statistics_calculator` has been applied, while output size corresponds to the number of parameters in the model. The function taking care of instantiating the NN is :py:func:`abcpy.NN_utilities.networks.createDefaultNN`.
+* If `embedding_net` is not specified, the behavior is similar to the latter bullet point, but with the number of hidden sizes fixed to 3 and their width determined as: ``[int(input_size * 1.5), int(input_size * 0.75 + output_size * 3), int(output_size * 5)]``.
+
+
 We can then perform the inference as before, but the distances will be computed on the newly learned summary statistics.
 
 The above summary statistics learning routines can also be initialized with previously generated parameter-observation pairs (this can be useful for instance when different statistics learning techniques need to be tested with the same training dataset). The :py:class:`abcpy.inferences.DrawFromPrior` class can be used to generate such training data. We provide an example showcasing this in `examples/statisticslearning/gaussian_statistics_learning_DrawFromPrior_reload_NNs.py <https://github.com/eth-cscs/abcpy/blob/master/examples/statisticslearning/gaussian_statistics_learning_DrawFromPrior_reload_NNs.py>`_.
