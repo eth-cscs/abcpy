@@ -23,18 +23,17 @@ class DrawFromPriorTest(unittest.TestCase):
         # define a Gaussian model
         self.model = Normal([mu, sigma])
 
-        # create fake observed data
-        self.y_obs = [np.array(9.8)]
-
-        # for correct seeding define 2 samplers (and discard large values in the second to test if that works)
+        # for correct seeding define 4 samplers (and discard large values in 3nd and 4rd to test if that works)
         self.sampler = DrawFromPrior([self.model], dummy, seed=1)
-        self.sampler2 = DrawFromPrior([self.model], dummy, seed=1, discard_too_large_values=True)
+        self.sampler2 = DrawFromPrior([self.model], dummy, seed=1, max_chunk_size=2)
+        self.sampler3 = DrawFromPrior([self.model], dummy, seed=1, discard_too_large_values=True)
+        self.sampler4 = DrawFromPrior([self.model], dummy, seed=1, discard_too_large_values=True, max_chunk_size=2 )
 
         # expected mean values from 100 prior samples:
         self.mu_mean = -0.24621316447913139
         self.sigma_mean = 5.182264389159227
 
-    def test_sample_n_samples(self):
+    def test_sample(self):
         # test drawing parameter values from the prior in a similar fashion to the other InferenceMethdod's
         journal = self.sampler.sample(100, path_to_save_journal="tmp.jnl")
         mu_sample = np.array(journal.get_parameters()['mu'])
@@ -56,6 +55,27 @@ class DrawFromPriorTest(unittest.TestCase):
 
         self.assertTrue(journal.number_of_simulations[0] == 0)
 
+        # test now it gives same results with max_chunk_size=2
+        journal2 = self.sampler2.sample(100)
+        mu_sample = np.array(journal2.get_parameters()['mu'])
+        sigma_sample = np.array(journal2.get_parameters()['sigma'])
+
+        accepted_parameters = journal2.get_accepted_parameters()
+        self.assertEqual(len(accepted_parameters), 100)
+        self.assertEqual(len(accepted_parameters[0]), 2)
+
+        # test shape of samples
+        mu_shape, sigma_shape = (len(mu_sample), mu_sample[0].shape[1]), \
+                                (len(sigma_sample), sigma_sample[0].shape[1])
+        self.assertEqual(mu_shape, (100, 1))
+        self.assertEqual(sigma_shape, (100, 1))
+
+        # Compute posterior mean
+        self.assertAlmostEqual(np.average(mu_sample), self.mu_mean)
+        self.assertAlmostEqual(np.average(sigma_sample), self.sigma_mean)
+
+        self.assertTrue(journal2.number_of_simulations[0] == 0)
+
     def test_param_simulation_pairs(self):
         # sample single simulation for each par value
         parameters, simulations = self.sampler.sample_par_sim_pairs(10, 1)
@@ -67,16 +87,22 @@ class DrawFromPriorTest(unittest.TestCase):
         self.assertEqual(parameters.shape, (10, 2))
         self.assertEqual(simulations.shape, (10, 3, 1))
 
-        # try with smaller max_chunk_size
-        parameters, simulations = self.sampler.sample_par_sim_pairs(10, 3, max_chunk_size=2)
-        self.assertEqual(parameters.shape, (10, 2))
-        self.assertEqual(simulations.shape, (10, 3, 1))
-
         # now run with the new sampler to check if the means are the same as with `.sample` method:
-        parameters, simulations = self.sampler2.sample_par_sim_pairs(100, 1)
+        parameters, simulations = self.sampler3.sample_par_sim_pairs(100, 1)
         means = np.mean(parameters, axis=0)
         self.assertAlmostEqual(means[0], self.mu_mean)
         self.assertAlmostEqual(means[1], self.sigma_mean)
+
+        # check also if that gives same results by splitting in chunks:
+        parameters, simulations = self.sampler4.sample_par_sim_pairs(100, 1)
+        means = np.mean(parameters, axis=0)
+        self.assertAlmostEqual(means[0], self.mu_mean)
+        self.assertAlmostEqual(means[1], self.sigma_mean)
+
+        # check sizes with smaller max_chunk_size
+        parameters, simulations = self.sampler4.sample_par_sim_pairs(10, 3)
+        self.assertEqual(parameters.shape, (10, 2))
+        self.assertEqual(simulations.shape, (10, 3, 1))
 
 
 class RejectionABCTest(unittest.TestCase):

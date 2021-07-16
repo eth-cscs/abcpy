@@ -158,6 +158,9 @@ class DrawFromPrior(InferenceMethod):
     `sample_par_sim_pairs` method generates (parameter, simulation) pairs, which can be used for instance as a training
     dataset for the automatic learning of summary statistics with the StatisticsLearning classes.
 
+    When generating large datasets with MPI backend, pickling may give overflow error; for this reason, the methods
+    split the generation in "chunks" of the specified size on which the parallelization is used.
+
     Parameters
     ----------
     root_models: list
@@ -166,6 +169,8 @@ class DrawFromPrior(InferenceMethod):
         Backend object defining the backend to be used.
     seed: integer, optional
          Optional initial seed for the random number generator. The default value is generated randomly.
+    max_chunk_size: integer, optional
+        Maximum size of chunks in which to split the data generation. Defaults to 10**4
     discard_too_large_values: boolean
          If set to True, the simulation is discarded (and repeated) if at least one element of it is too large
          to fit in float32, which therefore may be converted to infinite value in numpy. Defaults to False.
@@ -178,10 +183,11 @@ class DrawFromPrior(InferenceMethod):
 
     n_samples_per_param = None  # this needs to be there otherwise it does not instantiate correctly
 
-    def __init__(self, root_models, backend, seed=None, discard_too_large_values=False):
+    def __init__(self, root_models, backend, seed=None, max_chunk_size=10 ** 4, discard_too_large_values=False):
         self.model = root_models
         self.backend = backend
         self.rng = np.random.RandomState(seed)
+        self.max_chunk_size = max_chunk_size
         self.discard_too_large_values = discard_too_large_values
         # An object managing the bds objects
         self.accepted_parameters_manager = AcceptedParametersManager(self.model)
@@ -206,30 +212,16 @@ class DrawFromPrior(InferenceMethod):
 
         journal = Journal(1)
         journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
-        journal.configuration["n_samples"] = self.n_samples
+        journal.configuration["n_samples"] = n_samples
 
-        # the following lines are similar to the RejectionABC code but only sample from the prior.
-        # now generate an array of seeds that need to be different one from the other. One way to do it is the
-        # following.
-        # Moreover, you cannot use int64 as seeds need to be < 2**32 - 1. How to fix this?
-        # Note that this is not perfect; you still have small possibility of having some seeds that are equal. Is there
-        # a better way? This would likely not change much the performance
-        # An idea would be to use rng.choice but that is too expensive
-        seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
-        # check how many equal seeds there are and remove them:
-        sorted_seed_arr = np.sort(seed_arr)
-        indices = sorted_seed_arr[:-1] == sorted_seed_arr[1:]
-        if np.sum(indices) > 0:
-            # the following removes the equal seeds in case there are some
-            sorted_seed_arr[:-1][indices] = sorted_seed_arr[:-1][indices] + 1
-        rng_arr = np.array([np.random.RandomState(seed) for seed in sorted_seed_arr])
-        rng_pds = self.backend.parallelize(rng_arr)
+        # we split sampling in chunks to avoid error in case MPI is used
+        parameters = []
+        samples_to_sample = n_samples
+        while samples_to_sample > 0:
+            parameters_part = self._sample(min(samples_to_sample, self.max_chunk_size))
+            samples_to_sample -= self.max_chunk_size
+            parameters += parameters_part
 
-        parameters_pds = self.backend.map(self._sample_parameter_only, rng_pds)
-        parameters = self.backend.collect(parameters_pds)
-        # accepted_parameters, distances, counter = [list(t) for t in zip(*accepted_parameters_distances_counter)]
-
-        self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=parameters)
         journal.add_accepted_parameters(copy.deepcopy(parameters))
         journal.add_weights(np.ones((n_samples, 1)))
         journal.add_ESS_estimate(np.ones((n_samples, 1)))
@@ -243,14 +235,11 @@ class DrawFromPrior(InferenceMethod):
 
         return journal
 
-    def sample_par_sim_pairs(self, n_samples, n_samples_per_param, max_chunk_size=10 ** 4):
+    def sample_par_sim_pairs(self, n_samples, n_samples_per_param):
         """
         Samples (parameter, simulation) pairs from the prior distribution from the model distribution. Specifically,
         parameter values are sampled from the prior and used to generate the specified number of simulations per
         parameter value. This returns arrays.
-
-        When generating large datasets with MPI backend, pickling may give overflow error; for this reason, the function
-        splits the generation in "chunks" of the specified size on which the parallelization is used.
 
         Parameters
         ----------
@@ -258,8 +247,6 @@ class DrawFromPrior(InferenceMethod):
             Number of samples to generate
         n_samples_per_param: integer
             Number of data points in each simulated data set.
-        max_chunk_size: integer, optional
-            Maximum size of chunks in which to split the data generation. Defaults to 10**4
 
         Returns
         -------
@@ -274,14 +261,25 @@ class DrawFromPrior(InferenceMethod):
         simulations_list = []
         samples_to_sample = n_samples
         while samples_to_sample > 0:
-            parameters_part, simulations_part = self._sample_par_sim_pairs(min(samples_to_sample, max_chunk_size),
+            parameters_part, simulations_part = self._sample_par_sim_pairs(min(samples_to_sample, self.max_chunk_size),
                                                                            n_samples_per_param)
-            samples_to_sample -= max_chunk_size
+            samples_to_sample -= self.max_chunk_size
             parameters_list.append(parameters_part)
             simulations_list.append(simulations_part)
         parameters = np.concatenate(parameters_list)
         simulations = np.concatenate(simulations_list)
         return parameters, simulations
+
+    def _sample(self, n_samples):
+
+        # the following lines are similar to the RejectionABC code but only sample from the prior.
+
+        # generate the rng_pds
+        rng_pds = self._generate_rng_pds(n_samples)
+
+        parameters_pds = self.backend.map(self._sample_parameter_only, rng_pds)
+        parameters = self.backend.collect(parameters_pds)
+        return parameters
 
     def _sample_par_sim_pairs(self, n_samples, n_samples_per_param):
         """
@@ -312,6 +310,22 @@ class DrawFromPrior(InferenceMethod):
         self.n_samples_per_param = n_samples_per_param
         self.accepted_parameters_manager.broadcast(self.backend, 1)
 
+        # generate the rng_pds
+        rng_pds = self._generate_rng_pds(n_samples)
+
+        parameters_simulations_pds = self.backend.map(self._sample_parameter_simulation, rng_pds)
+        parameters_simulations = self.backend.collect(parameters_simulations_pds)
+        parameters, simulations = [list(t) for t in zip(*parameters_simulations)]
+
+        parameters = np.array(parameters)
+        simulations = np.array(simulations)
+
+        parameters = parameters.reshape((parameters.shape[0], parameters.shape[1]))
+        simulations = simulations.reshape((simulations.shape[0], simulations.shape[2], simulations.shape[3],))
+
+        return parameters, simulations
+
+    def _generate_rng_pds(self, n_samples):
         # now generate an array of seeds that need to be different one from the other. One way to do it is the
         # following.
         # Moreover, you cannot use int64 as seeds need to be < 2**32 - 1. How to fix this?
@@ -327,18 +341,7 @@ class DrawFromPrior(InferenceMethod):
             sorted_seed_arr[:-1][indices] = sorted_seed_arr[:-1][indices] + 1
         rng_arr = np.array([np.random.RandomState(seed) for seed in sorted_seed_arr])
         rng_pds = self.backend.parallelize(rng_arr)
-
-        parameters_simulations_pds = self.backend.map(self._sample_parameter_simulation, rng_pds)
-        parameters_simulations = self.backend.collect(parameters_simulations_pds)
-        parameters, simulations = [list(t) for t in zip(*parameters_simulations)]
-
-        parameters = np.array(parameters)
-        simulations = np.array(simulations)
-
-        parameters = parameters.reshape((parameters.shape[0], parameters.shape[1]))
-        simulations = simulations.reshape((simulations.shape[0], simulations.shape[2], simulations.shape[3],))
-
-        return parameters, simulations
+        return rng_pds
 
     def _sample_parameter_simulation(self, rng, npc=None):
         """
