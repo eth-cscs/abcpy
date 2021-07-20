@@ -12,7 +12,7 @@ from abcpy.inferences import DrawFromPrior, RejectionABC, PMC, PMCABC, SABC, ABC
 from abcpy.statistics import Identity
 
 
-class DrawFromPriorTest(unittest.TestCase):
+class DrawFromPriorTests(unittest.TestCase):
     def setUp(self):
         # setup backend
         dummy = BackendDummy()
@@ -105,7 +105,7 @@ class DrawFromPriorTest(unittest.TestCase):
         self.assertEqual(simulations.shape, (10, 3, 1))
 
 
-class RejectionABCTest(unittest.TestCase):
+class RejectionABCTests(unittest.TestCase):
     def setUp(self):
         # setup backend
         dummy = BackendDummy()

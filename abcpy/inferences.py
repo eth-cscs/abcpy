@@ -257,6 +257,7 @@ class DrawFromPrior(InferenceMethod):
             each simulation.
         """
 
+        # we split sampling in chunks to avoid error in case MPI is used
         parameters_list = []
         simulations_list = []
         samples_to_sample = n_samples
@@ -271,7 +272,22 @@ class DrawFromPrior(InferenceMethod):
         return parameters, simulations
 
     def _sample(self, n_samples):
+        """
+        Not for end use; please use `sample`.
 
+        Samples model parameters from the prior distribution. This is an helper function called by the main `sample` one
+        in order to split drawing from the prior in chunks to avoid parallelization issues with MPI.
+
+        Parameters
+        ----------
+        n_samples: integer
+            Number of samples to generate
+
+        Returns
+        -------
+        list
+            List containing sampled parameter values.
+        """
         # the following lines are similar to the RejectionABC code but only sample from the prior.
 
         # generate the rng_pds
@@ -289,14 +305,15 @@ class DrawFromPrior(InferenceMethod):
         parameter values are sampled from the prior and used to generate the specified number of simulations per
         parameter value. This returns arrays.
 
+        This is an helper function called by the main `sample_par_sim_pair` one
+        in order to split drawing from the prior in chunks to avoid parallelization issues with MPI.
+
         Parameters
         ----------
         n_samples: integer
             Number of samples to generate
         n_samples_per_param: integer
             Number of data points in each simulated data set.
-        max_chunk_size: integer, optional
-            Maximum size of chunks in which to split the data generation. Defaults to 10**4
 
         Returns
         -------
@@ -306,7 +323,6 @@ class DrawFromPrior(InferenceMethod):
             of the tuple is an array with shape (n_samples, n_samples_per_param, d_x), where d_x is the dimension of
             each simulation.
         """
-        self.n_samples = n_samples
         self.n_samples_per_param = n_samples_per_param
         self.accepted_parameters_manager.broadcast(self.backend, 1)
 
@@ -326,6 +342,20 @@ class DrawFromPrior(InferenceMethod):
         return parameters, simulations
 
     def _generate_rng_pds(self, n_samples):
+        """Helper function to generate the random seeds which are used in sampling from prior and simulating from the
+        model in the parallel setup.
+
+        Parameters
+        ----------
+        n_samples: integer
+            Number of random seeds (corresponing to number of prior samples) to generate
+
+        Returns
+        -------
+        list
+            A (possibly distributed according to the used backend) list containing the random seeds to be assigned to
+            each worker.
+        """
         # now generate an array of seeds that need to be different one from the other. One way to do it is the
         # following.
         # Moreover, you cannot use int64 as seeds need to be < 2**32 - 1. How to fix this?
