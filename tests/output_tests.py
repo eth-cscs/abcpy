@@ -2,6 +2,10 @@ import unittest
 
 import numpy as np
 
+from abcpy.backends import BackendDummy
+from abcpy.continuousmodels import Normal
+from abcpy.continuousmodels import Uniform
+from abcpy.inferences import DrawFromPrior
 from abcpy.output import Journal
 
 
@@ -183,6 +187,100 @@ class JournalTests(unittest.TestCase):
             journal.traceplot(parameters_to_show=["sigma"])
         # now try correctly:
         fig, ax = journal.traceplot()
+
+    def test_resample(self):
+        # -- setup --
+        # setup backend
+        dummy = BackendDummy()
+
+        # define a uniform prior distribution
+        mu = Uniform([[-5.0], [5.0]], name='mu')
+        sigma = Uniform([[0.0], [10.0]], name='sigma')
+        # define a Gaussian model
+        model = Normal([mu, sigma])
+
+        sampler = DrawFromPrior([model], dummy, seed=1)
+        original_journal = sampler.sample(100)
+
+        # expected mean values from bootstrapped samples:
+        mu_mean = -0.5631214403709973
+        sigma_mean = 5.2341427118053705
+        # expected mean values from subsampled samples:
+        mu_mean_2 = -0.6414897172489
+        sigma_mean_2 = 6.217381777130734
+
+        # -- bootstrap --
+        new_j = original_journal.resample(path_to_save_journal="tmp.jnl", seed=42)
+        mu_sample = np.array(new_j.get_parameters()['mu'])
+        sigma_sample = np.array(new_j.get_parameters()['sigma'])
+
+        accepted_parameters = new_j.get_accepted_parameters()
+        self.assertEqual(len(accepted_parameters), 100)
+        self.assertEqual(len(accepted_parameters[0]), 2)
+
+        # test shape of samples
+        mu_shape, sigma_shape = (len(mu_sample), mu_sample[0].shape[1]), \
+                                (len(sigma_sample), sigma_sample[0].shape[1])
+        self.assertEqual(mu_shape, (100, 1))
+        self.assertEqual(sigma_shape, (100, 1))
+
+        # Compute posterior mean
+        self.assertAlmostEqual(np.average(mu_sample), mu_mean)
+        self.assertAlmostEqual(np.average(sigma_sample), sigma_mean)
+
+        self.assertTrue(new_j.number_of_simulations[0] == 0)
+
+        # check whether the dictionary or parameter list contain same data:
+        self.assertEqual(new_j.get_parameters()["mu"][9], new_j.get_accepted_parameters()[9][0])
+        self.assertEqual(new_j.get_parameters()["sigma"][7], new_j.get_accepted_parameters()[7][1])
+
+        # -- subsample (replace=False, smaller number than the full sample) --
+        new_j_2 = original_journal.resample(replace=False, n_samples=10, seed=42)
+        mu_sample = np.array(new_j_2.get_parameters()['mu'])
+        sigma_sample = np.array(new_j_2.get_parameters()['sigma'])
+
+        accepted_parameters = new_j_2.get_accepted_parameters()
+        self.assertEqual(len(accepted_parameters), 10)
+        self.assertEqual(len(accepted_parameters[0]), 2)
+
+        # test shape of samples
+        mu_shape, sigma_shape = (len(mu_sample), mu_sample[0].shape[1]), \
+                                (len(sigma_sample), sigma_sample[0].shape[1])
+        self.assertEqual(mu_shape, (10, 1))
+        self.assertEqual(sigma_shape, (10, 1))
+
+        # Compute posterior mean
+        self.assertAlmostEqual(np.average(mu_sample), mu_mean_2)
+        self.assertAlmostEqual(np.average(sigma_sample), sigma_mean_2)
+
+        self.assertTrue(new_j_2.number_of_simulations[0] == 0)
+
+        # check whether the dictionary or parameter list contain same data:
+        self.assertEqual(new_j_2.get_parameters()["mu"][9], new_j_2.get_accepted_parameters()[9][0])
+        self.assertEqual(new_j_2.get_parameters()["sigma"][7], new_j_2.get_accepted_parameters()[7][1])
+
+        # -- check that resampling the full samples with replace=False gives the exact same posterior mean and std --
+        new_j_3 = original_journal.resample(replace=False, n_samples=100)
+        mu_sample = np.array(new_j_3.get_parameters()['mu'])
+        sigma_sample = np.array(new_j_3.get_parameters()['sigma'])
+
+        # original journal
+        mu_sample_original = np.array(original_journal.get_parameters()['mu'])
+        sigma_sample_original = np.array(original_journal.get_parameters()['sigma'])
+
+        # Compute posterior mean and std
+        self.assertAlmostEqual(np.average(mu_sample), np.average(mu_sample_original))
+        self.assertAlmostEqual(np.average(sigma_sample), np.average(sigma_sample_original))
+        self.assertAlmostEqual(np.std(mu_sample), np.std(mu_sample_original))
+        self.assertAlmostEqual(np.std(sigma_sample), np.std(sigma_sample_original))
+
+        # check whether the dictionary or parameter list contain same data:
+        self.assertEqual(new_j_3.get_parameters()["mu"][9], new_j_3.get_accepted_parameters()[9][0])
+        self.assertEqual(new_j_3.get_parameters()["sigma"][7], new_j_3.get_accepted_parameters()[7][1])
+
+        # -- test the error --
+        with self.assertRaises(RuntimeError):
+            original_journal.resample(replace=False, n_samples=200)
 
 
 if __name__ == '__main__':

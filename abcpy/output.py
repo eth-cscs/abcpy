@@ -1,3 +1,4 @@
+import copy
 import pickle
 import warnings
 
@@ -928,3 +929,108 @@ class Journal:
             ax[i].set_xlabel("MCMC step")
 
         return fig, ax
+
+    def resample(self, n_samples=None, replace=True, path_to_save_journal=None, seed=None):
+        """
+        Helper method to resample (by bootstrapping or subsampling) the posterior samples stored in the Journal.
+        This can be used for instance to obtain an unweighted set of
+        posterior samples from a weighted one (via bootstrapping) or
+        to subsample a given number of posterior samples from a larger set. The new set of (unweighted)
+        samples are stored in a new journal which is returned by the method.
+
+        In order to bootstrap/subsample, the ``np.random.choice`` method is used, with the posterior sample
+        weights used as
+        probabilities (p) for resampling each sample. ``np.random.choice`` performs resampling with or without
+        replacement according to whether ``replace=True`` or ``replace=False``. Moreover, the parameter
+        ``n_samples`` specifies the number of resampled samples
+        (and is set by default to the number of samples in the journal). Therefore, different combinations of these
+        two parameters can be used to bootstrap or to subsample a set of posterior samples (see the examples below);
+        the default parameter values perform bootstrap.
+
+        Parameters
+        ----------
+        n_samples: integer, optional
+            The number of posterior samples which you want to resample. Defaults to the number of posterior samples
+            currently stored in the Journal.
+        replace: boolean, optional
+            If True, sampling with replacement is performed; if False, sampling without replacement. Defaults to False.
+        path_to_save_journal: str, optional
+            If provided, save the journal with the resampled posterior samples at the provided path.
+        seed: integer, optional
+             Optional initial seed for the random number generator. The default value is generated randomly.
+
+        Returns
+        -------
+        abcpy.output.Journal
+            a journal containing the resampled posterior samples
+
+        Examples
+        --------
+        If ``journal`` contains a weighted set of posterior samples, the following returns an unweighted bootstrapped
+        set of posterior samples, stored in ``new_journal``:
+
+        >>> new_journal = journal.resample()
+
+        The above of course also works when the original posterior samples are unweighted.
+
+        If ``journal`` contains a here a large number of posterior sampling, you can subsample (without replacement)
+        a smaller number of them (say 100) with the following line (and store them in ``new_journal``):
+
+        >>> new_journal = journal.resample(n_samples=100, replace=False)
+
+        Notice that the above takes into account the weights in the original ``journal``.
+
+        """
+
+        # instantiate the random number generator
+        rng = np.random.RandomState(seed)
+
+        # this extracts the parameters from the journal
+        accepted_parameters = self.get_accepted_parameters(-1)
+        accepted_weights = self.get_weights(-1)
+        n_samples_old = self.configuration["n_samples"]
+        normalized_weights = accepted_weights.reshape(-1) / np.sum(accepted_weights)
+
+        n_samples = n_samples_old if n_samples is None else n_samples
+
+        if n_samples > n_samples_old and not replace:
+            raise RuntimeError("You cannot draw without replacement a larger number of samples than the posterior "
+                               "samples currently stored in the journal.")
+
+        # here you just need to bootstrap (or subsample):
+        bootstrapped_parameter_indices = rng.choice(np.arange(n_samples_old), size=n_samples, replace=replace,
+                                                    p=normalized_weights)
+        bootstrapped_parameters = [accepted_parameters[index] for index in bootstrapped_parameter_indices]
+
+        # define new journal
+        journal_new = Journal(0)
+        journal_new.configuration["type_model"] = self.configuration["type_model"]
+        journal_new.configuration["n_samples"] = n_samples
+
+        # store bootstrapped parameters in new journal
+        journal_new.add_accepted_parameters(copy.deepcopy(bootstrapped_parameters))
+        journal_new.add_weights(np.ones((n_samples, 1)))
+        journal_new.add_ESS_estimate(np.ones((n_samples, 1)))
+
+        # the next piece of code build the list to be passed to add_user_parameter in order to build the dictionary;
+        # this mimics the behavior of what is done in the InferenceMethod's using the lines:
+        # `self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)`
+        # `names_and_parameters = self._get_names_and_parameters()`
+
+        names_par_dicts = self.get_parameters()
+        par_names = list(names_par_dicts.keys())
+        new_names_par_list = []
+        start_index = 0
+        for name in par_names:
+            parameter_size = len(names_par_dicts[name][0])  # the size of that parameter
+            name_par_tuple = (
+                name, [bootstrapped_parameters[i][start_index:start_index + parameter_size] for i in range(n_samples)])
+            new_names_par_list.append(name_par_tuple)
+            start_index += parameter_size
+        journal_new.add_user_parameters(new_names_par_list)
+        journal_new.number_of_simulations.append(0)
+
+        if path_to_save_journal is not None:  # save journal
+            journal_new.save(path_to_save_journal)
+
+        return journal_new
