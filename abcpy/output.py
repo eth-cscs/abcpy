@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import gaussian_kde
 
+from abcpy.acceptedparametersmanager import AcceptedParametersManager
+from abcpy.graphtools import GraphTools
 from abcpy.utils import wass_dist
 
 
@@ -943,7 +945,8 @@ class Journal:
         probabilities (p) for resampling each sample. ``np.random.choice`` performs resampling with or without
         replacement according to whether ``replace=True`` or ``replace=False``. Moreover, the parameter
         ``n_samples`` specifies the number of resampled samples
-        (and is set by default to the number of samples in the journal). Therefore, different combinations of these
+        (the ``size`` argument of ``np.ranodom.choice``) and is set by
+         default to the number of samples in the journal). Therefore, different combinations of these
         two parameters can be used to bootstrap or to subsample a set of posterior samples (see the examples below);
         the default parameter values perform bootstrap.
 
@@ -1034,3 +1037,145 @@ class Journal:
             journal_new.save(path_to_save_journal)
 
         return journal_new
+
+
+class GenerateFromJournal(GraphTools):
+    """Helper class to generate simulations from a model starting from the parameter values stored in a Journal file.
+
+    Parameters
+    ----------
+    root_models: list
+        A list of the Probabilistic models corresponding to the observed datasets
+    backend: abcpy.backends.Backend
+        Backend object defining the backend to be used.
+    seed: integer, optional
+         Optional initial seed for the random number generator. The default value is generated randomly.
+    discard_too_large_values: boolean
+         If set to True, the simulation is discarded (and repeated) if at least one element of it is too large
+         to fit in float32, which therefore may be converted to infinite value in numpy. Defaults to False.
+
+    Examples
+    --------
+    Simplest possible usage is:
+
+    >>> generate_from_journal = GenerateFromJournal([model], backend=backend)
+    >>> parameters, simulations, normalized_weights = generate_from_journal.generate(journal)
+
+    which takes the parameter values stored in journal and generated simulations from them. Notice how the method
+    returns (in this order) the parameter values used for the simulations, the simulations themselves and the
+    posterior weights associated to the parameters. All of these three objects are numpy arrays.
+
+    """
+
+    def __init__(self, root_models, backend, seed=None, discard_too_large_values=False):
+        self.model = root_models
+        self.backend = backend
+        self.rng = np.random.RandomState(seed)
+        self.discard_too_large_values = discard_too_large_values
+        # An object managing the bds objects
+        self.accepted_parameters_manager = AcceptedParametersManager(self.model)
+
+    def generate(self, journal, n_samples_per_param=1, iteration=None):
+        """
+        Method to generate simulations using parameter values stored in the provided Journal.
+
+        Parameters
+        ----------
+        journal: abcpy.output.Journal
+            the Journal containing the parameter values from which to generate simulations from the model.
+        n_samples_per_param: integer, optional
+            Number of simulations for each parameter value. Defaults to 1.
+        iteration: integer, optional
+            specifies the iteration from which the parameter samples in the Journal are taken to generate simulations.
+            If None (default), it uses the last iteration.
+
+        Returns
+        -------
+        tuple
+            A tuple of numpy ndarray's containing the parameter values (first element, with shape n_samples x d_theta),
+            the generated
+            simulations (second element, with shape n_samples x n_samples_per_param x d_x, where d_x is the dimension of
+            each simulation) and the normalized weights attributed to each parameter value
+            (third element, with shape n_samples).
+
+        Examples
+        --------
+        Simplest possible usage is:
+
+        >>> generate_from_journal = GenerateFromJournal([model], backend=backend)
+        >>> parameters, simulations, normalized_weights = generate_from_journal.generate(journal)
+
+        which takes the parameter values stored in journal and generated simulations from them. Notice how the method
+        returns (in this order) the parameter values used for the simulations, the simulations themselves and the
+        posterior weights associated to the parameters. All of these three objects are numpy arrays.
+
+        """
+        # check whether the model corresponds to the one for which the journal was generated
+        if journal.configuration["type_model"] != [type(model).__name__ for model in self.model]:
+            raise RuntimeError("You are not using the same model as the one with which the journal was generated.")
+
+        self.n_samples_per_param = n_samples_per_param
+
+        accepted_parameters = journal.get_accepted_parameters(iteration)
+        accepted_weights = journal.get_weights(iteration)
+        normalized_weights = accepted_weights.reshape(-1) / np.sum(accepted_weights)
+        n_samples = len(normalized_weights)
+
+        self.accepted_parameters_manager.broadcast(self.backend, [None])
+        # Broadcast Accepted parameters
+        self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
+
+        seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
+        # no need to check if the seeds are the same here as they are assigned to different parameter values
+        rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
+        index_arr = np.arange(0, n_samples, 1)
+        data_arr = []
+        for i in range(len(rng_arr)):
+            data_arr.append([rng_arr[i], index_arr[i]])
+        data_pds = self.backend.parallelize(data_arr)
+
+        simulations_pds = self.backend.map(self._sample_parameter, data_pds)
+        simulations = self.backend.collect(simulations_pds)
+
+        parameters = np.array(accepted_parameters)
+        simulations = np.array(simulations)
+
+        parameters = parameters.reshape((parameters.shape[0], parameters.shape[1]))
+        simulations = simulations.reshape((simulations.shape[0], simulations.shape[2], simulations.shape[3],))
+
+        return parameters, simulations, normalized_weights
+
+    def _sample_parameter(self, data, npc=None):
+        """
+        Simulates from a single model parameter.
+
+        Parameters
+        ----------
+        data: list
+            A list containing a random numpy state and a parameter index, e.g. [rng, index]
+
+        Returns
+        -------
+        numpy.ndarray
+            The simulated dataset.
+        """
+
+        if isinstance(data, np.ndarray):
+            data = data.tolist()
+        rng = data[0]
+        index = data[1]
+
+        parameter = self.accepted_parameters_manager.accepted_parameters_bds.value()[index]
+        ok_flag = False
+
+        while not ok_flag:
+            self.set_parameters(parameter)
+            y_sim = self.simulate(n_samples_per_param=self.n_samples_per_param, rng=rng, npc=npc)
+            # if there are no potential infinities there (or if we do not check for those).
+            # For instance, Lorenz model may give too large values sometimes (quite rarely).
+            if self.discard_too_large_values and np.sum(np.isinf(np.array(y_sim).astype("float32"))) > 0:
+                self.logger.warning("y_sim contained too large values for float32; simulating again.")
+            else:
+                ok_flag = True
+
+        return y_sim

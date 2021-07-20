@@ -6,7 +6,7 @@ from abcpy.backends import BackendDummy
 from abcpy.continuousmodels import Normal
 from abcpy.continuousmodels import Uniform
 from abcpy.inferences import DrawFromPrior
-from abcpy.output import Journal
+from abcpy.output import Journal, GenerateFromJournal
 
 
 class JournalTests(unittest.TestCase):
@@ -281,6 +281,53 @@ class JournalTests(unittest.TestCase):
         # -- test the error --
         with self.assertRaises(RuntimeError):
             original_journal.resample(replace=False, n_samples=200)
+
+
+class GenerateFromJournalTests(unittest.TestCase):
+    def setUp(self):
+        # setup backend
+        dummy = BackendDummy()
+
+        # define a uniform prior distribution
+        mu = Uniform([[-5.0], [5.0]], name='mu')
+        sigma = Uniform([[0.0], [10.0]], name='sigma')
+        # define a Gaussian model
+        self.model = Normal([mu, sigma])
+
+        # define a stupid uniform model now
+        self.model2 = Uniform([[0], [10]])
+
+        self.sampler = DrawFromPrior([self.model], dummy, seed=1)
+        self.original_journal = self.sampler.sample(100)
+
+        self.generate_from_journal = GenerateFromJournal([self.model], dummy, seed=2)
+        self.generate_from_journal_2 = GenerateFromJournal([self.model2], dummy, seed=2)
+
+        # expected mean values from bootstrapped samples:
+        self.mu_mean = -0.2050921750330999
+        self.sigma_mean = 5.178647189918053
+        # expected mean values from subsampled samples:
+        self.mu_mean_2 = -0.021275259024241676
+        self.sigma_mean_2 = 5.672004487129107
+
+    def test_generate(self):
+        # sample single simulation for each par value
+        parameters, simulations, normalized_weights = self.generate_from_journal.generate(journal=self.original_journal)
+        self.assertEqual(parameters.shape, (100, 2))
+        self.assertEqual(simulations.shape, (100, 1, 1))
+        self.assertEqual(normalized_weights.shape, (100,))
+
+        # sample multiple simulations for each par value
+        parameters, simulations, normalized_weights = self.generate_from_journal.generate(self.original_journal,
+                                                                                          n_samples_per_param=3)
+        self.assertEqual(parameters.shape, (100, 2))
+        self.assertEqual(simulations.shape, (10, 3, 1))
+        self.assertEqual(normalized_weights.shape, (100,))
+
+    def test_errors(self):
+        # check whether using a different model leads to errors:
+        with self.assertRaises(RuntimeError):
+            self.generate_from_journal_2.generate(self.original_journal)
 
 
 if __name__ == '__main__':
