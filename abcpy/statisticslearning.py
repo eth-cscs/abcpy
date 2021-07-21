@@ -228,7 +228,7 @@ class Semiautomatic(StatisticsLearning, GraphTools):
         model: abcpy.models.Model
             Model object that conforms to the Model class.
         statistics_cal: abcpy.statistics.Statistics
-            Statistics object that conforms to the Statistics class.
+            Statistics object that conforms to the Statistics class, applied before learning the transformation.
         backend: abcpy.backends.Backend
             Backend object that conforms to the Backend class.
         n_samples: int, optional
@@ -293,7 +293,7 @@ class StatisticsLearningNN(StatisticsLearning, GraphTools):
         model: abcpy.models.Model
             Model object that conforms to the Model class.
         statistics_cal: abcpy.statistics.Statistics
-            Statistics object that conforms to the Statistics class.
+            Statistics object that conforms to the Statistics class, applied before learning the transformation.
         backend: abcpy.backends.Backend
             Backend object that conforms to the Backend class.
         training_routine: function
@@ -304,11 +304,17 @@ class StatisticsLearningNN(StatisticsLearning, GraphTools):
             this has to be True if the statistics learning technique is based on distance learning, in which case the
             __init__ computes the similarity matrix.
         embedding_net: torch.nn object or list
-            it can be a torch.nn object with input size corresponding to size of model output, alternatively, a list
+            it can be a torch.nn object with input size corresponding to size of model output 
+            (after being transformed by `statistics_calc`), alternatively, a list
             with integer numbers denoting the width of the hidden layers, from which a fully connected network with
-            that structure is created, having the input and output size corresponding to size of model output and
-            number of parameters. In case this is None, the depth of the network and the width of the hidden layers is
-            determined from the input and output size as specified in abcpy.NN_utilities.networks.DefaultNN.
+            that structure is created, having the input and output size corresponding to size of model output
+            (after being transformed by `statistics_calc`) and
+            number of parameters. In case this is None, a fully connected neural network with three hidden layers is
+            used; the width of the hidden layers is given by
+            ``[int(input_size * 1.5), int(input_size * 0.75 + output_size * 3), int(output_size * 5)]``,
+            where `input_size` is the size of the data after being transformed by `statistics_calc`, while `output_size`
+            is the number of parameters in the model. For further details check
+            :func:`abcpy.NN_utilities.networks.createDefaultNN`
         n_samples: int, optional
             The number of (parameter, simulated data) tuple to be generated to learn the summary statistics in pilot
             step. The default value is 1000.
@@ -533,16 +539,21 @@ class SemiautomaticNN(StatisticsLearningNN):
         model: abcpy.models.Model
             Model object that conforms to the Model class.
         statistics_cal: abcpy.statistics.Statistics
-            Statistics object that conforms to the Statistics class.
+            Statistics object that conforms to the Statistics class, applied before learning the transformation.
         backend: abcpy.backends.Backend
             Backend object that conforms to the Backend class.
         embedding_net: torch.nn object or list
-            it can be a torch.nn object with input size corresponding to size of model output and output size
-            corresponding to the number of parameters or, alternatively, a list with integer numbers denoting the width
-            of the hidden layers, from which a fully connected network with that structure is created, having the input
-            and output size corresponding to size of model output and number of parameters. In case this is None, the
-            depth of the network and the width of the hidden layers is determined from the input and output size as
-            specified in abcpy.NN_utilities.networks.DefaultNN.
+            it can be a torch.nn object with input size corresponding to size of model output
+            (after being transformed by `statistics_calc`), alternatively, a list
+            with integer numbers denoting the width of the hidden layers, from which a fully connected network with
+            that structure is created, having the input and output size corresponding to size of model output
+            (after being transformed by `statistics_calc`) and
+            number of parameters. In case this is None, a fully connected neural network with three hidden layers is
+            used; the width of the hidden layers is given by
+            ``[int(input_size * 1.5), int(input_size * 0.75 + output_size * 3), int(output_size * 5)]``,
+            where `input_size` is the size of the data after being transformed by `statistics_calc`, while `output_size`
+            is the number of parameters in the model. For further details check
+            :func:`abcpy.NN_utilities.networks.createDefaultNN`
         n_samples: int, optional
             The number of (parameter, simulated data) tuple to be generated to learn the summary statistics in pilot
             step. The default value is 1000.
@@ -674,16 +685,21 @@ class TripletDistanceLearning(StatisticsLearningNN):
         model: abcpy.models.Model
             Model object that conforms to the Model class.
         statistics_cal: abcpy.statistics.Statistics
-            Statistics object that conforms to the Statistics class.
+            Statistics object that conforms to the Statistics class, applied before learning the transformation.
         backend: abcpy.backends.Backend
             Backend object that conforms to the Backend class.
         embedding_net: torch.nn object or list
-            it can be a torch.nn object with input size corresponding to size of model output (output size can be any);
-            alternatively, a list with integer numbers denoting the width of the hidden layers, from which a fully
-            connected network with that structure is created, having the input and output size corresponding to size of
-            model output and number of parameters. In case this is None, the depth of the network and the width of the
-            hidden layers is determined from the input and output size as specified in
-            abcpy.NN_utilities.networks.DefaultNN.
+            it can be a torch.nn object with input size corresponding to size of model output 
+            (after being transformed by `statistics_calc`), alternatively, a list
+            with integer numbers denoting the width of the hidden layers, from which a fully connected network with
+            that structure is created, having the input and output size corresponding to size of model output
+            (after being transformed by `statistics_calc`) and
+            number of parameters. In case this is None, a fully connected neural network with three hidden layers is
+            used; the width of the hidden layers is given by
+            ``[int(input_size * 1.5), int(input_size * 0.75 + output_size * 3), int(output_size * 5)]``,
+            where `input_size` is the size of the data after being transformed by `statistics_calc`, while `output_size`
+            is the number of parameters in the model. For further details check
+            :func:`abcpy.NN_utilities.networks.createDefaultNN`
         n_samples: int, optional
             The number of (parameter, simulated data) tuple to be generated to learn the summary statistics in pilot
             step. The default value is 1000.
@@ -824,16 +840,21 @@ class ContrastiveDistanceLearning(StatisticsLearningNN):
         model: abcpy.models.Model
             Model object that conforms to the Model class.
         statistics_cal: abcpy.statistics.Statistics
-            Statistics object that conforms to the Statistics class.
+            Statistics object that conforms to the Statistics class, applied before learning the transformation.
         backend: abcpy.backends.Backend
             Backend object that conforms to the Backend class.
         embedding_net: torch.nn object or list
-            it can be a torch.nn object with input size corresponding to size of model output (output size can be any);
-            alternatively, a list with integer numbers denoting the width of the hidden layers, from which a fully
-            connected network with that structure is created, having the input and output size corresponding to size of
-            model output and number of parameters. In case this is None, the depth of the network and the width of the
-            hidden layers is determined from the input and output size as specified in
-            abcpy.NN_utilities.networks.DefaultNN.
+            it can be a torch.nn object with input size corresponding to size of model output 
+            (after being transformed by `statistics_calc`), alternatively, a list
+            with integer numbers denoting the width of the hidden layers, from which a fully connected network with
+            that structure is created, having the input and output size corresponding to size of model output
+            (after being transformed by `statistics_calc`) and
+            number of parameters. In case this is None, a fully connected neural network with three hidden layers is
+            used; the width of the hidden layers is given by
+            ``[int(input_size * 1.5), int(input_size * 0.75 + output_size * 3), int(output_size * 5)]``,
+            where `input_size` is the size of the data after being transformed by `statistics_calc`, while `output_size`
+            is the number of parameters in the model. For further details check
+            :func:`abcpy.NN_utilities.networks.createDefaultNN`
         n_samples: int, optional
             The number of (parameter, simulated data) tuple to be generated to learn the summary statistics in pilot
             step. The default value is 1000.

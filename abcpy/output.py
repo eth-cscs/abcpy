@@ -18,15 +18,24 @@ class Journal:
 
     Attributes
     ----------
-    parameters : numpy.array
-        a nxpxt matrix
-    weights : numpy.array
-        a nxt matrix
-    opt_value : numpy.array
-        nxp matrix containing for each parameter the evaluated objective function for every time step
+    accepted_parameters : list
+        List of lists containing posterior samples
+    names_and_parameters : list
+        List of dictionaries containing posterior samples with parameter names as keys
+    accepted_simulations : list
+        List of lists containing simulations corresponding to posterior samples (this could be empty if the sampling
+        routine does not store those)
+    accepted_cov_mats : list
+        List of lists containing covariance matrices from accepted posterior samples (this could be empty if
+        the sampling routine does not store those)
+    weights : list
+        List containing posterior weights
+    ESS : list
+        List containing the Effective Sample Size (ESS) at each iteration
+    distances : list
+        List containing the ABC distance at each iteration
     configuration : Python dictionary
         dictionary containing the schemes configuration parameters
-
     """
 
     def __init__(self, type):
@@ -42,10 +51,11 @@ class Journal:
 
         self.accepted_parameters = []
         self.names_and_parameters = []
+        self.accepted_simulations = []
+        self.accepted_cov_mats = []
         self.weights = []
         self.ESS = []
         self.distances = []
-        self.opt_values = []
         self.configuration = {}
 
         if type not in [0, 1]:
@@ -117,6 +127,38 @@ class Journal:
         if self._type == 1:
             self.accepted_parameters.append(accepted_parameters)
 
+    def add_accepted_simulations(self, accepted_simulations):
+        """
+        Saves provided accepted simulations by appending them to the journal. If type==0, old accepted simulations get
+        overwritten.
+
+        Parameters
+        ----------
+        accepted_simulations: list
+        """
+
+        if self._type == 0:
+            self.accepted_simulations = [accepted_simulations]
+
+        if self._type == 1:
+            self.accepted_simulations.append(accepted_simulations)
+
+    def add_accepted_cov_mats(self, accepted_cov_mats):
+        """
+        Saves provided accepted cov_mats by appending them to the journal. If type==0, old accepted cov_mats get
+        overwritten.
+
+        Parameters
+        ----------
+        accepted_cov_mats: list
+        """
+
+        if self._type == 0:
+            self.accepted_cov_mats = [accepted_cov_mats]
+
+        if self._type == 1:
+            self.accepted_cov_mats.append(accepted_cov_mats)
+
     def add_weights(self, weights):
         """
         Saves provided weights by appending them to the journal. If type==0, old weights get overwritten.
@@ -148,23 +190,6 @@ class Journal:
 
         if self._type == 1:
             self.distances.append(distances)
-
-    def add_opt_values(self, opt_values):
-        """
-        Saves provided values of the evaluation of the schemes objective function. If type==0, old values get
-        overwritten
-
-        Parameters
-        ----------
-        opt_value: numpy.array
-            vector containing n evaluations of the schemes objective function
-        """
-
-        if self._type == 0:
-            self.opt_values = [opt_values]
-
-        if self._type == 1:
-            self.opt_values.append(opt_values)
 
     def add_ESS_estimate(self, weights):
         """
@@ -240,9 +265,8 @@ class Journal:
 
         Returns
         -------
-        accepted_parameters: dictionary
-            Samples from the specified iteration (last, if not specified) returned as a disctionary with names of the
-            random variables
+        accepted_parameters: list
+            List containing samples from the specified iteration (last, if not specified)
         """
 
         if iteration is None:
@@ -250,6 +274,60 @@ class Journal:
 
         else:
             return self.accepted_parameters[iteration]
+
+    def get_accepted_simulations(self, iteration=None):
+        """
+        Returns the accepted simulations from a sampling scheme. Notice not all sampling schemes store those in the
+        Journal, so this may return None.
+
+        For intermediate results, pass the iteration.
+
+        Parameters
+        ----------
+        iteration: int
+            specify the iteration for which to return accepted simulations
+
+        Returns
+        -------
+        accepted_simulations: list
+            List containing simulations corresponding to accepted samples from the specified
+            iteration (last, if not specified)
+        """
+
+        if iteration is None:
+            if len(self.accepted_simulations) == 0:
+                return None
+            return self.accepted_simulations[-1]
+
+        else:
+            return self.accepted_simulations[iteration]
+
+    def get_accepted_cov_mats(self, iteration=None):
+        """
+        Returns the accepted cov_mats used in a sampling scheme. Notice not all sampling schemes store those in the
+        Journal, so this may return None.
+
+        For intermediate results, pass the iteration.
+
+        Parameters
+        ----------
+        iteration: int
+            specify the iteration for which to return accepted cov_mats
+
+        Returns
+        -------
+        accepted_cov_mats: list
+            List containing accepted cov_mats from the specified
+            iteration (last, if not specified)
+        """
+
+        if iteration is None:
+            if len(self.accepted_cov_mats) == 0:
+                return None
+            return self.accepted_cov_mats[-1]
+
+        else:
+            return self.accepted_cov_mats[iteration]
 
     def get_weights(self, iteration=None):
         """
