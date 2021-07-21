@@ -347,9 +347,10 @@ class GenerateFromJournalTests(unittest.TestCase):
 
         # sample multiple simulations for each par value
         parameters, simulations, normalized_weights = self.generate_from_journal.generate(self.original_journal,
-                                                                                          n_samples_per_param=3)
+                                                                                          n_samples_per_param=3,
+                                                                                          iteration=-1)
         self.assertEqual(parameters.shape, (100, 2))
-        self.assertEqual(simulations.shape, (10, 3, 1))
+        self.assertEqual(simulations.shape, (100, 3, 1))
         self.assertEqual(normalized_weights.shape, (100,))
 
     def test_errors(self):
