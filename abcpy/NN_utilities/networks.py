@@ -44,11 +44,18 @@ class TripletNet(nn.Module):
 
 def createDefaultNN(input_size, output_size, hidden_sizes=None, nonlinearity=None):
     """Function returning a fully connected neural network class with a given input and output size, and optionally
-    given hidden layer sizes (if these are not given, they are determined from the input and output size with some
-    expression.
+    given hidden layer sizes (if these are not given, they are determined from the input and output size in a heuristic
+    way, see below).
 
-    In order to instantiate the network, you need to write: createDefaultNN(input_size, output_size)() as the function
-    returns a class, and () is needed to instantiate an object."""
+    In order to instantiate the network, you need to write:
+
+        >>> createDefaultNN(input_size, output_size)()
+
+    as the function returns a class, and () is needed to instantiate an object.
+
+    If hidden_sizes is None, three hidden layers are used with the following sizes:
+    ``[int(input_size * 1.5), int(input_size * 0.75 + output_size * 3), int(output_size * 5)]``
+    """
 
     class DefaultNN(nn.Module):
         """Neural network class with sizes determined by the upper level variables."""
