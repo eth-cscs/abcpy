@@ -407,7 +407,7 @@ calculator should be provided. The following header conforms to this idea:
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 15,27-33
+    :lines: 16,28-34
     :dedent: 4
 
 Then, we need to define how the distance is calculated. We need first to compute the summary statistics from the datasets and after compute the distance between the summary statistics. Notice that we use the private method :py:meth:`Distance._calculate_summary_stat <abcpy.distances.Distance._calculate_summary_stat>` to compute the statistics from the dataset; internally, this saves the first dataset and the corresponding summary statistics while computing the summary statistics. In fact, we always pass the observed dataset first to the
@@ -416,14 +416,14 @@ compute it once and store it internally. At each call of the ``distance`` method
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 152-176
+    :lines: 169-193
     :dedent: 4
 
 Finally, we need to define the maximal distance that can be obtained from this distance measure. 
 
 .. literalinclude:: ../../abcpy/distances.py
     :language: python
-    :lines: 178-185
+    :lines: 195-202
     :dedent: 4
 
 The newly defined distance class can be used in the same way as the already existing once. The complete example for this
@@ -494,7 +494,7 @@ Let us now look at the implementation of the method:
 
 .. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 247-279
+    :lines: 246-278
     :dedent: 4
 
 Some of the implemented inference algorithms weigh different sets of parameters differently. Therefore, if such weights
@@ -523,7 +523,7 @@ Here the implementation for our kernel:
 
 .. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 281-329
+    :lines: 280-328
     :dedent: 4
 
 The first line shows how you obtain the values of the parameters that your kernel should perturb. These values are
@@ -540,7 +540,7 @@ This method is implemented as follows for the multivariate normal:
 
 .. literalinclude:: ../../abcpy/perturbationkernel.py
     :language: python
-    :lines: 331-358
+    :lines: 330-357
     :dedent: 4
 
 We simply obtain the parameter values and covariance matrix for this kernel and calculate the probability density
