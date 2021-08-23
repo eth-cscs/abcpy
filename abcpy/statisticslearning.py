@@ -4,11 +4,13 @@ from abc import ABCMeta, abstractmethod
 import matplotlib.pyplot as plt
 from sklearn import linear_model
 from sklearn.preprocessing import MinMaxScaler
+from tqdm import tqdm
 
 from abcpy.acceptedparametersmanager import *
 from abcpy.graphtools import GraphTools
 # import dataset and networks definition:
 from abcpy.statistics import LinearTransformation
+from abcpy.transformers import BoundedVarScaler
 
 # Different torch components
 try:
@@ -17,11 +19,15 @@ except ImportError:
     has_torch = False
 else:
     has_torch = True
-    from abcpy.NN_utilities.networks import createDefaultNN, ScalerAndNet
+    from abcpy.NN_utilities.networks import createDefaultNN, ScalerAndNet, createDefaultNNWithDerivatives, \
+        DiscardLastOutputNet
     from abcpy.statistics import NeuralEmbedding
+    from torch.optim import Adam, lr_scheduler
+    import torch.autograd as autograd
 
 from abcpy.NN_utilities.algorithms import FP_nn_training, triplet_training, contrastive_training
-from abcpy.NN_utilities.utilities import compute_similarity_matrix
+from abcpy.NN_utilities.utilities import compute_similarity_matrix, jacobian_second_order, set_requires_grad
+from abcpy.NN_utilities.losses import Fisher_divergence_loss_with_c_x
 
 
 # TODO: there seems to be issue when n_samples_per_param >1. Check that. Should you modify the _sample_parameters-statistics function?
@@ -47,7 +53,7 @@ class StatisticsLearning(metaclass=ABCMeta):
         ----------
         model: abcpy.models.Model
             Model object that conforms to the Model class.
-        statistics_cal: abcpy.statistics.Statistics
+        statistics_calc: abcpy.statistics.Statistics
             Statistics object that conforms to the Statistics class.
         backend: abcpy.backends.Backend
             Backend object that conforms to the Backend class.
@@ -212,6 +218,48 @@ class StatisticsLearning(metaclass=ABCMeta):
         return parameter, statistics
 
 
+class StatisticsLearningWithLosses(StatisticsLearning, metaclass=ABCMeta):
+    """This abstract base class subclasses the above and includes a utility method to plot losses.
+    """
+
+    def plot_losses(self, which_losses="both"):
+        """
+        Plot losses vs training epochs after the NN have been trained.
+
+        Parameters
+        ----------
+        which_losses: string, optional
+            Specifies which set of losses to display (between training and test loss).
+            Can be "train", "test" or "both". Notice that the test loss could be unavailable (in case no test set was
+            used for training), in which case the test loss is not shown even if requested. Defaults to "both".
+
+        Returns
+        -------
+
+        """
+
+        if which_losses not in ["both", "train", "test"]:
+            raise NotImplementedError("'which_losses' should be 'both', 'train' or 'test'")
+
+        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(6, 4))
+        if which_losses in ["both", "train"]:
+            ax.plot(np.arange(len(self.train_losses)) + 1, self.train_losses, label="Train loss", color="C0")
+        if which_losses in ["both", "test"]:
+            if self.test_losses is not None:
+                if len(self.test_losses) != len(self.train_losses):
+                    raise RuntimeError("Length of train and test losses list should be the same.")
+                ax.plot(np.arange(len(self.train_losses)) + 1, self.test_losses, label="Test loss", color="C1")
+            else:
+                self.logger.warning("You requested to plot test losses, but these are unavailable (probably due to no "
+                                    "test set been used during NN training.")
+
+        ax.set_xlabel("Training epoch")
+        ax.set_ylabel("Loss")
+        ax.legend()
+
+        return fig, ax
+
+
 class Semiautomatic(StatisticsLearning, GraphTools):
     """This class implements the semi automatic summary statistics learning technique described in Fearnhead and
     Prangle [1].
@@ -276,7 +324,7 @@ class Semiautomatic(StatisticsLearning, GraphTools):
         return LinearTransformation(np.transpose(self.coefficients_learnt), previous_statistics=self.statistics_calc)
 
 
-class StatisticsLearningNN(StatisticsLearning, GraphTools):
+class StatisticsLearningNN(StatisticsLearningWithLosses, GraphTools):
     """This is the base class for all the statistics learning techniques involving neural networks. In most cases, you
     should not instantiate this directly. The actual classes instantiate this with the right arguments.
 
@@ -439,6 +487,8 @@ class StatisticsLearningNN(StatisticsLearning, GraphTools):
             self.embedding_net = createDefaultNN(input_size=simulations.shape[1], output_size=target.shape[1],
                                                  hidden_sizes=embedding_net)()
             self.logger.debug('We generate a default neural network')
+        else:
+            raise RuntimeError("'embedding_net' needs to be either a torch.nn.Module, or a list, or None.")
 
         if cuda:
             self.embedding_net.cuda()
@@ -477,45 +527,8 @@ class StatisticsLearningNN(StatisticsLearning, GraphTools):
         else:
             return NeuralEmbedding(net=self.embedding_net, previous_statistics=self.statistics_calc)
 
-    def plot_losses(self, which_losses="both"):
-        """
-        Plot losses vs training epochs after the NN have been trained.
 
-        Parameters
-        ----------
-        which_losses: string, optional
-            Specifies which set of losses to display (between training and test loss).
-            Can be "train", "test" or "both". Notice that the test loss could be unavailable (in case no test set was
-            used for training), in which case the test loss is not shown even if requested. Defaults to "both".
-
-        Returns
-        -------
-
-        """
-
-        if which_losses not in ["both", "train", "test"]:
-            raise NotImplementedError("'which_losses' should be 'both', 'train' or 'test'")
-
-        fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(6, 4))
-        if which_losses in ["both", "train"]:
-            ax.plot(np.arange(len(self.train_losses)) + 1, self.train_losses, label="Train loss", color="C0")
-        if which_losses in ["both", "test"]:
-            if self.test_losses is not None:
-                if len(self.test_losses) != len(self.train_losses):
-                    raise RuntimeError("Length of train and test losses list should be the same.")
-                ax.plot(np.arange(len(self.train_losses)) + 1, self.test_losses, label="Test loss", color="C1")
-            else:
-                self.logger.warning("You requested to plot test losses, but these are unavailable (probably due to no "
-                                    "test set been used during NN training.")
-
-        ax.set_xlabel("Training epoch")
-        ax.set_ylabel("Loss")
-        ax.legend()
-
-        return fig, ax
-
-
-# the following classes subclass the base class StatisticsLearningNN with different training routines
+# the following three classes subclass the base class StatisticsLearningNN with different training routines
 
 class SemiautomaticNN(StatisticsLearningNN):
     """This class implements the semi automatic summary statistics learning technique as described in
@@ -948,3 +961,640 @@ class ContrastiveDistanceLearning(StatisticsLearningNN):
                                                           optimizer_kwargs=optimizer_kwargs,
                                                           scheduler_kwargs=scheduler_kwargs,
                                                           loader_kwargs=loader_kwargs)
+
+
+class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
+    def __init__(self, model, statistics_calc, backend, statistics_net=None, parameters_net=None,
+                 embedding_dimension=None,
+                 n_samples=1000, n_samples_val=0, parameters=None, simulations=None,
+                 parameters_val=None, simulations_val=None,
+                 lower_bound_simulations=None, upper_bound_simulations=None,
+
+                 sliced=True, noise_type='radermacher', variance_reduction=False,
+
+                 n_epochs=100, batch_size=16,
+                 scale_samples=True, scale_parameters=False,
+                 early_stopping=False, epochs_early_stopping_interval=1, start_epoch_early_stopping=10,
+                 cuda=None, load_all_data_GPU=False,
+
+                 seed=None,
+                 nonlinearity_statistics=torch.nn.Softplus, nonlinearity_parameters=torch.nn.ReLU,
+                 batch_norm=True, batch_norm_momentum=0.1, batch_norm_update_before_test=False,
+                 lr_simulations=1e-3, lr_parameters=1e-3, lam=0,
+
+                 optimizer_simulations=None, optimizer_parameters=None,
+                 scheduler_simulations=None, scheduler_parameters=None,
+
+                 start_epoch_training=0,
+                 optimizer_simulations_kwargs={}, optimizer_parameters_kwargs={}, scheduler_simulations_kwargs={},
+                 scheduler_parameters_kwargs={},
+                 use_tqdm=True):
+        """
+        Parameters
+        ----------
+        model: abcpy.models.Model
+            Model object that conforms to the Model class.
+        statistics_cal: abcpy.statistics.Statistics
+            Statistics object that conforms to the Statistics class, applied before learning the transformation.
+        backend: abcpy.backends.Backend
+            Backend object that conforms to the Backend class.
+        embedding_net: torch.nn object or list
+            it can be a torch.nn object with input size corresponding to size of model output 
+            (after being transformed by `statistics_calc`), alternatively, a list
+            with integer numbers denoting the width of the hidden layers, from which a fully connected network with
+            that structure is created, having the input and output size corresponding to size of model output
+            (after being transformed by `statistics_calc`) and
+            number of parameters. In case this is None, a fully connected neural network with three hidden layers is
+            used; the width of the hidden layers is given by
+            ``[int(input_size * 1.5), int(input_size * 0.75 + output_size * 3), int(output_size * 5)]``,
+            where `input_size` is the size of the data after being transformed by `statistics_calc`, while `output_size`
+            is the number of parameters in the model. For further details check
+            :func:`abcpy.NN_utilities.networks.createDefaultNN`
+        n_samples: int, optional
+            The number of (parameter, simulated data) tuple to be generated to learn the summary statistics in pilot
+            step. The default value is 1000.
+            This is ignored if `simulations` and `parameters` are provided.
+        n_samples_val: int, optional
+            The number of (parameter, simulated data) tuple to be generated to be used as a validation set in the pilot
+            step. The default value is 0, which means no validation set is used.
+            This is ignored if `simulations_val` and `parameters_val` are provided.
+        n_samples_per_param: int, optional
+            Number of data points in each simulated data set. This is ignored if `simulations` and `parameters` are
+            provided. Default to 1.
+        parameters: array, optional
+            A numpy array with shape (n_samples, n_parameters) that is used, together with `simulations` to fit the
+            summary selection learning algorithm. It has to be provided together with `simulations`, in which case no
+            other simulations are performed to generate the training data. Default value is None.
+        simulations: array, optional
+            A numpy array with shape (n_samples, output_size) that is used, together with `parameters` to fit the
+            summary selection learning algorithm. It has to be provided together with `parameters`, in which case no
+            other simulations are performed to generate the training data. Default value is None.
+        parameters_val: array, optional
+            A numpy array with shape (n_samples_val, n_parameters) that is used, together with `simulations_val` as a 
+            validation set in the summary selection learning algorithm. It has to be provided together with 
+            `simulations_val`, in which case no other simulations are performed to generate the validation set. Default 
+            value is None.
+        simulations_val: array, optional
+            A numpy array with shape (n_samples_val, output_size) that is used, together with `parameters_val` as a 
+            validation set in the summary selection learning algorithm. It has to be provided together with 
+            `parameters_val`, in which case no other simulations are performed to generate the validation set. Default
+            value is None.
+        seed: integer, optional
+            Optional initial seed for the random number generator. The default value is generated randomly.
+        cuda: boolean, optional
+             If cuda=None, it will select GPU if it is available. Or you can specify True to use GPU or False to use CPU
+        scale_samples: boolean, optional
+            If True, a scaler of the class `sklearn.preprocessing.MinMaxScaler` will be fit on the training data before 
+            neural network training, and training and validation data simulations data will be rescaled. 
+            When calling the `get_statistics` method, 
+            a network of the class `ScalerAndNet` will be used in instantiating the statistics; this network is a 
+            wrapper of a neural network and a scaler and transforms the data with the scaler before applying the neural
+            network.  
+            It is highly recommended to use a scaler, as neural networks are sensitive to the range of input data. A 
+            case in which you may not want to use a scaler is timeseries data, as the scaler works independently on each
+            feature of the data.
+            Default value is True. 
+        use_tqdm : boolean, optional
+            Whether using tqdm or not to display progress. Defaults to True.
+        """
+        self.logger = logging.getLogger(__name__)
+        self.scale_samples = scale_samples
+        self.scale_parameters = scale_parameters
+        self.sliced = sliced
+
+        if lower_bound_simulations is not None and not hasattr(lower_bound_simulations, "shape"):
+            raise RuntimeError("Provided lower bounds need to be a numpy array.")
+        if upper_bound_simulations is not None and not hasattr(upper_bound_simulations, "shape"):
+            raise RuntimeError("Provided upper bounds need to be a numpy array.")
+        if upper_bound_simulations is not None and lower_bound_simulations is not None and \
+                lower_bound_simulations.shape != upper_bound_simulations.shape:
+            raise RuntimeError("Provided lower and upper bounds need to have same shape.")
+
+        # Define device
+        if not has_torch:
+            raise ImportError(
+                "Pytorch is required to instantiate an element of the {} class, in order to handle "
+                "neural networks. Please install it. ".format(self.__class__.__name__))
+
+        # set random seed for torch as well:
+        if seed is not None:
+            torch.manual_seed(seed)
+
+        if cuda is None:
+            cuda = torch.cuda.is_available()
+        elif cuda and not torch.cuda.is_available():
+            # if the user requested to use GPU but no GPU is there
+            cuda = False
+            self.logger.warning(
+                "You requested to use GPU but no GPU is available! The computation will proceed on CPU.")
+
+        self.device = "cuda" if cuda and torch.cuda.is_available() else "cpu"
+        if self.device == "cuda":
+            self.logger.debug("We are using GPU to train the network.")
+        else:
+            self.logger.debug("We are using CPU to train the network.")
+
+        # this handles generation of the data (or its formatting in case the data is provided to the Semiautomatic
+        # class)
+        super(ExpFamStatistics, self).__init__(model, statistics_calc, backend, n_samples, n_samples_val,
+                                               1, parameters, simulations, seed=seed,
+                                               parameters_val=parameters_val, simulations_val=simulations_val)
+
+        # we have a validation set if it has the following attribute with size larger than 0
+        self.has_val_set = hasattr(self, "sample_parameters_val") and len(self.sample_parameters_val) > 0
+
+        self.logger.info('Learning of the transformation...')
+        # Define Data
+        parameters, simulations = self.sample_parameters, self.sample_statistics
+        if self.has_val_set:
+            parameters_val, simulations_val = self.sample_parameters_val, self.sample_statistics_val
+        else:
+            parameters_val, simulations_val = None, None
+
+        # define the scaler for the simulations by transforming them to a bounded domain (if needed, according to how
+        # the bounds are passed) and then rescaling to the [0,1] interval.
+        if lower_bound_simulations is None and upper_bound_simulations is None and not scale_samples:
+            # in this case we do not use any scaler for the simulations
+            self.has_scaler_for_simulations = False
+        else:
+            self.has_scaler_for_simulations = True
+
+            if lower_bound_simulations is None:
+                lower_bound_simulations = np.array([None] * simulations.shape[1])
+            if upper_bound_simulations is None:
+                upper_bound_simulations = np.array([None] * simulations.shape[1])
+            self.scaler_simulations = BoundedVarScaler(lower_bound_simulations, upper_bound_simulations,
+                                                       rescale_transformed_vars=self.scale_samples).fit(simulations)
+            simulations = self.scaler_simulations.transform(simulations)
+            if self.has_val_set:
+                simulations_val = self.scaler_simulations.transform(simulations_val)
+
+        # now scale the parameters
+        if self.scale_parameters:
+            self.scaler_parameters = MinMaxScaler().fit(parameters)
+            parameters = self.scaler_parameters.transform(parameters)
+            if self.has_val_set:
+                parameters_val = self.scaler_parameters.transform(parameters_val)
+
+        # torch.tensor(scaler.transform(samples.reshape(-1, samples.shape[-1])).astype("float32"),
+        #              requires_grad=requires_grad).reshape(samples.shape)
+
+        # transform to torch tensors:
+        simulations = torch.tensor(simulations.astype("float32"), requires_grad=True)
+        parameters = torch.tensor(parameters.astype("float32"), requires_grad=False)
+        if self.has_val_set:
+            simulations_val = torch.tensor(simulations_val.astype("float32"), requires_grad=True)
+            parameters_val = torch.tensor(parameters_val.astype("float32"), requires_grad=False)
+
+        # now setup the default neural network or not
+
+        if embedding_dimension is None:
+            embedding_dimension = parameters.shape[1]
+
+        if isinstance(statistics_net, torch.nn.Module):
+            self.statistics_net = statistics_net
+            self.logger.debug('We use the provided neural network for the summary statistics')
+
+        elif isinstance(statistics_net, list) or statistics_net is None:
+            # therefore we need to generate the neural network given the list. The following function returns a class
+            # of NN with given input size, output size and hidden sizes; then, need () to instantiate the network
+            self.statistics_net = createDefaultNNWithDerivatives(input_size=simulations.shape[1],
+                                                                 output_size=embedding_dimension + 1,
+                                                                 hidden_sizes=statistics_net,
+                                                                 nonlinearity=nonlinearity_statistics)()
+            self.logger.debug('We generate a default neural network for the summary statistics')
+        else:
+            raise RuntimeError("'statistics_net' needs to be either a torch.nn.Module, or a list, or None.")
+
+        if isinstance(parameters_net, torch.nn.Module):
+            self.parameters_net = parameters_net
+            self.logger.debug('We use the provided neural network for the parameters')
+
+        elif isinstance(parameters_net, list) or parameters_net is None:
+            # therefore we need to generate the neural network given the list. The following function returns a class
+            # of NN with given input size, output size and hidden sizes; then, need () to instantiate the network
+            self.parameters_net = createDefaultNN(input_size=parameters.shape[1], output_size=embedding_dimension,
+                                                  hidden_sizes=parameters_net, nonlinearity=nonlinearity_parameters(),
+                                                  batch_norm_last_layer=batch_norm,
+                                                  batch_norm_last_layer_momentum=batch_norm_momentum)()
+            self.logger.debug('We generate a default neural network for the parameters')
+        else:
+            raise RuntimeError("'parameters_net' needs to be either a torch.nn.Module, or a list, or None.")
+
+        if cuda:
+            self.statistics_net.cuda()
+            self.parameters_net.cuda()
+
+        self.logger.debug('We now run the training routine')
+        self.train_losses, self.test_losses = self._train(simulations, parameters, simulations_val, parameters_val,
+                                                          n_epochs=n_epochs, use_tqdm=use_tqdm,
+                                                          early_stopping=early_stopping,
+                                                          load_all_data_GPU=load_all_data_GPU,
+                                                          lr_simulations=lr_simulations, lr_parameters=lr_parameters,
+                                                          batch_size=batch_size,
+                                                          epochs_test_interval=epochs_early_stopping_interval,
+                                                          epochs_before_early_stopping=start_epoch_early_stopping,
+                                                          batch_norm_update_before_test=batch_norm_update_before_test,
+                                                          noise_type=noise_type, variance_reduction=variance_reduction,
+                                                          optimizer_simulations=optimizer_simulations,
+                                                          optimizer_parameters=optimizer_parameters,
+                                                          scheduler_simulations=scheduler_simulations,
+                                                          scheduler_parameters=scheduler_parameters,
+
+                                                          optimizer_simulations_kwargs=optimizer_simulations_kwargs,
+                                                          optimizer_parameters_kwargs=optimizer_parameters_kwargs,
+                                                          scheduler_simulations_kwargs=scheduler_simulations_kwargs,
+                                                          scheduler_parameters_kwargs=scheduler_parameters_kwargs,
+
+                                                          lam=lam, start_epoch_training=start_epoch_training,
+                                                          )
+        self.logger.info("Finished learning the transformation.")
+
+        # move back the nets to CPU.
+        self.statistics_net.cpu()
+        self.parameters_net.cpu()
+
+    # todo better names overall.
+
+    def get_statistics(self, rescale_statistics=True):
+        """
+        Returns a NeuralEmbedding Statistics implementing the learned transformation.
+
+        If a scaler was used, the `net` attribute of the returned object is of the class `ScalerAndNet`, which is a
+        nn.Module object wrapping the scaler and the learned neural network and applies the scaler before the data is
+        fed through the neural network.
+
+        Parameters
+        ----------
+        rescale_statistics : boolean, optional
+            If this is set to True (default), then the returned statistics will be standardized, such that the
+            different components of the statistics have the same scale. The standardization works by dividing each
+            statistic by the standard deviation achieved on a reference set of simulations. Here, the used set is
+            either the validation set used in training (if available) or the training set. If False, no
+            standardization is used. Defaults to True.
+
+        Returns
+        -------
+        abcpy.statistics.NeuralEmbedding object
+            a statistics object that implements the learned transformation.
+        """
+        if self.has_scaler_for_simulations:
+            net = ScalerAndNet(net=DiscardLastOutputNet(self.statistics_net), scaler=self.scaler_simulations)
+        else:
+            net = DiscardLastOutputNet(self.statistics_net)
+
+        if rescale_statistics:
+            # We need a hacky way here. In fact sample_statistics is the one you obtain after the first
+            # statistics_calc is applied; if you initialize Neural embedding with the statistics_calc directly,
+            # that is applied again, which is not correct.
+            # Then we first instantiate the NeuralEmbedding without statistics_calc, and then add it later. In this way
+            # the standard deviation is computed correctly, but the behavior of the Statistics in new data will also be
+            # correct.
+            statistics_calc_new = NeuralEmbedding(net=net,
+                                                  reference_simulations=self.sample_statistics_val if self.has_val_set else self.sample_statistics)
+            statistics_calc_new.previous_statistics = self.statistics_calc
+        else:
+            statistics_calc_new = NeuralEmbedding(net=net, previous_statistics=self.statistics_calc)
+        return statistics_calc_new
+
+    def get_simulations_network(self):
+        """
+        todo fix docstring
+        Returns a NeuralEmbedding Statistics implementing the learned transformation.
+
+        If a scaler was used, the `net` attribute of the returned object is of the class `ScalerAndNet`, which is a
+        nn.Module object wrapping the scaler and the learned neural network and applies the scaler before the data is
+        fed through the neural network.
+
+        Returns
+        -------
+        abcpy.statistics.NeuralEmbedding object
+            a statistics object that implements the learned transformation.
+        """
+        return ScalerAndNet(self.statistics_net,
+                            self.scaler_simulations) if self.has_scaler_for_simulations else self.statistics_net
+
+    def get_parameters_network(self):
+        """
+        todo fix docstring
+        Returns a NeuralEmbedding Statistics implementing the learned transformation.
+
+        If a scaler was used, the `net` attribute of the returned object is of the class `ScalerAndNet`, which is a
+        nn.Module object wrapping the scaler and the learned neural network and applies the scaler before the data is
+        fed through the neural network.
+
+        Returns
+        -------
+        abcpy.statistics.NeuralEmbedding object
+            a statistics object that implements the learned transformation.
+        """
+        return ScalerAndNet(self.parameters_net, self.scaler_parameters) if self.scale_parameters else \
+            self.parameters_net
+
+    def get_simulations_scaler(self):
+        """
+        todo fix docstring
+        Returns a NeuralEmbedding Statistics implementing the learned transformation.
+
+        If a scaler was used, the `net` attribute of the returned object is of the class `ScalerAndNet`, which is a
+        nn.Module object wrapping the scaler and the learned neural network and applies the scaler before the data is
+        fed through the neural network.
+
+        Returns
+        -------
+        abcpy.statistics.NeuralEmbedding object
+            a statistics object that implements the learned transformation.
+        """
+        return self.scaler_simulations if self.has_scaler_for_simulations else None
+
+    def get_parameters_scaler(self):
+        """
+        todo fix docstring
+        Returns a NeuralEmbedding Statistics implementing the learned transformation.
+
+        If a scaler was used, the `net` attribute of the returned object is of the class `ScalerAndNet`, which is a
+        nn.Module object wrapping the scaler and the learned neural network and applies the scaler before the data is
+        fed through the neural network.
+
+        Returns
+        -------
+        abcpy.statistics.NeuralEmbedding object
+            a statistics object that implements the learned transformation.
+        """
+        return self.scaler_parameters if self.scale_parameters else None
+
+    def _train(self, samples_matrix, theta_vect,
+               samples_matrix_test=None, theta_vect_test=None, epochs_test_interval=10,
+               epochs_before_early_stopping=100,
+               early_stopping=False,
+               n_epochs=100, batch_size=None, lr_simulations=0.001, lr_parameters=0.001,
+               load_all_data_GPU=False,
+               batch_norm_update_before_test=False,
+               noise_type='radermacher', variance_reduction=False,
+               optimizer_simulations=None, optimizer_parameters=None,
+               scheduler_simulations=None, scheduler_parameters=None,
+               optimizer_simulations_kwargs={}, optimizer_parameters_kwargs={},
+               scheduler_simulations_kwargs={}, scheduler_parameters_kwargs={},
+               start_epoch_training=0,
+               lam=0, use_tqdm=False):
+        """This assumes samples matrix to be a 2d tensor with size (n_theta, size_sample) and theta_vect a 2d tensor with
+        size (n_theta, p).
+        """
+        if self.sliced:
+            batch_steps = lambda samples, etas: self.single_sliced_score_matching(samples, etas, noise_type=noise_type,
+                                                                                  variance_reduction=variance_reduction)
+        else:
+            batch_steps = lambda samples, etas: self._batch_Fisher_div_with_c_x(samples, etas, lam=lam)
+
+        if load_all_data_GPU:
+            # we move all data to the gpu; it needs to be small enough
+            samples_matrix = samples_matrix.to(self.device)
+            if samples_matrix_test is not None:
+                samples_matrix_test = samples_matrix_test.to(self.device)
+            theta_vect = theta_vect.to(self.device)
+            if theta_vect_test is not None:
+                theta_vect_test = theta_vect_test.to(self.device)
+
+        compute_test_loss = False
+        if theta_vect_test is not None and samples_matrix_test is not None:
+            test_loss_list = []
+            compute_test_loss = True
+            n_theta_test = theta_vect_test.shape[0]
+
+        if optimizer_simulations is None:
+            optimizer_simulations = Adam(self.statistics_net.parameters(), lr=lr_simulations,
+                                         **optimizer_simulations_kwargs)
+        else:
+            optimizer_simulations = optimizer_simulations(self.statistics_net.parameters(), lr=lr_simulations,
+                                                          **optimizer_simulations_kwargs)
+
+        if optimizer_parameters is None:
+            optimizer_parameters = Adam(self.parameters_net.parameters(), lr=lr_parameters,
+                                        **optimizer_parameters_kwargs)
+        else:
+            optimizer_parameters = optimizer_parameters(self.parameters_net.parameters(), lr=lr_parameters,
+                                                        **optimizer_parameters_kwargs)
+
+        if batch_size is None:  # in this case use full batch
+            batch_size = theta_vect.shape[0]
+
+        n_theta = theta_vect.shape[0]
+
+        loss_list = []
+
+        # define now the LR schedulers:
+        enable_scheduler_simulations = True
+        enable_scheduler_parameters = True
+
+        if scheduler_simulations is False:
+            enable_scheduler_simulations = False
+        else:
+            if scheduler_simulations is None:
+                # default scheduler
+                scheduler_simulations = lr_scheduler.ExponentialLR
+                if len(scheduler_simulations_kwargs) == 0:  # no arguments provided
+                    scheduler_simulations_kwargs = dict(gamma=0.99)
+
+            # instantiate the scheduler
+            scheduler_simulations = scheduler_simulations(optimizer_simulations, **scheduler_simulations_kwargs)
+
+        if scheduler_parameters is False:
+            enable_scheduler_parameters = False
+        else:
+            if scheduler_parameters is None:
+                # default scheduler
+                scheduler_parameters = lr_scheduler.ExponentialLR
+                if len(scheduler_parameters_kwargs) == 0:  # no arguments provided
+                    scheduler_parameters_kwargs = dict(gamma=0.99)
+
+            # instantiate the scheduler
+            scheduler_parameters = scheduler_parameters(optimizer_parameters, **scheduler_parameters_kwargs)
+
+        # initialize the state_dict variables:
+        net_state_dict = None
+        net_state_dict_theta = None
+
+        for epoch in range(0, start_epoch_training):
+            if enable_scheduler_simulations:
+                scheduler_simulations.step()
+            if enable_scheduler_parameters:
+                scheduler_parameters.step()
+
+        for epoch in tqdm(range(start_epoch_training, n_epochs), disable=not use_tqdm):
+            # print("epoch", epoch)
+            # set nets to train mode (needed as there may be a batchnorm layer there):
+            self.statistics_net.train()
+            self.parameters_net.train()
+
+            indeces = self.rng.permutation(n_theta)  # this may be a bottleneck computationally?
+            batch_index = 0
+            total_train_loss_epoch = 0
+
+            # loop over batches
+            while batch_size * batch_index < n_theta:
+                # print(batch_index)
+                optimizer_simulations.zero_grad()
+                optimizer_parameters.zero_grad()
+
+                # by writing in this way, if we go above the number of elements in the vector, you don't care
+                batch_indeces = indeces[batch_size * batch_index:batch_size * (batch_index + 1)]
+
+                thetas_batch = theta_vect[batch_indeces].to(self.device)
+
+                # compute the transformed parameter values for the batch:
+                etas = self.parameters_net(thetas_batch)
+
+                samples_batch = samples_matrix[batch_indeces].to(self.device)
+                # now call the batch routine that takes care of forward step of simulations as well
+                batch_loss = batch_steps(samples_batch, etas)
+
+                total_train_loss_epoch += batch_loss.item()
+
+                # set requires_grad to False to save computation
+                if lr_simulations == 0:
+                    set_requires_grad(self.statistics_net, False)
+                if lr_parameters == 0:
+                    set_requires_grad(self.parameters_net, False)
+
+                batch_loss.backward()
+
+                # reset it
+                if lr_simulations == 0:
+                    set_requires_grad(self.statistics_net, True)
+                if lr_parameters == 0:
+                    set_requires_grad(self.parameters_net, True)
+
+                optimizer_simulations.step()
+                optimizer_parameters.step()
+
+                batch_index += 1
+
+            loss_list.append(total_train_loss_epoch / (batch_index + 1))
+
+            # at each epoch we compute the test loss; we need to use batches as well here, otherwise it may not fit
+            # to GPU memory
+            if compute_test_loss:
+                # first, we do forward pass of all the training data in order to update the batchnorm running means
+                # (if a batch norm layer is there):
+                if batch_norm_update_before_test:
+                    with torch.no_grad():
+                        batch_index = 0
+                        while batch_size * batch_index < n_theta:
+                            # the batchnorm is usually after the net; then, it is enough to feedforward the data there:
+                            thetas_batch = theta_vect[batch_size * batch_index:batch_size * (batch_index + 1)].to(
+                                self.device)
+                            _ = self.parameters_net(thetas_batch)
+                            batch_index += 1
+
+                self.statistics_net.eval()
+                self.parameters_net.eval()
+
+                batch_index = 0
+                total_test_loss_epoch = 0
+                while batch_size * batch_index < n_theta_test:
+                    # no need to shuffle the test data:
+                    thetas_batch = theta_vect_test[batch_size * batch_index:batch_size * (batch_index + 1)].to(
+                        self.device)
+                    samples_batch = samples_matrix_test[batch_size * batch_index:batch_size * (batch_index + 1)].to(
+                        self.device)
+
+                    # compute the transformed parameter values for the batch:
+                    etas_test = self.parameters_net(thetas_batch)
+
+                    total_test_loss_epoch += batch_steps(samples_batch, etas_test).item()
+
+                    batch_index += 1
+
+                test_loss_list.append(total_test_loss_epoch / (batch_index + 1))
+
+                # the test loss on last step is larger than the training_dataset_index before, stop training
+                if early_stopping and (epoch + 1) % epochs_test_interval == 0:
+                    # after `epochs_before_early_stopping` epochs, we can stop only if we saved a state_dict before
+                    # (ie if at least epochs_test_interval epochs have passed).
+                    if epoch + 1 > epochs_before_early_stopping and net_state_dict is not None:
+                        if test_loss_list[-1] > test_loss_list[- 1 - epochs_test_interval]:
+                            self.logger.info("Training has been early stopped at epoch {}.".format(epoch + 1))
+                            # reload the previous state dict:
+                            self.statistics_net.load_state_dict(net_state_dict)
+                            self.parameters_net.load_state_dict(net_state_dict_theta)
+                            break  # stop training
+                    # if we did not stop: update the state dict
+                    net_state_dict = self.statistics_net.state_dict()
+                    net_state_dict_theta = self.parameters_net.state_dict()
+
+            if enable_scheduler_simulations:
+                scheduler_simulations.step()
+            if enable_scheduler_parameters:
+                scheduler_parameters.step()
+
+        # after training, return to eval mode:
+        self.statistics_net.eval()
+        self.parameters_net.eval()
+
+        if compute_test_loss:
+            return loss_list, test_loss_list
+        else:
+            return loss_list, None
+
+    def _batch_Fisher_div_with_c_x(self, samples, etas, lam=0):
+        # do the forward pass at once here:
+        if hasattr(self.statistics_net, "forward_and_derivatives"):
+            transformed_samples, f, s = self.statistics_net.forward_and_derivatives(samples)
+        else:
+            transformed_samples = self.statistics_net(samples)
+            f, s = jacobian_second_order(samples, transformed_samples, diffable=True)
+
+        f = f.reshape(-1, f.shape[1], f.shape[2])
+        s = s.reshape(-1, s.shape[1], s.shape[2])
+
+        return Fisher_divergence_loss_with_c_x(f, s, etas, lam=lam) / (samples.shape[0])
+
+    def single_sliced_score_matching(self, samples, etas, noise=None, detach=False, noise_type='radermacher',
+                                     variance_reduction=False):
+        """Can either receive noise as an input or generate it. etas have been (optionally) pre-transformed by
+        statistics net"""
+        # -- THE FOLLOWING MODIFIED FROM: https://github.com/ermongroup/sliced_score_matching/blob/master/losses/sliced_sm.py --
+        # these take care of generating the projection samples and computing the loss by taking the grad.
+
+        # single_sliced_score_matching and sliced_VR_score_matching implement a basic version of SSM
+        # with only M=1. These are used in density estimation experiments for DKEF.
+        reshaped_etas = etas.view(-1, etas.shape[-1])  # THIS IS USELESS!
+        reshaped_etas = torch.cat((reshaped_etas, torch.ones(reshaped_etas.shape[0], 1).to(reshaped_etas)),
+                                  dim=1)  # append a 1
+        reshaped_samples = samples.view(-1, samples.shape[-1])
+        reshaped_samples.requires_grad_(True)
+
+        if noise is None:
+            vectors = torch.randn_like(reshaped_samples).to(reshaped_samples)
+            if noise_type == 'radermacher':
+                vectors = vectors.sign()
+            elif noise_type == 'sphere':
+                if variance_reduction:
+                    raise RuntimeError("Noise of type 'sphere' can't be used with variance reduction.")
+                else:
+                    vectors = vectors / torch.norm(vectors, dim=-1, keepdim=True) * np.sqrt(vectors.shape[-1])
+            elif noise_type == 'gaussian':
+                pass
+            else:
+                raise RuntimeError("Noise type not implemented")
+        else:
+            vectors = noise
+
+        transformed_samples = self.statistics_net(reshaped_samples)
+        logp = torch.bmm(reshaped_etas.unsqueeze(1), transformed_samples.unsqueeze(2))  # way to do batch dot products
+        logp = logp.sum()
+        grad1 = autograd.grad(logp, reshaped_samples, create_graph=True)[0]
+        gradv = torch.sum(grad1 * vectors)
+        if variance_reduction:
+            loss1 = torch.norm(grad1, dim=-1) ** 2 * 0.5  # this is the only difference
+        else:
+            loss1 = torch.sum(grad1 * vectors, dim=-1) ** 2 * 0.5
+        if detach:
+            loss1 = loss1.detach()
+        grad2 = autograd.grad(gradv, reshaped_samples, create_graph=True)[0]
+        loss2 = torch.sum(vectors * grad2, dim=-1)
+        if detach:
+            loss2 = loss2.detach()
+
+        loss = (loss1 + loss2).mean()
+        return loss

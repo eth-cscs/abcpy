@@ -1,17 +1,36 @@
+import torch
 import numpy as np
+from sklearn.preprocessing import MinMaxScaler
 
 
-# these transformers are used in the MCMC inference scheme, in order to run MCMC of an unbounded transformed space in
-# case the original space is bounded. It therefore also implements the jacobian terms which appear in the acceptance
-# rate.
+# The first two transformers are used in the MCMC inference scheme, in order to run MCMC of an unbounded transformed
+# space in case the original space is bounded. It therefore also implements the jacobian terms which appear in
+# the acceptance rate. BoundedVarScaler is instead used in the training routine for the Exponential Family summary
+# statistics learning.
 
 class BoundedVarTransformer:
     """
-    This scaler implements both lower bounded and two sided bounded transformations according to the provided bounds;
+    This scaler implements both lower bounded and two sided bounded transformations according to the provided bounds.
+    It works on 1d vectors. You need to specify separately the lower and upper bounds in two arrays with the same length 
+    of the objects on which the transformations will be applied (likely the parameters on which MCMC is conducted for 
+    this function). 
+    
+    If the bounds for a given variable are both None, it is assumed to be unbounded; if instead the 
+    lower bound is given and the upper bound is None, it is assumed to be lower bounded. Finally, if both bounds are 
+    given, it is assumed to be bounded on both sides. 
     """
 
     def __init__(self, lower_bound, upper_bound):
-
+        """
+        Parameters
+        ----------
+        lower_bound : np.ndarray
+            Array of the same length of the variable to which the transformation will be applied, containing lower 
+            bounds of the variable. Each entry of the array can be either None or a number (see above).            
+        upper_bound
+            Array of the same length of the variable to which the transformation will be applied, containing upper 
+            bounds of the variable. Each entry of the array can be either None or a number (see above).            
+        """
         # upper and lower bounds need to be numpy arrays with size the size of the variable
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
@@ -172,7 +191,7 @@ class BoundedVarTransformer:
         Parameters
         ----------
         x : list of len n_parameters
-            Input data, living in the original space (with bounds).
+            Input data, living in the original space (with optional bounds).
         Returns
         -------
         res : float
@@ -185,7 +204,7 @@ class BoundedVarTransformer:
 
     def jac_log_det_inverse_transform(self, x):
         """Returns the log determinant of the Jacobian evaluated in the inverse transform:
-        :math:`\log |J_t(t^{-1}(x))| = - log |J_{t^{-1}}(x)|`
+        :math:`\log |J_t(t^{-1}(x))| = - \log |J_{t^{-1}}(x)|`
 
         Parameters
         ----------
@@ -218,3 +237,183 @@ class DummyTransformer:
 
     def jac_log_det_inverse_transform(self, x):
         return 0
+
+
+class BoundedVarScaler(MinMaxScaler, BoundedVarTransformer):
+    """
+    This scaler implements both lower bounded and two sided bounded transformations according to the provided bounds.
+    After the nonlinear transformation is applied, we optionally rescale the transformed variables to the (0,1)
+    range (default for this is True).
+
+    It works on 2d vectors. You need to specify separately the lower and upper bounds in two arrays with the same length 
+    of the objects on which the transformations will be applied (likely the simulations used to learn the 
+    exponential family summaries for this one). 
+    
+    If the bounds for a given variable are both None, it is assumed to be unbounded; if instead the 
+    lower bound is given and the upper bound is None, it is assumed to be lower bounded. Finally, if both bounds are 
+    given, it is assumed to be bounded on both sides. 
+
+    Practically, this inherits from BoundedVarTransformer, which provides the transformations, and from sklearn
+    MinMaxScaler, which provides the rescaling capabilities. This class has the same API as sklearn scalers,
+    implementing fit and transform methods.
+    """
+
+    def __init__(self, lower_bound, upper_bound, feature_range=(0, 1), copy=True, rescale_transformed_vars=True):
+        """
+        Parameters
+        ----------
+        lower_bound : np.ndarray
+            Array of the same length of the variable to which the transformation will be applied, containing lower 
+            bounds of the variable. Each entry of the array can be either None or a number (see above).            
+        upper_bound
+            Array of the same length of the variable to which the transformation will be applied, containing upper 
+            bounds of the variable. Each entry of the array can be either None or a number (see above).            
+        feature_range : tuple (min, max), optional
+            Desired range of transformed data (obtained with the MinMaxScaler after the 
+            nonlinear transformation is computed). Default=(0, 1)
+        copy : bool, optional
+            Set to False to perform inplace row normalization and avoid a
+            copy in the MinMaxScaler (if the input is already a numpy array). Defaults to True. 
+        rescale_transformed_vars : bool, optional
+            Whether to apply the MinMaxScaler after the nonlinear transformation. Defaults to True.
+        """
+        BoundedVarTransformer.__init__(self, lower_bound, upper_bound)
+
+        MinMaxScaler.__init__(self, feature_range=feature_range, copy=copy)
+        self.rescale_transformed_vars = rescale_transformed_vars
+
+    @staticmethod
+    def _check_reshape_single_sample(x):
+        if len(x.shape) == 1:
+            pass
+        elif len(x.shape) == 2 and x.shape[0] == 1:
+            x = x.reshape(-1)
+        else:
+            raise RuntimeError("This can be computed for one sample at a time.")
+        return x
+
+    def fit(self, X, y=None):
+        """Compute the minimum and maximum to be used for later scaling.
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            The data used to compute the per-feature minimum and maximum
+            used for later scaling along the features axis.
+        y : None
+            Ignored.
+        Returns
+        -------
+        self : object
+            Fitted scaler.
+        """
+        # need to check if we can apply the log first:
+        if isinstance(X, torch.Tensor):
+            X = X.detach().numpy()
+        self._check_data_in_bounds(X)
+
+        # we first transform the data with the log transformation and then apply the scaler (optionally):
+        X = self._apply_nonlinear_transf(X)
+
+        if self.rescale_transformed_vars:
+            return MinMaxScaler.fit(self, X)
+        else:
+            return self
+
+    def transform(self, X):
+        """Scale features of X according to feature_range.
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input data that will be transformed.
+        Returns
+        -------
+        Xt : array-like of shape (n_samples, n_features)
+            Transformed data.
+        """
+        # need to check if we can apply the log first:
+        if isinstance(X, torch.Tensor):
+            X = X.detach().numpy()
+        self._check_data_in_bounds(X)
+
+        # we first transform the data with the log transformation and then apply the scaler (optionally):
+        X = self._apply_nonlinear_transf(X)
+
+        if self.rescale_transformed_vars:
+            return MinMaxScaler.transform(self, X)
+        else:
+            return X
+
+    def inverse_transform(self, X):
+        """Undo the scaling of X according to feature_range.
+        Parameters
+        ----------
+        X : array-like of shape (n_samples, n_features)
+            Input data that will be transformed. It cannot be sparse.
+        Returns
+        -------
+        Xt : array-like of shape (n_samples, n_features)
+            Transformed data.
+        """
+        if self.rescale_transformed_vars:
+            X = MinMaxScaler.inverse_transform(self, X)
+
+        # now apply the inverse transform
+        inv_X = BoundedVarTransformer._apply_inverse_nonlinear_transf(self, X)
+
+        return inv_X
+
+    def jac_log_det(self, x):
+        """Returns the log determinant of the Jacobian: :math:`\log |J_t(x)|`.
+
+        Note that this considers only the Jacobian arising from the non-linear transformation, neglecting the scaling
+        term arising from the subsequent linear rescaling. In fact, the latter does not play any role in MCMC acceptance
+        rate.
+
+        Parameters
+        ----------
+        x : array-like of shape (n_features)
+            Input data, living in the original space (with optional bounds).
+        Returns
+        -------
+        res : float
+            log determinant of the jacobian
+        """
+        if isinstance(x, torch.Tensor):
+            x = x.detach().numpy()
+        x = self._check_reshape_single_sample(x)
+        self._check_data_in_bounds(x.reshape(1, -1))
+
+        return BoundedVarTransformer._jac_log_det(self, x)
+
+    def jac_log_det_inverse_transform(self, x):
+        """Returns the log determinant of the Jacobian evaluated in the inverse transform:
+        :math:`\log |J_t(t^{-1}(x))| = - \log |J_{t^{-1}}(x)|`
+
+        Note that this considers only the Jacobian arising from the non-linear transformation, neglecting the scaling
+        term arising from the subsequent linear rescaling. In fact, the latter does not play any role in MCMC acceptance
+        rate.
+
+        Parameters
+        ----------
+        x : array-like of shape (n_features)
+            Input data, living in the transformed space (spanning the whole :math:`R^d`). It needs to be the value
+            obtained after the optional linear rescaling is applied.
+        Returns
+        -------
+        res : float
+            log determinant of the jacobian evaluated in :math:`t^{-1}(x)`
+        """
+        if isinstance(x, torch.Tensor):
+            x = x.detach().numpy()
+
+        if self.rescale_transformed_vars:
+            # you still need to apply the inverse linear transformation in the transformed space to compute the jacobian
+            # for the right value of t^-1(x) (even if the jacobian itself does not take into account the linear
+            # transformation). Otherwise this function does computes the jacobian in the point obtained by applying the
+            # nonlinear inverse transformation to the input x, which is not correct if x was rescaled in the (0,1)
+            # range
+            x = MinMaxScaler.inverse_transform(self, np.atleast_2d(x))
+
+        x = self._check_reshape_single_sample(x)
+
+        return BoundedVarTransformer._jac_log_det_inverse_transform(self, x)

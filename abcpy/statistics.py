@@ -10,7 +10,7 @@ except ImportError:
 else:
     has_torch = True
     from abcpy.NN_utilities.utilities import load_net, save_net
-    from abcpy.NN_utilities.networks import createDefaultNN, ScalerAndNet
+    from abcpy.NN_utilities.networks import createDefaultNN, ScalerAndNet, DiscardLastOutputNet
 
 
 class Statistics(metaclass=ABCMeta):
@@ -472,11 +472,17 @@ class NeuralEmbedding(Statistics):
             raise RuntimeError("You passed hidden_sizes as an argument, but that may be passed only if you are passing "
                                "input_size and input_size as well, and you are not passing network_class.")
 
-        if network_class is not None:  # user explicitly passed the NN class
+        if network_class is None:
+            network_class = createDefaultNN(input_size=input_size, output_size=output_size,
+                                            hidden_sizes=hidden_sizes)
+
+        # the stored state_dict could be either a simple network or a network wrapped with DiscardLastOutput (in case
+        # the statistics was learned with the Exponential Family method); while instead the network class refers only to
+        # the actual net. Therefore need to try and load in both ways
+        try:
             net = load_net(path_to_net_state_dict, network_class)
-        else:  # the user passed the input_size, output_size and (maybe) the hidden_sizes
-            net = load_net(path_to_net_state_dict, createDefaultNN(input_size=input_size, output_size=output_size,
-                                                                   hidden_sizes=hidden_sizes))
+        except RuntimeError:
+            net = load_net(path_to_net_state_dict, DiscardLastOutputNet, network_class())
 
         if path_to_scaler is not None:
             f = open(path_to_scaler, 'rb')
@@ -540,7 +546,11 @@ class NeuralEmbedding(Statistics):
             data = data.cuda()
 
         # simply apply the network transformation.
-        data = self.net(data).cpu().detach().numpy()
+        try:
+            data = self.net(data).cpu().detach().numpy()
+        except (IndexError, RuntimeError, ValueError) as e:
+            raise RuntimeError("There was an error in passing the data through the network, likely due to the data not "
+                               "being of the right size.")
         data = np.array(data)
 
         # Expand the data with polynomial expansion

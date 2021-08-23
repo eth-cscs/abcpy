@@ -13,7 +13,7 @@ except ImportError:
     has_torch = False
 else:
     has_torch = True
-    from abcpy.NN_utilities.networks import createDefaultNN, ScalerAndNet
+    from abcpy.NN_utilities.networks import createDefaultNN, ScalerAndNet, DiscardLastOutputNet
 
 
 class IdentityTests(unittest.TestCase):
@@ -127,12 +127,15 @@ class NeuralEmbeddingTests(unittest.TestCase):
         if has_torch:
             self.net = createDefaultNN(2, 3)()
             self.net_with_scaler = ScalerAndNet(self.net, None)
+            self.net_with_discard_wrapper = DiscardLastOutputNet(self.net)
             self.stat_calc = NeuralEmbedding(self.net)
             self.stat_calc_with_scaler = NeuralEmbedding(self.net_with_scaler)
+            self.stat_calc_with_discard_wrapper = NeuralEmbedding(self.net_with_discard_wrapper)
             # reference input and output
             torch.random.manual_seed(1)
             self.tensor = torch.randn(1, 2)
             self.out = self.net(self.tensor)
+            self.out_discard = self.net_with_discard_wrapper(self.tensor)
 
             # try now the statistics rescaling option:
             mu = Uniform([[-5.0], [5.0]], name='mu')
@@ -166,18 +169,34 @@ class NeuralEmbeddingTests(unittest.TestCase):
         if has_torch:
             self.stat_calc.save_net("net.pth")
             self.stat_calc_with_scaler.save_net("net.pth", path_to_scaler="scaler.pkl")
-            self.stat_calc_loaded = NeuralEmbedding.fromFile("net.pth", input_size=2, output_size=3)
-            self.stat_calc_loaded = NeuralEmbedding.fromFile("net.pth", network_class=createDefaultNN(2, 3))
-            self.stat_calc_loaded_with_scaler = NeuralEmbedding.fromFile("net.pth", network_class=createDefaultNN(2, 3),
-                                                                         path_to_scaler="scaler.pkl")
+            stat_calc_loaded = NeuralEmbedding.fromFile("net.pth", input_size=2, output_size=3)
+            stat_calc_loaded = NeuralEmbedding.fromFile("net.pth", network_class=createDefaultNN(2, 3))
+            stat_calc_loaded_with_scaler = NeuralEmbedding.fromFile("net.pth", network_class=createDefaultNN(2, 3),
+                                                                    path_to_scaler="scaler.pkl")
+            # test the network was recovered correctly
+            out_new = stat_calc_loaded.net(self.tensor)
+            self.assertTrue(torch.allclose(self.out, out_new))
+
+            # now with the DiscardLastOutput wrapper
+            self.stat_calc_with_discard_wrapper.save_net("net_with_discard_wrapper.pth")
+            stat_calc_with_discard_loaded = NeuralEmbedding.fromFile("net_with_discard_wrapper.pth", input_size=2,
+                                                                     output_size=3)
+            # test the network was recovered correctly
+            out_new_discard = stat_calc_with_discard_loaded.net(self.tensor)
+            self.assertTrue(torch.allclose(self.out_discard, out_new_discard))
+
+            # now with both DiscardLastOutput and Scaler wrappers
+            stat_calc_with_discard_and_scaler_loaded = NeuralEmbedding.fromFile("net_with_discard_wrapper.pth",
+                                                                                input_size=2, output_size=3,
+                                                                                path_to_scaler="scaler.pkl")
 
             with self.assertRaises(RuntimeError):
                 self.stat_calc_with_scaler.save_net("net.pth")
-                self.stat_calc_loaded = NeuralEmbedding.fromFile("net.pth")
-                self.stat_calc_loaded = NeuralEmbedding.fromFile("net.pth", network_class=createDefaultNN(2, 3),
-                                                                 input_size=1)
-                self.stat_calc_loaded = NeuralEmbedding.fromFile("net.pth", network_class=createDefaultNN(2, 3),
-                                                                 hidden_sizes=[2, 3])
+                stat_calc_loaded = NeuralEmbedding.fromFile("net.pth")
+                stat_calc_loaded = NeuralEmbedding.fromFile("net.pth", network_class=createDefaultNN(2, 3),
+                                                            input_size=1)
+                stat_calc_loaded = NeuralEmbedding.fromFile("net.pth", network_class=createDefaultNN(2, 3),
+                                                            hidden_sizes=[2, 3])
 
 
 if __name__ == '__main__':
