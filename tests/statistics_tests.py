@@ -2,6 +2,9 @@ import unittest
 
 import numpy as np
 
+from abcpy.backends import BackendDummy
+from abcpy.continuousmodels import Uniform, Normal
+from abcpy.inferences import DrawFromPrior
 from abcpy.statistics import Identity, LinearTransformation, NeuralEmbedding
 
 try:
@@ -11,9 +14,6 @@ except ImportError:
 else:
     has_torch = True
     from abcpy.NN_utilities.networks import createDefaultNN, ScalerAndNet
-    from abcpy.inferences import DrawFromPrior
-    from abcpy.continuousmodels import Uniform, Normal
-    from abcpy.backends import BackendDummy
 
 
 class IdentityTests(unittest.TestCase):
