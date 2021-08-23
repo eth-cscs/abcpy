@@ -69,13 +69,13 @@ def infer_parameters(steps=2, n_sample=50, n_samples_per_param=1, logging_level=
     logging.info("semiNN")
     from abcpy.statisticslearning import SemiautomaticNN, TripletDistanceLearning
     semiNN = SemiautomaticNN([height], identity, backend=backend, parameters=parameters,
-                             simulations=simulations, parameters_val=parameters_val, simulations_val=simulations,
+                             simulations=simulations, parameters_val=parameters_val, simulations_val=simulations_val,
                              early_stopping=True,  # early stopping
                              seed=1, n_epochs=10, scale_samples=False)
     logging.info("triplet")
     triplet = TripletDistanceLearning([height], identity, backend=backend, parameters=parameters,
                                       simulations=simulations, parameters_val=parameters_val,
-                                      simulations_val=simulations,
+                                      simulations_val=simulations_val,
                                       early_stopping=True,  # early stopping
                                       seed=1, n_epochs=10, scale_samples=True)
 
@@ -98,7 +98,14 @@ def infer_parameters(steps=2, n_sample=50, n_samples_per_param=1, logging_level=
     learned_triplet_stat_loaded = NeuralEmbedding.fromFile("triplet_net.pth", input_size=1, output_size=2,
                                                            path_to_scaler="scaler.pkl")
 
-    # 4) perform inference
+    # 4) you can optionally rescale the different summary statistics be their standard deviation on a reference dataset
+    # of simulations. To do this, it is enough to pass at initialization the reference dataset, and the rescaling will
+    # be applied every time the statistics is computed on some simulation or observation.
+    learned_triplet_stat_loaded = NeuralEmbedding.fromFile("triplet_net.pth", input_size=1, output_size=2,
+                                                           path_to_scaler="scaler.pkl",
+                                                           reference_simulations=simulations_val)
+
+    # 5) perform inference
     # define distance
     from abcpy.distances import Euclidean
     distance_calculator = Euclidean(learned_seminn_stat_loaded)
