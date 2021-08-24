@@ -24,10 +24,11 @@ else:
     from abcpy.statistics import NeuralEmbedding
     from torch.optim import Adam, lr_scheduler
     import torch.autograd as autograd
+    from abcpy.NN_utilities.utilities import jacobian_second_order, set_requires_grad
+    from abcpy.NN_utilities.losses import Fisher_divergence_loss_with_c_x
 
 from abcpy.NN_utilities.algorithms import FP_nn_training, triplet_training, contrastive_training
-from abcpy.NN_utilities.utilities import compute_similarity_matrix, jacobian_second_order, set_requires_grad
-from abcpy.NN_utilities.losses import Fisher_divergence_loss_with_c_x
+from abcpy.NN_utilities.utilities import compute_similarity_matrix
 
 
 # TODO: there seems to be issue when n_samples_per_param >1. Check that. Should you modify the _sample_parameters-statistics function?
@@ -978,7 +979,7 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
                  cuda=None, load_all_data_GPU=False,
 
                  seed=None,
-                 nonlinearity_statistics=torch.nn.Softplus, nonlinearity_parameters=torch.nn.ReLU,
+                 nonlinearity_statistics=None, nonlinearity_parameters=None,
                  batch_norm=True, batch_norm_momentum=0.1, batch_norm_update_before_test=False,
                  lr_simulations=1e-3, lr_parameters=1e-3, lam=0,
 
@@ -1123,6 +1124,8 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
                 lower_bound_simulations = np.array([None] * simulations.shape[1])
             if upper_bound_simulations is None:
                 upper_bound_simulations = np.array([None] * simulations.shape[1])
+            # if both bounds are None this scaler will just behave as a MinMaxScaler. It may be slightly efficient to
+            # use that, but it does not matter for now.
             self.scaler_simulations = BoundedVarScaler(lower_bound_simulations, upper_bound_simulations,
                                                        rescale_transformed_vars=self.scale_samples).fit(simulations)
             simulations = self.scaler_simulations.transform(simulations)
@@ -1158,10 +1161,9 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
         elif isinstance(statistics_net, list) or statistics_net is None:
             # therefore we need to generate the neural network given the list. The following function returns a class
             # of NN with given input size, output size and hidden sizes; then, need () to instantiate the network
-            self.statistics_net = createDefaultNNWithDerivatives(input_size=simulations.shape[1],
-                                                                 output_size=embedding_dimension + 1,
-                                                                 hidden_sizes=statistics_net,
-                                                                 nonlinearity=nonlinearity_statistics)()
+            self.statistics_net = createDefaultNNWithDerivatives(
+                input_size=simulations.shape[1], output_size=embedding_dimension + 1, hidden_sizes=statistics_net,
+                nonlinearity=torch.nn.Softplus if nonlinearity_statistics is None else nonlinearity_statistics)()
             self.logger.debug('We generate a default neural network for the summary statistics')
         else:
             raise RuntimeError("'statistics_net' needs to be either a torch.nn.Module, or a list, or None.")
@@ -1173,10 +1175,10 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
         elif isinstance(parameters_net, list) or parameters_net is None:
             # therefore we need to generate the neural network given the list. The following function returns a class
             # of NN with given input size, output size and hidden sizes; then, need () to instantiate the network
-            self.parameters_net = createDefaultNN(input_size=parameters.shape[1], output_size=embedding_dimension,
-                                                  hidden_sizes=parameters_net, nonlinearity=nonlinearity_parameters(),
-                                                  batch_norm_last_layer=batch_norm,
-                                                  batch_norm_last_layer_momentum=batch_norm_momentum)()
+            self.parameters_net = createDefaultNN(
+                input_size=parameters.shape[1], output_size=embedding_dimension, hidden_sizes=parameters_net,
+                nonlinearity=torch.nn.ReLU() if nonlinearity_parameters is None else nonlinearity_parameters(),
+                batch_norm_last_layer=batch_norm, batch_norm_last_layer_momentum=batch_norm_momentum)()
             self.logger.debug('We generate a default neural network for the parameters')
         else:
             raise RuntimeError("'parameters_net' needs to be either a torch.nn.Module, or a list, or None.")

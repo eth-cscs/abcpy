@@ -1,6 +1,12 @@
-import torch
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
+
+try:
+    import torch
+except ImportError:
+    has_torch = False
+else:
+    has_torch = True
 
 
 # The first two transformers are used in the MCMC inference scheme, in order to run MCMC of an unbounded transformed
@@ -307,7 +313,7 @@ class BoundedVarScaler(MinMaxScaler, BoundedVarTransformer):
             Fitted scaler.
         """
         # need to check if we can apply the log first:
-        if isinstance(X, torch.Tensor):
+        if has_torch and isinstance(X, torch.Tensor):
             X = X.detach().numpy()
         self._check_data_in_bounds(X)
 
@@ -331,7 +337,7 @@ class BoundedVarScaler(MinMaxScaler, BoundedVarTransformer):
             Transformed data.
         """
         # need to check if we can apply the log first:
-        if isinstance(X, torch.Tensor):
+        if has_torch and isinstance(X, torch.Tensor):
             X = X.detach().numpy()
         self._check_data_in_bounds(X)
 
@@ -378,7 +384,7 @@ class BoundedVarScaler(MinMaxScaler, BoundedVarTransformer):
         res : float
             log determinant of the jacobian
         """
-        if isinstance(x, torch.Tensor):
+        if has_torch and isinstance(x, torch.Tensor):
             x = x.detach().numpy()
         x = self._check_reshape_single_sample(x)
         self._check_data_in_bounds(x.reshape(1, -1))
@@ -403,7 +409,7 @@ class BoundedVarScaler(MinMaxScaler, BoundedVarTransformer):
         res : float
             log determinant of the jacobian evaluated in :math:`t^{-1}(x)`
         """
-        if isinstance(x, torch.Tensor):
+        if has_torch and isinstance(x, torch.Tensor):
             x = x.detach().numpy()
 
         if self.rescale_transformed_vars:
