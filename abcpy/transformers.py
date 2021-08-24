@@ -12,7 +12,7 @@ class BoundedVarTransformer:
 
     def __init__(self, lower_bound, upper_bound):
 
-        # upper and lower bounds can be both scalar or array-like with size the size of the variable
+        # upper and lower bounds need to be numpy arrays with size the size of the variable
         self.lower_bound = lower_bound
         self.upper_bound = upper_bound
 
@@ -37,21 +37,69 @@ class BoundedVarTransformer:
     def logit(x):
         return np.log(x) - np.log(1 - x)
 
-    def _check_data_in_bounds(self, x):
-        if np.any(x[self.lower_bounded_vars] <= self.lower_bound_lower_bounded):
+    def _check_data_in_bounds(self, X):
+        # Takes as input 1d or 2d arrays
+        X = np.atleast_2d(X)  # convert to 2d if needed
+        if np.any(X[:, self.lower_bounded_vars] <= self.lower_bound_lower_bounded):
             raise RuntimeError("The provided data are out of the bounds.")
-        if (x[self.two_sided_bounded_vars] <= self.lower_bound[self.two_sided_bounded_vars]).any() or (
-                x[self.two_sided_bounded_vars] >= self.upper_bound_two_sided).any():
+        if (X[:, self.two_sided_bounded_vars] <= self.lower_bound[self.two_sided_bounded_vars]).any() or (
+                X[:, self.two_sided_bounded_vars] >= self.upper_bound_two_sided).any():
             raise RuntimeError("The provided data is out of the bounds.")
 
-    def _apply_nonlinear_transf(self, x):
-        # apply the different scalers to the different kind of variables:
-        x_transf = x.copy()
-        x_transf[self.lower_bounded_vars] = np.log(x[self.lower_bounded_vars] - self.lower_bound_lower_bounded)
-        x_transf[self.two_sided_bounded_vars] = self.logit(
-            (x[self.two_sided_bounded_vars] - self.lower_bound_two_sided) / (
+    def _apply_nonlinear_transf(self, X):
+        # apply the different transformations to the different kind of variables. Takes as input 1d or 2d arrays
+        squeeze = len(X.shape) == 1
+        X = np.atleast_2d(X)
+        X_transf = X.copy()
+        X_transf[:, self.lower_bounded_vars] = np.log(X[:, self.lower_bounded_vars] - self.lower_bound_lower_bounded)
+        X_transf[:, self.two_sided_bounded_vars] = self.logit(
+            (X[:, self.two_sided_bounded_vars] - self.lower_bound_two_sided) / (
                     self.upper_bound_two_sided - self.lower_bound_two_sided))
-        return x_transf
+        return X_transf.squeeze() if squeeze else X_transf
+
+    def _apply_inverse_nonlinear_transf(self, X):
+        # inverse transformation. Different trasformations applied to different kind of variables.
+        # Takes as input 1d or 2d arrays
+        squeeze = len(X.shape) == 1
+        X = np.atleast_2d(X)
+        inv_X = X.copy()
+        inv_X[:, self.two_sided_bounded_vars] = (self.upper_bound_two_sided - self.lower_bound_two_sided) * np.exp(
+            X[:, self.two_sided_bounded_vars]) / (1 + np.exp(
+            X[:, self.two_sided_bounded_vars])) + self.lower_bound_two_sided
+        inv_X[:, self.lower_bounded_vars] = np.exp(X[:, self.lower_bounded_vars]) + self.lower_bound_lower_bounded
+        return inv_X.squeeze() if squeeze else inv_X
+
+    def _jac_log_det(self, x):
+        # computes the jacobian log determinant. Takes as input arrays.
+        results = np.zeros_like(x)
+        results[self.two_sided_bounded_vars] = np.log(
+            (self.upper_bound_two_sided - self.lower_bound_two_sided).astype("float64") / (
+                    (x[self.two_sided_bounded_vars] - self.lower_bound_two_sided) * (
+                    self.upper_bound_two_sided - x[self.two_sided_bounded_vars])))
+        results[self.lower_bounded_vars] = - np.log(x[self.lower_bounded_vars] - self.lower_bound_lower_bounded)
+        return np.sum(results)
+
+    def _jac_log_det_inverse_transform(self, x):
+        # computes the log determinant of jacobian evaluated in the inverse transformation. Takes as input arrays.
+        results = np.zeros_like(x)
+        results[self.lower_bounded_vars] = - x[self.lower_bounded_vars]
+        # two sided: need some tricks to avoid numerical issues:
+        results[self.two_sided_bounded_vars] = - np.log(
+            self.upper_bound_two_sided - self.lower_bound_two_sided)
+
+        indices = x[self.two_sided_bounded_vars] < 100  # for avoiding numerical overflow
+        res_b = np.copy(x)[self.two_sided_bounded_vars]
+        res_b[indices] = np.log(1 + np.exp(x[self.two_sided_bounded_vars][indices]))
+        results[self.two_sided_bounded_vars] += res_b
+
+        indices = x[self.two_sided_bounded_vars] > - 100  # for avoiding numerical overflow
+        res_c = np.copy(- x)[self.two_sided_bounded_vars]
+        res_c[indices] = np.log(1 + np.exp(- x[self.two_sided_bounded_vars][indices]))
+        results[self.two_sided_bounded_vars] += res_c
+
+        # res = res_b + res_c - res_a
+
+        return np.sum(results)
 
     @staticmethod
     def _array_from_list(x):
@@ -111,11 +159,7 @@ class BoundedVarTransformer:
         # now apply the inverse transform
         x_arr = self._array_from_list(x)
 
-        inv_x = x_arr.copy()
-        inv_x[self.two_sided_bounded_vars] = (self.upper_bound_two_sided - self.lower_bound_two_sided) * np.exp(
-            x_arr[self.two_sided_bounded_vars]) / (1 + np.exp(
-            x_arr[self.two_sided_bounded_vars])) + self.lower_bound_two_sided
-        inv_x[self.lower_bounded_vars] = np.exp(x_arr[self.lower_bounded_vars]) + self.lower_bound_lower_bounded
+        inv_x = self._apply_inverse_nonlinear_transf(x_arr)
 
         # convert back to the list structure:
         inv_x = self._list_from_array(inv_x, x)
@@ -137,14 +181,7 @@ class BoundedVarTransformer:
         x = self._array_from_list(x)
         self._check_data_in_bounds(x)
 
-        results = np.zeros_like(x)
-        results[self.two_sided_bounded_vars] = np.log(
-            (self.upper_bound_two_sided - self.lower_bound_two_sided).astype("float64") / (
-                    (x[self.two_sided_bounded_vars] - self.lower_bound_two_sided) * (
-                    self.upper_bound_two_sided - x[self.two_sided_bounded_vars])))
-        results[self.lower_bounded_vars] = - np.log(x[self.lower_bounded_vars] - self.lower_bound_lower_bounded)
-
-        return np.sum(results)
+        return self._jac_log_det(x)
 
     def jac_log_det_inverse_transform(self, x):
         """Returns the log determinant of the Jacobian evaluated in the inverse transform:
@@ -161,25 +198,7 @@ class BoundedVarTransformer:
         """
         x = self._array_from_list(x)
 
-        results = np.zeros_like(x)
-        results[self.lower_bounded_vars] = - x[self.lower_bounded_vars]
-        # two sided: need some tricks to avoid numerical issues:
-        results[self.two_sided_bounded_vars] = - np.log(
-            self.upper_bound_two_sided - self.lower_bound_two_sided)
-
-        indices = x[self.two_sided_bounded_vars] < 100  # for avoiding numerical overflow
-        res_b = np.copy(x)[self.two_sided_bounded_vars]
-        res_b[indices] = np.log(1 + np.exp(x[self.two_sided_bounded_vars][indices]))
-        results[self.two_sided_bounded_vars] += res_b
-
-        indices = x[self.two_sided_bounded_vars] > - 100  # for avoiding numerical overflow
-        res_c = np.copy(- x)[self.two_sided_bounded_vars]
-        res_c[indices] = np.log(1 + np.exp(- x[self.two_sided_bounded_vars][indices]))
-        results[self.two_sided_bounded_vars] += res_c
-
-        # res = res_b + res_c - res_a
-
-        return np.sum(results)
+        return self._jac_log_det_inverse_transform(x)
 
 
 class DummyTransformer:
