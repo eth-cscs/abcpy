@@ -131,9 +131,9 @@ Publications in which ABCpy was applied:
 
 * R. Dutta, K. Zouaoui-Boudjeltia, C. Kotsalos, A. Rousseau, D. Ribeiro de Sousa, J. M. Desmet, A. Van Meerhaeghe, A. Mira, and B. Chopard. "Interpretable pathological test for Cardio-vascular disease: Approximate Bayesian computation with distance learning.", 2020, arXiv:2010.06465.
 
-* R. Dutta, S. Gomes, D. Kalise, L. Pacchiardi. "Using mobility data in the design of optimal lockdown strategies for the COVID-19 pandemic in England.", 2020, arXiv:2006.16059.
+* R. Dutta, S. Gomes, D. Kalise, L. Pacchiardi. "Using mobility data in the design of optimal lockdown strategies for the COVID-19 pandemic in England.", 2021,  PLOS Computational Biology, 17(8), e1009236.
 
-* L. Pacchiardi, P. K&#252;nzli, M. Sch&#246;ngens, B. Chopard, R. Dutta, "Distance-Learning for Approximate Bayesian Computation to Model a Volcanic Eruption", 2020, Sankhya B, 1-30.
+* L. Pacchiardi, P. K&#252;nzli, M. Sch&#246;ngens, B. Chopard, R. Dutta, "Distance-Learning for Approximate Bayesian Computation to Model a Volcanic Eruption", 2021, Sankhya B, 83(1), 288-317.
 
 * R. Dutta, J. P.  Onnela, A. Mira, "Bayesian Inference of Spreading Processes on Networks", 2018, Proceedings of Royal Society A, 474(2215), 20180129.
 
