@@ -43,6 +43,40 @@ class TripletNet(nn.Module):
         return self.embedding_net(x)
 
 
+class ScalerAndNet(nn.Module):
+    """Defines a nn.Module class that wraps a scaler and a neural network, and applies the scaler before passing the
+    data through the neural network."""
+
+    def __init__(self, net, scaler):
+        """"""
+        super().__init__()
+        self.net = net
+        self.scaler = scaler
+
+    def forward(self, x):
+        """"""
+        x = torch.tensor(self.scaler.transform(x), dtype=torch.float32).to(next(self.net.parameters()).device)
+        return self.net(x)
+
+
+class DiscardLastOutputNet(nn.Module):
+    """Defines a nn.Module class that wraps a scaler and a neural network, and applies the scaler before passing the
+    data through the neural network. Next, the """
+
+    def __init__(self, net):
+        super().__init__()
+        self.net = net
+
+    def forward(self, x):
+        x = self.net(x)
+        if len(x.shape) == 1:
+            return x[0:-1]
+        if len(x.shape) == 2:
+            return x[:, 0:-1]
+        if len(x.shape) == 3:
+            return x[:, :, 0:-1]
+
+
 def createDefaultNN(input_size, output_size, hidden_sizes=None, nonlinearity=None, batch_norm_last_layer=False,
                     batch_norm_last_layer_momentum=0.1):
     """Function returning a fully connected neural network class with a given input and output size, and optionally
@@ -287,35 +321,3 @@ def createDefaultNNWithDerivatives(input_size, output_size, hidden_sizes=None, n
             return x, f.transpose(0, 1), H.transpose(0, 2)
 
     return DefaultNNWithDerivatives
-
-
-class ScalerAndNet(nn.Module):
-    """Defines a nn.Module class that wraps a scaler and a neural network, and applies the scaler before passing the
-    data through the neural network."""
-
-    def __init__(self, net, scaler):
-        super().__init__()
-        self.net = net
-        self.scaler = scaler
-
-    def forward(self, x):
-        x = torch.tensor(self.scaler.transform(x), dtype=torch.float32).to(next(self.net.parameters()).device)
-        return self.net(x)
-
-
-class DiscardLastOutputNet(nn.Module):
-    """Defines a nn.Module class that wraps a scaler and a neural network, and applies the scaler before passing the
-    data through the neural network. Next, the """
-
-    def __init__(self, net):
-        super().__init__()
-        self.net = net
-
-    def forward(self, x):
-        x = self.net(x)
-        if len(x.shape) == 1:
-            return x[0:-1]
-        if len(x.shape) == 2:
-            return x[:, 0:-1]
-        if len(x.shape) == 3:
-            return x[:, :, 0:-1]

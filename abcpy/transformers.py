@@ -226,38 +226,19 @@ class BoundedVarTransformer:
         return self._jac_log_det_inverse_transform(x)
 
 
-class DummyTransformer:
-    """Dummy transformer which does nothing, and for which the jacobian is 1"""
-
-    def __init__(self):
-        pass
-
-    def transform(self, x):
-        return x
-
-    def inverse_transform(self, x):
-        return x
-
-    def jac_log_det(self, x):
-        return 0
-
-    def jac_log_det_inverse_transform(self, x):
-        return 0
-
-
 class BoundedVarScaler(MinMaxScaler, BoundedVarTransformer):
     """
     This scaler implements both lower bounded and two sided bounded transformations according to the provided bounds.
     After the nonlinear transformation is applied, we optionally rescale the transformed variables to the (0,1)
     range (default for this is True).
 
-    It works on 2d vectors. You need to specify separately the lower and upper bounds in two arrays with the same length 
-    of the objects on which the transformations will be applied (likely the simulations used to learn the 
-    exponential family summaries for this one). 
-    
-    If the bounds for a given variable are both None, it is assumed to be unbounded; if instead the 
-    lower bound is given and the upper bound is None, it is assumed to be lower bounded. Finally, if both bounds are 
-    given, it is assumed to be bounded on both sides. 
+    It works on 2d vectors. You need to specify separately the lower and upper bounds in two arrays with the same length
+    of the objects on which the transformations will be applied (likely the simulations used to learn the
+    exponential family summaries for this one).
+
+    If the bounds for a given variable are both None, it is assumed to be unbounded; if instead the
+    lower bound is given and the upper bound is None, it is assumed to be lower bounded. Finally, if both bounds are
+    given, it is assumed to be bounded on both sides.
 
     Practically, this inherits from BoundedVarTransformer, which provides the transformations, and from sklearn
     MinMaxScaler, which provides the rescaling capabilities. This class has the same API as sklearn scalers,
@@ -269,17 +250,17 @@ class BoundedVarScaler(MinMaxScaler, BoundedVarTransformer):
         Parameters
         ----------
         lower_bound : np.ndarray
-            Array of the same length of the variable to which the transformation will be applied, containing lower 
-            bounds of the variable. Each entry of the array can be either None or a number (see above).            
+            Array of the same length of the variable to which the transformation will be applied, containing lower
+            bounds of the variable. Each entry of the array can be either None or a number (see above).
         upper_bound
-            Array of the same length of the variable to which the transformation will be applied, containing upper 
-            bounds of the variable. Each entry of the array can be either None or a number (see above).            
+            Array of the same length of the variable to which the transformation will be applied, containing upper
+            bounds of the variable. Each entry of the array can be either None or a number (see above).
         feature_range : tuple (min, max), optional
-            Desired range of transformed data (obtained with the MinMaxScaler after the 
+            Desired range of transformed data (obtained with the MinMaxScaler after the
             nonlinear transformation is computed). Default=(0, 1)
         copy : bool, optional
             Set to False to perform inplace row normalization and avoid a
-            copy in the MinMaxScaler (if the input is already a numpy array). Defaults to True. 
+            copy in the MinMaxScaler (if the input is already a numpy array). Defaults to True.
         rescale_transformed_vars : bool, optional
             Whether to apply the MinMaxScaler after the nonlinear transformation. Defaults to True.
         """
@@ -290,6 +271,7 @@ class BoundedVarScaler(MinMaxScaler, BoundedVarTransformer):
 
     @staticmethod
     def _check_reshape_single_sample(x):
+        """"""
         if len(x.shape) == 1:
             pass
         elif len(x.shape) == 2 and x.shape[0] == 1:
@@ -300,6 +282,7 @@ class BoundedVarScaler(MinMaxScaler, BoundedVarTransformer):
 
     def fit(self, X, y=None):
         """Compute the minimum and maximum to be used for later scaling.
+
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
@@ -307,6 +290,7 @@ class BoundedVarScaler(MinMaxScaler, BoundedVarTransformer):
             used for later scaling along the features axis.
         y : None
             Ignored.
+
         Returns
         -------
         self : object
@@ -327,10 +311,12 @@ class BoundedVarScaler(MinMaxScaler, BoundedVarTransformer):
 
     def transform(self, X):
         """Scale features of X according to feature_range.
+
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
             Input data that will be transformed.
+
         Returns
         -------
         Xt : array-like of shape (n_samples, n_features)
@@ -351,10 +337,12 @@ class BoundedVarScaler(MinMaxScaler, BoundedVarTransformer):
 
     def inverse_transform(self, X):
         """Undo the scaling of X according to feature_range.
+
         Parameters
         ----------
         X : array-like of shape (n_samples, n_features)
             Input data that will be transformed. It cannot be sparse.
+
         Returns
         -------
         Xt : array-like of shape (n_samples, n_features)
@@ -423,3 +411,22 @@ class BoundedVarScaler(MinMaxScaler, BoundedVarTransformer):
         x = self._check_reshape_single_sample(x)
 
         return BoundedVarTransformer._jac_log_det_inverse_transform(self, x)
+
+
+class DummyTransformer:
+    """Dummy transformer which does nothing, and for which the jacobian is 1"""
+
+    def __init__(self):
+        pass
+
+    def transform(self, x):
+        return x
+
+    def inverse_transform(self, x):
+        return x
+
+    def jac_log_det(self, x):
+        return 0
+
+    def jac_log_det_inverse_transform(self, x):
+        return 0

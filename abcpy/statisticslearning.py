@@ -76,7 +76,8 @@ class StatisticsLearning(metaclass=ABCMeta):
         simulations: array, optional
             A numpy array with shape (n_samples, output_size) that is used, together with `parameters` to fit the
             summary selection learning algorithm. It has to be provided together with `parameters`, in which case no
-            other simulations are performed to generate the training data. Default value is None.
+            other simulations are performed to generate the training data. These are transformed by the 
+            `statistics_calc` statistics before the learning step is done. Default value is None.
         parameters_val: array, optional
             A numpy array with shape (n_samples_val, n_parameters) that is used, together with `simulations_val` as a 
             validation set in the summary selection learning algorithm. It has to be provided together with 
@@ -85,7 +86,8 @@ class StatisticsLearning(metaclass=ABCMeta):
         simulations_val: array, optional
             A numpy array with shape (n_samples_val, output_size) that is used, together with `parameters_val` as a 
             validation set in the summary selection learning algorithm. It has to be provided together with 
-            `parameters_val`, in which case no other simulations are performed to generate the validation set. Default
+            `parameters_val`, in which case no other simulations are performed to generate the validation set.
+            These are transformed by the `statistics_calc` statistics before the learning step is done. Default
             value is None.
         seed: integer, optional
             Optional initial seed for the random number generator. The default value is generated randomly.
@@ -231,8 +233,8 @@ class StatisticsLearningWithLosses(StatisticsLearning, metaclass=ABCMeta):
         ----------
         which_losses: string, optional
             Specifies which set of losses to display (between training and test loss).
-            Can be "train", "test" or "both". Notice that the test loss could be unavailable (in case no test set was
-            used for training), in which case the test loss is not shown even if requested. Defaults to "both".
+            Can be 'train', 'test' or 'both'. Notice that the test loss could be unavailable (in case no test set was
+            used for training), in which case the test loss is not shown even if requested. Defaults to 'both'.
 
         Returns
         -------
@@ -276,7 +278,7 @@ class Semiautomatic(StatisticsLearning, GraphTools):
         ----------
         model: abcpy.models.Model
             Model object that conforms to the Model class.
-        statistics_cal: abcpy.statistics.Statistics
+        statistics_calc: abcpy.statistics.Statistics
             Statistics object that conforms to the Statistics class, applied before learning the transformation.
         backend: abcpy.backends.Backend
             Backend object that conforms to the Backend class.
@@ -294,7 +296,8 @@ class Semiautomatic(StatisticsLearning, GraphTools):
         simulations: array, optional
             A numpy array with shape (n_samples, output_size) that is used, together with `parameters` to fit the
             summary selection learning algorithm. It has to be provided together with `parameters`, in which case no
-            other simulations are performed. Default value is None.
+            other simulations are performed. These are transformed by the 
+            `statistics_calc` statistics before the learning step is done. Default value is None.
         seed: integer, optional
             Optional initial seed for the random number generator. The default value is generated randomly.
         """
@@ -329,7 +332,10 @@ class StatisticsLearningNN(StatisticsLearningWithLosses, GraphTools):
     """This is the base class for all the statistics learning techniques involving neural networks. In most cases, you
     should not instantiate this directly. The actual classes instantiate this with the right arguments.
 
-    In order to use this technique, Pytorch is required to handle the neural networks.
+    In order to use this technique, Pytorch is required to handle the neural networks. However, the user does not need
+    to be fluent in Pytorch as some default neural networks are instantiated if the user does not provide them
+    (experienced users can of course provide the neural networks they would like to use). GPUs can be used to
+    train the neural networks if required.
     """
 
     def __init__(self, model, statistics_calc, backend, training_routine, distance_learning, embedding_net=None,
@@ -341,7 +347,7 @@ class StatisticsLearningNN(StatisticsLearningWithLosses, GraphTools):
         ----------
         model: abcpy.models.Model
             Model object that conforms to the Model class.
-        statistics_cal: abcpy.statistics.Statistics
+        statistics_calc: abcpy.statistics.Statistics
             Statistics object that conforms to the Statistics class, applied before learning the transformation.
         backend: abcpy.backends.Backend
             Backend object that conforms to the Backend class.
@@ -382,12 +388,14 @@ class StatisticsLearningNN(StatisticsLearningWithLosses, GraphTools):
         simulations: array, optional
             A numpy array with shape (n_samples, output_size) that is used, together with `parameters` to fit the
             summary selection learning algorithm. It has to be provided together with `parameters`, in which case no
-            other simulations are performed to generate the training data. Default value is None.
+            other simulations are performed to generate the training data. These are transformed by the 
+            `statistics_calc` statistics before the learning step is done. Default value is None.
         parameters_val: array, optional
             A numpy array with shape (n_samples_val, n_parameters) that is used, together with `simulations_val` as a 
             validation set in the summary selection learning algorithm. It has to be provided together with 
-            `simulations_val`, in which case no other simulations are performed to generate the validation set. Default 
-            value is None.
+            `simulations_val`, in which case no other simulations are performed to generate the validation set. 
+             These are transformed by the 
+            `statistics_calc` statistics before the learning step is done. Default value is None.
         simulations_val: array, optional
             A numpy array with shape (n_samples_val, output_size) that is used, together with `parameters_val` as a 
             validation set in the summary selection learning algorithm. It has to be provided together with 
@@ -401,9 +409,8 @@ class StatisticsLearningNN(StatisticsLearningWithLosses, GraphTools):
             If True, a scaler of the class `sklearn.preprocessing.MinMaxScaler` will be fit on the training data before 
             neural network training, and training and validation data simulations data will be rescaled. 
             When calling the `get_statistics` method, 
-            a network of the class `ScalerAndNet` will be used in instantiating the statistics; this network is a 
-            wrapper of a neural network and a scaler and transforms the data with the scaler before applying the neural
-            network.  
+            the network will be wrapped by :class:`abcpy.NN_utilities.networks.ScalerAndNet`; this automatically
+            takes care of transforming the data with the scaler before applying the neural network.
             It is highly recommended to use a scaler, as neural networks are sensitive to the range of input data. A 
             case in which you may not want to use a scaler is timeseries data, as the scaler works independently on each
             feature of the data.
@@ -511,11 +518,11 @@ class StatisticsLearningNN(StatisticsLearningWithLosses, GraphTools):
 
     def get_statistics(self):
         """
-        Returns a NeuralEmbedding Statistics implementing the learned transformation.
+        Returns a :class:`abcpy.statistics.NeuralEmbedding` Statistics implementing the learned transformation.
 
-        If a scaler was used, the `net` attribute of the returned object is of the class `ScalerAndNet`, which is a
-        nn.Module object wrapping the scaler and the learned neural network and applies the scaler before the data is
-        fed through the neural network.
+        If a scaler was used, the `net` attribute of the returned object is of the class
+        :class:`abcpy.NN_utilities.networks.ScalerAndNet`, which is a nn.Module object wrapping the scaler and the
+        learned neural network and applies the scaler before the data is fed through the neural network.
 
         Returns
         -------
@@ -535,7 +542,10 @@ class SemiautomaticNN(StatisticsLearningNN):
     """This class implements the semi automatic summary statistics learning technique as described in
      Jiang et al. 2017 [1].
 
-     In order to use this technique, Pytorch is required to handle the neural networks.
+     In order to use this technique, Pytorch is required to handle the neural networks. However, the user does not need
+     to be fluent in Pytorch as some default neural networks are instantiated if the user does not provide them
+     (experienced users can of course provide the neural networks they would like to use). GPUs can be used to
+     train the neural networks if required.
 
      [1] Jiang, B., Wu, T.Y., Zheng, C. and Wong, W.H., 2017. Learning summary statistic for approximate Bayesian
      computation via deep neural network. Statistica Sinica, pp.1595-1618.
@@ -552,7 +562,7 @@ class SemiautomaticNN(StatisticsLearningNN):
         ----------
         model: abcpy.models.Model
             Model object that conforms to the Model class.
-        statistics_cal: abcpy.statistics.Statistics
+        statistics_calc: abcpy.statistics.Statistics
             Statistics object that conforms to the Statistics class, applied before learning the transformation.
         backend: abcpy.backends.Backend
             Backend object that conforms to the Backend class.
@@ -586,7 +596,8 @@ class SemiautomaticNN(StatisticsLearningNN):
         simulations: array, optional
             A numpy array with shape (n_samples, output_size) that is used, together with `parameters` to fit the
             summary selection learning algorithm. It has to be provided together with `parameters`, in which case no
-            other simulations are performed to generate the training data. Default value is None.
+            other simulations are performed to generate the training data. These are transformed by the 
+            `statistics_calc` statistics before the learning step is done. Default value is None.
         parameters_val: array, optional
             A numpy array with shape (n_samples_val, n_parameters) that is used, together with `simulations_val` as a 
             validation set in the summary selection learning algorithm. It has to be provided together with 
@@ -595,8 +606,9 @@ class SemiautomaticNN(StatisticsLearningNN):
         simulations_val: array, optional
             A numpy array with shape (n_samples_val, output_size) that is used, together with `parameters_val` as a 
             validation set in the summary selection learning algorithm. It has to be provided together with 
-            `parameters_val`, in which case no other simulations are performed to generate the validation set. Default
-            value is None.
+            `parameters_val`, in which case no other simulations are performed to generate the validation set.
+             These are transformed by the `statistics_calc` statistics before the learning step is done.
+            Default value is None.
         early_stopping: boolean, optional
             If True, the validation set (which needs to be either provided through the arguments `parameters_val` and
             `simulations_val` or generated by setting `n_samples_val` to a value larger than 0) is used to early stop
@@ -604,8 +616,8 @@ class SemiautomaticNN(StatisticsLearningNN):
             value is False.
         epochs_early_stopping_interval: integer, optional
             The frequency at which the validation error is compared in order to decide whether to early stop the
-            training or not. Namely, if `epochs_early_stopping_interval=10`, early stopping can happen only at epochs multiple of
-            10. Defaul value is 1.
+            training or not. Namely, if `epochs_early_stopping_interval=10`, early stopping can happen only at epochs
+            multiple of 10. Default value is 1.
         start_epoch_early_stopping: integer, optional
             The epoch after which early stopping can happen; in fact, as soon as training starts, there may be a 
             transient period in which the loss increases. Default value is 10.
@@ -617,9 +629,8 @@ class SemiautomaticNN(StatisticsLearningNN):
             If True, a scaler of the class `sklearn.preprocessing.MinMaxScaler` will be fit on the training data before 
             neural network training, and training and validation data simulations data will be rescaled. 
             When calling the `get_statistics` method, 
-            a network of the class `ScalerAndNet` will be used in instantiating the statistics; this network is a 
-            wrapper of a neural network and a scaler and transforms the data with the scaler before applying the neural
-            network.  
+            the network will be wrapped by :class:`abcpy.NN_utilities.networks.ScalerAndNet`; this automatically
+            takes care of transforming the data with the scaler before applying the neural network.
             It is highly recommended to use a scaler, as neural networks are sensitive to the range of input data. A 
             case in which you may not want to use a scaler is timeseries data, as the scaler works independently on each
             feature of the data.
@@ -645,8 +656,6 @@ class SemiautomaticNN(StatisticsLearningNN):
             If a scheduler is provided, for the first `start_epoch_training` epochs the scheduler is applied to modify
             the learning rate without training the network. From then on, the training proceeds normally, applying both
             the scheduler and the optimizer at each epoch. Default to 0.
-        verbose: boolean, optional
-            if True, prints more information from the training routine. Default to False.
         use_tqdm : boolean, optional
             Whether using tqdm or not to display progress. Defaults to True.
         optimizer_kwargs: Python dictionary, optional
@@ -675,15 +684,18 @@ class SemiautomaticNN(StatisticsLearningNN):
 
 class TripletDistanceLearning(StatisticsLearningNN):
     """This class implements the statistics learning technique by using the triplet loss [1] for distance learning as
-     described in Pacchiardi et al. 2019 [2].
+     described in Pacchiardi et al. 2021 [2].
 
-     In order to use this technique, Pytorch is required to handle the neural networks.
+     In order to use this technique, Pytorch is required to handle the neural networks. However, the user does not need
+     to be fluent in Pytorch as some default neural networks are instantiated if the user does not provide them
+     (experienced users can of course provide the neural networks they would like to use). GPUs can be used to
+     train the neural networks if required.
 
      [1] Schroff, F., Kalenichenko, D. and Philbin, J., 2015. Facenet: A unified embedding for face recognition and
      clustering. In Proceedings of the IEEE conference on computer vision and pattern recognition (pp. 815-823).
 
-     [2] Pacchiardi, L., Kunzli, P., Schoengens, M., Chopard, B. and Dutta, R., 2019. Distance-learning For Approximate
-     Bayesian Computation To Model a Volcanic Eruption. arXiv preprint arXiv:1909.13118.
+     [2] Pacchiardi, L., Kunzli, P., Schöngens, M., Chopard, B., and Dutta, R., 2021. Distance-learning for
+     approximate bayesian computation to model a volcanic eruption. Sankhya B, 83(1), 288-317.
     """
 
     def __init__(self, model, statistics_calc, backend, embedding_net=None, n_samples=1000, n_samples_val=0,
@@ -698,7 +710,7 @@ class TripletDistanceLearning(StatisticsLearningNN):
         ----------
         model: abcpy.models.Model
             Model object that conforms to the Model class.
-        statistics_cal: abcpy.statistics.Statistics
+        statistics_calc: abcpy.statistics.Statistics
             Statistics object that conforms to the Statistics class, applied before learning the transformation.
         backend: abcpy.backends.Backend
             Backend object that conforms to the Backend class.
@@ -732,7 +744,8 @@ class TripletDistanceLearning(StatisticsLearningNN):
         simulations: array, optional
             A numpy array with shape (n_samples, output_size) that is used, together with `parameters` to fit the
             summary selection learning algorithm. It has to be provided together with `parameters`, in which case no
-            other simulations are performed to generate the training data. Default value is None.
+            other simulations are performed to generate the training data. These are transformed by the 
+            `statistics_calc` statistics before the learning step is done. Default value is None.
         parameters_val: array, optional
             A numpy array with shape (n_samples_val, n_parameters) that is used, together with `simulations_val` as a 
             validation set in the summary selection learning algorithm. It has to be provided together with 
@@ -741,8 +754,9 @@ class TripletDistanceLearning(StatisticsLearningNN):
         simulations_val: array, optional
             A numpy array with shape (n_samples_val, output_size) that is used, together with `parameters_val` as a 
             validation set in the summary selection learning algorithm. It has to be provided together with 
-            `parameters_val`, in which case no other simulations are performed to generate the validation set. Default
-            value is None.
+            `parameters_val`, in which case no other simulations are performed to generate the validation set.
+             These are transformed by the `statistics_calc` statistics before the learning step is done. 
+            Default value is None.
         early_stopping: boolean, optional
             If True, the validation set (which needs to be either provided through the arguments `parameters_val` and
             `simulations_val` or generated by setting `n_samples_val` to a value larger than 0) is used to early stop
@@ -751,7 +765,7 @@ class TripletDistanceLearning(StatisticsLearningNN):
         epochs_early_stopping_interval: integer, optional
             The frequency at which the validation error is compared in order to decide whether to early stop the
             training or not. Namely, if `epochs_early_stopping_interval=10`, early stopping can happen only at epochs
-            multiple of 10. Defaul value is 1.
+            multiple of 10. Default value is 1.
         start_epoch_early_stopping: integer, optional
             The epoch after which early stopping can happen; in fact, as soon as training starts, there may be a 
             transient period in which the loss increases. Default value is 10.
@@ -763,9 +777,8 @@ class TripletDistanceLearning(StatisticsLearningNN):
             If True, a scaler of the class `sklearn.preprocessing.MinMaxScaler` will be fit on the training data before 
             neural network training, and training and validation data simulations data will be rescaled. 
             When calling the `get_statistics` method, 
-            a network of the class `ScalerAndNet` will be used in instantiating the statistics; this network is a 
-            wrapper of a neural network and a scaler and transforms the data with the scaler before applying the neural
-            network.  
+            the network will be wrapped by :class:`abcpy.NN_utilities.networks.ScalerAndNet`; this automatically
+            takes care of transforming the data with the scaler before applying the neural network.
             It is highly recommended to use a scaler, as neural networks are sensitive to the range of input data. A 
             case in which you may not want to use a scaler is timeseries data, as the scaler works independently on each
             feature of the data.
@@ -796,8 +809,6 @@ class TripletDistanceLearning(StatisticsLearningNN):
             If a scheduler is provided, for the first `start_epoch_training` epochs the scheduler is applied to modify
             the learning rate without training the network. From then on, the training proceeds normally, applying both
             the scheduler and the optimizer at each epoch. Default to 0.
-        verbose: boolean, optional
-            if True, prints more information from the training routine. Default to False.
         use_tqdm : boolean, optional
             Whether using tqdm or not to display progress. Defaults to True.
         optimizer_kwargs: Python dictionary, optional
@@ -830,16 +841,19 @@ class TripletDistanceLearning(StatisticsLearningNN):
 
 class ContrastiveDistanceLearning(StatisticsLearningNN):
     """This class implements the statistics learning technique by using the contrastive loss [1] for distance learning
-     as described in Pacchiardi et al. 2019 [2].
+     as described in Pacchiardi et al. 2021 [2].
 
-     In order to use this technique, Pytorch is required to handle the neural networks.
+     In order to use this technique, Pytorch is required to handle the neural networks. However, the user does not need
+     to be fluent in Pytorch as some default neural networks are instantiated if the user does not provide them
+     (experienced users can of course provide the neural networks they would like to use). GPUs can be used to
+     train the neural networks if required.
 
      [1] Hadsell, R., Chopra, S. and LeCun, Y., 2006, June. Dimensionality reduction by learning an invariant mapping.
      In 2006 IEEE Computer Society Conference on Computer Vision and Pattern Recognition (CVPR'06) (Vol. 2,
      pp. 1735-1742). IEEE.
 
-     [2] Pacchiardi, L., Kunzli, P., Schoengens, M., Chopard, B. and Dutta, R., 2019. Distance-learning For Approximate
-     Bayesian Computation To Model a Volcanic Eruption. arXiv preprint arXiv:1909.13118.
+     [2] Pacchiardi, L., Kunzli, P., Schöngens, M., Chopard, B., and Dutta, R., 2021. Distance-learning for
+     approximate bayesian computation to model a volcanic eruption. Sankhya B, 83(1), 288-317.
     """
 
     def __init__(self, model, statistics_calc, backend, embedding_net=None, n_samples=1000, n_samples_val=0,
@@ -853,7 +867,7 @@ class ContrastiveDistanceLearning(StatisticsLearningNN):
         ----------
         model: abcpy.models.Model
             Model object that conforms to the Model class.
-        statistics_cal: abcpy.statistics.Statistics
+        statistics_calc: abcpy.statistics.Statistics
             Statistics object that conforms to the Statistics class, applied before learning the transformation.
         backend: abcpy.backends.Backend
             Backend object that conforms to the Backend class.
@@ -873,6 +887,10 @@ class ContrastiveDistanceLearning(StatisticsLearningNN):
             The number of (parameter, simulated data) tuple to be generated to learn the summary statistics in pilot
             step. The default value is 1000.
             This is ignored if `simulations` and `parameters` are provided.
+        n_samples_val: int, optional
+            The number of (parameter, simulated data) tuple to be generated to be used as a validation set in the pilot
+            step. The default value is 0, which means no validation set is used.
+            This is ignored if `simulations_val` and `parameters_val` are provided.
         n_samples_per_param: int, optional
             Number of data points in each simulated data set. This is ignored if `simulations` and `parameters` are
             provided. Default to 1.
@@ -883,7 +901,31 @@ class ContrastiveDistanceLearning(StatisticsLearningNN):
         simulations: array, optional
             A numpy array with shape (n_samples, output_size) that is used, together with `parameters` to fit the
             summary selection learning algorithm. It has to be provided together with `parameters`, in which case no
-            other simulations are performed. Default value is None.
+            other simulations are performed. These are transformed by the 
+            `statistics_calc` statistics before the learning step is done. Default value is None.
+        parameters_val: array, optional
+            A numpy array with shape (n_samples_val, n_parameters) that is used, together with `simulations_val` as a 
+            validation set in the summary selection learning algorithm. It has to be provided together with 
+            `simulations_val`, in which case no other simulations are performed to generate the validation set. Default 
+            value is None.
+        simulations_val: array, optional
+            A numpy array with shape (n_samples_val, output_size) that is used, together with `parameters_val` as a 
+            validation set in the summary selection learning algorithm. It has to be provided together with 
+            `parameters_val`, in which case no other simulations are performed to generate the validation set.
+             These are transformed by the `statistics_calc` statistics before the learning step is done. 
+            Default value is None.
+        early_stopping: boolean, optional
+            If True, the validation set (which needs to be either provided through the arguments `parameters_val` and
+            `simulations_val` or generated by setting `n_samples_val` to a value larger than 0) is used to early stop
+            the training of the neural network as soon as the loss on the validation set starts to increase. Default
+            value is False.
+        epochs_early_stopping_interval: integer, optional
+            The frequency at which the validation error is compared in order to decide whether to early stop the
+            training or not. Namely, if `epochs_early_stopping_interval=10`, early stopping can happen only at epochs
+            multiple of 10. Default value is 1.
+        start_epoch_early_stopping: integer, optional
+            The epoch after which early stopping can happen; in fact, as soon as training starts, there may be a 
+            transient period in which the loss increases. Default value is 10.
         seed: integer, optional
             Optional initial seed for the random number generator. The default value is generated randomly.
         cuda: boolean, optional
@@ -892,9 +934,8 @@ class ContrastiveDistanceLearning(StatisticsLearningNN):
             If True, a scaler of the class `sklearn.preprocessing.MinMaxScaler` will be fit on the training data before 
             neural network training, and training and validation data simulations data will be rescaled. 
             When calling the `get_statistics` method, 
-            a network of the class `ScalerAndNet` will be used in instantiating the statistics; this network is a 
-            wrapper of a neural network and a scaler and transforms the data with the scaler before applying the neural
-            network.  
+            the network will be wrapped by :class:`abcpy.NN_utilities.networks.ScalerAndNet`; this automatically
+            takes care of transforming the data with the scaler before applying the neural network.
             It is highly recommended to use a scaler, as neural networks are sensitive to the range of input data. A 
             case in which you may not want to use a scaler is timeseries data, as the scaler works independently on each
             feature of the data.
@@ -929,8 +970,6 @@ class ContrastiveDistanceLearning(StatisticsLearningNN):
             If a scheduler is provided, for the first `start_epoch_training` epochs the scheduler is applied to modify
             the learning rate without training the network. From then on, the training proceeds normally, applying both
             the scheduler and the optimizer at each epoch. Default to 0.
-        verbose: boolean, optional
-            if True, prints more information from the training routine. Default to False.
         use_tqdm : boolean, optional
             Whether using tqdm or not to display progress. Defaults to True.
         optimizer_kwargs: Python dictionary, optional
@@ -965,28 +1004,50 @@ class ContrastiveDistanceLearning(StatisticsLearningNN):
 
 
 class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
-    def __init__(self, model, statistics_calc, backend, statistics_net=None, parameters_net=None,
+    """This class implements the statistics learning technique using exponential family as described in Pacchiardi et
+    al. 2020 [1]. Specifically, the idea is to fit an exponential family to a set of parameter-simulation pairs from
+    the model, with two neural networks representing the summary statistics and the natural parameters of the
+    exponential family. Once the neural networks have been fit, the one representing summary statistics is can be used
+    in ABC.
+
+    In order to fit the exponential family (which has an intractable normalization constant), the class relies on
+    Score Matching [2] or on Sliced Score Matching [3], which is a faster stochastic version of the former.
+
+    As Score Matching and its sliced version work on an unbounded simulation space, in case the simulations from the
+    model are unbounded, they need to be transformed to an unbounded space. This class takes care of this step, provided
+    that the user specifies the simulation bounds in the `lower_bound_simulations` and `upper_bound_simulations`
+    arguments.
+
+    In order to use this technique, Pytorch is required to handle the neural networks. However, the user does not need
+    to be fluent in Pytorch as some default neural networks are instantiated if the user does not provide them
+    (experienced users can of course provide the neural networks they would like to use). GPUs can be used to
+    train the neural networks if required.
+
+    [1] Pacchiardi, L., and Dutta, R., 2020. Score Matched Conditional Exponential Families for
+    Likelihood-Free Inference. arXiv preprint arXiv:2012.10903.
+
+    [2] Hyvärinen, A., and Dayan, P., 2005. Estimation of non-normalized statistical models by score matching.
+    Journal of Machine Learning Research, 6(4).
+
+    [3] Song, Y., Garg, S., Shi, J. and Ermon, S., 2019. Sliced score matching: A scalable approach to
+    density and score estimation. arXiv preprint arXiv:1905.07088, 2019
+    """
+
+    def __init__(self, model, statistics_calc, backend, simulations_net=None, parameters_net=None,
                  embedding_dimension=None,
                  n_samples=1000, n_samples_val=0, parameters=None, simulations=None,
                  parameters_val=None, simulations_val=None,
                  lower_bound_simulations=None, upper_bound_simulations=None,
-
                  sliced=True, noise_type='radermacher', variance_reduction=False,
-
                  n_epochs=100, batch_size=16,
                  scale_samples=True, scale_parameters=False,
                  early_stopping=False, epochs_early_stopping_interval=1, start_epoch_early_stopping=10,
-                 cuda=None, load_all_data_GPU=False,
-
-                 seed=None,
-                 nonlinearity_statistics=None, nonlinearity_parameters=None,
+                 cuda=None, load_all_data_GPU=False, seed=None,
+                 nonlinearity_simulations=None, nonlinearity_parameters=None,
                  batch_norm=True, batch_norm_momentum=0.1, batch_norm_update_before_test=False,
-                 lr_simulations=1e-3, lr_parameters=1e-3, lam=0,
-
+                 lr_simulations=1e-3, lr_parameters=1e-3, lam=0.0,
                  optimizer_simulations=None, optimizer_parameters=None,
-                 scheduler_simulations=None, scheduler_parameters=None,
-
-                 start_epoch_training=0,
+                 scheduler_simulations=None, scheduler_parameters=None, start_epoch_training=0,
                  optimizer_simulations_kwargs={}, optimizer_parameters_kwargs={}, scheduler_simulations_kwargs={},
                  scheduler_parameters_kwargs={},
                  use_tqdm=True):
@@ -995,22 +1056,52 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
         ----------
         model: abcpy.models.Model
             Model object that conforms to the Model class.
-        statistics_cal: abcpy.statistics.Statistics
+        statistics_calc: abcpy.statistics.Statistics
             Statistics object that conforms to the Statistics class, applied before learning the transformation.
         backend: abcpy.backends.Backend
             Backend object that conforms to the Backend class.
-        embedding_net: torch.nn object or list
-            it can be a torch.nn object with input size corresponding to size of model output 
-            (after being transformed by `statistics_calc`), alternatively, a list
+        simulations_net: torch.nn object or list, optional
+            The neural network which transforms the simulations to the summary statistics of the exponential family. 
+            At the end of the training routine, the output of `simulations_net` (except for the last component)
+            will be the learned summary statistics.  
+            It can be a torch.nn object with input size corresponding to size of model output 
+            (after being transformed by `statistics_calc`) or, alternatively, a list
             with integer numbers denoting the width of the hidden layers, from which a fully connected network with
-            that structure is created, having the input and output size corresponding to size of model output
-            (after being transformed by `statistics_calc`) and
-            number of parameters. In case this is None, a fully connected neural network with three hidden layers is
-            used; the width of the hidden layers is given by
+            that structure is created, having the input size corresponding to size of model output
+            (after being transformed by `statistics_calc`) and the output size determined by 
+            `embedding_dimension` (see below). Importantly, the output size of `simulations_net` needs to be equal to 
+            the output size of `parameters_net` increased by one, as the two are used together in the code. If both nets
+            are left to their default values, this is done automatically.   
+            In case this is None, a fully connected neural network with three 
+            hidden layers is used; the width of the hidden layers is given by
             ``[int(input_size * 1.5), int(input_size * 0.75 + output_size * 3), int(output_size * 5)]``,
-            where `input_size` is the size of the data after being transformed by `statistics_calc`, while `output_size`
-            is the number of parameters in the model. For further details check
-            :func:`abcpy.NN_utilities.networks.createDefaultNN`
+            where `input_size` is the size of the data after being transformed by `statistics_calc`, while
+            `output_size` is determined by `embedding_dimension`. For further details check
+            :func:`abcpy.NN_utilities.networks.createDefaultNN`. By default, this is None.
+        parameters_net: torch.nn object or list, optional
+            The neural network which maps the parameters to the natural parametrization form of the exponential family. 
+            It can be a torch.nn object with input size corresponding to the number of parameters 
+            or, alternatively, a list
+            with integer numbers denoting the width of the hidden layers, from which a fully connected network with
+            that structure is created, having the input size corresponding to the number of parameters
+            and the output size determined by 
+            `embedding_dimension` (see below). Importantly, the output size of `parameters_net` needs to be equal to 
+            the output size of `simulations_net` decreased by one, as the two are used together in the code. 
+            If both nets are left to their default values, this is done automatically.   
+            In case this is None, a fully connected neural network with three 
+            hidden layers is used; the width of the hidden layers is given by
+            ``[int(input_size * 1.5), int(input_size * 0.75 + output_size * 3), int(output_size * 5)]``,
+            where `input_size` is the number of parameters, while `output_size` is determined by `embedding_dimension`.
+            For further details check
+            :func:`abcpy.NN_utilities.networks.createDefaultNN`. By default, this is None.
+        embedding_dimension: integer, optional 
+            Size of the learned summary statistics if `simulations_net` is None or a list. 
+            Specifically, in these cases 
+            `simulations_net` is automatically created having output size `embedding_dimension + 1`, of which all but 
+            the latter components will represent the learned summaries (the latter instead is a learned base measure). 
+            If also `parameters_net` is None or a list, it will be automatically created with output size equal to
+            `embedding_dimension`. By default `embedding_dimension` is None, in which case it is fixed to the number 
+            of parameters in the model.   
         n_samples: int, optional
             The number of (parameter, simulated data) tuple to be generated to learn the summary statistics in pilot
             step. The default value is 1000.
@@ -1019,9 +1110,6 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
             The number of (parameter, simulated data) tuple to be generated to be used as a validation set in the pilot
             step. The default value is 0, which means no validation set is used.
             This is ignored if `simulations_val` and `parameters_val` are provided.
-        n_samples_per_param: int, optional
-            Number of data points in each simulated data set. This is ignored if `simulations` and `parameters` are
-            provided. Default to 1.
         parameters: array, optional
             A numpy array with shape (n_samples, n_parameters) that is used, together with `simulations` to fit the
             summary selection learning algorithm. It has to be provided together with `simulations`, in which case no
@@ -1029,7 +1117,8 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
         simulations: array, optional
             A numpy array with shape (n_samples, output_size) that is used, together with `parameters` to fit the
             summary selection learning algorithm. It has to be provided together with `parameters`, in which case no
-            other simulations are performed to generate the training data. Default value is None.
+            other simulations are performed to generate the training data. These are transformed by the 
+            `statistics_calc` statistics before the learning step is done. Default value is None.
         parameters_val: array, optional
             A numpy array with shape (n_samples_val, n_parameters) that is used, together with `simulations_val` as a 
             validation set in the summary selection learning algorithm. It has to be provided together with 
@@ -1040,21 +1129,144 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
             validation set in the summary selection learning algorithm. It has to be provided together with 
             `parameters_val`, in which case no other simulations are performed to generate the validation set. Default
             value is None.
-        seed: integer, optional
-            Optional initial seed for the random number generator. The default value is generated randomly.
-        cuda: boolean, optional
-             If cuda=None, it will select GPU if it is available. Or you can specify True to use GPU or False to use CPU
+        lower_bound_simulations: np.ndarray, optional
+            Array of the same length of the simulations on which the statistics will be learned (therefore, after
+            `statistics_calc` has been applied). It contains the lower bounds of the simulations, with each entry
+            being either None or a number. It works together with `upper_bound_simulations` to determine the
+            nonlinear transformation mapping the bounded space to an unbounded one: if both upper and lower
+            bounds for a given entry are None, no transformation is applied to that entry. If both of them are numbers,
+            a transformation mapping a compact domain to an unbounded one is applied. If instead the lower bound is a
+            number and the upper one is None, a transformation for lower bounded variables is applied. More details on
+            the transformations can be found at :class:`abcpy.transformers.BoundedVarTransformer`. By default,
+            `lower_bound_simulations` is None, in which case all variables are assumed to not be lower bounded.
+        upper_bound_simulations: np.ndarray, optional
+            Array of the same length of the simulations on which the statistics will be learned (therefore, after
+            `statistics_calc` has been applied). It contains the upper bounds of the simulations, with each entry
+            being either None or a number. It works together with `lower_bound_simulations` to determine the
+            nonlinear transformation mapping the bounded space to an unbounded one: if both upper and lower
+            bounds for a given entry are None, no transformation is applied to that entry. If both of them are numbers,
+            a transformation mapping a compact domain to an unbounded one is applied. If instead the lower bound is a
+            number and the upper one is None, a transformation for lower bounded variables is applied. More details on
+            the transformations can be found at :class:`abcpy.transformers.BoundedVarTransformer`. By default,
+            `upper_bound_simulations` is None, in which case all variables are assumed to not be upper bounded.
+        sliced: boolean, optional
+            If True, the exponential family is fit with the sliced Score Matching approach, which is a faster
+            (stochastic) version of Score Matching. If False, the full Score Matching approach is used. Default is True.
+        noise_type: basestring, optional
+            Denotes the noise type used in the sliced Score Matching version. It can be 'radermacher', 'gaussian' or
+            'sphere', with 'radermacher' being the default one. Ignored if `sliced=False`.
+        variance_reduction: boolean, optional
+            If True, use the variance reduction version of Sliced Score Matching (when that is used), which replaces a
+            term with its exact expectation over the noise distribution. Cannot be used when `noise=sphere`.
+            Default is False, ignored if `sliced=False`.
+        n_epochs: integer, optional
+            the number of epochs used for training the neural network. Default is 100
+        batch_size: integer, optional
+            the batch size used for training the neural network. Default is 16
         scale_samples: boolean, optional
-            If True, a scaler of the class `sklearn.preprocessing.MinMaxScaler` will be fit on the training data before 
-            neural network training, and training and validation data simulations data will be rescaled. 
-            When calling the `get_statistics` method, 
-            a network of the class `ScalerAndNet` will be used in instantiating the statistics; this network is a 
-            wrapper of a neural network and a scaler and transforms the data with the scaler before applying the neural
-            network.  
+            If True, the simulations are scaled to the (0,1) range before the transformation is learned (i.e., before
+            being fed to the neural network). This happens after the simulations have been transformed with
+            `statistics_calc` and after the (optional) nonlinear transformation governed by `lower_bound_simulations`
+            and `upper_bound_simulations` is applied. This relies on a wrapping of `sklearn.preprocessing.MinMaxScaler`.
+            The validation set will also be rescaled in the same fashion.
+            When calling the `get_statistics` and the `get_simulations_network` methods,
+            the network will be wrapped by :class:`abcpy.NN_utilities.networks.ScalerAndNet`; this automatically
+            takes care of transforming the data with the scaler before applying the neural network.
             It is highly recommended to use a scaler, as neural networks are sensitive to the range of input data. A 
             case in which you may not want to use a scaler is timeseries data, as the scaler works independently on each
             feature of the data.
             Default value is True. 
+        scale_parameters: boolean, optional
+            If True, the parameters are scaled to the (0,1) range before the natural parameters transformation
+            is learned (i.e., before being fed to the neural network).
+            This relies on a wrapping of `sklearn.preprocessing.MinMaxScaler`.
+            The validation set will also be rescaled in the same fashion.
+            When calling the `get_statistics` and the `get_parameters_network` methods,
+            the network will be wrapped by :class:`abcpy.NN_utilities.networks.ScalerAndNet`; this automatically
+            takes care of transforming the data with the scaler before applying the neural network.
+            For parameter, the scaler is not as critical as for simulations, as parameters usually have smaller ranges.
+            If however the different parameters differ by orderd of magnitude, using a scaler is recommended.
+            Default value is False.
+        early_stopping: boolean, optional
+            If True, the validation set (which needs to be either provided through the arguments `parameters_val` and
+            `simulations_val` or generated by setting `n_samples_val` to a value larger than 0) is used to early stop
+            the training of the neural network as soon as the loss on the validation set starts to increase. Default
+            value is False.
+        epochs_early_stopping_interval: integer, optional
+            The frequency at which the validation error is compared in order to decide whether to early stop the
+            training or not. Namely, if `epochs_early_stopping_interval=10`, early stopping can happen only at epochs
+            multiple of 10. Default value is 1.
+        start_epoch_early_stopping: integer, optional
+            The epoch after which early stopping can happen; in fact, as soon as training starts, there may be a 
+            transient period in which the loss increases. Default value is 10.
+        cuda: boolean, optional
+             If cuda=None, it will select GPU if it is available. Or you can specify True to use GPU or False to use CPU
+        load_all_data_GPU: boolean, optional
+            If True and if we a GPU is used, the whole dataset is loaded on the GPU before training begins; this may
+            speed up training as it avoid transfer between CPU and GPU, but it is not guaranteed to do. Note that if the
+            dataset is not small enough, setting this to True causes things to crash if the dataset is too large.
+            Default to False, you should not rely too much on this.
+        seed: integer, optional
+            Optional initial seed for the random number generator. The default value is generated randomly.
+        nonlinearity_simulations: torch.nn class, optional
+            If the neural networks for the simulations is built automatically (ie when `simulations_net` is either a
+            list or None), then this is used nonlinearity. Default is `torch.nn.Softplus`. This is because the Score
+            Matching routine (when `sliced=False`) needs the output of the simulations net to have a non-zero second
+            derivative with respect to data, which does not happen when using the common ReLU nonlinearity.
+        nonlinearity_parameters: torch.nn class, optional
+            If the neural networks for the simulations is built automatically (ie when `parameters_net` is either a
+            list or None), then this is used nonlinearity. Default is `torch.nn.ReLU`.
+        batch_norm: boolean, optional
+            If True, a batch normalization layer is put on top of the parameters net when that is built automatically.
+            This improves the performance of the method as it reduces the degeneracy of the
+            (summary statistics) * (natural parameters) product. Default is True.
+        batch_norm_momentum: float, optional
+            Momentum value with which the batch estimates in the batch norm layer are updated at each batch; see
+            `torch.nn.BatchNorm1d` for more information. Default is 0.1. Ignored if `batch_norm` is False, or if
+            an actual `parameters_net` is provided.
+        batch_norm_update_before_test: boolean, optional
+            When using batch norm layer on the test set, the resulting test loss evaluation can be noisy as the
+            batch norm estimates change during the train phase. To reduce this issue, it is enough to perform a simple
+            forward pass of the full train set (without backprop or loss evaulation) before the testing phase is
+            started. Set `batch_norm_update_before_test=True` to do that. Default is False.
+            Ignored if `batch_norm` is False, if an actual `parameters_net` is provided, as well as if no test set
+            is present.
+        lr_simulations: float, optional
+            The learning rate to be used in the iterative training scheme for the simulations neural network. 
+            Default to 1e-3.
+        lr_parameters: float, optional
+            The learning rate to be used in the iterative training scheme for the parameters neural network. 
+            Default to 1e-3.
+        lam: float, optional
+            If the full Score Matching approach is used (ie `sliced=False`) this denotes the amount of
+            second derivative regularization added to the Score Matching loss in the way proposed in Kingma & LeCun
+            (2010). Defaul is 0, corresponding to no regularization.
+        optimizer_simulations: torch Optimizer class, optional
+            A torch Optimizer class, for instance `SGD` or `Adam`, to be used for the simulations network. 
+            Default to `Adam`. Additional parameters may be passed through the `optimizer_simulations_kwargs` argument.
+        optimizer_parameters: torch Optimizer class, optional
+            A torch Optimizer class, for instance `SGD` or `Adam`, to be used for the parameters network. 
+            Default to `Adam`. Additional parameters may be passed through the `optimizer_parameters_kwargs` argument.
+        scheduler_simulations: torch _LRScheduler class, optional
+            A torch _LRScheduler class, used to modify the learning rate across epochs for the simulations net. 
+            By default, a :class:`torch.optim.lr_scheduler.ExponentialLR` scheduler with `gamma=0.99` is used.
+            Additional arguments may be passed through the `scheduler_simulations_kwargs` parameter.
+        scheduler_parameters: torch _LRScheduler class, optional
+            A torch _LRScheduler class, used to modify the learning rate across epochs for the parameters net. 
+            By default, a :class:`torch.optim.lr_scheduler.ExponentialLR` scheduler with `gamma=0.99` is used.
+            Additional arguments may be passed through the `scheduler_parameters_kwargs` parameter.
+        start_epoch_training: integer, optional
+            If schedulers is used, for the first `start_epoch_training` epochs the scheduler is applied to modify
+            the learning rate without training the network. From then on, the training proceeds normally, applying both
+            the scheduler and the optimizer at each epoch. Default to 0.
+        optimizer_simulations_kwargs: Python dictionary, optional
+            dictionary containing optional keyword arguments for the optimizer used for the simulations network.
+        optimizer_parameters_kwargs: Python dictionary, optional
+            dictionary containing optional keyword arguments for the optimizer used for the parameters network.
+        scheduler_simulations_kwargs: Python dictionary, optional
+            dictionary containing optional keyword arguments for the simulations scheduler.
+        scheduler_parameters_kwargs: Python dictionary, optional
+            dictionary containing optional keyword arguments for the parameters scheduler.
         use_tqdm : boolean, optional
             Whether using tqdm or not to display progress. Defaults to True.
         """
@@ -1154,19 +1366,19 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
         if embedding_dimension is None:
             embedding_dimension = parameters.shape[1]
 
-        if isinstance(statistics_net, torch.nn.Module):
-            self.statistics_net = statistics_net
+        if isinstance(simulations_net, torch.nn.Module):
+            self.simulations_net = simulations_net
             self.logger.debug('We use the provided neural network for the summary statistics')
 
-        elif isinstance(statistics_net, list) or statistics_net is None:
+        elif isinstance(simulations_net, list) or simulations_net is None:
             # therefore we need to generate the neural network given the list. The following function returns a class
             # of NN with given input size, output size and hidden sizes; then, need () to instantiate the network
-            self.statistics_net = createDefaultNNWithDerivatives(
-                input_size=simulations.shape[1], output_size=embedding_dimension + 1, hidden_sizes=statistics_net,
-                nonlinearity=torch.nn.Softplus if nonlinearity_statistics is None else nonlinearity_statistics)()
+            self.simulations_net = createDefaultNNWithDerivatives(
+                input_size=simulations.shape[1], output_size=embedding_dimension + 1, hidden_sizes=simulations_net,
+                nonlinearity=torch.nn.Softplus if nonlinearity_simulations is None else nonlinearity_simulations)()
             self.logger.debug('We generate a default neural network for the summary statistics')
         else:
-            raise RuntimeError("'statistics_net' needs to be either a torch.nn.Module, or a list, or None.")
+            raise RuntimeError("'simulations_net' needs to be either a torch.nn.Module, or a list, or None.")
 
         if isinstance(parameters_net, torch.nn.Module):
             self.parameters_net = parameters_net
@@ -1184,7 +1396,7 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
             raise RuntimeError("'parameters_net' needs to be either a torch.nn.Module, or a list, or None.")
 
         if cuda:
-            self.statistics_net.cuda()
+            self.simulations_net.cuda()
             self.parameters_net.cuda()
 
         self.logger.debug('We now run the training routine')
@@ -1202,29 +1414,34 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
                                                           optimizer_parameters=optimizer_parameters,
                                                           scheduler_simulations=scheduler_simulations,
                                                           scheduler_parameters=scheduler_parameters,
-
                                                           optimizer_simulations_kwargs=optimizer_simulations_kwargs,
                                                           optimizer_parameters_kwargs=optimizer_parameters_kwargs,
                                                           scheduler_simulations_kwargs=scheduler_simulations_kwargs,
                                                           scheduler_parameters_kwargs=scheduler_parameters_kwargs,
-
-                                                          lam=lam, start_epoch_training=start_epoch_training,
-                                                          )
+                                                          lam=lam, start_epoch_training=start_epoch_training)
         self.logger.info("Finished learning the transformation.")
 
         # move back the nets to CPU.
-        self.statistics_net.cpu()
+        self.simulations_net.cpu()
         self.parameters_net.cpu()
-
-    # todo better names overall.
 
     def get_statistics(self, rescale_statistics=True):
         """
-        Returns a NeuralEmbedding Statistics implementing the learned transformation.
+        Returns a :class:`abcpy.statistics.NeuralEmbedding` Statistics implementing the learned transformation.
 
-        If a scaler was used, the `net` attribute of the returned object is of the class `ScalerAndNet`, which is a
-        nn.Module object wrapping the scaler and the learned neural network and applies the scaler before the data is
-        fed through the neural network.
+        If a scaler was used, the `net` attribute of the returned object is of the class
+        :class:`abcpy.NN_utilities.networks.ScalerAndNet`, which is a nn.Module object wrapping the scaler and the
+        learned neural network and applies the scaler before the data is fed through the neural network.
+
+        Additionally, as the learned summary statistics is given by the output of the simulations network excluding
+        the last component, we wrap the neural network in the :class:`abcpy.NN_utilities.networks.DiscardLastOutputNet`,
+        which automatically takes care of discarding the last output anytime the summary statistics are required.
+
+        Finally, notice that the summary statistics learned with the Exponential Family are only defined up to a
+        linear transformation. As such, it may happen that they have very different magnitude. For this reason, we
+        provide an option by which the summary statistics are rescale by their standard deviation on the training
+        (or test, whenever that was used) set. That is handled automatically by the
+        :class:`abcpy.statistics.NeuralEmbedding` class.
 
         Parameters
         ----------
@@ -1237,13 +1454,13 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
 
         Returns
         -------
-        abcpy.statistics.NeuralEmbedding object
+        :class:`abcpy.statistics.NeuralEmbedding`
             a statistics object that implements the learned transformation.
         """
         if self.has_scaler_for_simulations:
-            net = ScalerAndNet(net=DiscardLastOutputNet(self.statistics_net), scaler=self.scaler_simulations)
+            net = ScalerAndNet(net=DiscardLastOutputNet(self.simulations_net), scaler=self.scaler_simulations)
         else:
-            net = DiscardLastOutputNet(self.statistics_net)
+            net = DiscardLastOutputNet(self.simulations_net)
 
         if rescale_statistics:
             # We need a hacky way here. In fact sample_statistics is the one you obtain after the first
@@ -1252,8 +1469,8 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
             # Then we first instantiate the NeuralEmbedding without statistics_calc, and then add it later. In this way
             # the standard deviation is computed correctly, but the behavior of the Statistics in new data will also be
             # correct.
-            statistics_calc_new = NeuralEmbedding(net=net,
-                                                  reference_simulations=self.sample_statistics_val if self.has_val_set else self.sample_statistics)
+            statistics_calc_new = NeuralEmbedding(net=net, reference_simulations=self.sample_statistics_val
+            if self.has_val_set else self.sample_statistics)
             statistics_calc_new.previous_statistics = self.statistics_calc
         else:
             statistics_calc_new = NeuralEmbedding(net=net, previous_statistics=self.statistics_calc)
@@ -1261,67 +1478,62 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
 
     def get_simulations_network(self):
         """
-        todo fix docstring
-        Returns a NeuralEmbedding Statistics implementing the learned transformation.
-
-        If a scaler was used, the `net` attribute of the returned object is of the class `ScalerAndNet`, which is a
-        nn.Module object wrapping the scaler and the learned neural network and applies the scaler before the data is
-        fed through the neural network.
+        Returns the learned neural network for the simulations, representing the learned summary statistics;
+        if a scaler was used, the neural net is of the class
+        :class:`abcpy.NN_utilities.networks.ScalerAndNet`, which is a nn.Module object wrapping the scaler and the
+        learned neural network and automatically applies the scaler before the data is fed through the neural network.
+        The original neural network is contained in the `net` attribute of that.
 
         Returns
         -------
-        abcpy.statistics.NeuralEmbedding object
-            a statistics object that implements the learned transformation.
+        torch.nn object
+            the learned simulations neural network
         """
-        return ScalerAndNet(self.statistics_net,
-                            self.scaler_simulations) if self.has_scaler_for_simulations else self.statistics_net
+        return ScalerAndNet(self.simulations_net,
+                            self.scaler_simulations) if self.has_scaler_for_simulations else self.simulations_net
 
     def get_parameters_network(self):
         """
-        todo fix docstring
-        Returns a NeuralEmbedding Statistics implementing the learned transformation.
-
-        If a scaler was used, the `net` attribute of the returned object is of the class `ScalerAndNet`, which is a
-        nn.Module object wrapping the scaler and the learned neural network and applies the scaler before the data is
-        fed through the neural network.
+        Returns the learned neural network for the parameters, representing the learned natural parameters in the
+        exponential family; if a scaler was used, the neural net is of the class
+        :class:`abcpy.NN_utilities.networks.ScalerAndNet`, which is a nn.Module object wrapping the scaler and the
+        learned neural network and automatically applies the scaler before the data is fed through the neural network.
+        The original neural network is contained in the `net` attribute of that.
 
         Returns
         -------
-        abcpy.statistics.NeuralEmbedding object
-            a statistics object that implements the learned transformation.
+        torch.nn object
+            the learned parameters neural network
         """
         return ScalerAndNet(self.parameters_net, self.scaler_parameters) if self.scale_parameters else \
             self.parameters_net
 
     def get_simulations_scaler(self):
         """
-        todo fix docstring
-        Returns a NeuralEmbedding Statistics implementing the learned transformation.
-
-        If a scaler was used, the `net` attribute of the returned object is of the class `ScalerAndNet`, which is a
-        nn.Module object wrapping the scaler and the learned neural network and applies the scaler before the data is
-        fed through the neural network.
+        Returns the scaler used for transforming the simulations before feeding them through the neural network.
+        Specifically, it can be a :class:`abcpy.transformers.BoundedVarScaler` if the simulations are transformed from
+        a bounded to an unbounded domain with a nonlinear transformation, or a
+        :class:`sklearn.preprocessing.MinMaxScaler` if the simulations were rescaled to (0,1) without non linear
+        transformation. It returns `None` if no scaler was used. The :class:`abcpy.transformers.BoundedVarScaler`
+        conforms to the same API as standard sklearn scalers, so it can be used in the same fashion.
 
         Returns
         -------
-        abcpy.statistics.NeuralEmbedding object
-            a statistics object that implements the learned transformation.
+        abcpy.transformers.BoundedVarScaler, sklearn.preprocessing.MinMaxScaler or None
+            the scaler applied to simulations before the neural network (if present).
         """
         return self.scaler_simulations if self.has_scaler_for_simulations else None
 
     def get_parameters_scaler(self):
         """
-        todo fix docstring
-        Returns a NeuralEmbedding Statistics implementing the learned transformation.
-
-        If a scaler was used, the `net` attribute of the returned object is of the class `ScalerAndNet`, which is a
-        nn.Module object wrapping the scaler and the learned neural network and applies the scaler before the data is
-        fed through the neural network.
+        Returns the scaler used for transforming the parameters before feeding them through the neural network.
+        It is an instance of :class:`sklearn.preprocessing.MinMaxScaler`, which rescales the parameters to (0,1).
+        It returns `None` if no scaler was used.
 
         Returns
         -------
-        abcpy.statistics.NeuralEmbedding object
-            a statistics object that implements the learned transformation.
+        sklearn.preprocessing.MinMaxScaler or None
+            the scaler applied to parameters before the neural network (if present).
         """
         return self.scaler_parameters if self.scale_parameters else None
 
@@ -1338,13 +1550,13 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
                optimizer_simulations_kwargs={}, optimizer_parameters_kwargs={},
                scheduler_simulations_kwargs={}, scheduler_parameters_kwargs={},
                start_epoch_training=0,
-               lam=0, use_tqdm=False):
+               lam=0.0, use_tqdm=False):
         """This assumes samples matrix to be a 2d tensor with size (n_theta, size_sample) and theta_vect a 2d tensor with
         size (n_theta, p).
         """
         if self.sliced:
-            batch_steps = lambda samples, etas: self.single_sliced_score_matching(samples, etas, noise_type=noise_type,
-                                                                                  variance_reduction=variance_reduction)
+            batch_steps = lambda samples, etas: self._single_sliced_score_matching(samples, etas, noise_type=noise_type,
+                                                                                   variance_reduction=variance_reduction)
         else:
             batch_steps = lambda samples, etas: self._batch_Fisher_div_with_c_x(samples, etas, lam=lam)
 
@@ -1364,10 +1576,10 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
             n_theta_test = theta_vect_test.shape[0]
 
         if optimizer_simulations is None:
-            optimizer_simulations = Adam(self.statistics_net.parameters(), lr=lr_simulations,
+            optimizer_simulations = Adam(self.simulations_net.parameters(), lr=lr_simulations,
                                          **optimizer_simulations_kwargs)
         else:
-            optimizer_simulations = optimizer_simulations(self.statistics_net.parameters(), lr=lr_simulations,
+            optimizer_simulations = optimizer_simulations(self.simulations_net.parameters(), lr=lr_simulations,
                                                           **optimizer_simulations_kwargs)
 
         if optimizer_parameters is None:
@@ -1425,7 +1637,7 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
         for epoch in tqdm(range(start_epoch_training, n_epochs), disable=not use_tqdm):
             # print("epoch", epoch)
             # set nets to train mode (needed as there may be a batchnorm layer there):
-            self.statistics_net.train()
+            self.simulations_net.train()
             self.parameters_net.train()
 
             indeces = self.rng.permutation(n_theta)  # this may be a bottleneck computationally?
@@ -1454,7 +1666,7 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
 
                 # set requires_grad to False to save computation
                 if lr_simulations == 0:
-                    set_requires_grad(self.statistics_net, False)
+                    set_requires_grad(self.simulations_net, False)
                 if lr_parameters == 0:
                     set_requires_grad(self.parameters_net, False)
 
@@ -1462,7 +1674,7 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
 
                 # reset it
                 if lr_simulations == 0:
-                    set_requires_grad(self.statistics_net, True)
+                    set_requires_grad(self.simulations_net, True)
                 if lr_parameters == 0:
                     set_requires_grad(self.parameters_net, True)
 
@@ -1488,7 +1700,7 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
                             _ = self.parameters_net(thetas_batch)
                             batch_index += 1
 
-                self.statistics_net.eval()
+                self.simulations_net.eval()
                 self.parameters_net.eval()
 
                 batch_index = 0
@@ -1517,11 +1729,11 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
                         if test_loss_list[-1] > test_loss_list[- 1 - epochs_test_interval]:
                             self.logger.info("Training has been early stopped at epoch {}.".format(epoch + 1))
                             # reload the previous state dict:
-                            self.statistics_net.load_state_dict(net_state_dict)
+                            self.simulations_net.load_state_dict(net_state_dict)
                             self.parameters_net.load_state_dict(net_state_dict_theta)
                             break  # stop training
                     # if we did not stop: update the state dict
-                    net_state_dict = self.statistics_net.state_dict()
+                    net_state_dict = self.simulations_net.state_dict()
                     net_state_dict_theta = self.parameters_net.state_dict()
 
             if enable_scheduler_simulations:
@@ -1530,7 +1742,7 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
                 scheduler_parameters.step()
 
         # after training, return to eval mode:
-        self.statistics_net.eval()
+        self.simulations_net.eval()
         self.parameters_net.eval()
 
         if compute_test_loss:
@@ -1540,10 +1752,10 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
 
     def _batch_Fisher_div_with_c_x(self, samples, etas, lam=0):
         # do the forward pass at once here:
-        if hasattr(self.statistics_net, "forward_and_derivatives"):
-            transformed_samples, f, s = self.statistics_net.forward_and_derivatives(samples)
+        if hasattr(self.simulations_net, "forward_and_derivatives"):
+            transformed_samples, f, s = self.simulations_net.forward_and_derivatives(samples)
         else:
-            transformed_samples = self.statistics_net(samples)
+            transformed_samples = self.simulations_net(samples)
             f, s = jacobian_second_order(samples, transformed_samples, diffable=True)
 
         f = f.reshape(-1, f.shape[1], f.shape[2])
@@ -1551,18 +1763,18 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
 
         return Fisher_divergence_loss_with_c_x(f, s, etas, lam=lam) / (samples.shape[0])
 
-    def single_sliced_score_matching(self, samples, etas, noise=None, detach=False, noise_type='radermacher',
-                                     variance_reduction=False):
-        """Can either receive noise as an input or generate it. etas have been (optionally) pre-transformed by
-        statistics net"""
-        # -- THE FOLLOWING MODIFIED FROM: https://github.com/ermongroup/sliced_score_matching/blob/master/losses/sliced_sm.py --
-        # these take care of generating the projection samples and computing the loss by taking the grad.
+    def _single_sliced_score_matching(self, samples, etas, noise=None, detach=False, noise_type='radermacher',
+                                      variance_reduction=False):
+        """Can either receive noise as an input or generate it. etas have been pre-transformed by
+        parameters net
+        This was modified from:
+        https://github.com/ermongroup/sliced_score_matching/blob/master/losses/sliced_sm.py
+        This function takes care of generating the projection samples and computing the loss by taking the grad.
 
-        # single_sliced_score_matching and sliced_VR_score_matching implement a basic version of SSM
-        # with only M=1. These are used in density estimation experiments for DKEF.
-        reshaped_etas = etas.view(-1, etas.shape[-1])  # THIS IS USELESS!
-        reshaped_etas = torch.cat((reshaped_etas, torch.ones(reshaped_etas.shape[0], 1).to(reshaped_etas)),
-                                  dim=1)  # append a 1
+        Here, only one projection is used for each sample; however the projection changes at each epoch.
+        """
+        etas = etas.view(-1, etas.shape[-1])
+        etas = torch.cat((etas, torch.ones(etas.shape[0], 1).to(etas)), dim=1)  # append a 1
         reshaped_samples = samples.view(-1, samples.shape[-1])
         reshaped_samples.requires_grad_(True)
 
@@ -1582,8 +1794,8 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
         else:
             vectors = noise
 
-        transformed_samples = self.statistics_net(reshaped_samples)
-        logp = torch.bmm(reshaped_etas.unsqueeze(1), transformed_samples.unsqueeze(2))  # way to do batch dot products
+        transformed_samples = self.simulations_net(reshaped_samples)
+        logp = torch.bmm(etas.unsqueeze(1), transformed_samples.unsqueeze(2))  # way to do batch dot products
         logp = logp.sum()
         grad1 = autograd.grad(logp, reshaped_samples, create_graph=True)[0]
         gradv = torch.sum(grad1 * vectors)

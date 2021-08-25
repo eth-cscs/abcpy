@@ -310,7 +310,7 @@ class ExpFamStatisticsTests(unittest.TestCase):
                                                              n_epochs=2, batch_norm=False, use_tqdm=False)
             self.statisticslearning_provide_nets = ExpFamStatistics([self.Y], self.statistics_cal, self.backend,
                                                                     n_samples=4, n_epochs=2,
-                                                                    statistics_net=createDefaultNN(3, 3)(),
+                                                                    simulations_net=createDefaultNN(3, 3)(),
                                                                     parameters_net=createDefaultNN(2, 2)(),
                                                                     use_tqdm=False)
             self.statisticslearning_embedding_dim = ExpFamStatistics([self.Y], self.statistics_cal, self.backend,
@@ -333,6 +333,9 @@ class ExpFamStatisticsTests(unittest.TestCase):
                                                                      n_samples=4, n_epochs=2,
                                                                      scheduler_parameters=False,
                                                                      scheduler_simulations=False, use_tqdm=False)
+            self.statisticslearning_lam = ExpFamStatistics([self.Y], self.statistics_cal, self.backend,
+                                                           n_samples=4, n_epochs=2, use_tqdm=False, sliced=False,
+                                                           lam=0.1)
 
     def test_initialization(self):
         if not has_torch:
@@ -367,7 +370,7 @@ class ExpFamStatisticsTests(unittest.TestCase):
                                                            seed=1, parameters=np.ones((100, 1)))
             with self.assertRaises(RuntimeError):
                 self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           seed=1, statistics_net=createDefaultNN(1, 3))
+                                                           seed=1, simulations_net=createDefaultNN(1, 3))
             with self.assertRaises(RuntimeError):
                 self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
                                                            seed=1, parameters_net=createDefaultNN(1, 3))
