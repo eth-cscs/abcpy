@@ -7,7 +7,7 @@ from abcpy.continuousmodels import Normal
 from abcpy.continuousmodels import Uniform
 from abcpy.statistics import Identity
 from abcpy.statisticslearning import Semiautomatic, SemiautomaticNN, TripletDistanceLearning, \
-    ContrastiveDistanceLearning, ExpFamStatistics
+    ContrastiveDistanceLearning, ExponentialFamilyScoreMatching
 
 try:
     import torch
@@ -278,7 +278,7 @@ class TripletDistanceLearningTests(unittest.TestCase):
             self.statisticslearning.plot_losses(which_losses="test")
 
 
-class ExpFamStatisticsTests(unittest.TestCase):
+class ExponentialFamilyScoreMatchingTests(unittest.TestCase):
     def setUp(self):
         # define prior and model
         sigma = Uniform([[1], [2]])
@@ -292,54 +292,54 @@ class ExpFamStatisticsTests(unittest.TestCase):
         self.statistics_cal = Identity(degree=3, cross=False)
 
         if has_torch:
-            self.statisticslearning_all_defaults = ExpFamStatistics([self.Y], self.statistics_cal, self.backend,
-                                                                    n_samples=4, n_epochs=2, use_tqdm=False)
-            self.statisticslearning_no_sliced = ExpFamStatistics([self.Y], self.statistics_cal, self.backend,
-                                                                 n_samples=4, n_epochs=2,
-                                                                 sliced=False, use_tqdm=False)
-            self.statisticslearning_sphere_noise = ExpFamStatistics([self.Y], self.statistics_cal, self.backend,
-                                                                    n_samples=4, n_epochs=2, use_tqdm=False,
-                                                                    noise_type="sphere")
-            self.statisticslearning_gaussian_noise = ExpFamStatistics([self.Y], self.statistics_cal, self.backend,
-                                                                      n_samples=4, n_epochs=2, use_tqdm=False,
-                                                                      noise_type="gaussian")
-            self.statisticslearning_variance_reduction = ExpFamStatistics([self.Y], self.statistics_cal, self.backend,
-                                                                          n_samples=4, n_epochs=2, use_tqdm=False,
-                                                                          variance_reduction=True)
-            self.statisticslearning_no_bn = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=4,
-                                                             n_epochs=2, batch_norm=False, use_tqdm=False)
-            self.statisticslearning_provide_nets = ExpFamStatistics([self.Y], self.statistics_cal, self.backend,
-                                                                    n_samples=4, n_epochs=2,
-                                                                    simulations_net=createDefaultNN(3, 3)(),
-                                                                    parameters_net=createDefaultNN(2, 2)(),
-                                                                    use_tqdm=False)
-            self.statisticslearning_embedding_dim = ExpFamStatistics([self.Y], self.statistics_cal, self.backend,
-                                                                     n_samples=4, n_epochs=2,
-                                                                     embedding_dimension=4, use_tqdm=False)
-            self.statisticslearning_validation_early_stop = ExpFamStatistics([self.Y], self.statistics_cal,
-                                                                             self.backend,
-                                                                             n_samples=4, n_epochs=20,
-                                                                             n_samples_val=20, early_stopping=True,
-                                                                             use_tqdm=False)
-            self.statisticslearning_scale = ExpFamStatistics([self.Y], self.statistics_cal, self.backend,
-                                                             n_samples=4, n_epochs=2, scale_samples=False,
-                                                             scale_parameters=True, use_tqdm=False)
-            self.statisticslearning_bounds = ExpFamStatistics([self.Y], self.statistics_cal, self.backend,
-                                                              n_samples=4, n_epochs=2,
-                                                              lower_bound_simulations=np.array([-1000, -1000, -1000]),
-                                                              upper_bound_simulations=np.array([1000, 1000, 1000]),
-                                                              use_tqdm=False, seed=1)
-            self.statisticslearning_no_schedulers = ExpFamStatistics([self.Y], self.statistics_cal, self.backend,
-                                                                     n_samples=4, n_epochs=2,
-                                                                     scheduler_parameters=False,
-                                                                     scheduler_simulations=False, use_tqdm=False)
-            self.statisticslearning_lam = ExpFamStatistics([self.Y], self.statistics_cal, self.backend,
-                                                           n_samples=4, n_epochs=2, use_tqdm=False, sliced=False,
-                                                           lam=0.1)
+            self.statisticslearning_all_defaults = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend,
+                                                                                  n_samples=4, n_epochs=2, use_tqdm=False)
+            self.statisticslearning_no_sliced = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend,
+                                                                               n_samples=4, n_epochs=2,
+                                                                               sliced=False, use_tqdm=False)
+            self.statisticslearning_sphere_noise = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend,
+                                                                                  n_samples=4, n_epochs=2, use_tqdm=False,
+                                                                                  noise_type="sphere")
+            self.statisticslearning_gaussian_noise = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend,
+                                                                                    n_samples=4, n_epochs=2, use_tqdm=False,
+                                                                                    noise_type="gaussian")
+            self.statisticslearning_variance_reduction = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend,
+                                                                                        n_samples=4, n_epochs=2, use_tqdm=False,
+                                                                                        variance_reduction=True)
+            self.statisticslearning_no_bn = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=4,
+                                                                           n_epochs=2, batch_norm=False, use_tqdm=False)
+            self.statisticslearning_provide_nets = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend,
+                                                                                  n_samples=4, n_epochs=2,
+                                                                                  simulations_net=createDefaultNN(3, 3)(),
+                                                                                  parameters_net=createDefaultNN(2, 2)(),
+                                                                                  use_tqdm=False)
+            self.statisticslearning_embedding_dim = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend,
+                                                                                   n_samples=4, n_epochs=2,
+                                                                                   embedding_dimension=4, use_tqdm=False)
+            self.statisticslearning_validation_early_stop = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal,
+                                                                                           self.backend,
+                                                                                           n_samples=4, n_epochs=20,
+                                                                                           n_samples_val=20, early_stopping=True,
+                                                                                           use_tqdm=False)
+            self.statisticslearning_scale = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend,
+                                                                           n_samples=4, n_epochs=2, scale_samples=False,
+                                                                           scale_parameters=True, use_tqdm=False)
+            self.statisticslearning_bounds = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend,
+                                                                            n_samples=4, n_epochs=2,
+                                                                            lower_bound_simulations=np.array([-1000, -1000, -1000]),
+                                                                            upper_bound_simulations=np.array([1000, 1000, 1000]),
+                                                                            use_tqdm=False, seed=1)
+            self.statisticslearning_no_schedulers = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend,
+                                                                                   n_samples=4, n_epochs=2,
+                                                                                   scheduler_parameters=False,
+                                                                                   scheduler_simulations=False, use_tqdm=False)
+            self.statisticslearning_lam = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend,
+                                                                         n_samples=4, n_epochs=2, use_tqdm=False, sliced=False,
+                                                                         lam=0.1)
 
     def test_initialization(self):
         if not has_torch:
-            self.assertRaises(ImportError, ExpFamStatistics, [self.Y], self.statistics_cal, self.backend)
+            self.assertRaises(ImportError, ExponentialFamilyScoreMatching, [self.Y], self.statistics_cal, self.backend)
 
     def test_transformation(self):
         if has_torch:
@@ -366,77 +366,77 @@ class ExpFamStatisticsTests(unittest.TestCase):
     def test_errors(self):
         if has_torch:
             with self.assertRaises(RuntimeError):
-                self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           seed=1, parameters=np.ones((100, 1)))
+                self.statisticslearning = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                                         seed=1, parameters=np.ones((100, 1)))
             with self.assertRaises(RuntimeError):
-                self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           seed=1, simulations_net=createDefaultNN(1, 3))
+                self.statisticslearning = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                                         seed=1, simulations_net=createDefaultNN(1, 3))
             with self.assertRaises(RuntimeError):
-                self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           seed=1, parameters_net=createDefaultNN(1, 3))
+                self.statisticslearning = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                                         seed=1, parameters_net=createDefaultNN(1, 3))
             with self.assertRaises(RuntimeError):
-                self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           seed=1, noise_type="ciao", use_tqdm=False)
+                self.statisticslearning = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                                         seed=1, noise_type="ciao", use_tqdm=False)
             with self.assertRaises(RuntimeError):
-                self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           seed=1, noise_type="sphere", variance_reduction=True,
-                                                           use_tqdm=False)
+                self.statisticslearning = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                                         seed=1, noise_type="sphere", variance_reduction=True,
+                                                                         use_tqdm=False)
             with self.assertRaises(RuntimeError):
-                self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           seed=1, simulations=np.ones((100, 1)))
+                self.statisticslearning = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                                         seed=1, simulations=np.ones((100, 1)))
             with self.assertRaises(RuntimeError):
-                self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           seed=1,
-                                                           simulations=np.ones((100, 1, 3)))
+                self.statisticslearning = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                                         seed=1,
+                                                                         simulations=np.ones((100, 1, 3)))
             with self.assertRaises(RuntimeError):
-                self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           seed=1,
-                                                           parameters=np.ones((100, 1, 2)))
+                self.statisticslearning = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                                         seed=1,
+                                                                         parameters=np.ones((100, 1, 2)))
             with self.assertRaises(RuntimeError):
-                self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           seed=1, simulations=np.ones((100, 1)),
-                                                           parameters=np.zeros((99, 1)))
+                self.statisticslearning = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                                         seed=1, simulations=np.ones((100, 1)),
+                                                                         parameters=np.zeros((99, 1)))
             with self.assertRaises(RuntimeError):
-                self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           seed=1,
-                                                           parameters_val=np.ones((100, 1)))
+                self.statisticslearning = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                                         seed=1,
+                                                                         parameters_val=np.ones((100, 1)))
             with self.assertRaises(RuntimeError):
-                self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           seed=1,
-                                                           simulations_val=np.ones((100, 1)))
+                self.statisticslearning = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                                         seed=1,
+                                                                         simulations_val=np.ones((100, 1)))
             with self.assertRaises(RuntimeError):
-                self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           seed=1,
-                                                           simulations_val=np.ones((100, 1, 3)))
+                self.statisticslearning = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                                         seed=1,
+                                                                         simulations_val=np.ones((100, 1, 3)))
             with self.assertRaises(RuntimeError):
-                self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           seed=1,
-                                                           parameters_val=np.ones((100, 1, 2)))
+                self.statisticslearning = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                                         seed=1,
+                                                                         parameters_val=np.ones((100, 1, 2)))
             with self.assertRaises(RuntimeError):
-                self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           seed=1,
-                                                           simulations_val=np.ones((100, 1)),
-                                                           parameters_val=np.zeros((99, 1)))
+                self.statisticslearning = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                                         seed=1,
+                                                                         simulations_val=np.ones((100, 1)),
+                                                                         parameters_val=np.zeros((99, 1)))
             with self.assertRaises(TypeError):
-                self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           seed=1,
-                                                           parameters=[i for i in range(10)],
-                                                           simulations=[i for i in range(10)])
+                self.statisticslearning = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                                         seed=1,
+                                                                         parameters=[i for i in range(10)],
+                                                                         simulations=[i for i in range(10)])
             with self.assertRaises(TypeError):
-                self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           seed=1,
-                                                           parameters_val=[i for i in range(10)],
-                                                           simulations_val=[i for i in range(10)])
+                self.statisticslearning = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                                         seed=1,
+                                                                         parameters_val=[i for i in range(10)],
+                                                                         simulations_val=[i for i in range(10)])
             with self.assertRaises(RuntimeError):
-                self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           seed=1, lower_bound_simulations=[1, 2, 3])
+                self.statisticslearning = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                                         seed=1, lower_bound_simulations=[1, 2, 3])
             with self.assertRaises(RuntimeError):
-                self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           seed=1, upper_bound_simulations=[1, 2, 3])
+                self.statisticslearning = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                                         seed=1, upper_bound_simulations=[1, 2, 3])
             with self.assertRaises(RuntimeError):
-                self.statisticslearning = ExpFamStatistics([self.Y], self.statistics_cal, self.backend, n_samples=1000,
-                                                           lower_bound_simulations=np.array([-1000, -1000]), seed=1,
-                                                           upper_bound_simulations=np.array([1000, 1000, 1000]))
+                self.statisticslearning = ExponentialFamilyScoreMatching([self.Y], self.statistics_cal, self.backend, n_samples=1000,
+                                                                         lower_bound_simulations=np.array([-1000, -1000]), seed=1,
+                                                                         upper_bound_simulations=np.array([1000, 1000, 1000]))
 
             with self.assertRaises(RuntimeError):
                 self.statisticslearning_all_defaults.test_losses = [4, 2, 1]

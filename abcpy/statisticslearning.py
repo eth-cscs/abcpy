@@ -1003,7 +1003,7 @@ class ContrastiveDistanceLearning(StatisticsLearningNN):
                                                           loader_kwargs=loader_kwargs)
 
 
-class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
+class ExponentialFamilyScoreMatching(StatisticsLearningWithLosses, GraphTools):
     """This class implements the statistics learning technique using exponential family as described in Pacchiardi et
     al. 2020 [1]. Specifically, the idea is to fit an exponential family to a set of parameter-simulation pairs from
     the model, with two neural networks representing the summary statistics and the natural parameters of the
@@ -1309,9 +1309,9 @@ class ExpFamStatistics(StatisticsLearningWithLosses, GraphTools):
 
         # this handles generation of the data (or its formatting in case the data is provided to the Semiautomatic
         # class)
-        super(ExpFamStatistics, self).__init__(model, statistics_calc, backend, n_samples, n_samples_val,
-                                               1, parameters, simulations, seed=seed,
-                                               parameters_val=parameters_val, simulations_val=simulations_val)
+        super(ExponentialFamilyScoreMatching, self).__init__(model, statistics_calc, backend, n_samples, n_samples_val,
+                                                             1, parameters, simulations, seed=seed,
+                                                             parameters_val=parameters_val, simulations_val=simulations_val)
 
         # we have a validation set if it has the following attribute with size larger than 0
         self.has_val_set = hasattr(self, "sample_parameters_val") and len(self.sample_parameters_val) > 0
