@@ -65,7 +65,7 @@ def infer_parameters(steps=3, n_sample=250, n_samples_per_param=10, logging_leve
     # we use 200 samples as a validation set for early stopping:
     from abcpy.statisticslearning import SemiautomaticNN
     statistics_learning = SemiautomaticNN([height], statistics_calculator, backend,
-                                          n_samples=1000, n_samples_val=200,
+                                          n_samples=1000, n_samples_val=200, n_epochs=20, use_tqdm=False,
                                           n_samples_per_param=1, seed=1, early_stopping=True)
 
     # Redefine the statistics function

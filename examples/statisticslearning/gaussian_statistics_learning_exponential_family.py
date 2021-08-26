@@ -76,8 +76,9 @@ def infer_parameters(steps=2, n_sample=50, n_samples_per_param=1, logging_level=
         seed=1, n_epochs=10, batch_size=10,
         scale_samples=False,  # whether to rescale the samples to (0,1) before NN
         scale_parameters=True,  # whether to rescale the parameters to (0,1) before NN
-        embedding_dimension=3, # embedding dimension of both simulations and parameter networks (equal to # statistics)
-        sliced=True, # quicker version of score matching
+        embedding_dimension=3,  # embedding dimension of both simulations and parameter networks (equal to # statistics)
+        sliced=True,  # quicker version of score matching
+        use_tqdm=False  # do not use tqdm to display progress
     )
 
     # 3) save and re-load NNs:

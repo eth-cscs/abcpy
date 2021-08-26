@@ -71,13 +71,13 @@ def infer_parameters(steps=2, n_sample=50, n_samples_per_param=1, logging_level=
     semiNN = SemiautomaticNN([height], identity, backend=backend, parameters=parameters,
                              simulations=simulations, parameters_val=parameters_val, simulations_val=simulations_val,
                              early_stopping=True,  # early stopping
-                             seed=1, n_epochs=10, scale_samples=False)
+                             seed=1, n_epochs=10, scale_samples=False, use_tqdm=False)
     logging.info("triplet")
     triplet = TripletDistanceLearning([height], identity, backend=backend, parameters=parameters,
                                       simulations=simulations, parameters_val=parameters_val,
                                       simulations_val=simulations_val,
                                       early_stopping=True,  # early stopping
-                                      seed=1, n_epochs=10, scale_samples=True)
+                                      seed=1, n_epochs=10, scale_samples=True, use_tqdm=False)
 
     # 3) save and re-load NNs:
     # get the statistics from the already fit StatisticsLearning object 'semiNN':
