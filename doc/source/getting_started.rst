@@ -362,11 +362,18 @@ step. The following techniques are available:
 * SemiautomaticNN :py:class:`abcpy.statisticslearning.SemiautomaticNN`,
 * ContrastiveDistanceLearning :py:class:`abcpy.statisticslearning.ContrastiveDistanceLearning`,
 * TripletDistanceLearning :py:class:`abcpy.statisticslearning.TripletDistanceLearning`.
+* ExponentialFamilyScoreMatching :py:class:`abcpy.statisticslearning.ExponentialFamilyScoreMatching`.
 
 The first two build a transformation that approximates the parameter that generated the corresponding observation, the
-first one by using a linear regression approach and the second one by using a neural network embedding. The other two
+first one by using a linear regression approach and the second one by using a neural network embedding. The two distance
+learning approaches
 use instead neural networks to learn an embedding of the data so that the distance between the embeddings is close to
-the distance between the parameter values that generated the data.
+the distance between the parameter values that generated the data. Finally, the last one fits an exponential family
+approximation to the likelihood using the generated data, and uses as summary statistics the sufficient statistics of
+the approximating family. Two neural networks are used here in the training phase, one to learn the summary
+statistics and one to transform
+the parameters to the natural parametrization of the learned exponential family (but only the second neural network will
+be used when the statistics are used in inference).
 
 We remark that the techniques using neural networks require `Pytorch <https://pytorch.org/>`_ to be installed. As this is an optional feature,
 however, Pytorch is not in the list of dependencies of ABCpy. Rather, when one of the neural network based routines is
@@ -405,14 +412,15 @@ We remark that the minimal amount of coding needed for using the neural network 
     :lines: 64-72
     :dedent: 4
 
-And similarly for the other two approaches.
+And similarly for the other approaches.
 
-We remark how :py:class:`abcpy.statisticslearning.SemiautomaticNN` (as well as the other NN-based statistics learning approaches) allow to specify a neural network through the optional `embedding_net` parameter. According to the value given to it, different NNs are used:
+We remark how :py:class:`abcpy.statisticslearning.SemiautomaticNN` (as well as the other NN-based statistics learning approaches) allow to specify a neural network through the optional `embedding_net` parameter (in :py:class:`abcpy.statisticslearning.ExponentialFamilyScoreMatching`, you analogously have `simulations_net` and `parameters_net`). According to the value given to `embedding_net`, different NNs are used:
 
 * a torch.nn object can be passed to `embedding_net` to be used as the NN to learn summary statistics.
 * Alternatively, a list with some integer numbers denoting the width of the hidden layers of a fully connected NN can be specified (with the length of the list corresponding to the number of hidden layers). In this case, the input and output sizes are determined so that things work correctly: input size correspond to the data size after the provided `statistics_calculator` has been applied, while output size corresponds to the number of parameters in the model. The function taking care of instantiating the NN is :py:func:`abcpy.NN_utilities.networks.createDefaultNN`.
 * If `embedding_net` is not specified, the behavior is similar to the latter bullet point, but with the number of hidden sizes fixed to 3 and their width determined as: ``[int(input_size * 1.5), int(input_size * 0.75 + output_size * 3), int(output_size * 5)]``.
 
+The parameters `simulations_net` and `parameters_net` of :py:class:`abcpy.statisticslearning.ExponentialFamilyScoreMatching` have a similar behavior, with the former network still taking as input the data after `statistics_calculator` has been applied, while the latter taking as input the parameters; additionally, here the embedding size can be chosen arbitrarily through the argument `embedding_dimension`, for which the default value is the number of parameters in the model. You can find more information in the docstring for :py:class:`abcpy.statisticslearning.ExponentialFamilyScoreMatching`.
 
 We can then perform the inference as before, but the distances will be computed on the newly learned summary statistics.
 

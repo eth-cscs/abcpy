@@ -44,6 +44,7 @@ Additional **features** are:
 * several methods for summary selection:
   * [Semi-automatic summary selection (with Neural networks)](http://proceedings.mlr.press/v97/wiqvist19a/wiqvist19a.pdf)
   * [summary selection using distance learning (with Neural networks)](https://link.springer.com/article/10.1007/s13571-019-00208-8)
+  * [Sufficient statistics of exponential family approximating the likelihood (with Neural networks)](https://arxiv.org/abs/2012.10903)
 * [Random Forest Model Selection Scheme](https://academic.oup.com/bioinformatics/article/32/6/859/1744513)
 
 
