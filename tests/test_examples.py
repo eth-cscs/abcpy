@@ -104,6 +104,14 @@ class ExampleStatisticsLearningTest(unittest.TestCase):
             expected_result = 172.52136853079725
             self.assertAlmostEqual(test_result, expected_result)
 
+    def test_gaussian_statistics_learning_exponential_family(self):
+        if has_torch:
+            from examples.statisticslearning.gaussian_statistics_learning_exponential_family import infer_parameters
+            journal = infer_parameters(steps=1, n_sample=50)
+            test_result = journal.posterior_mean()["mu"]
+            expected_result = 172.52136853079725
+            self.assertAlmostEqual(test_result, expected_result)
+
 
 if __name__ == '__main__':
     unittest.main()

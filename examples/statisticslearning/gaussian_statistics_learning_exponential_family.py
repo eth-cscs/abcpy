@@ -66,49 +66,49 @@ def infer_parameters(steps=2, n_sample=50, n_samples_per_param=1, logging_level=
     from abcpy.statistics import Identity
     identity = Identity()  # to apply before computing the statistics
 
-    logging.info("semiNN")
-    from abcpy.statisticslearning import SemiautomaticNN, TripletDistanceLearning
-    semiNN = SemiautomaticNN([height], identity, backend=backend, parameters=parameters,
-                             simulations=simulations, parameters_val=parameters_val, simulations_val=simulations_val,
-                             early_stopping=True,  # early stopping
-                             seed=1, n_epochs=10, scale_samples=False, use_tqdm=False)
-    logging.info("triplet")
-    triplet = TripletDistanceLearning([height], identity, backend=backend, parameters=parameters,
-                                      simulations=simulations, parameters_val=parameters_val,
-                                      simulations_val=simulations_val,
-                                      early_stopping=True,  # early stopping
-                                      seed=1, n_epochs=10, scale_samples=True, use_tqdm=False)
+    logging.info("Exponential family statistics")
+    from abcpy.statisticslearning import ExponentialFamilyScoreMatching
+    exp_fam_stats = ExponentialFamilyScoreMatching(
+        [height], identity, backend=backend, parameters=parameters,
+        simulations=simulations, parameters_val=parameters_val,
+        simulations_val=simulations_val,
+        early_stopping=True,  # early stopping
+        seed=1, n_epochs=10, batch_size=10,
+        scale_samples=False,  # whether to rescale the samples to (0,1) before NN
+        scale_parameters=True,  # whether to rescale the parameters to (0,1) before NN
+        embedding_dimension=3,  # embedding dimension of both simulations and parameter networks (equal to # statistics)
+        sliced=True,  # quicker version of score matching
+        use_tqdm=False  # do not use tqdm to display progress
+    )
 
     # 3) save and re-load NNs:
-    # get the statistics from the already fit StatisticsLearning object 'semiNN':
-    learned_seminn_stat = semiNN.get_statistics()
-    learned_triplet_stat = triplet.get_statistics()
+    # get the statistics from the already fit StatisticsLearning object 'exp_fam_stats'; if rescale_statistics=True,
+    # the training (or validation, if available) set is used to compute the standard deviation of the different
+    # statistics, and the statistics on each new observation/simulation are then rescaled by that. This is useful as the
+    # summary statistics obtained with this method can vary much in magnitude.
+    learned_stat = exp_fam_stats.get_statistics(rescale_statistics=True)
 
     # this has a save net method:
-    learned_seminn_stat.save_net("seminn_net.pth")
-    # if you used `scale_samples=True` in learning the NNs, need to provide a path where pickle stores the scaler too:
-    learned_triplet_stat.save_net("triplet_net.pth", path_to_scaler="scaler.pkl")
+    # if you used `scale_samples=True` in learning the NNs (or if the simulations were bounded, which is not the case
+    # here), you need to provide a path where pickle stores the scaler too:
+    learned_stat.save_net("exp_fam_stats.pth", path_to_scaler="scaler.pkl")
 
     # to reload: need to use the Neural Embedding statistics fromFile; this needs to know which kind of NN it is using;
     # need therefore to pass either the input/output size (it data size and number parameters) or the network class if
     # that was specified explicitly in the StatisticsLearning class. Check the docstring for NeuralEmbedding.fromFile
     # for more details.
+    # Output size has to be here the embedding_dimension used in learning the summaries plus 1. The last component is
+    # a base measure which is automatically discarded when the summary statistics are used.
+    # Additionally, if you want to rescale the statistics by their standard deviation as discussed above, you need here
+    # to explicitly provide the set used for estimating the standard deviation in the argument `reference_simulations`
     from abcpy.statistics import NeuralEmbedding
-    learned_seminn_stat_loaded = NeuralEmbedding.fromFile("seminn_net.pth", input_size=1, output_size=2)
-    learned_triplet_stat_loaded = NeuralEmbedding.fromFile("triplet_net.pth", input_size=1, output_size=2,
-                                                           path_to_scaler="scaler.pkl")
+    learned_stat_loaded = NeuralEmbedding.fromFile("exp_fam_stats.pth", input_size=1, output_size=4,
+                                                   reference_simulations=simulations_val)
 
-    # 4) you can optionally rescale the different summary statistics be their standard deviation on a reference dataset
-    # of simulations. To do this, it is enough to pass at initialization the reference dataset, and the rescaling will
-    # be applied every time the statistics is computed on some simulation or observation.
-    learned_triplet_stat_loaded = NeuralEmbedding.fromFile("triplet_net.pth", input_size=1, output_size=2,
-                                                           path_to_scaler="scaler.pkl",
-                                                           reference_simulations=simulations_val)
-
-    # 5) perform inference
+    # 4) perform inference
     # define distance
     from abcpy.distances import Euclidean
-    distance_calculator = Euclidean(learned_seminn_stat_loaded)
+    distance_calculator = Euclidean(learned_stat_loaded)
 
     # define kernel
     from abcpy.perturbationkernel import DefaultKernel
