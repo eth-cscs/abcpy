@@ -7,12 +7,105 @@ from abcpy.backends import BackendDummy
 from abcpy.continuousmodels import Normal
 from abcpy.continuousmodels import Uniform
 from abcpy.distances import Euclidean, MMD
-from abcpy.inferences import RejectionABC, PMC, PMCABC, SABC, ABCsubsim, SMCABC, APMCABC, RSMCABC, \
+from abcpy.inferences import DrawFromPrior, RejectionABC, PMC, PMCABC, SABC, ABCsubsim, SMCABC, APMCABC, RSMCABC, \
     MCMCMetropoliHastings
 from abcpy.statistics import Identity
 
 
-class RejectionABCTest(unittest.TestCase):
+class DrawFromPriorTests(unittest.TestCase):
+    def setUp(self):
+        # setup backend
+        dummy = BackendDummy()
+
+        # define a uniform prior distribution
+        mu = Uniform([[-5.0], [5.0]], name='mu')
+        sigma = Uniform([[0.0], [10.0]], name='sigma')
+        # define a Gaussian model
+        self.model = Normal([mu, sigma])
+
+        # for correct seeding define 4 samplers (and discard large values in 3nd and 4rd to test if that works)
+        self.sampler = DrawFromPrior([self.model], dummy, seed=1)
+        self.sampler2 = DrawFromPrior([self.model], dummy, seed=1, max_chunk_size=2)
+        self.sampler3 = DrawFromPrior([self.model], dummy, seed=1, discard_too_large_values=True)
+        self.sampler4 = DrawFromPrior([self.model], dummy, seed=1, discard_too_large_values=True, max_chunk_size=2 )
+
+        # expected mean values from 100 prior samples:
+        self.mu_mean = -0.24621316447913139
+        self.sigma_mean = 5.182264389159227
+
+    def test_sample(self):
+        # test drawing parameter values from the prior in a similar fashion to the other InferenceMethdod's
+        journal = self.sampler.sample(100, path_to_save_journal="tmp.jnl")
+        mu_sample = np.array(journal.get_parameters()['mu'])
+        sigma_sample = np.array(journal.get_parameters()['sigma'])
+
+        accepted_parameters = journal.get_accepted_parameters()
+        self.assertEqual(len(accepted_parameters), 100)
+        self.assertEqual(len(accepted_parameters[0]), 2)
+
+        # test shape of samples
+        mu_shape, sigma_shape = (len(mu_sample), mu_sample[0].shape[1]), \
+                                (len(sigma_sample), sigma_sample[0].shape[1])
+        self.assertEqual(mu_shape, (100, 1))
+        self.assertEqual(sigma_shape, (100, 1))
+
+        # Compute posterior mean
+        self.assertAlmostEqual(np.average(mu_sample), self.mu_mean)
+        self.assertAlmostEqual(np.average(sigma_sample), self.sigma_mean)
+
+        self.assertTrue(journal.number_of_simulations[0] == 0)
+
+        # test now it gives same results with max_chunk_size=2
+        journal2 = self.sampler2.sample(100)
+        mu_sample = np.array(journal2.get_parameters()['mu'])
+        sigma_sample = np.array(journal2.get_parameters()['sigma'])
+
+        accepted_parameters = journal2.get_accepted_parameters()
+        self.assertEqual(len(accepted_parameters), 100)
+        self.assertEqual(len(accepted_parameters[0]), 2)
+
+        # test shape of samples
+        mu_shape, sigma_shape = (len(mu_sample), mu_sample[0].shape[1]), \
+                                (len(sigma_sample), sigma_sample[0].shape[1])
+        self.assertEqual(mu_shape, (100, 1))
+        self.assertEqual(sigma_shape, (100, 1))
+
+        # Compute posterior mean
+        self.assertAlmostEqual(np.average(mu_sample), self.mu_mean)
+        self.assertAlmostEqual(np.average(sigma_sample), self.sigma_mean)
+
+        self.assertTrue(journal2.number_of_simulations[0] == 0)
+
+    def test_param_simulation_pairs(self):
+        # sample single simulation for each par value
+        parameters, simulations = self.sampler.sample_par_sim_pairs(10, 1)
+        self.assertEqual(parameters.shape, (10, 2))
+        self.assertEqual(simulations.shape, (10, 1, 1))
+
+        # sample multiple simulations for each par value
+        parameters, simulations = self.sampler.sample_par_sim_pairs(10, 3)
+        self.assertEqual(parameters.shape, (10, 2))
+        self.assertEqual(simulations.shape, (10, 3, 1))
+
+        # now run with the new sampler to check if the means are the same as with `.sample` method:
+        parameters, simulations = self.sampler3.sample_par_sim_pairs(100, 1)
+        means = np.mean(parameters, axis=0)
+        self.assertAlmostEqual(means[0], self.mu_mean)
+        self.assertAlmostEqual(means[1], self.sigma_mean)
+
+        # check also if that gives same results by splitting in chunks:
+        parameters, simulations = self.sampler4.sample_par_sim_pairs(100, 1)
+        means = np.mean(parameters, axis=0)
+        self.assertAlmostEqual(means[0], self.mu_mean)
+        self.assertAlmostEqual(means[1], self.sigma_mean)
+
+        # check sizes with smaller max_chunk_size
+        parameters, simulations = self.sampler4.sample_par_sim_pairs(10, 3)
+        self.assertEqual(parameters.shape, (10, 2))
+        self.assertEqual(simulations.shape, (10, 3, 1))
+
+
+class RejectionABCTests(unittest.TestCase):
     def setUp(self):
         # setup backend
         dummy = BackendDummy()
@@ -49,7 +142,6 @@ class RejectionABCTest(unittest.TestCase):
         self.assertEqual(sigma_shape, (10, 1))
 
         # Compute posterior mean
-        # self.assertAlmostEqual(np.average(np.asarray(samples[:,0])),1.22301,10e-2)
         self.assertAlmostEqual(np.average(mu_sample), 1.223012836345375)
         self.assertAlmostEqual(np.average(sigma_sample), 6.992218962395242)
 
@@ -68,7 +160,6 @@ class RejectionABCTest(unittest.TestCase):
         self.assertEqual(sigma_shape, (3, 1))
 
         # Compute posterior mean
-        # self.assertAlmostEqual(np.average(np.asarray(samples[:,0])),1.22301,10e-2)
         self.assertAlmostEqual(np.average(mu_sample), 0.8175361535037666)
         self.assertAlmostEqual(np.average(sigma_sample), 8.155647092489977)
 
@@ -86,7 +177,6 @@ class RejectionABCTest(unittest.TestCase):
         self.assertEqual(sigma_shape, (10, 1))
 
         # Compute posterior mean
-        # self.assertAlmostEqual(np.average(np.asarray(samples[:,0])),1.22301,10e-2)
         self.assertAlmostEqual(np.average(mu_sample), 0.10394992719538543)
         self.assertAlmostEqual(np.average(sigma_sample), 6.746940834914168)
 
@@ -219,6 +309,33 @@ class MCMCMetropoliHastingsTests(unittest.TestCase):
         self.assertAlmostEqual(mu_post_mean_2, -0.6946660151693353)
         self.assertAlmostEqual(sigma_post_mean_1, 5.751158868437219)
         self.assertAlmostEqual(sigma_post_mean_2, 8.103358539327967)
+
+    def test_sample_with_inipoint(self):
+        # we check whether we can compute the posterior covariance, which means the right reshaping of inipoint is used.
+
+        n_sample, n_samples_per_param = 50, 20
+
+        sampler = MCMCMetropoliHastings([self.model], [self.likfun], self.backend, seed=1)
+        journal1 = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None,
+                                  iniPoint=np.array([-0.8, 7]), burnin=10, adapt_proposal_cov_interval=5,
+                                  use_tqdm=False, path_to_save_journal="tmp.jnl")
+
+        journal2 = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None,
+                                  iniPoint=np.array([np.array([-0.8]), np.array([7])]), burnin=10,
+                                  adapt_proposal_cov_interval=5, use_tqdm=False, path_to_save_journal="tmp.jnl")
+
+        journal3 = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None,
+                                  iniPoint=[-0.8, 7], burnin=10, adapt_proposal_cov_interval=5, use_tqdm=False,
+                                  path_to_save_journal="tmp.jnl")
+
+        journal4 = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None,
+                                  iniPoint=[np.array([-0.8]), np.array([7])], burnin=10, adapt_proposal_cov_interval=5,
+                                  use_tqdm=False, path_to_save_journal="tmp.jnl")
+
+        cov1 = journal1.posterior_cov()
+        cov2 = journal2.posterior_cov()
+        cov3 = journal3.posterior_cov()
+        cov4 = journal3.posterior_cov()
 
     def test_sample_with_transformer(self):
         n_sample, n_samples_per_param = 50, 20
@@ -801,6 +918,17 @@ class SMCABCTests(unittest.TestCase):
             self.assertEqual(journal_final_1.configuration["epsilon_arr"], journal_final_2.configuration["epsilon_arr"])
             self.assertEqual(journal_final_1.posterior_mean()['mu'], journal_final_2.posterior_mean()['mu'])
 
+        # test now that restarting fails if I do not store simulations in the Journal at the first .sample call
+        sampler = SMCABC([self.model], [self.dist_calc], self.backend, seed=1)
+        journal_intermediate = sampler.sample([self.observation], 2, n_sample, n_simulate,
+                                              which_mcmc_kernel=which_mcmc_kernel,
+                                              store_simulations_in_journal=False)
+        journal_intermediate.save("tmp.jnl")
+        with self.assertRaises(RuntimeError):
+            journal_final_1 = sampler.sample([self.observation], 1, n_sample, n_simulate,
+                                         which_mcmc_kernel=which_mcmc_kernel,
+                                         journal_file="tmp.jnl")
+
     def test_restart_from_journal_bernton(self):
         n_sample, n_simulate = 10, 10
         # loop over standard MCMC kernel, r-hit kernel version 1 and r-hit kernel version 2
@@ -820,6 +948,17 @@ class SMCABCTests(unittest.TestCase):
                                              which_mcmc_kernel=which_mcmc_kernel)
             self.assertEqual(journal_final_1.configuration["epsilon_arr"], journal_final_2.configuration["epsilon_arr"])
             self.assertEqual(journal_final_1.posterior_mean()['mu'], journal_final_2.posterior_mean()['mu'])
+
+        # test now that restarting fails if I do not store simulations in the Journal at the first .sample call
+        sampler = SMCABC([self.model], [self.dist_calc_2], self.backend, seed=1, version="Bernton")
+        journal_intermediate = sampler.sample([self.observation_2], 1, n_sample, n_simulate,
+                                              which_mcmc_kernel=which_mcmc_kernel,
+                                              store_simulations_in_journal=False)
+        journal_intermediate.save("tmp.jnl")
+        with self.assertRaises(RuntimeError):
+            journal_final_1 = sampler.sample([self.observation_2], 1, n_sample, n_simulate,
+                                         which_mcmc_kernel=which_mcmc_kernel,
+                                         journal_file="tmp.jnl")
 
     def test_errors(self):
         with self.assertRaises(RuntimeError):

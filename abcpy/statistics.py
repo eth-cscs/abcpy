@@ -10,7 +10,7 @@ except ImportError:
 else:
     has_torch = True
     from abcpy.NN_utilities.utilities import load_net, save_net
-    from abcpy.NN_utilities.networks import createDefaultNN, ScalerAndNet
+    from abcpy.NN_utilities.networks import createDefaultNN, ScalerAndNet, DiscardLastOutputNet
 
 
 class Statistics(metaclass=ABCMeta):
@@ -19,18 +19,26 @@ class Statistics(metaclass=ABCMeta):
     The base class also implements a polynomial expansion with cross-product
     terms that can be used to get desired polynomial expansion of the calculated statistics.
 
-
     """
 
-    @abstractmethod
-    def __init__(self, degree=1, cross=False, previous_statistics=None):
-        """Constructor that must be overwritten by the sub-class.
+    def __init__(self, degree=1, cross=False, reference_simulations=None, previous_statistics=None):
+        """
+        Initialization of the parent class. All sub-classes must call this at the end of their __init__,
+         as it takes care of initializing the correct attributes to self for the other methods to work.
 
-        The constructor of a sub-class must accept arguments for the polynomial
-        expansion after extraction of the summary statistics, one has to define
-        the degree of polynomial expansion and cross, indicating whether cross-prodcut
-        terms are included.
+        `degree` and `cross` specify the polynomial expansion you want to apply to the statistics.
 
+        If `reference_simulations` are provided, the standard deviation of the different statistics on the set 
+        of reference simulations is computed and stored; these will then be used to rescale
+        the statistics for each new simulation or observation. 
+        If no set of reference simulations are provided, then this is not done.
+        
+        `previous_statistics` allows different Statistics object to be pipelined. Specifically, if the final 
+        statistic to be used is determined by the
+        composition of two Statistics, you can pass the first here; then, whenever the final statistic is needed, it
+        is sufficient to call the `statistics` method of the second one, and that will automatically apply both
+        transformations.  
+        
         Parameters
         ----------
         degree: integer, optional
@@ -38,20 +46,51 @@ class Statistics(metaclass=ABCMeta):
         cross: boolean, optional
             Defines whether to include the cross-product terms. The default value is True, meaning the cross product term
             is included.
-        previous_statistics: Statistics class, optional
+        reference_simulations: array, optional
+            A numpy array with shape (n_samples, output_size) containing a set of reference simulations. If provided, 
+            statistics are computed at initialization for all reference simulations, and the standard deviation of the 
+            different statistics is extracted. The standard deviation is then used to standardize the summary 
+            statistics each time they are compute on a new observation or simulation. Defaults to None, in which case 
+            standardization is not applied.
+        previous_statistics: abcpy.statistics.Statistics, optional
             It allows pipelining of Statistics. Specifically, if the final statistic to be used is determined by the
             composition of two Statistics, you can pass the first here; then, whenever the final statistic is needed, it
             is sufficient to call the `statistics` method of the second one, and that will automatically apply both
             transformations.
         """
 
-        raise NotImplementedError
+        self.degree = degree
+        self.cross = cross
+        self.previous_statistics = previous_statistics
+        if reference_simulations is not None:
+            training_statistics = self.statistics(
+                [reference_simulations[i] for i in range(reference_simulations.shape[0])])
+            self.std_statistics = np.std(training_statistics, axis=0)
+            # we store this and use it to rescale the statistics
 
     @abstractmethod
     def statistics(self, data: object) -> object:
         """To be overwritten by any sub-class: should extract statistics from the
         data set data. It is assumed that data is a  list of n same type
         elements(eg., The data can be a list containing n timeseries, n graphs or n np.ndarray).
+
+        All statistics implementation should follow this structure:
+
+        >>> # need to call this first which takes care of calling the
+        >>> # previous statistics if that is defined and of properly
+        >>> # formatting data
+        >>> data = self._preprocess(data)
+        >>>
+        >>> # !!! here do all the processing on the statistics (data) !!!
+        >>>
+        >>> # Expand the data with polynomial expansion
+        >>> result = self._polynomial_expansion(data)
+        >>>
+        >>> # now call the _rescale function which automatically rescales
+        >>> # the different statistics using the standard
+        >>> # deviation of them on the training set provided at initialization.
+        >>> result = self._rescale(result)
+
 
         Parameters
         ----------
@@ -68,7 +107,9 @@ class Statistics(metaclass=ABCMeta):
 
     def _polynomial_expansion(self, summary_statistics):
         """Helper function that does the polynomial expansion and includes cross-product
-        terms of summary_statistics, already calculated summary statistics.
+        terms of summary_statistics, already calculated summary statistics. It is tipically called in the `statistics`
+        method of a `Statistics` class, after the statistics have been computed from data but before the statistics
+        are (optionally) rescaled.
 
         Parameters
         ----------
@@ -93,15 +134,78 @@ class Statistics(metaclass=ABCMeta):
             result = np.column_stack((result, np.power(summary_statistics, ind)))
 
         # Include the cross-product term
-        if self.cross == True and summary_statistics.shape[1] > 1:
+        if self.cross and summary_statistics.shape[1] > 1:
             # Convert to a matrix
             for ind1 in range(0, summary_statistics.shape[1]):
                 for ind2 in range(ind1 + 1, summary_statistics.shape[1]):
                     result = np.column_stack((result, summary_statistics[:, ind1] * summary_statistics[:, ind2]))
         return result
 
-    def _check_and_transform_input(self, data):
+    def _rescale(self, result):
+        """Rescales the final summary statistics using the standard deviations computed at initialization on the set of
+        reference simulations. If that was not done, no rescaling is done.
+
+        Parameters
+        ----------
+        result: numpy.ndarray
+            Final summary statistics (after polynomial expansion)
+
+        Returns
+        -------
+        numpy.ndarray
+            Rescaled summary statistics, with the same shape as the input.
         """
+        if hasattr(self, "std_statistics"):
+            if result.shape[-1] != self.std_statistics.shape[-1]:
+                raise RuntimeError("The size of the statistics is not the same as the stored standard deviations for "
+                                   "rescaling! Please check that you initialized the statistics with the correct set "
+                                   "of reference samples.")
+
+            result = result / self.std_statistics
+
+        return result
+
+    def _preprocess(self, data):
+        """Utility which needs to be called at the beginning of the `statistics` method for all `Statistics` classes.
+        It takes care of calling the `previous_statistics` if that is available (pipelining)
+        and of correctly formatting the data.
+
+        Parameters
+        ----------
+        data: python list
+            Contains n data sets with length p.
+
+        Returns
+        -------
+        numpy.ndarray
+            Formatted statistics after pipelining.
+        """
+
+        # pipeline: first call the previous statistics:
+        if self.previous_statistics is not None:
+            data = self.previous_statistics.statistics(data)
+        # the first of the statistics need to take list as input, in order to match the API. Then actually the
+        # transformations work on np.arrays. In fact the first statistic transforms the list to array. Therefore, the
+        # following code needs to be called only if the self statistic is the first, i.e. it does not have a
+        # previous_statistic element.
+        else:
+            data = self._check_and_transform_input(data)
+
+        return data
+
+    def _check_and_transform_input(self, data):
+        """ Formats the input in the correct way for computing summary statistics; specifically takes as input a
+        list and returns a numpy.ndarray.
+
+        Parameters
+        ----------
+        data: python list
+            Contains n data sets with length p.
+
+        Returns
+        -------
+        numpy.ndarray
+            Formatted statistics after pipelining.
         """
         if isinstance(data, list):
             if np.array(data).shape == (len(data),):
@@ -124,26 +228,6 @@ class Identity(Statistics):
     expansion term and cross*nchoosek(p,2) many cross-product terms are calculated.
     """
 
-    def __init__(self, degree=1, cross=False, previous_statistics=None):
-        """
-
-        Parameters
-        ----------
-        degree : integer, optional
-            Of polynomial expansion. The default value is 2 meaning second order polynomial expansion.
-        cross : boolean, optional
-            Defines whether to include the cross-product terms. The default value is True, meaning the cross product term
-            is included.
-        previous_statistics : Statistics class, optional
-            It allows pipelining of Statistics. Specifically, if the final statistic to be used is determined by the
-            composition of two Statistics, you can pass the first here; then, whenever the final statistic is needed, it
-            is sufficient to call the `statistics` method of the second one, and that will automatically apply both
-            transformations.
-        """
-        self.degree = degree
-        self.cross = cross
-        self.previous_statistics = previous_statistics
-
     def statistics(self, data):
         """
         Parameters
@@ -157,18 +241,16 @@ class Identity(Statistics):
             (p+degree*p+cross*nchoosek(p,2)) statistics are calculated.
         """
 
-        # pipeline: first call the previous statistics:
-        if self.previous_statistics is not None:
-            data = self.previous_statistics.statistics(data)
-        # the first of the statistics need to take list as input, in order to match the API. Then actually the
-        # transformations work on np.arrays. In fact the first statistic transforms the list to array. Therefore, the
-        # following code needs to be called only if the self statistic is the first, i.e. it does not have a
-        # previous_statistic element.
-        else:
-            data = self._check_and_transform_input(data)
+        # need to call this first which takes care of calling the previous statistics if that is defined and of properly
+        # formatting data
+        data = self._preprocess(data)
 
         # Expand the data with polynomial expansion
         result = self._polynomial_expansion(data)
+
+        # now call the _rescale function which automatically rescales the different statistics using the standard
+        # deviation of them on the training set provided at initialization.
+        result = self._rescale(result)
 
         return result
 
@@ -178,8 +260,21 @@ class LinearTransformation(Statistics):
     an additional polynomial expansion step.
     """
 
-    def __init__(self, coefficients, degree=1, cross=False, previous_statistics=None):
+    def __init__(self, coefficients, degree=1, cross=False, reference_simulations=None, previous_statistics=None):
         """
+        `degree` and `cross` specify the polynomial expansion you want to apply to the statistics.
+
+        If `reference_simulations` are provided, the standard deviation of the different statistics on the set 
+        of reference simulations is computed and stored; these will then be used to rescale
+        the statistics for each new simulation or observation. 
+        If no set of reference simulations are provided, then this is not done.
+
+        `previous_statistics` allows different Statistics object to be pipelined. Specifically, if the final 
+        statistic to be used is determined by the
+        composition of two Statistics, you can pass the first here; then, whenever the final statistic is needed, it
+        is sufficient to call the `statistics` method of the second one, and that will automatically apply both
+        transformations.  
+
         Parameters
         ----------
         coefficients: coefficients is a matrix with size d x p, where d is the dimension of the summary statistic that
@@ -190,16 +285,21 @@ class LinearTransformation(Statistics):
         cross : boolean, optional
             Defines whether to include the cross-product terms. The default value is True, meaning the cross product term
             is included.
-        previous_statistics : Statistics class, optional
+        reference_simulations: array, optional
+            A numpy array with shape (n_samples, output_size) containing a set of reference simulations. If provided, 
+            statistics are computed at initialization for all reference simulations, and the standard deviation of the 
+            different statistics is extracted. The standard deviation is then used to standardize the summary 
+            statistics each time they are compute on a new observation or simulation. Defaults to None, in which case 
+            standardization is not applied.
+        previous_statistics : abcpy.statistics.Statistics, optional
             It allows pipelining of Statistics. Specifically, if the final statistic to be used is determined by the
             composition of two Statistics, you can pass the first here; then, whenever the final statistic is needed, it
             is sufficient to call the `statistics` method of the second one, and that will automatically apply both
             transformations.
         """
         self.coefficients = coefficients
-        self.degree = degree
-        self.cross = cross
-        self.previous_statistics = previous_statistics
+
+        super(LinearTransformation, self).__init__(degree, cross, reference_simulations, previous_statistics)
 
     def statistics(self, data):
         """
@@ -215,23 +315,21 @@ class LinearTransformation(Statistics):
             calculated.
         """
 
-        # pipeline: first call the previous statistics:
-        if self.previous_statistics is not None:
-            data = self.previous_statistics.statistics(data)
-        # the first of the statistics need to take list as input, in order to match the API. Then actually the
-        # transformations work on np.arrays. In fact the first statistic transforms the list to array. Therefore, the
-        # following code needs to be called only if the self statistic is the first, i.e. it does not have a
-        # previous_statistic element.
-        else:
-            data = self._check_and_transform_input(data)
+        # need to call this first which takes care of calling the previous statistics if that is defined and of properly
+        # formatting data
+        data = self._preprocess(data)
 
         # Apply now the linear transformation
         if not data.shape[1] == self.coefficients.shape[0]:
             raise ValueError('Mismatch in dimension of summary statistics and coefficients')
-        result = np.dot(data, self.coefficients)
+        data = np.dot(data, self.coefficients)
 
         # Expand the data with polynomial expansion
-        result = self._polynomial_expansion(result)
+        result = self._polynomial_expansion(data)
+
+        # now call the _rescale function which automatically rescales the different statistics using the standard
+        # deviation of them on the training set provided at initialization.
+        result = self._rescale(result)
 
         return result
 
@@ -244,14 +342,39 @@ class NeuralEmbedding(Statistics):
     Pytorch is required for this part to work.   
     """
 
-    def __init__(self, net, previous_statistics=None):  # are these default values OK?
+    def __init__(self, net, degree=1, cross=False, reference_simulations=None, previous_statistics=None):
+
         """
+        `degree` and `cross` specify the polynomial expansion you want to apply to the statistics.
+
+        If `reference_simulations` are provided, the standard deviation of the different statistics on the set
+        of reference simulations is computed and stored; these will then be used to rescale
+        the statistics for each new simulation or observation. 
+        If no set of reference simulations are provided, then this is not done.
+
+        `previous_statistics` allows different Statistics object to be pipelined. Specifically, if the final 
+        statistic to be used is determined by the
+        composition of two Statistics, you can pass the first here; then, whenever the final statistic is needed, it
+        is sufficient to call the `statistics` method of the second one, and that will automatically apply both
+        transformations.
+
         Parameters
         ----------
         net : torch.nn object
             the embedding neural network. The input size of the neural network must coincide with the size of each of
             the datapoints.
-        previous_statistics : Statistics class, optional
+        degree: integer, optional
+            Of polynomial expansion. The default value is 2 meaning second order polynomial expansion.
+        cross: boolean, optional
+            Defines whether to include the cross-product terms. The default value is True, meaning the cross product term
+            is included.
+        reference_simulations: array, optional
+            A numpy array with shape (n_samples, output_size) containing a set of reference simulations. If provided, 
+            statistics are computed at initialization for all reference simulations, and the standard deviation of the 
+            different statistics is extracted. The standard deviation is then used to standardize the summary 
+            statistics each time they are compute on a new observation or simulation. Defaults to None, in which case 
+            standardization is not applied.
+        previous_statistics: abcpy.statistics.Statistics, optional
             It allows pipelining of Statistics. Specifically, if the final statistic to be used is determined by the
             composition of two Statistics, you can pass the first here; then, whenever the final statistic is needed, it
             is sufficient to call the `statistics` method of the second one, and that will automatically apply both
@@ -263,11 +386,14 @@ class NeuralEmbedding(Statistics):
                 "neural networks. Please install it. ".format(self.__class__.__name__))
 
         self.net = net
-        self.previous_statistics = previous_statistics
+
+        # init of super class
+        super(NeuralEmbedding, self).__init__(degree, cross, reference_simulations, previous_statistics)
 
     @classmethod
     def fromFile(cls, path_to_net_state_dict, network_class=None, path_to_scaler=None, input_size=None,
-                 output_size=None, hidden_sizes=None, previous_statistics=None):
+                 output_size=None, hidden_sizes=None, degree=1, cross=False, reference_simulations=None,
+                 previous_statistics=None):
         """If the neural network state_dict was saved to the disk, this method can be used to instantiate a
         NeuralEmbedding object with that neural network.
 
@@ -311,7 +437,18 @@ class NeuralEmbedding(Statistics):
             [5,7,5] denotes 3 hidden layers with correspondingly 5,7,5 neurons). In case this parameter is not provided,
             the hidden sizes are determined from the input and output sizes as determined in
             abcpy.NN_utilities.networks.DefaultNN. Note that this must not be provided together with `network_class`.
-        previous_statistics : Statistics class, optional
+        degree: integer, optional
+            Of polynomial expansion. The default value is 2 meaning second order polynomial expansion.
+        cross: boolean, optional
+            Defines whether to include the cross-product terms. The default value is True, meaning the cross product term
+            is included.
+        reference_simulations: array, optional
+            A numpy array with shape (n_samples, output_size) containing a set of reference simulations. If provided,
+            statistics are computed at initialization for all reference simulations, and the standard deviation of the
+            different statistics is extracted. The standard deviation is then used to standardize the summary
+            statistics each time they are compute on a new observation or simulation. Defaults to None, in which case
+            standardization is not applied.
+        previous_statistics : abcpy.statistics.Statistics, optional
             It allows pipelining of Statistics. Specifically, if the final statistic to be used is determined by the
             composition of two Statistics, you can pass the first here; then, whenever the final statistic is needed, it
             is sufficient to call the `statistics` method of the second one, and that will automatically apply both
@@ -335,11 +472,17 @@ class NeuralEmbedding(Statistics):
             raise RuntimeError("You passed hidden_sizes as an argument, but that may be passed only if you are passing "
                                "input_size and input_size as well, and you are not passing network_class.")
 
-        if network_class is not None:  # user explicitly passed the NN class
+        if network_class is None:
+            network_class = createDefaultNN(input_size=input_size, output_size=output_size,
+                                            hidden_sizes=hidden_sizes)
+
+        # the stored state_dict could be either a simple network or a network wrapped with DiscardLastOutput (in case
+        # the statistics was learned with the Exponential Family method); while instead the network class refers only to
+        # the actual net. Therefore need to try and load in both ways
+        try:
             net = load_net(path_to_net_state_dict, network_class)
-        else:  # the user passed the input_size, output_size and (maybe) the hidden_sizes
-            net = load_net(path_to_net_state_dict, createDefaultNN(input_size=input_size, output_size=output_size,
-                                                                   hidden_sizes=hidden_sizes))
+        except RuntimeError:
+            net = load_net(path_to_net_state_dict, DiscardLastOutputNet, network_class())
 
         if path_to_scaler is not None:
             f = open(path_to_scaler, 'rb')
@@ -347,7 +490,8 @@ class NeuralEmbedding(Statistics):
             f.close()
             net = ScalerAndNet(net, scaler)
 
-        statistic_object = cls(net, previous_statistics=previous_statistics)
+        statistic_object = cls(net, degree=degree, cross=cross, reference_simulations=reference_simulations,
+                               previous_statistics=previous_statistics)
 
         return statistic_object
 
@@ -384,21 +528,16 @@ class NeuralEmbedding(Statistics):
         ----------
         data: python list
             Contains n data sets with length p.
+
         Returns
         -------
         numpy.ndarray
             the statistics computed by applying the neural network.
         """
 
-        # pipeline: first call the previous statistics:
-        if self.previous_statistics is not None:
-            data = self.previous_statistics.statistics(data)
-        # the first of the statistics need to take list as input, in order to match the API. Then actually the
-        # transformations work on np.arrays. In fact the first statistic transforms the list to array. Therefore, the
-        # following code needs to be called only if the self statistic is the first, i.e. it does not have a
-        # previous_statistic element.
-        else:
-            data = self._check_and_transform_input(data)
+        # need to call this first which takes care of calling the previous statistics if that is defined and of properly
+        # formatting data
+        data = self._preprocess(data)
 
         data = torch.from_numpy(data.astype("float32"))
 
@@ -407,6 +546,18 @@ class NeuralEmbedding(Statistics):
             data = data.cuda()
 
         # simply apply the network transformation.
-        result = self.net(data).cpu().detach().numpy()
+        try:
+            data = self.net(data).cpu().detach().numpy()
+        except (IndexError, RuntimeError, ValueError) as e:
+            raise RuntimeError("There was an error in passing the data through the network, likely due to the data not "
+                               "being of the right size.")
+        data = np.array(data)
 
-        return np.array(result)
+        # Expand the data with polynomial expansion
+        result = self._polynomial_expansion(data)
+
+        # now call the _rescale function which automatically rescales the different statistics using the standard
+        # deviation of them on the training set provided at initialization.
+        result = self._rescale(result)
+
+        return result

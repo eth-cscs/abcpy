@@ -1,3 +1,4 @@
+import copy
 import pickle
 import warnings
 
@@ -5,6 +6,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import gaussian_kde
 
+from abcpy.acceptedparametersmanager import AcceptedParametersManager
+from abcpy.graphtools import GraphTools
 from abcpy.utils import wass_dist
 
 
@@ -15,15 +18,24 @@ class Journal:
 
     Attributes
     ----------
-    parameters : numpy.array
-        a nxpxt matrix
-    weights : numpy.array
-        a nxt matrix
-    opt_value : numpy.array
-        nxp matrix containing for each parameter the evaluated objective function for every time step
+    accepted_parameters : list
+        List of lists containing posterior samples
+    names_and_parameters : list
+        List of dictionaries containing posterior samples with parameter names as keys
+    accepted_simulations : list
+        List of lists containing simulations corresponding to posterior samples (this could be empty if the sampling
+        routine does not store those)
+    accepted_cov_mats : list
+        List of lists containing covariance matrices from accepted posterior samples (this could be empty if
+        the sampling routine does not store those)
+    weights : list
+        List containing posterior weights
+    ESS : list
+        List containing the Effective Sample Size (ESS) at each iteration
+    distances : list
+        List containing the ABC distance at each iteration
     configuration : Python dictionary
         dictionary containing the schemes configuration parameters
-
     """
 
     def __init__(self, type):
@@ -39,10 +51,11 @@ class Journal:
 
         self.accepted_parameters = []
         self.names_and_parameters = []
+        self.accepted_simulations = []
+        self.accepted_cov_mats = []
         self.weights = []
         self.ESS = []
         self.distances = []
-        self.opt_values = []
         self.configuration = {}
 
         if type not in [0, 1]:
@@ -114,6 +127,38 @@ class Journal:
         if self._type == 1:
             self.accepted_parameters.append(accepted_parameters)
 
+    def add_accepted_simulations(self, accepted_simulations):
+        """
+        Saves provided accepted simulations by appending them to the journal. If type==0, old accepted simulations get
+        overwritten.
+
+        Parameters
+        ----------
+        accepted_simulations: list
+        """
+
+        if self._type == 0:
+            self.accepted_simulations = [accepted_simulations]
+
+        if self._type == 1:
+            self.accepted_simulations.append(accepted_simulations)
+
+    def add_accepted_cov_mats(self, accepted_cov_mats):
+        """
+        Saves provided accepted cov_mats by appending them to the journal. If type==0, old accepted cov_mats get
+        overwritten.
+
+        Parameters
+        ----------
+        accepted_cov_mats: list
+        """
+
+        if self._type == 0:
+            self.accepted_cov_mats = [accepted_cov_mats]
+
+        if self._type == 1:
+            self.accepted_cov_mats.append(accepted_cov_mats)
+
     def add_weights(self, weights):
         """
         Saves provided weights by appending them to the journal. If type==0, old weights get overwritten.
@@ -145,23 +190,6 @@ class Journal:
 
         if self._type == 1:
             self.distances.append(distances)
-
-    def add_opt_values(self, opt_values):
-        """
-        Saves provided values of the evaluation of the schemes objective function. If type==0, old values get
-        overwritten
-
-        Parameters
-        ----------
-        opt_value: numpy.array
-            vector containing n evaluations of the schemes objective function
-        """
-
-        if self._type == 0:
-            self.opt_values = [opt_values]
-
-        if self._type == 1:
-            self.opt_values.append(opt_values)
 
     def add_ESS_estimate(self, weights):
         """
@@ -237,9 +265,8 @@ class Journal:
 
         Returns
         -------
-        accepted_parameters: dictionary
-            Samples from the specified iteration (last, if not specified) returned as a disctionary with names of the
-            random variables
+        accepted_parameters: list
+            List containing samples from the specified iteration (last, if not specified)
         """
 
         if iteration is None:
@@ -247,6 +274,60 @@ class Journal:
 
         else:
             return self.accepted_parameters[iteration]
+
+    def get_accepted_simulations(self, iteration=None):
+        """
+        Returns the accepted simulations from a sampling scheme. Notice not all sampling schemes store those in the
+        Journal, so this may return None.
+
+        For intermediate results, pass the iteration.
+
+        Parameters
+        ----------
+        iteration: int
+            specify the iteration for which to return accepted simulations
+
+        Returns
+        -------
+        accepted_simulations: list
+            List containing simulations corresponding to accepted samples from the specified
+            iteration (last, if not specified)
+        """
+
+        if iteration is None:
+            if len(self.accepted_simulations) == 0:
+                return None
+            return self.accepted_simulations[-1]
+
+        else:
+            return self.accepted_simulations[iteration]
+
+    def get_accepted_cov_mats(self, iteration=None):
+        """
+        Returns the accepted cov_mats used in a sampling scheme. Notice not all sampling schemes store those in the
+        Journal, so this may return None.
+
+        For intermediate results, pass the iteration.
+
+        Parameters
+        ----------
+        iteration: int
+            specify the iteration for which to return accepted cov_mats
+
+        Returns
+        -------
+        accepted_cov_mats: list
+            List containing accepted cov_mats from the specified
+            iteration (last, if not specified)
+        """
+
+        if iteration is None:
+            if len(self.accepted_cov_mats) == 0:
+                return None
+            return self.accepted_cov_mats[-1]
+
+        else:
+            return self.accepted_cov_mats[iteration]
 
     def get_weights(self, iteration=None):
         """
@@ -837,17 +918,18 @@ class Journal:
                                "sequential algorithm for one iteration only or to using non-sequential algorithms (as"
                                "RejectionABC). Wasserstein distance convergence test requires at least samples from at "
                                "least 2 iterations.")
-        if self.get_accepted_parameters().dtype == "object":
+        last_params = np.array(self.get_accepted_parameters())
+        if last_params.dtype == "object":
             raise RuntimeError("This error was probably raised due to the parameters in your model having different "
-                               "dimenions (and specifically not being univariate). For now, Wasserstein distance"
+                               "dimensions (and specifically not being univariate). For now, Wasserstein distance"
                                " convergence test is available only if the different parameters have the same "
                                "dimension.")
 
         wass_dist_lists = [None] * (len(self.weights) - 1)
 
         for i in range(len(self.weights) - 1):
-            params_1 = self.get_accepted_parameters(i)
-            params_2 = self.get_accepted_parameters(i + 1)
+            params_1 = np.array(self.get_accepted_parameters(i))
+            params_2 = np.array(self.get_accepted_parameters(i + 1))
             weights_1 = self.get_weights(i)
             weights_2 = self.get_weights(i + 1)
             if len(params_1.shape) == 1:  # we assume that the dimension of parameters is 1
@@ -928,3 +1010,251 @@ class Journal:
             ax[i].set_xlabel("MCMC step")
 
         return fig, ax
+
+    def resample(self, n_samples=None, replace=True, path_to_save_journal=None, seed=None):
+        """
+        Helper method to resample (by bootstrapping or subsampling) the posterior samples stored in the Journal.
+        This can be used for instance to obtain an unweighted set of
+        posterior samples from a weighted one (via bootstrapping) or
+        to subsample a given number of posterior samples from a larger set. The new set of (unweighted)
+        samples are stored in a new journal which is returned by the method.
+
+        In order to bootstrap/subsample, the ``np.random.choice`` method is used, with the posterior sample
+        weights used as
+        probabilities (p) for resampling each sample. ``np.random.choice`` performs resampling with or without
+        replacement according to whether ``replace=True`` or ``replace=False``. Moreover, the parameter
+        ``n_samples`` specifies the number of resampled samples
+        (the ``size`` argument of ``np.ranodom.choice``) and is set by
+         default to the number of samples in the journal). Therefore, different combinations of these
+        two parameters can be used to bootstrap or to subsample a set of posterior samples (see the examples below);
+        the default parameter values perform bootstrap.
+
+        Parameters
+        ----------
+        n_samples: integer, optional
+            The number of posterior samples which you want to resample. Defaults to the number of posterior samples
+            currently stored in the Journal.
+        replace: boolean, optional
+            If True, sampling with replacement is performed; if False, sampling without replacement. Defaults to False.
+        path_to_save_journal: str, optional
+            If provided, save the journal with the resampled posterior samples at the provided path.
+        seed: integer, optional
+             Optional initial seed for the random number generator. The default value is generated randomly.
+
+        Returns
+        -------
+        abcpy.output.Journal
+            a journal containing the resampled posterior samples
+
+        Examples
+        --------
+        If ``journal`` contains a weighted set of posterior samples, the following returns an unweighted bootstrapped
+        set of posterior samples, stored in ``new_journal``:
+
+        >>> new_journal = journal.resample()
+
+        The above of course also works when the original posterior samples are unweighted.
+
+        If ``journal`` contains a here a large number of posterior sampling, you can subsample (without replacement)
+        a smaller number of them (say 100) with the following line (and store them in ``new_journal``):
+
+        >>> new_journal = journal.resample(n_samples=100, replace=False)
+
+        Notice that the above takes into account the weights in the original ``journal``.
+
+        """
+
+        # instantiate the random number generator
+        rng = np.random.RandomState(seed)
+
+        # this extracts the parameters from the journal
+        accepted_parameters = self.get_accepted_parameters(-1)
+        accepted_weights = self.get_weights(-1)
+        n_samples_old = self.configuration["n_samples"]
+        normalized_weights = accepted_weights.reshape(-1) / np.sum(accepted_weights)
+
+        n_samples = n_samples_old if n_samples is None else n_samples
+
+        if n_samples > n_samples_old and not replace:
+            raise RuntimeError("You cannot draw without replacement a larger number of samples than the posterior "
+                               "samples currently stored in the journal.")
+
+        # here you just need to bootstrap (or subsample):
+        bootstrapped_parameter_indices = rng.choice(np.arange(n_samples_old), size=n_samples, replace=replace,
+                                                    p=normalized_weights)
+        bootstrapped_parameters = [accepted_parameters[index] for index in bootstrapped_parameter_indices]
+
+        # define new journal
+        journal_new = Journal(0)
+        journal_new.configuration["type_model"] = self.configuration["type_model"]
+        journal_new.configuration["n_samples"] = n_samples
+
+        # store bootstrapped parameters in new journal
+        journal_new.add_accepted_parameters(copy.deepcopy(bootstrapped_parameters))
+        journal_new.add_weights(np.ones((n_samples, 1)))
+        journal_new.add_ESS_estimate(np.ones((n_samples, 1)))
+
+        # the next piece of code build the list to be passed to add_user_parameter in order to build the dictionary;
+        # this mimics the behavior of what is done in the InferenceMethod's using the lines:
+        # `self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)`
+        # `names_and_parameters = self._get_names_and_parameters()`
+
+        names_par_dicts = self.get_parameters()
+        par_names = list(names_par_dicts.keys())
+        new_names_par_list = []
+        start_index = 0
+        for name in par_names:
+            parameter_size = len(names_par_dicts[name][0])  # the size of that parameter
+            name_par_tuple = (
+                name, [bootstrapped_parameters[i][start_index:start_index + parameter_size] for i in range(n_samples)])
+            new_names_par_list.append(name_par_tuple)
+            start_index += parameter_size
+        journal_new.add_user_parameters(new_names_par_list)
+        journal_new.number_of_simulations.append(0)
+
+        if path_to_save_journal is not None:  # save journal
+            journal_new.save(path_to_save_journal)
+
+        return journal_new
+
+
+class GenerateFromJournal(GraphTools):
+    """Helper class to generate simulations from a model starting from the parameter values stored in a Journal file.
+
+    Parameters
+    ----------
+    root_models: list
+        A list of the Probabilistic models corresponding to the observed datasets
+    backend: abcpy.backends.Backend
+        Backend object defining the backend to be used.
+    seed: integer, optional
+         Optional initial seed for the random number generator. The default value is generated randomly.
+    discard_too_large_values: boolean
+         If set to True, the simulation is discarded (and repeated) if at least one element of it is too large
+         to fit in float32, which therefore may be converted to infinite value in numpy. Defaults to False.
+
+    Examples
+    --------
+    Simplest possible usage is:
+
+    >>> generate_from_journal = GenerateFromJournal([model], backend=backend)
+    >>> parameters, simulations, normalized_weights = generate_from_journal.generate(journal)
+
+    which takes the parameter values stored in journal and generated simulations from them. Notice how the method
+    returns (in this order) the parameter values used for the simulations, the simulations themselves and the
+    posterior weights associated to the parameters. All of these three objects are numpy arrays.
+
+    """
+
+    def __init__(self, root_models, backend, seed=None, discard_too_large_values=False):
+        self.model = root_models
+        self.backend = backend
+        self.rng = np.random.RandomState(seed)
+        self.discard_too_large_values = discard_too_large_values
+        # An object managing the bds objects
+        self.accepted_parameters_manager = AcceptedParametersManager(self.model)
+
+    def generate(self, journal, n_samples_per_param=1, iteration=None):
+        """
+        Method to generate simulations using parameter values stored in the provided Journal.
+
+        Parameters
+        ----------
+        journal: abcpy.output.Journal
+            the Journal containing the parameter values from which to generate simulations from the model.
+        n_samples_per_param: integer, optional
+            Number of simulations for each parameter value. Defaults to 1.
+        iteration: integer, optional
+            specifies the iteration from which the parameter samples in the Journal are taken to generate simulations.
+            If None (default), it uses the last iteration.
+
+        Returns
+        -------
+        tuple
+            A tuple of numpy ndarray's containing the parameter values (first element, with shape n_samples x d_theta),
+            the generated
+            simulations (second element, with shape n_samples x n_samples_per_param x d_x, where d_x is the dimension of
+            each simulation) and the normalized weights attributed to each parameter value
+            (third element, with shape n_samples).
+
+        Examples
+        --------
+        Simplest possible usage is:
+
+        >>> generate_from_journal = GenerateFromJournal([model], backend=backend)
+        >>> parameters, simulations, normalized_weights = generate_from_journal.generate(journal)
+
+        which takes the parameter values stored in journal and generated simulations from them. Notice how the method
+        returns (in this order) the parameter values used for the simulations, the simulations themselves and the
+        posterior weights associated to the parameters. All of these three objects are numpy arrays.
+
+        """
+        # check whether the model corresponds to the one for which the journal was generated
+        if journal.configuration["type_model"] != [type(model).__name__ for model in self.model]:
+            raise RuntimeError("You are not using the same model as the one with which the journal was generated.")
+
+        self.n_samples_per_param = n_samples_per_param
+
+        accepted_parameters = journal.get_accepted_parameters(iteration)
+        accepted_weights = journal.get_weights(iteration)
+        normalized_weights = accepted_weights.reshape(-1) / np.sum(accepted_weights)
+        n_samples = len(normalized_weights)
+
+        self.accepted_parameters_manager.broadcast(self.backend, [None])
+        # Broadcast Accepted parameters
+        self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters)
+
+        seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
+        # no need to check if the seeds are the same here as they are assigned to different parameter values
+        rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
+        index_arr = np.arange(0, n_samples, 1)
+        data_arr = []
+        for i in range(len(rng_arr)):
+            data_arr.append([rng_arr[i], index_arr[i]])
+        data_pds = self.backend.parallelize(data_arr)
+
+        simulations_pds = self.backend.map(self._sample_parameter, data_pds)
+        simulations = self.backend.collect(simulations_pds)
+
+        parameters = np.array(accepted_parameters)
+        simulations = np.array(simulations)
+
+        parameters = parameters.reshape((parameters.shape[0], parameters.shape[1]))
+        simulations = simulations.reshape((simulations.shape[0], simulations.shape[2], simulations.shape[3],))
+
+        return parameters, simulations, normalized_weights
+
+    def _sample_parameter(self, data, npc=None):
+        """
+        Simulates from a single model parameter.
+
+        Parameters
+        ----------
+        data: list
+            A list containing a random numpy state and a parameter index, e.g. [rng, index]
+
+        Returns
+        -------
+        numpy.ndarray
+            The simulated dataset.
+        """
+
+        if isinstance(data, np.ndarray):
+            data = data.tolist()
+        rng = data[0]
+        index = data[1]
+
+        parameter = self.accepted_parameters_manager.accepted_parameters_bds.value()[index]
+        ok_flag = False
+
+        while not ok_flag:
+            self.set_parameters(parameter)
+            y_sim = self.simulate(n_samples_per_param=self.n_samples_per_param, rng=rng, npc=npc)
+            # if there are no potential infinities there (or if we do not check for those).
+            # For instance, Lorenz model may give too large values sometimes (quite rarely).
+            if self.discard_too_large_values and np.sum(np.isinf(np.array(y_sim).astype("float32"))) > 0:
+                self.logger.warning("y_sim contained too large values for float32; simulating again.")
+            else:
+                ok_flag = True
+
+        return y_sim

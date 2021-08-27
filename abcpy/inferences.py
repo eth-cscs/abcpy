@@ -151,6 +151,279 @@ class BaseDiscrepancy(InferenceMethod, BaseMethodsWithKernel, metaclass=ABCMeta)
         raise NotImplementedError
 
 
+class DrawFromPrior(InferenceMethod):
+    """Helper class to obtain samples from the prior for a model.
+
+    The `sample` method follows similar API to the other InferenceMethod's (returning a journal file), while the
+    `sample_par_sim_pairs` method generates (parameter, simulation) pairs, which can be used for instance as a training
+    dataset for the automatic learning of summary statistics with the StatisticsLearning classes.
+
+    When generating large datasets with MPI backend, pickling may give overflow error; for this reason, the methods
+    split the generation in "chunks" of the specified size on which the parallelization is used.
+
+    Parameters
+    ----------
+    root_models: list
+        A list of the Probabilistic models corresponding to the observed datasets
+    backend: abcpy.backends.Backend
+        Backend object defining the backend to be used.
+    seed: integer, optional
+         Optional initial seed for the random number generator. The default value is generated randomly.
+    max_chunk_size: integer, optional
+        Maximum size of chunks in which to split the data generation. Defaults to 10**4
+    discard_too_large_values: boolean
+         If set to True, the simulation is discarded (and repeated) if at least one element of it is too large
+         to fit in float32, which therefore may be converted to infinite value in numpy. Defaults to False.
+    """
+
+    model = None
+    rng = None
+    n_samples = None
+    backend = None
+
+    n_samples_per_param = None  # this needs to be there otherwise it does not instantiate correctly
+
+    def __init__(self, root_models, backend, seed=None, max_chunk_size=10 ** 4, discard_too_large_values=False):
+        self.model = root_models
+        self.backend = backend
+        self.rng = np.random.RandomState(seed)
+        self.max_chunk_size = max_chunk_size
+        self.discard_too_large_values = discard_too_large_values
+        # An object managing the bds objects
+        self.accepted_parameters_manager = AcceptedParametersManager(self.model)
+        self.logger = logging.getLogger(__name__)
+
+    def sample(self, n_samples, path_to_save_journal=None):
+        """
+        Samples model parameters from the prior distribution.
+
+        Parameters
+        ----------
+        n_samples: integer
+            Number of samples to generate
+        path_to_save_journal: str, optional
+            If provided, save the journal after inference at the provided path.
+
+        Returns
+        -------
+        abcpy.output.Journal
+            a journal containing results and metadata.
+        """
+
+        journal = Journal(1)
+        journal.configuration["type_model"] = [type(model).__name__ for model in self.model]
+        journal.configuration["n_samples"] = n_samples
+
+        # we split sampling in chunks to avoid error in case MPI is used
+        parameters = []
+        samples_to_sample = n_samples
+        while samples_to_sample > 0:
+            parameters_part = self._sample(min(samples_to_sample, self.max_chunk_size))
+            samples_to_sample -= self.max_chunk_size
+            parameters += parameters_part
+
+        journal.add_accepted_parameters(copy.deepcopy(parameters))
+        journal.add_weights(np.ones((n_samples, 1)))
+        journal.add_ESS_estimate(np.ones((n_samples, 1)))
+        self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=parameters)
+        names_and_parameters = self._get_names_and_parameters()
+        journal.add_user_parameters(names_and_parameters)
+        journal.number_of_simulations.append(0)
+
+        if path_to_save_journal is not None:  # save journal
+            journal.save(path_to_save_journal)
+
+        return journal
+
+    def sample_par_sim_pairs(self, n_samples, n_samples_per_param):
+        """
+        Samples (parameter, simulation) pairs from the prior distribution from the model distribution. Specifically,
+        parameter values are sampled from the prior and used to generate the specified number of simulations per
+        parameter value. This returns arrays.
+
+        Parameters
+        ----------
+        n_samples: integer
+            Number of samples to generate
+        n_samples_per_param: integer
+            Number of data points in each simulated data set.
+
+        Returns
+        -------
+        tuple
+            A tuple of numpy.ndarray's containing parameter and simulation values. The first element of the tuple is an
+            array with shape (n_samples, d_theta), where d_theta is the dimension of the parameters. The second element
+            of the tuple is an array with shape (n_samples, n_samples_per_param, d_x), where d_x is the dimension of
+            each simulation.
+        """
+
+        # we split sampling in chunks to avoid error in case MPI is used
+        parameters_list = []
+        simulations_list = []
+        samples_to_sample = n_samples
+        while samples_to_sample > 0:
+            parameters_part, simulations_part = self._sample_par_sim_pairs(min(samples_to_sample, self.max_chunk_size),
+                                                                           n_samples_per_param)
+            samples_to_sample -= self.max_chunk_size
+            parameters_list.append(parameters_part)
+            simulations_list.append(simulations_part)
+        parameters = np.concatenate(parameters_list)
+        simulations = np.concatenate(simulations_list)
+        return parameters, simulations
+
+    def _sample(self, n_samples):
+        """
+        Not for end use; please use `sample`.
+
+        Samples model parameters from the prior distribution. This is an helper function called by the main `sample` one
+        in order to split drawing from the prior in chunks to avoid parallelization issues with MPI.
+
+        Parameters
+        ----------
+        n_samples: integer
+            Number of samples to generate
+
+        Returns
+        -------
+        list
+            List containing sampled parameter values.
+        """
+        # the following lines are similar to the RejectionABC code but only sample from the prior.
+
+        # generate the rng_pds
+        rng_pds = self._generate_rng_pds(n_samples)
+
+        parameters_pds = self.backend.map(self._sample_parameter_only, rng_pds)
+        parameters = self.backend.collect(parameters_pds)
+        return parameters
+
+    def _sample_par_sim_pairs(self, n_samples, n_samples_per_param):
+        """
+        Not for end use; please use `sample_par_sim_pairs`.
+
+        Samples (parameter, simulation) pairs from the prior distribution from the model distribution. Specifically,
+        parameter values are sampled from the prior and used to generate the specified number of simulations per
+        parameter value. This returns arrays.
+
+        This is an helper function called by the main `sample_par_sim_pair` one
+        in order to split drawing from the prior in chunks to avoid parallelization issues with MPI.
+
+        Parameters
+        ----------
+        n_samples: integer
+            Number of samples to generate
+        n_samples_per_param: integer
+            Number of data points in each simulated data set.
+
+        Returns
+        -------
+        tuple
+            A tuple of numpy.ndarray's containing parameter and simulation values. The first element of the tuple is an
+            array with shape (n_samples, d_theta), where d_theta is the dimension of the parameters. The second element
+            of the tuple is an array with shape (n_samples, n_samples_per_param, d_x), where d_x is the dimension of
+            each simulation.
+        """
+        self.n_samples_per_param = n_samples_per_param
+        self.accepted_parameters_manager.broadcast(self.backend, 1)
+
+        # generate the rng_pds
+        rng_pds = self._generate_rng_pds(n_samples)
+
+        parameters_simulations_pds = self.backend.map(self._sample_parameter_simulation, rng_pds)
+        parameters_simulations = self.backend.collect(parameters_simulations_pds)
+        parameters, simulations = [list(t) for t in zip(*parameters_simulations)]
+
+        parameters = np.array(parameters)
+        simulations = np.array(simulations)
+
+        parameters = parameters.reshape((parameters.shape[0], parameters.shape[1]))
+        simulations = simulations.reshape((simulations.shape[0], simulations.shape[2], simulations.shape[3],))
+
+        return parameters, simulations
+
+    def _generate_rng_pds(self, n_samples):
+        """Helper function to generate the random seeds which are used in sampling from prior and simulating from the
+        model in the parallel setup.
+
+        Parameters
+        ----------
+        n_samples: integer
+            Number of random seeds (corresponing to number of prior samples) to generate
+
+        Returns
+        -------
+        list
+            A (possibly distributed according to the used backend) list containing the random seeds to be assigned to
+            each worker.
+        """
+        # now generate an array of seeds that need to be different one from the other. One way to do it is the
+        # following.
+        # Moreover, you cannot use int64 as seeds need to be < 2**32 - 1. How to fix this?
+        # Note that this is not perfect; you still have small possibility of having some seeds that are equal. Is there
+        # a better way? This would likely not change much the performance
+        # An idea would be to use rng.choice but that is too expensive
+        seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=n_samples, dtype=np.uint32)
+        # check how many equal seeds there are and remove them:
+        sorted_seed_arr = np.sort(seed_arr)
+        indices = sorted_seed_arr[:-1] == sorted_seed_arr[1:]
+        if np.sum(indices) > 0:
+            # the following removes the equal seeds in case there are some
+            sorted_seed_arr[:-1][indices] = sorted_seed_arr[:-1][indices] + 1
+        rng_arr = np.array([np.random.RandomState(seed) for seed in sorted_seed_arr])
+        rng_pds = self.backend.parallelize(rng_arr)
+        return rng_pds
+
+    def _sample_parameter_simulation(self, rng, npc=None):
+        """
+        Samples a single model parameter and simulates from it.
+
+        Parameters
+        ----------
+        rng: random number generator
+            The random number generator to be used.
+        Returns
+        -------
+        Tuple
+            The first entry of the tuple is the parameter.
+            The second entry is the the simulation drawn from it.
+        """
+
+        ok_flag = False
+
+        while not ok_flag:
+            self.sample_from_prior(rng=rng)
+            theta = self.get_parameters(self.model)
+            y_sim = self.simulate(self.n_samples_per_param, rng=rng, npc=npc)
+
+            # if there are no potential infinities there (or if we do not check for those).
+            # For instance, Lorenz model may give too large values sometimes (quite rarely).
+            if self.discard_too_large_values and np.sum(np.isinf(np.array(y_sim).astype("float32"))) > 0:
+                self.logger.warning("y_sim contained too large values for float32; simulating again.")
+            else:
+                ok_flag = True
+
+        return theta, y_sim
+
+    def _sample_parameter_only(self, rng, npc=None):
+        """
+        Samples a single model parameter from the prior.
+
+        Parameters
+        ----------
+        rng: random number generator
+            The random number generator to be used.
+        Returns
+        -------
+        list
+            The sampled parameter values
+        """
+
+        self.sample_from_prior(rng=rng)
+        theta = self.get_parameters(self.model)
+
+        return theta
+
+
 class RejectionABC(InferenceMethod):
     """This class implements the rejection algorithm based inference scheme [1] for
         Approximate Bayesian Computation.
@@ -167,7 +440,7 @@ class RejectionABC(InferenceMethod):
             each model.
         backend: abcpy.backends.Backend
             Backend object defining the backend to be used.
-        seed: integer, optionaldistance
+        seed: integer, optional
              Optional initial seed for the random number generator. The default value is generated randomly.
         """
 
@@ -411,8 +684,8 @@ class RejectionABC(InferenceMethod):
         distance = self.distance.dist_max()
 
         if distance < self.epsilon and self.logger:
-            self.logger.warn("initial epsilon {:e} is larger than dist_max {:e}"
-                             .format(float(self.epsilon), distance))
+            self.logger.warning("initial epsilon {:e} is larger than dist_max {:e}"
+                                .format(float(self.epsilon), distance))
 
         counter = 0
 
@@ -1891,7 +2164,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             if aStep == 0 and journal_file is not None:
                 accepted_parameters = journal.get_accepted_parameters(-1)
                 accepted_weights = journal.get_weights(-1)
-                accepted_cov_mats = journal.opt_values[-1]
+                accepted_cov_mats = journal.get_accepted_cov_mats()
 
             # main ABCsubsim algorithm
             self.logger.info("Initialization of ABCsubsim")
@@ -1990,7 +2263,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
                 journal.add_distances(copy.deepcopy(distances))
                 journal.add_weights(copy.deepcopy(accepted_weights))
                 journal.add_ESS_estimate(accepted_weights)
-                journal.add_opt_values(accepted_cov_mats)
+                journal.add_accepted_cov_mats(accepted_cov_mats)
                 self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                                   accepted_weights=accepted_weights)
                 names_and_parameters = self._get_names_and_parameters()
@@ -2015,7 +2288,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
             journal.add_distances(copy.deepcopy(distances))
             journal.add_weights(copy.deepcopy(accepted_weights))
             journal.add_ESS_estimate(accepted_weights)
-            journal.add_opt_values(accepted_cov_mats)
+            journal.add_accepted_cov_mats(accepted_cov_mats)
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                               accepted_weights=accepted_weights)
             names_and_parameters = self._get_names_and_parameters()
@@ -2998,8 +3271,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, steps, n_samples=10000, n_samples_per_param=1, epsilon_final=0.1, alpha=None,
-               covFactor=2, resample=None, full_output=0, which_mcmc_kernel=None, r=None, journal_file=None,
-               path_to_save_journal=None):
+               covFactor=2, resample=None, full_output=0, which_mcmc_kernel=None, r=None,
+               store_simulations_in_journal=True, journal_file=None, path_to_save_journal=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations.
 
@@ -3045,6 +3318,13 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             Specifies the value of 'r' (the number of wanted hits) in the r-hits kernels. It is therefore ignored if
             'which_mcmc_kernel==0'. If no value is provided, the first version of r-hit kernel uses r=3, while the
             second uses r=2. The default value is None.
+        store_simulations_in_journal : boolean, optional
+            Every step of the SMCABC algorithm uses the accepted simulations from previous step. Therefore, the accepted
+            simulations at the final step are stored in the Journal file to allow restarting the inference
+            correctly. If each simulation is large, however, that means that the accepted Journal will be large in
+            memory. If you want to *not* save the simulations in the journal, set this to False; however, you will not
+            be able to restart the inference from the returned Journal. The default value is True, meaning simulations
+            are stored in the Journal.
         journal_file: str, optional
             Filename of a journal file to read an already saved journal file, from which the first iteration will start.
             The default value is None.
@@ -3092,6 +3372,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
         accepted_weights = None
         accepted_cov_mats = None
         accepted_y_sim = None
+        distances = None
 
         # Define the resample parameter
         if resample is None:
@@ -3128,7 +3409,11 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             if aStep == 0 and journal_file is not None:
                 accepted_parameters = journal.get_accepted_parameters(-1)
                 accepted_weights = journal.get_weights(-1)
-                accepted_y_sim = journal.opt_values[-1]
+                accepted_y_sim = journal.get_accepted_simulations()
+                if accepted_y_sim is None:
+                    raise RuntimeError("You cannot restart the inference from this Journal file as you did not store "
+                                       "the simulations in it. In order to do that, the inference scheme needs to be"
+                                       "called with `store_simulations_in_journal=True`.")
                 distances = journal.get_distances(-1)
 
                 epsilon = journal.configuration["epsilon_arr"]
@@ -3154,7 +3439,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 break
 
             # 0: Compute the Epsilon
-            if accepted_y_sim != None:
+            if distances is not None:
                 self.logger.info(
                     "Compute epsilon, might take a while; previous epsilon value: {:.4f}".format(epsilon[-1]))
                 if self.bernton:
@@ -3186,7 +3471,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
             # 1: calculate weights for new parameters
             self.logger.info("Calculating weights")
-            if accepted_y_sim is not None:
+            if distances is not None:
                 if self.bernton:
                     new_weights = (current_distance_matrix < epsilon[-1]) * 1
                 else:
@@ -3205,7 +3490,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
             # 2: Resample; we resample always when using the Bernton et al. algorithm, as in that case weights
             # can only be proportional to 1 or 0; if we use the Del Moral version, instead, the
             # weights can have fractional values -> use the # resample threshold
-            if accepted_y_sim is not None and (self.bernton or pow(sum(pow(new_weights, 2)), -1) < resample):
+            if distances is not None and (self.bernton or pow(sum(pow(new_weights, 2)), -1) < resample):
                 self.logger.info("Resampling")
                 # Weighted resampling:
                 index_resampled = self.rng.choice(n_samples, n_samples, replace=True, p=new_weights)
@@ -3221,7 +3506,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
             self.accepted_parameters_manager.update_broadcast(self.backend, accepted_parameters=accepted_parameters,
                                                               accepted_weights=accepted_weights)
-            if accepted_y_sim is not None:
+            if distances is not None:
                 kernel_parameters = []
                 for kernel in self.kernel.kernels:
                     kernel_parameters.append(
@@ -3275,7 +3560,8 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                 journal.add_distances(copy.deepcopy(distances))
                 journal.add_weights(copy.deepcopy(accepted_weights))
                 journal.add_ESS_estimate(accepted_weights)
-                journal.add_opt_values(copy.deepcopy(accepted_y_sim))
+                if store_simulations_in_journal:
+                    journal.add_accepted_simulations(copy.deepcopy(accepted_y_sim))
 
                 names_and_parameters = self._get_names_and_parameters()
                 journal.add_user_parameters(names_and_parameters)
@@ -3998,6 +4284,10 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
                 accepted_parameter = self.get_parameters()
             else:
                 accepted_parameter = iniPoint
+                if isinstance(accepted_parameter, np.ndarray) and len(accepted_parameter.shape) == 1 or isinstance(
+                        accepted_parameter, list) and not hasattr(accepted_parameter[0], "__len__"):
+                    # reshape whether we pass a 1d array or list.
+                    accepted_parameter = [np.array([x]) for x in accepted_parameter]  # give correct shape for later
             if burnin == 0:
                 accepted_parameters_burnin.append(accepted_parameter)
             self.logger.info("Calculate approximate loglikelihood")

@@ -482,7 +482,16 @@ class SlicedWasserstein(Divergence):
     @staticmethod
     def get_random_projections(n_projections, d, seed=None):
         r"""
+        Taken from
+
+        https://github.com/PythonOT/POT/blob/78b44af2434f494c8f9e4c8c91003fbc0e1d4415/ot/sliced.py
+
+        Author: Adrien Corenflos <adrien.corenflos@aalto.fi>
+
+        License: MIT License
+
         Generates n_projections samples from the uniform on the unit sphere of dimension d-1: :math:`\mathcal{U}(\mathcal{S}^{d-1})`
+
         Parameters
         ----------
         n_projections : int
@@ -491,6 +500,7 @@ class SlicedWasserstein(Divergence):
             dimension of the space
         seed: int or RandomState, optional
             Seed used for numpy random number generator
+
         Returns
         -------
         out: ndarray, shape (n_projections, d)
@@ -516,11 +526,19 @@ class SlicedWasserstein(Divergence):
 
     def sliced_wasserstein_distance(self, X_s, X_t, a=None, b=None, n_projections=50, seed=None, log=False):
         r"""
+        Taken from
+
+        https://github.com/PythonOT/POT/blob/78b44af2434f494c8f9e4c8c91003fbc0e1d4415/ot/sliced.py
+
+        Author: Adrien Corenflos <adrien.corenflos@aalto.fi>
+
+        License: MIT License
+
         Computes a Monte-Carlo approximation of the 2-Sliced Wasserstein distance
-        .. math::
-            \mathcal{SWD}_2(\mu, \nu) = \underset{\theta \sim \mathcal{U}(\mathbb{S}^{d-1})}{\mathbb{E}}[\mathcal{W}_2^2(\theta_\# \mu, \theta_\# \nu)]^{\frac{1}{2}}
-        where :
-        - :math:`\theta_\# \mu` stands for the pushforwars of the projection :math:`\mathbb{R}^d \ni X \mapsto \langle \theta, X \rangle`
+        :math:`\mathcal{SWD}_2(\mu, \nu) = \underset{\theta \sim \mathcal{U}(\mathbb{S}^{d-1})}{\mathbb{E}}[\mathcal{W}_2^2(\theta_\# \mu, \theta_\# \nu)]^{\frac{1}{2}}`
+        where
+        :math:`\theta_\# \mu` stands for the pushforwars of the projection :math:`\mathbb{R}^d \ni X \mapsto \langle \theta, X \rangle`
+
         Parameters
         ----------
         X_s : ndarray, shape (n_samples_a, dim)
@@ -552,7 +570,7 @@ class SlicedWasserstein(Divergence):
         0.0
         References
         ----------
-        .. [31] Bonneel, Nicolas, et al. "Sliced and radon wasserstein barycenters of measures." Journal of Mathematical Imaging and Vision 51.1 (2015): 22-45
+        Bonneel, Nicolas, et al. "Sliced and radon wasserstein barycenters of measures." Journal of Mathematical Imaging and Vision 51.1 (2015): 22-45
         """
         from ot.lp import emd2_1d
 

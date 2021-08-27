@@ -28,6 +28,7 @@ unittest:
 	python3 -m unittest discover -s tests -v -p "*_tests.py" || (echo "Error in standard unit tests."; exit 1)
 	@# remove temporary files created during testing
 	@if test -f net.pth; then rm net.pth; fi
+	@if test -f net_with_discard_wrapper.pth; then rm net_with_discard_wrapper.pth; fi
 	@if test -f scaler.pkl; then rm scaler.pkl; fi
 	@if test -f tmp.jnl; then rm tmp.jnl; fi
 	@if test -f journal_tests_testfile.pkl; then rm journal_tests_testfile.pkl; fi
@@ -40,6 +41,10 @@ unittest_mpi:
 exampletest: $(MAKEDIRS)
 	@echo "Testing standard examples.."
 	python3 -m unittest -v tests/test_examples.py || (echo "Error in example tests."; exit 1)
+	@if test -f scaler.pkl; then rm scaler.pkl; fi
+	@if test -f seminn_net.pth; then rm seminn_net.pth; fi
+	@if test -f triplet_net.pth; then rm triplet_net.pth; fi
+	@if test -f tmp.jnl; then rm tmp.jnl; fi
 
 exampletest_mpi:
 	@echo "Testing MPI backend examples.."
