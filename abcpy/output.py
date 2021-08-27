@@ -918,17 +918,18 @@ class Journal:
                                "sequential algorithm for one iteration only or to using non-sequential algorithms (as"
                                "RejectionABC). Wasserstein distance convergence test requires at least samples from at "
                                "least 2 iterations.")
-        if self.get_accepted_parameters().dtype == "object":
+        last_params = np.array(self.get_accepted_parameters())
+        if last_params.dtype == "object":
             raise RuntimeError("This error was probably raised due to the parameters in your model having different "
-                               "dimenions (and specifically not being univariate). For now, Wasserstein distance"
+                               "dimensions (and specifically not being univariate). For now, Wasserstein distance"
                                " convergence test is available only if the different parameters have the same "
                                "dimension.")
 
         wass_dist_lists = [None] * (len(self.weights) - 1)
 
         for i in range(len(self.weights) - 1):
-            params_1 = self.get_accepted_parameters(i)
-            params_2 = self.get_accepted_parameters(i + 1)
+            params_1 = np.array(self.get_accepted_parameters(i))
+            params_2 = np.array(self.get_accepted_parameters(i + 1))
             weights_1 = self.get_weights(i)
             weights_2 = self.get_weights(i + 1)
             if len(params_1.shape) == 1:  # we assume that the dimension of parameters is 1
