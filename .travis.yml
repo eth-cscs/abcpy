@@ -3,7 +3,6 @@ language: python
 stages:
   - name: test
   - name: deploy
-    if: tag IS present AND branch = master
 addons:
   apt:
     sources:
