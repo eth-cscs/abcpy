@@ -59,6 +59,7 @@ scientists by providing
 # Documentation
 For more information, check out the
 
+* [Youtube video](https://www.youtube.com/watch?v=cf2uNo0UEBs) presenting the library
 * [Documentation](http://abcpy.readthedocs.io/en/v0.6.3) 
 * [Examples](https://github.com/eth-cscs/abcpy/tree/v0.6.3/examples) directory and
 * [Reference](http://abcpy.readthedocs.io/en/v0.6.3/abcpy.html)
