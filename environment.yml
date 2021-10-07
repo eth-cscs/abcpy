@@ -3,11 +3,16 @@ channels:
 - bioconda
 - defaults
 dependencies:
+- numpy
+- scipy
+- scikit-learn>=0.23.1
+- glmnet>=2.2.1
 - openmpi
 - mpi4py
+- cloudpickle
 - matplotlib
-- numpy
+- tqdm
+- pot
 - pip
-- scipy
 - pip:
   - abcpy
