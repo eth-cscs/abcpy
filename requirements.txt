@@ -10,4 +10,4 @@ mpi4py
 cloudpickle
 matplotlib
 tqdm
-pot
+pot>=0.8.0
