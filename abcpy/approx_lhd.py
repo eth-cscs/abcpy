@@ -380,7 +380,7 @@ class PenLogReg(Approx_likelihood, GraphTools):
         y = np.append(np.zeros(self.n_simulate), np.ones(self.n_simulate))
         X = np.array(np.concatenate((stat_sim, self.ref_data_stat), axis=0))
         # define here groups for cross-validation:
-        groups = np.repeat(np.arange(self.n_folds), np.int(np.ceil(self.n_simulate / self.n_folds)))
+        groups = np.repeat(np.arange(self.n_folds), int(np.ceil(self.n_simulate / self.n_folds)))
         groups = groups[:self.n_simulate].tolist()
         groups += groups  # duplicate it as groups need to be defined for both datasets
         m = LogitNet(alpha=1, n_splits=self.n_folds, max_iter=self.max_iter, random_state=self.seed, scoring="log_loss")

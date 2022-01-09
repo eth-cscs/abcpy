@@ -138,7 +138,7 @@ class SlicedWassersteinTests(unittest.TestCase):
         self.assertRaises(TypeError, self.distancefunc.distance, 3.4, d2)
         self.assertRaises(TypeError, self.distancefunc.distance, d1, 3.4)
 
-        self.assertAlmostEqual(self.distancefunc.distance(d1, d2), 12.604402810464576)
+        self.assertAlmostEqual(self.distancefunc.distance(d1, d2), 13.962384646148273)
 
         # equal data sets should have a distance of approximately 0.0; it won't be exactly 0 due to numerical rounding
         self.assertAlmostEqual(self.distancefunc.distance(d1, d1), 0.0, delta=1e-5)

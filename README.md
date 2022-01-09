@@ -59,10 +59,10 @@ scientists by providing
 # Documentation
 For more information, check out the
 
-* [Documentation](http://abcpy.readthedocs.io/en/latest) 
-* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.6.2/examples) directory and
-* [Reference](http://abcpy.readthedocs.io/en/v0.6.2/abcpy.html)
 * [Youtube video](https://www.youtube.com/watch?v=cf2uNo0UEBs) presenting the library
+* [Documentation](http://abcpy.readthedocs.io/en/v0.6.3) 
+* [Examples](https://github.com/eth-cscs/abcpy/tree/v0.6.3/examples) directory and
+* [Reference](http://abcpy.readthedocs.io/en/v0.6.3/abcpy.html)
 
 
 Further, we provide a
@@ -117,9 +117,9 @@ finally CSCS (Swiss National Super Computing Center) for their generous support.
 
 ## Citation
 
-There is a [paper](http://dx.doi.org/10.1145/3093172.3093233) in the proceedings of the 2017 PASC conference. In case you use
+There is a [paper](https://doi.org/10.18637/jss.v100.i07) in the _Journal of Statistical Software_. In case you use
 ABCpy for your publication, we would appreciate a citation. You can use
-[this](https://github.com/eth-cscs/abcpy/blob/v0.5.6/doc/literature/DuttaS-ABCpy-PASC-2017.bib) BibTex reference.
+[this](https://github.com/eth-cscs/abcpy/blob/master/doc/literature/JSS_2021.bib) BibTex reference.
 
 
 ## Other References
@@ -143,8 +143,6 @@ Publications in which ABCpy was applied:
 * R. Dutta, B. Chopard, J. Lätt, F. Dubois, K. Zouaoui Boudjeltia and A. Mira, "Parameter Estimation of Platelets Deposition: Approximate Bayesian Computation with High Performance Computing", 2018, Frontiers in physiology, 9.
 
 * A. Ebert, R. Dutta, P. Wu, K. Mengersen and A. Mira, "Likelihood-Free Parameter Estimation for Dynamic Queueing Networks", 2018, arXiv:1804.02526, To apear in Jouranl of Royal Statistical Scoiety: Series C.
-
-* R. Dutta, M. Schoengens, L. Pacchiardi, A. Ummadisingu, N. Widerman, P. K&#252;nzli, J. P.  Onnela, A. Mira, "ABCpy: A High-Performance Computing Perspective to Approximate Bayesian Computation", 2018, arXiv:1711.04694, To appear in Journal of Statistical Software.
 
 ## License
 ABCpy is published under the BSD 3-clause license, see [here](LICENSE).

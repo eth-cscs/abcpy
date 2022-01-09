@@ -1223,10 +1223,10 @@ class PMC(BaseLikelihood, InferenceMethod):
             for ind in range(0, n_samples):
                 self.sample_from_prior(rng=self.rng)
                 accepted_parameters.append(self.get_parameters())
-            accepted_weights = np.ones((n_samples, 1), dtype=np.float) / n_samples
+            accepted_weights = np.ones((n_samples, 1), dtype=np.float64) / n_samples
         else:
             accepted_parameters = iniPoints
-            accepted_weights = np.ones((iniPoints.shape[0], 1), dtype=np.float) / iniPoints.shape[0]
+            accepted_weights = np.ones((iniPoints.shape[0], 1), dtype=np.float64) / iniPoints.shape[0]
 
         if covFactors is None:
             covFactors = np.ones(shape=(len(self.kernel.kernels),))

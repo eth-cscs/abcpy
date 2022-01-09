@@ -776,7 +776,7 @@ class Journal:
             object containg the subplot grid.
             """
             numvars, numdata = data.shape
-            numplots = np.int(numvars * (numvars - 1) / 2)
+            numplots = int(numvars * (numvars - 1) / 2)
             if figsize is None:
                 figsize_actual = 4 * numplots
             else:
