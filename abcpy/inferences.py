@@ -505,7 +505,7 @@ class RejectionABC(InferenceMethod):
             classes.
         path_to_save_journal: str, optional
             If provided, save the journal after inference at the provided path.
-            
+
         Returns
         -------
         abcpy.output.Journal
@@ -724,7 +724,7 @@ class PMCABC(BaseDiscrepancy, InferenceMethod):
     root_models: list
         A list of the Probabilistic models corresponding to the observed datasets
     distances: list of abcpy.distances.Distance
-        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for 
+        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for
         each model.
     backend : abcpy.backends.Backend
         Backend object defining the backend to be used.
@@ -2042,7 +2042,7 @@ class ABCsubsim(BaseDiscrepancy, InferenceMethod):
     model : list
         A list of the Probabilistic models corresponding to the observed datasets
     distances: list of abcpy.distances.Distance
-        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for 
+        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for
         each model.
     backend : abcpy.backends.Backend
         Backend object defining the backend to be used.
@@ -2455,7 +2455,7 @@ class RSMCABC(BaseDiscrepancy, InferenceMethod):
     model : list
         A list of the Probabilistic models corresponding to the observed datasets
     distances: list of abcpy.distances.Distance
-        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for 
+        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for
         each model.
     backend : abcpy.backends.Backend
         Backend object defining the backend to be used.
@@ -2835,7 +2835,7 @@ class APMCABC(BaseDiscrepancy, InferenceMethod):
     model : list
         A list of the Probabilistic models corresponding to the observed datasets
     distances: list of abcpy.distances.Distance
-        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for 
+        List of Distance objects defining the distance measure to compare simulated and observed data sets; one for
         each model.
     backend : abcpy.backends.Backend
         Backend object defining the backend to be used.
@@ -3860,7 +3860,7 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
                     N_old += 1
                     counter += 1
 
-                # Perturb and sample from the perturbed theta until we get 'r' y_sim inside the epsilon ball 
+                # Perturb and sample from the perturbed theta until we get 'r' y_sim inside the epsilon ball
                 # (line 2 in Alg 5 in [3])
                 while True:
                     perturbation_output = self.perturb(index, rng=rng)
@@ -4132,7 +4132,8 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
         self.simulation_counter = 0
 
     def sample(self, observations, n_samples, n_samples_per_param=100, burnin=1000, cov_matrices=None, iniPoint=None,
-               adapt_proposal_cov_interval=None, covFactor=None, bounds=None, speedup_dummy=True, use_tqdm=True,
+               adapt_proposal_cov_interval=None, adapt_proposal_start_step=0, adapt_proposal_after_burnin=False,
+               covFactor=None, bounds=None, speedup_dummy=True, n_groups_correlated_randomness=None, use_tqdm=True,
                journal_file=None, path_to_save_journal=None):
         """Samples from the posterior distribution of the model parameter given the observed
         data observations. The MCMC is run for burnin + n_samples steps, and n_samples_per_param are used at each step
@@ -4153,6 +4154,9 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
 
         [1] Haario, H., Saksman, E., & Tamminen, J. (2001). An adaptive Metropolis algorithm. Bernoulli, 7(2), 223-242.
 
+        [2] Picchini, U., Simola, U., & Corander, J. (2022). Sequentially guided MCMC proposals for synthetic
+        likelihoods and correlated synthetic likelihoods. Bayesian Analysis, 1(1), 1-31.
+
         Parameters
         ----------
         observations : list
@@ -4164,17 +4168,23 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
         burnin : integer, optional
             Number of burnin steps to discard. Defaults to 1000.
         cov_matrices : list of matrices, optional
-            list of initial covariance matrices for the proposals. If not provided, identity matrices are used. If the 
-            sample routine is restarting from a journal file and cov_matrices is not provided, cov_matrices is set to 
-            the value used for sampling after burnin in the previous journal file (ie what is stored in 
+            list of initial covariance matrices for the proposals. If not provided, identity matrices are used. If the
+            sample routine is restarting from a journal file and cov_matrices is not provided, cov_matrices is set to
+            the value used for sampling after burnin in the previous journal file (ie what is stored in
             `journal.configuration["actual_cov_matrices"]`).
         iniPoint : numpy.ndarray, optional
-            parameter value from where the sampling starts. By default sampled from the prior. Not used if journal_file 
+            parameter value from where the sampling starts. By default sampled from the prior. Not used if journal_file
             is passed.
         adapt_proposal_cov_interval : integer, optional
             the proposal covariance matrix is adapted each adapt_cov_matrix steps during burnin, by using the chain up
             to that point. If None, no adaptation is done. Default value is None. Use with care as, if the likelihood
             estimate is very noisy, the adaptation may work pooly (see `covFactor` parameter).
+        adapt_proposal_start_step: integer, optional
+            the step after which to start adapting the covariance matrix following Haario's approach in [1]. See also
+            adapt_proposal_cov_interval. Defaults to 0.
+        adapt_proposal_after_burnin: boolean, optional
+            If True, keep adapting the proposal after the end of burnin iterations following Haario's method in [1].
+            Otherwise, stop adapting it after burnin, and use the last proposal matrix. Defaults to False.
         covFactor : float, optional
             the factor by which to scale the empirical covariance matrix in order to obtain the covariance matrix for
             the proposal, whenever that is updated during the burnin steps. If not provided, we use the default value
@@ -4203,6 +4213,17 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             However, this breaks reproducibility when using, for instance, BackendMPI with respect to BackendDummy, due
             to the different way the random seeds are used when speedup_dummy is set to True. Please set this to False
             if you are interested in preserving reproducibility across MPI and Dummy backend. Defaults to True.
+        n_groups_correlated_randomness: integer, optional
+            The number of groups to use to correlate the randomness in the correlated pseudo-marginal MCMC scheme.
+            Specifically, if provided, the n_samples_per_param simulations from the model are split in
+            n_groups_correlated_randomness groups. At each MCMC step, the random variables used in simulating the model
+            are the same as in the previous step for all n_samples_per_param simulations except for a single group,
+            for which fresh random variables are used.
+            In practice, this is done by storing the random seeds. This approach should reduce stickiness of the chain
+            and was discussed in [2] for the Bayesian Synthetic Likelihood framework. Notice that, when
+            n_groups_correlated_randomness > 0 and speedup_dummy is True, you obtain different results for different
+            values of n_groups_correlated_randomness due to different ways of handling random seeds.
+            When None, we do not keep track of the random seeds. Default value is None.
         use_tqdm : boolean, optional
             Whether using tqdm or not to display progress. Defaults to True.
         journal_file: str, optional
@@ -4224,6 +4245,29 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
         self.speedup_dummy = speedup_dummy
         # we use this in all places which require a backend but which are not parallelized in MCMC:
         self.dummy_backend = BackendDummy()
+
+        # initializations for the correlated pseudo-marginal MCMC
+        self.n_groups_correlated_randomness = n_groups_correlated_randomness
+        if self.n_groups_correlated_randomness is not None:
+            if self.n_groups_correlated_randomness > self.n_samples_per_param:
+                raise RuntimeError("The number of random seeds groups need to be smaller with respect to the number "
+                                   "of samples per parameters.")
+            self.group_size = int(np.ceil(self.n_samples_per_param / self.n_groups_correlated_randomness))
+            self.remainder = self.n_samples_per_param % self.group_size
+            # initialize the random seeds
+            if isinstance(self.backend, BackendDummy) and self.speedup_dummy:
+                # use a single random seed for each group and simulate together, to have some speed up
+                self.seed_arr_current = self.rng.randint(0, np.iinfo(np.uint32).max,
+                                                         size=self.n_groups_correlated_randomness, dtype=np.uint32)
+            else:
+                self.seed_arr_current = self.rng.randint(0, np.iinfo(np.uint32).max, size=self.n_samples_per_param,
+                                                         dtype=np.uint32)
+        if self.n_groups_correlated_randomness is not None and isinstance(self.backend,
+                                                                          BackendDummy) and self.speedup_dummy:
+            # only case in which multiple simulations per map_step are done:
+            self.n_simulations_per_map_step = self.group_size
+        else:
+            self.n_simulations_per_map_step = 1
         dim = len(self.parameter_names)
 
         if path_to_save_journal is not None:
@@ -4271,9 +4315,12 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             journal.configuration["cov_matrices"] = cov_matrices
             journal.configuration["iniPoint"] = iniPoint
             journal.configuration["adapt_proposal_cov_interval"] = adapt_proposal_cov_interval
+            journal.configuration["adapt_proposal_start_step"] = adapt_proposal_start_step
+            journal.configuration["adapt_proposal_after_burnin"] = adapt_proposal_after_burnin
             journal.configuration["covFactor"] = covFactor
             journal.configuration["bounds"] = bounds
             journal.configuration["speedup_dummy"] = speedup_dummy
+            journal.configuration["n_groups_correlated_randomness"] = n_groups_correlated_randomness
             journal.configuration["use_tqdm"] = use_tqdm
             journal.configuration["acceptance_rates"] = []
             # Initialize chain: when not supplied, randomly draw it from prior distribution
@@ -4314,6 +4361,7 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             if cov_matrices is None:  # use the previously stored one unless the user defines it
                 cov_matrices = journal.configuration["actual_cov_matrices"]
             journal.configuration["speedup_dummy"] = speedup_dummy
+            journal.configuration["n_groups_correlated_randomness"] = n_groups_correlated_randomness
             approx_log_likelihood_accepted_parameter = journal.final_step_loglik
             self.simulation_counter = journal.number_of_simulations[-1]  # update the number of simulations
 
@@ -4400,6 +4448,9 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
                 log_det_jac_accepted_param = log_det_jac_new_param
                 # set the accepted parameter in the kernel (in order to correctly generate next proposal)
                 self._update_kernel_parameters(accepted_parameter_transformed)
+                # save the set of random seeds if we are keeping track of them:
+                if self.n_groups_correlated_randomness is not None:
+                    self.seed_arr_current = self.seed_arr_proposal
                 if aStep >= burnin:
                     self.acceptance_rate += 1
 
@@ -4409,13 +4460,14 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             else:
                 accepted_parameters_burnin.append(accepted_parameter)
 
+            if adapt_proposal_cov_interval is not None and (aStep < burnin or adapt_proposal_after_burnin):
                 # adapt covariance of proposal:
-                if adapt_proposal_cov_interval is not None and (aStep + 1) % adapt_proposal_cov_interval == 0:
+                if aStep > adapt_proposal_start_step and (aStep + 1) % adapt_proposal_cov_interval == 0:
                     # store the accepted_parameters for adapting the covariance in the kernel.
                     # I use this piece of code as it formats the data in the right way
                     # for the sake of using them to compute the kernel cov:
                     self.accepted_parameters_manager_adaptive_cov.update_broadcast(
-                        self.dummy_backend, accepted_parameters=accepted_parameters_burnin)
+                        self.dummy_backend, accepted_parameters=accepted_parameters_burnin + accepted_parameters)
                     kernel_parameters = []
                     for kernel in self.kernel.kernels:
                         kernel_parameters.append(
@@ -4479,7 +4531,9 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
         acc = self.set_parameters(theta)
         if acc is False:
             self.logger.debug("Parameter " + str(theta) + "has not been accepted")
-        y_sim = self.simulate(1, rng=rng, npc=npc)
+        # Generate the correct number of simulations to generate in this instance of the method, using a single call
+        # to the model.
+        y_sim = self.simulate(self.n_simulations_per_map_step, rng=rng, npc=npc)
 
         return y_sim
 
@@ -4514,7 +4568,7 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
         Notice that, according to the used model, spreading the simulations in different tasks can be more inefficient
         than using one single call, according to the level of vectorization that the model uses and the overhead
         associated. For this reason, we do not split the simulations in different tasks when the backend is
-        BackendDummy.
+        BackendDummy and self.speedup_dummy is True.
 
         Parameters
         ----------
@@ -4526,7 +4580,8 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
         float
             The approximated likelihood function
         """
-        if isinstance(self.backend, BackendDummy) and self.speedup_dummy:
+        if isinstance(self.backend,
+                      BackendDummy) and self.speedup_dummy and self.n_groups_correlated_randomness is None:
             # do all the required simulations here without parallellizing; however this gives different result
             # from the other option due to the way random seeds are handled.
             self.logger.debug('simulations')
@@ -4539,7 +4594,38 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             simulations_from_new_parameter = self.simulate(n_samples_per_param=self.n_samples_per_param, rng=self.rng)
         else:
             self.logger.debug('parallelize simulations for fixed parameter value')
-            seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=self.n_samples_per_param, dtype=np.uint32)
+            if self.n_groups_correlated_randomness is not None:
+                if isinstance(self.backend, BackendDummy) and self.speedup_dummy:
+                    # use a single random seed for each group and simulate together, to have some speed up
+                    # reset the proposal seeds
+                    self.seed_arr_proposal = self.seed_arr_current
+                    # now: pick the position of random seeds to be modified:
+                    index = self.rng.randint(0, self.n_groups_correlated_randomness)  # the number of correlated groups
+                    # and replace it with a new seed.
+                    self.seed_arr_proposal[index] = self.rng.randint(0, np.iinfo(np.uint32).max, size=1,
+                                                                     dtype=np.uint32)
+                    # todo in this case, this does not generate the correct number of simulations if
+                    #  self.n_samples_per_param % self.n_groups_correlated_randomness != 0, but it generates
+                    #  group_size * n_groups_correlated_randomness. Fix!
+                else:
+                    # reset the proposal seeds
+                    self.seed_arr_proposal = self.seed_arr_current
+                    # now: pick the position of random seeds to be modified:
+                    index = self.rng.randint(0, self.n_groups_correlated_randomness)  # the number of correlated groups
+                    # and replace it with a new seed.
+                    if index == self.n_groups_correlated_randomness - 1 and self.remainder != 0:
+                        self.seed_arr_proposal[
+                        index * self.group_size: (index + 1) * self.group_size] = self.rng.randint(
+                            0, np.iinfo(np.uint32).max, size=self.remainder, dtype=np.uint32)
+                    else:
+                        self.seed_arr_proposal[
+                        index * self.group_size: (index + 1) * self.group_size] = self.rng.randint(
+                            0, np.iinfo(np.uint32).max, size=self.group_size, dtype=np.uint32)
+                seed_arr = self.seed_arr_proposal
+            else:
+                # do not keep track of seeds
+                seed_arr = self.rng.randint(0, np.iinfo(np.uint32).max, size=self.n_samples_per_param, dtype=np.uint32)
+
             rng_arr = np.array([np.random.RandomState(seed) for seed in seed_arr])
             rng_pds = self.backend.parallelize(rng_arr)
 
@@ -4553,8 +4639,9 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             # now need to reshape that correctly. The first index has to be the model, then we need to have
             # n_samples_per_param and then the size of the simulation
             simulations_from_new_parameter = [
-                [simulations_from_new_parameter[sample_index][model_index][0] for sample_index in
-                 range(self.n_samples_per_param)] for model_index in range(len(self.model))]
+                [simulations_from_new_parameter[sample_index][model_index][i] for sample_index in
+                 range(len(rng_arr)) for i in range(self.n_simulations_per_map_step)] for model_index in
+                range(len(self.model))]
         approx_log_likelihood_new_parameter = self._approx_log_lik_calc(simulations_from_new_parameter)
 
         return approx_log_likelihood_new_parameter

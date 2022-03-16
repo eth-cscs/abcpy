@@ -27,7 +27,7 @@ class DrawFromPriorTests(unittest.TestCase):
         self.sampler = DrawFromPrior([self.model], dummy, seed=1)
         self.sampler2 = DrawFromPrior([self.model], dummy, seed=1, max_chunk_size=2)
         self.sampler3 = DrawFromPrior([self.model], dummy, seed=1, discard_too_large_values=True)
-        self.sampler4 = DrawFromPrior([self.model], dummy, seed=1, discard_too_large_values=True, max_chunk_size=2 )
+        self.sampler4 = DrawFromPrior([self.model], dummy, seed=1, discard_too_large_values=True, max_chunk_size=2)
 
         # expected mean values from 100 prior samples:
         self.mu_mean = -0.24621316447913139
@@ -310,6 +310,19 @@ class MCMCMetropoliHastingsTests(unittest.TestCase):
         self.assertAlmostEqual(sigma_post_mean_1, 5.751158868437219)
         self.assertAlmostEqual(sigma_post_mean_2, 8.103358539327967)
 
+    def test_sample_improved_adapt(self):
+        n_sample, n_samples_per_param = 50, 20
+
+        sampler = MCMCMetropoliHastings([self.model], [self.likfun], self.backend, seed=1)
+        journal = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None,
+                                 iniPoint=None, burnin=30, adapt_proposal_cov_interval=5, use_tqdm=False,
+                                 adapt_proposal_start_step=5, adapt_proposal_after_burnin=True)
+        # Compute posterior mean
+        mu_post_mean_1, sigma_post_mean_1 = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
+
+        self.assertAlmostEqual(mu_post_mean_1, 2.8208517506631443)
+        self.assertAlmostEqual(sigma_post_mean_1, 7.726658961760974)
+
     def test_sample_with_inipoint(self):
         # we check whether we can compute the posterior covariance, which means the right reshaping of inipoint is used.
 
@@ -335,7 +348,7 @@ class MCMCMetropoliHastingsTests(unittest.TestCase):
         cov1 = journal1.posterior_cov()
         cov2 = journal2.posterior_cov()
         cov3 = journal3.posterior_cov()
-        cov4 = journal3.posterior_cov()
+        cov4 = journal4.posterior_cov()
 
     def test_sample_with_transformer(self):
         n_sample, n_samples_per_param = 50, 20
@@ -359,6 +372,20 @@ class MCMCMetropoliHastingsTests(unittest.TestCase):
             journal = sampler.sample([self.y_obs], n_sample, bounds={"mu": (0)})
         with self.assertRaises(RuntimeError):
             journal = sampler.sample([self.y_obs], n_sample, bounds={"mu": (0, 1, 2)})
+
+    def test_sample_correlated(self):
+        n_sample, n_samples_per_param = 50, 20
+        n_groups = 10
+
+        sampler = MCMCMetropoliHastings([self.model], [self.likfun], self.backend, seed=1)
+        journal = sampler.sample([self.y_obs], n_sample, n_samples_per_param, cov_matrices=None,
+                                 iniPoint=None, burnin=10, adapt_proposal_cov_interval=5, use_tqdm=False,
+                                 n_groups_correlated_randomness=n_groups, adapt_proposal_start_step=200)
+        # Compute posterior mean
+        mu_post_mean_1, sigma_post_mean_1 = journal.posterior_mean()['mu'], journal.posterior_mean()['sigma']
+
+        self.assertAlmostEqual(mu_post_mean_1, -3.091185427752207)
+        self.assertAlmostEqual(sigma_post_mean_1, 6.677686508494833)
 
     def test_sample_two_models(self):
         n_sample, n_samples_per_param = 50, 20
@@ -926,8 +953,8 @@ class SMCABCTests(unittest.TestCase):
         journal_intermediate.save("tmp.jnl")
         with self.assertRaises(RuntimeError):
             journal_final_1 = sampler.sample([self.observation], 1, n_sample, n_simulate,
-                                         which_mcmc_kernel=which_mcmc_kernel,
-                                         journal_file="tmp.jnl")
+                                             which_mcmc_kernel=which_mcmc_kernel,
+                                             journal_file="tmp.jnl")
 
     def test_restart_from_journal_bernton(self):
         n_sample, n_simulate = 10, 10
@@ -957,8 +984,8 @@ class SMCABCTests(unittest.TestCase):
         journal_intermediate.save("tmp.jnl")
         with self.assertRaises(RuntimeError):
             journal_final_1 = sampler.sample([self.observation_2], 1, n_sample, n_simulate,
-                                         which_mcmc_kernel=which_mcmc_kernel,
-                                         journal_file="tmp.jnl")
+                                             which_mcmc_kernel=which_mcmc_kernel,
+                                             journal_file="tmp.jnl")
 
     def test_errors(self):
         with self.assertRaises(RuntimeError):
