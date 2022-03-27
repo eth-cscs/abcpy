@@ -62,7 +62,7 @@ For more information, check out the
 * [Youtube video](https://www.youtube.com/watch?v=cf2uNo0UEBs) presenting the library
 * [Documentation](http://abcpy.readthedocs.io/en/v0.6.3) 
 * [Examples](https://github.com/eth-cscs/abcpy/tree/v0.6.3/examples) directory and
-* [Reference](http://abcpy.readthedocs.io/en/v0.6.3/abcpy.html)
+* [Companion paper](https://www.jstatsoft.org/article/view/v100i07)
 
 
 Further, we provide a
@@ -104,7 +104,7 @@ which however does not work with virtual environments.
 
 # Author 
 ABCpy was written by [Ritabrata Dutta, Warwick
-University](https://warwick.ac.uk/fac/sci/statistics/staff/academic-research/dutta/) and [Marcel Schoengens](mschoengens@bitvalve.org), CSCS, ETH Zurich, and presently actively maintained by [Lorenzo Pacchiardi, Oxford University](https://github.com/LoryPack) and [Ritabrata Dutta, Warwick
+University](https://warwick.ac.uk/fac/sci/statistics/staff/academic-research/dutta/) and [Marcel Schoengens](mschoengens@bitvalve.org), CSCS, ETH Zurich, and presently actively maintained by [Lorenzo Pacchiardi, Oxford University](http://www.lorenzopacchiardi.me/) and [Ritabrata Dutta, Warwick
 University](https://warwick.ac.uk/fac/sci/statistics/staff/academic-research/dutta/). Please feel free to submit any bugs or feature requests. We'd also love to hear about your experiences with ABCpy in general. Drop us an email!
 
 We want to thank [Prof. Antonietta Mira, Università della svizzera
@@ -128,7 +128,7 @@ Publications in which ABCpy was applied:
 
 * L. Pacchiardi, R. Dutta. "Generalized Bayesian Likelihood-Free Inference Using Scoring Rules Estimators", 2021, arXiv:2104.03889.
 
-* L. Pacchiardi, R. Dutta. "Score Matched Conditional Exponential Families for Likelihood-Free Inference", 2020, arXiv:2012.10903.
+* L. Pacchiardi, R. Dutta. "Score Matched Conditional Exponential Families for Likelihood-Free Inference", 2022, Journal of Machine Learning Research 23(38):1−71.
 
 * R. Dutta, K. Zouaoui-Boudjeltia, C. Kotsalos, A. Rousseau, D. Ribeiro de Sousa, J. M. Desmet, A. Van Meerhaeghe, A. Mira, and B. Chopard. "Interpretable pathological test for Cardio-vascular disease: Approximate Bayesian computation with distance learning.", 2020, arXiv:2010.06465.
 
@@ -142,7 +142,7 @@ Publications in which ABCpy was applied:
   
 * R. Dutta, B. Chopard, J. Lätt, F. Dubois, K. Zouaoui Boudjeltia and A. Mira, "Parameter Estimation of Platelets Deposition: Approximate Bayesian Computation with High Performance Computing", 2018, Frontiers in physiology, 9.
 
-* A. Ebert, R. Dutta, P. Wu, K. Mengersen and A. Mira, "Likelihood-Free Parameter Estimation for Dynamic Queueing Networks", 2018, arXiv:1804.02526, To apear in Jouranl of Royal Statistical Scoiety: Series C.
+* A. Ebert, R. Dutta, K. Mengersen, A. Mira, F. Ruggeri and P. Wu, "Likelihood-free parameter estimation for dynamic queueing networks: case study of passenger flow in an international airport terminal", 2021, Journal of Royal Statistical Society: Series C (Applied Statistics) 70.3: 770-792.
 
 ## License
 ABCpy is published under the BSD 3-clause license, see [here](LICENSE).
