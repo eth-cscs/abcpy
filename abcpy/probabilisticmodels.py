@@ -679,6 +679,37 @@ class ProbabilisticModel(metaclass=ABCMeta):
 
         raise NotImplementedError
 
+    def forward_simulate_and_gradient(self, input_values, k, rng, mpi_comm=None):
+        """
+        Provides the output (pseudo data) from a forward simulation of the current model, together with the gradient
+        of each forward simulation with respect to the parameter values.
+
+        Parameters
+        ----------
+        input_values: list
+            A list of numbers that are the concatenation of all parent model outputs in the order specified by the
+            InputConnector object that was passed during initialization.
+        k: integer
+            The number of forward simulations that should be run
+        rng: Random number generator
+            Defines the random number generator to be used. The default value uses a random seed to initialize the
+            generator.
+        mpi_comm: MPI communicator object
+            Defines the MPI communicator object for MPI parallelization. The default value is None,
+            meaning the forward simulation is not MPI-parallelized.
+
+        Returns
+        -------
+        tuple
+            A tuple whose first element is a list of *k* elements, where each element is of type numpy array and
+            represents the result of a single forward simulation, while the second element is a list containing the
+            gradients of each forward simulation with respect to the parameter values; therefore, if the elements of
+            the first list are of shape out_dim, the elements of the second will be of shape (out_dim, num_params),
+            where num_params is the number of parameters of the model.
+        """
+
+        raise NotImplementedError
+
     @abstractmethod
     def get_output_dimension(self):
         """

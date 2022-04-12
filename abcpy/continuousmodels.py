@@ -182,8 +182,18 @@ class Normal(ProbabilisticModel, Continuous):
 
         mu = input_values[0]
         sigma = input_values[1]
-        result = np.array(rng.normal(mu, sigma, k))
+        result = np.array(rng.normal(0, 1, k) * sigma + mu)
         return [np.array([x]).reshape(-1, ) for x in result]
+
+    def forward_simulate_and_gradient(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
+        mu = input_values[0]
+        sigma = input_values[1]
+        z = rng.normal(0, 1, k)
+        result = np.array(z * sigma + mu)
+        grad = np.ones((k, 2))
+        grad[:, 1] = z
+
+        return [np.array([x]).reshape(-1, ) for x in result], [np.array([x]).reshape(-1, ) for x in grad]
 
     def get_output_dimension(self):
         return 1
