@@ -79,9 +79,9 @@ def jacobian(input, output, diffable=True):
         g = torch.zeros(output.shape).to(input)
         g[:, i] = 1
         if diffable:
-            J[:, i] = torch.autograd.grad(output, input, g, only_inputs=True, retain_graph=True, create_graph=True)[0]
+            J[:, i] = torch.autograd.grad(output, input, g, retain_graph=True, create_graph=True)[0]
         else:
-            J[:, i] = torch.autograd.grad(output, input, g, only_inputs=True, retain_graph=True)[0]
+            J[:, i] = torch.autograd.grad(output, input, g, retain_graph=True)[0]
     J = J.reshape(output.shape[0], output.shape[1], in_size)
     return J.transpose(2, 1)
 
@@ -107,7 +107,7 @@ def jacobian_second_order(input, output, diffable=True):
     for i in range(output.shape[1]):
         g = torch.zeros(output.shape).to(input)
         g[:, i] = 1
-        J[:, i] = torch.autograd.grad(output, input, g, only_inputs=True, retain_graph=True, create_graph=True)[0]
+        J[:, i] = torch.autograd.grad(output, input, g, retain_graph=True, create_graph=True)[0]
     J = J.reshape(output.shape[0], output.shape[1], in_size)
 
     for i in range(output.shape[1]):
@@ -115,10 +115,10 @@ def jacobian_second_order(input, output, diffable=True):
             g = torch.zeros(J.shape).to(input)
             g[:, i, j] = 1
             if diffable:
-                J2[:, i, j] = torch.autograd.grad(J, input, g, only_inputs=True, retain_graph=True, create_graph=True)[
+                J2[:, i, j] = torch.autograd.grad(J, input, g, retain_graph=True, create_graph=True)[
                                   0][:, j]
             else:
-                J2[:, i, j] = torch.autograd.grad(J, input, g, only_inputs=True, retain_graph=True)[0][:, j]
+                J2[:, i, j] = torch.autograd.grad(J, input, g, retain_graph=True)[0][:, j]
 
     J2 = J2.reshape(output.shape[0], output.shape[1], in_size)
 
