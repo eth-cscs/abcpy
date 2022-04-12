@@ -1,5 +1,20 @@
 import unittest
 
+import numpy as np
+
+try:
+    import torch
+except ImportError:
+    has_torch = False
+else:
+    has_torch = True
+    from typeguard.importhook import install_import_hook
+
+    install_import_hook('abcpy.continuousmodels')
+    install_import_hook('abcpy.NN_utilities.networks')
+
+    from abcpy.NN_utilities.networks import createGenerativeFCNN, ConditionalGenerativeNet
+
 from abcpy.continuousmodels import *
 from tests.probabilisticmodels_tests import AbstractAPIImplementationTests
 
@@ -169,6 +184,21 @@ class SampleFromDistributionTests(unittest.TestCase):
         self.assertTrue(len(samples) == 3)
 
 
+class GradientsTest(unittest.TestCase):
+    """Tests the return value of forward_simulate for all continuous distributions."""
+
+    def test_Normal(self):
+        N = Normal([1, 0.1])
+        samples = N.forward_simulate(N.get_input_values(), 3, rng=np.random.RandomState(0))
+
+        # with the gradients
+        samples2, gradients = N.forward_simulate_and_gradient(N.get_input_values(), 3, rng=np.random.RandomState(0))
+        self.assertTrue(np.all(samples == samples))
+        self.assertTrue(len(samples2) == len(gradients))
+        self.assertTrue(gradients[0].shape[0] == 2)
+        self.assertTrue(gradients[0][0] == 1)  # the gradient wrt my is always 1 for the normal model
+
+
 class CheckParametersBeforeSamplingTests(unittest.TestCase):
     """Tests whether False will be returned if the input parameters of _check_parameters_before_sampling are not accepted."""
 
@@ -208,6 +238,53 @@ class CheckParametersBeforeSamplingTests(unittest.TestCase):
         EXP = Exponential([3])
         self.assertFalse(EXP._check_input([-3]))
         self.assertFalse(EXP._check_input([-3, 1]))
+
+
+class GenerativeNeuralNetworkTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.out_net_size = 6
+        self.noise_size = 3
+
+        # set torch seed to create the net
+        torch.manual_seed(0)
+        self.net = createGenerativeFCNN(self.noise_size + 2, self.out_net_size)()
+        self.generative_net = ConditionalGenerativeNet(self.net, size_auxiliary_variable=self.noise_size)
+
+        # now define the model:
+        x_1 = Normal([[0], [1]])
+        x_2 = Normal([[0], [1]])
+        self.model = GenerativeNeuralNetworkWrap([x_1, x_2], self.generative_net, "model")
+
+    def test_net_forward(self):
+        out = self.generative_net(torch.randn(1, 2))
+        self.assertEqual(out.shape[-1], self.out_net_size)
+
+    def test_wrapper_forward_method(self):
+        out = self.model.forward_simulate([0.1, 0.2], 3, rng=np.random.RandomState(0))
+        # check if the length of the output is correct
+        self.assertEqual(len(out), 3)
+        # check if the length of the shape of the first output element is correct
+        self.assertEqual(len(out[0].shape), 1)
+        # check if the shape of the first output element is correct
+        self.assertEqual(out[0].shape[-1], self.out_net_size)
+
+    def test_wrapper_forward_gradient_method(self):
+        out, grad = self.model.forward_simulate_and_gradient([0.1, 0.2], 3, rng=np.random.RandomState(0))
+
+        # check if the length of the output is correct
+        self.assertEqual(len(out), 3)
+        # check if the length of the shape of the first output element is correct
+        self.assertEqual(len(out[0].shape), 1)
+        # check if the shape of the first output element is correct
+        self.assertEqual(out[0].shape[-1], self.out_net_size)
+
+        # check if the length of the output is correct
+        self.assertEqual(len(grad), 3)
+        # check if the length of the shape of the first output element is correct
+        self.assertEqual(len(grad[0].shape), 2)
+        # check if the shape of the first output element is correct
+        self.assertEqual(grad[0].shape[0], self.out_net_size)
+        self.assertEqual(grad[0].shape[1], 2)
 
 
 if __name__ == '__main__':

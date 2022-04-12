@@ -4,6 +4,16 @@ from scipy.stats import multivariate_normal, norm, lognorm, expon
 
 from abcpy.probabilisticmodels import ProbabilisticModel, Continuous, InputConnector
 
+try:
+    import torch
+except ImportError:
+    has_torch = False
+else:
+    has_torch = True
+    from torchtyping import TensorType, patch_typeguard
+
+    patch_typeguard()
+
 
 class Uniform(ProbabilisticModel, Continuous):
     def __init__(self, parameters, name='Uniform'):
@@ -785,3 +795,136 @@ class Exponential(ProbabilisticModel, Continuous):
         pdf = expon(scale=scale).pdf(x)
         self.calculated_pdf = pdf
         return pdf
+
+
+class GenerativeNeuralNetworkWrap(ProbabilisticModel, Continuous):
+
+    def __init__(self, parameters, net, name='GenerativeNeuralNetworkWrap'):
+        """
+        This class wraps a generative neural network for use in the ABCpy API.
+
+        Parameters
+        ----------
+        parameters: list
+            Contains the probabilistic models and hyperparameters from which the model derives.
+        net : torch.nn object
+            the generative neural network. Its forward method should take two inputs: the statistical parameters (theta)
+            and an argument "n_simulations" that defines the number of simulations. It needs to generate the
+            noise inside the `net` itself. Reproducibility is preserved by fixing the torch random seed before calling
+            the net forward method.
+        name: string
+            The name that should be given to the probabilistic model in the journal file.
+        """
+
+        if not has_torch:
+            raise ImportError(
+                "Pytorch is required to instantiate an element of the {} class, in order to handle "
+                "neural networks. Please install it. ".format(self.__class__.__name__))
+
+        if not isinstance(parameters, list):
+            raise TypeError('Input for GenerativeNeuralNetworkWrap has to be of type list.')
+        self.net = net
+
+        input_parameters = InputConnector.from_list(parameters)
+        super(GenerativeNeuralNetworkWrap, self).__init__(input_parameters, name)
+
+    def _check_input(self, input_values):
+        """
+        Returns True. Not very useful for the moment.
+        """
+        return True
+
+    def _check_output(self, parameters):
+        """
+        Useless for the moment.
+        """
+        return True
+
+    def forward_simulate(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
+        """
+        Samples from a generative neural network using the provided parameter values.
+
+        Parameters
+        ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
+        k: integer
+            The number of samples that should be drawn.
+        rng: Random number generator
+            Defines the random number generator to be used. The default value uses a random seed to initialize the generator.
+
+        Returns
+        -------
+        list: [np.ndarray]
+            A list containing the sampled values as np-array.
+        """
+
+        # need to transform input_values to a torch tensor
+        input_values = torch.atleast_2d(torch.from_numpy(np.array(input_values).astype(np.float32)))
+
+        # set torch seed using the rng by drawing an integer from the rng
+        torch.random.manual_seed(rng.randint(0, 2 ** 32))
+
+        # forward pass
+        result = self.net(input_values, n_simulations=k)[0].detach().numpy()
+
+        return [x for x in result]
+
+    def forward_simulate_and_gradient(self, input_values, k, rng=np.random.RandomState(), mpi_comm=None):
+        """
+        Samples from a generative neural network using the provided parameter values and computes the gradient of the
+        output with respect to the input parameters.
+
+        Parameters
+        ----------
+        input_values: list
+            List of input parameters, in the same order as specified in the InputConnector passed to the init function
+        k: integer
+            The number of samples that should be drawn.
+        rng: Random number generator
+            Defines the random number generator to be used. The default value uses a random seed to initialize the
+            generator.
+
+        Returns
+        -------
+        list: [np.ndarray]
+            A list containing the sampled values as np-array.
+        """
+
+        # need to transform input_values to a torch tensor
+        input_values = torch.atleast_2d(torch.from_numpy(np.array(input_values).astype(np.float32)))
+        input_values.requires_grad = True
+
+        # set torch seed using the rng by drawing an integer from the rng
+        torch.random.manual_seed(rng.randint(0, 2 ** 32))
+
+        # forward pass
+        result = self.net(input_values, n_simulations=k)[0]
+
+        # compute gradient of result with respect to input_values
+        # result is of shape ["number_generations", "output_size"]
+        # input_values is of shape [1, "num_parameters"]
+        grad = self.jacobian(input_values, result)
+
+        result = result.detach().numpy()
+
+        return [x for x in result], [x for x in grad]
+
+    def get_output_dimension(self):
+        return 1  # this is not correct; it should check the output network size.
+
+    @staticmethod
+    def jacobian(input: TensorType[1, "num_parameters"], output: TensorType["number_generations", "output_size"]) -> \
+            TensorType["number_generations", "output_size", "num_parameters"]:
+        '''
+        Returns the Jacobian matrix of the function that produced the output evaluated at the input
+
+        This function is quite inefficient but cannot think of a better way to do it.
+        '''
+        J = torch.zeros((output.shape[0], output.shape[1], input.shape[1]))
+
+        for i in range(output.shape[0]):
+            for j in range(output.shape[1]):
+                J[i, j] = torch.autograd.grad(output[i, j], input, retain_graph=True)[0][0]
+
+        return J
