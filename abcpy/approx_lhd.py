@@ -526,15 +526,22 @@ class UnivariateContinuousRankedProbabilityScoreEstimate(ScoringRule):
 
 
 class EnergyScore(ScoringRule):
-    """ Estimates the EnergyScore. Here, I assume the observations and simulations are lists of
-    length respectively n_obs and n_sim. Then, for each fixed observation the n_sim simulations are used to estimate the
-    scoring rule. Subsequently, the values are summed over each of the n_obs observations.
+    def __init__(self, statistics_calc, weight=1, beta=1):
+        """ Estimates the EnergyScore. Here, I assume the observations and simulations are lists of
+        length respectively n_obs and n_sim. Then, for each fixed observation the n_sim simulations are used to estimate the
+        scoring rule. Subsequently, the values are summed over each of the n_obs observations.
 
-    Note this scoring rule is connected to the energy distance between probability distributions.
-    """
+        Note this scoring rule is connected to the energy distance between probability distributions.
+        Parameters
+        ----------
+        statistics_calc : abcpy.statistics.Statistics
+            Statistics extractor object that conforms to the Statistics class.
+        weight : int, optional.
+            Weight used in defining the scoring rule posterior. Default is 1.
+        beta : int, optional.
+            Power used to define the energy score. Default is 1.
+        """
 
-    def __init__(self, statistics_calc, beta=1, weight=1):
-        """default value is beta=1"""
         self.beta = beta
         self.beta_over_2 = 0.5 * beta
         super(EnergyScore, self).__init__(statistics_calc, weight=weight)
@@ -603,20 +610,25 @@ class EnergyScore(ScoringRule):
 
 class KernelScore(ScoringRule):
 
-    def __init__(self, statistics, kernel="gaussian", biased_estimator=False, weight=1, **kernel_kwargs):
+    def __init__(self, statistics_calc, weight=1, kernel="gaussian", biased_estimator=False, **kernel_kwargs):
         """
         Parameters
         ----------
         statistics_calc : abcpy.statistics.Statistics
             Statistics extractor object that conforms to the Statistics class.
+        weight : int, optional.
+            Weight used in defining the scoring rule posterior. Default is 1.
         kernel : str or callable, optional
             Can be a string denoting the kernel, or a function. If a string, only gaussian is implemented for now; in
             that case, you can also provide an additional keyword parameter 'sigma' which is used as the sigma in the
             kernel.
-        weight : int, optional.
+        biased_estimator : bool, optional
+            Whether to use the biased estimator or not. Default is False.
+        **kernel_kwargs : dict, optional
+            Additional keyword arguments for the kernel.
         """
 
-        super(KernelScore, self).__init__(statistics, weight=weight)
+        super(KernelScore, self).__init__(statistics_calc, weight=weight)
 
         self.kernel_vectorized = False
         if not isinstance(kernel, str) and not callable(kernel):
