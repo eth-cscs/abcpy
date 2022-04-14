@@ -203,7 +203,7 @@ class Normal(ProbabilisticModel, Continuous):
         grad = np.ones((k, 2))
         grad[:, 1] = z
 
-        return [np.array([x]).reshape(-1, ) for x in result], [np.array([x]).reshape(-1, ) for x in grad]
+        return [np.array([x]).reshape(-1, ) for x in result], [np.array([x]).reshape(1, 2) for x in grad]
 
     def get_output_dimension(self):
         return 1

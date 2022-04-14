@@ -195,8 +195,11 @@ class GradientsTest(unittest.TestCase):
         samples2, gradients = N.forward_simulate_and_gradient(N.get_input_values(), 3, rng=np.random.RandomState(0))
         self.assertTrue(np.all(samples == samples))
         self.assertTrue(len(samples2) == len(gradients))
-        self.assertTrue(gradients[0].shape[0] == 2)
-        self.assertTrue(gradients[0][0] == 1)  # the gradient wrt my is always 1 for the normal model
+        # check if gradients[0] has 2 dimensions:
+        self.assertTrue(2 == len(gradients[0].shape))
+        self.assertTrue(gradients[0].shape[0] == 1)  # 1d output for each simulation
+        self.assertTrue(gradients[0].shape[1] == 2)  # 2d parameters
+        self.assertTrue(gradients[0][0, 0] == 1)  # the gradient wrt my is always 1 for the normal model
 
 
 class CheckParametersBeforeSamplingTests(unittest.TestCase):
