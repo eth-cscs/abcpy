@@ -442,34 +442,48 @@ class ScoringRule(Approx_likelihood, metaclass=ABCMeta):
         """Alias the score method to a loglikelihood method """
         return - self.weight * self.score(y_obs, y_sim)
 
-    @abstractmethod
     def score(self, observations, simulations):
         """
         Notice: here the score is assumed to be a "penalty"; we use therefore the sign notation of Dawid, not the one
         in Gneiting and Raftery (2007).
-        To be overwritten by any sub-class. Estimates the Continuous Ranked Probability Score. Here, I assume the
-        observations and simulations are lists of length respectively n_obs and n_sim. Then,
-        for each fixed observation the n_sim simulations are used to estimate the scoring rule. Subsequently, the
-        values are summed over each of the n_obs observations.
+        To be overwritten by any sub-class. Here, `observations` and `simulations` are lists of length respectively `n_obs` and `n_sim`. Then,
+        for each fixed observation the `n_sim` simulations are used to estimate the scoring rule. Subsequently, the
+        values are summed over each of the `n_obs` observations.
 
         Parameters
         ----------
         observations: Python list
-            Contains n1 data points.
+            Contains `n_obs` data points.
         simulations: Python list
-            Contains n2 data points.
-
-        Returns
-        -------
-        numpy.ndarray
-            The score between the simulations and the observations.
+            Contains `n_sim` data points.
 
         Returns
         -------
         float
-            Computed approximate loglikelihood.
+            The score between the simulations and the observations.
+
+        Notes
+        -----
+        When running an ABC algorithm, the observed dataset is always passed first to the distance. Therefore, you can
+        save the statistics of the observed dataset inside this object, in order to not repeat computations.
         """
 
+        s_observations, s_simulations = self._calculate_summary_stat(observations, simulations)
+
+        return self._estimate_score(s_observations, s_simulations)
+
+    @abstractmethod
+    def _estimate_score(self, s_observations, s_simulations):
+        """
+        This method needs to be implemented by each sub-class. It should return the score for the given data set.
+
+        Parameters
+        ----------
+        s_observations: numpy array
+            The summary statistics of the observed data set. Shape is (n_obs, n_summary_stat).
+        s_simulations: numpy array
+            The summary statistics of the simulated data set. Shape is (n_sim, n_summary_stat).
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -487,27 +501,15 @@ class UnivariateContinuousRankedProbabilityScoreEstimate(ScoringRule):
     def __init__(self, statistics_calc):
         super(UnivariateContinuousRankedProbabilityScoreEstimate, self).__init__(statistics_calc)
 
-    def score(self, observations, simulations):
-        """Parameters
-        ----------
-        observations: Python list
-            Contains n1 data points.
-        simulations: Python list
-            Contains n2 data points.
-
-        Returns
-        -------
-        numpy.ndarray
-            The score between the simulations and the observations.
-
-        Notes
-        -----
-        When running an ABC algorithm, the observed dataset is always passed first to the distance. Therefore, you can
-        save the statistics of the observed dataset inside this object, in order to not repeat computations.
+    def _estimate_score(self, s_observations, s_simulations):
         """
-
-        s_observations, s_simulations = self._calculate_summary_stat(observations, simulations)
-
+        Parameters
+        ----------
+        s_observations: numpy array
+            The summary statistics of the observed data set. Shape is (n_obs, n_summary_stat).
+        s_simulations: numpy array
+            The summary statistics of the simulated data set. Shape is (n_sim, n_summary_stat).
+        """
         scores = np.zeros(shape=(s_observations.shape[0]))
         # this for loop is not very efficient, can be improved; this is taken from the Euclidean distance.
         for ind1 in range(s_observations.shape[0]):
@@ -554,36 +556,13 @@ class EnergyScore(ScoringRule):
         self.use_jax = use_jax
 
         if use_jax:
-            self._estimate_score = self._estimate_score_jax
             # define the gradient function with jax:
             self._grad_estimate_score = grad(self._estimate_score, argnums=1)
+            self.np = jnp
         else:
-            self._estimate_score = self._estimate_score_numpy
+            self.np = np
 
         super(EnergyScore, self).__init__(statistics_calc, weight=weight)
-
-    def score(self, observations, simulations):
-        """Parameters
-        ----------
-        observations: Python list
-            Contains n1 data points.
-        simulations: Python list
-            Contains n2 data points.
-
-        Returns
-        -------
-        numpy.ndarray
-            The score between the simulations and the observations.
-
-        Notes
-        -----
-        When running an ABC algorithm, the observed dataset is always passed first to the distance. Therefore, you can
-        save the statistics of the observed dataset inside this object, in order to not repeat computations.
-        """
-
-        s_observations, s_simulations = self._calculate_summary_stat(observations, simulations)
-
-        return self._estimate_score(s_observations, s_simulations)
 
     def score_gradient(self, observations, simulations, simulations_gradients):
         """
@@ -642,58 +621,32 @@ class EnergyScore(ScoringRule):
         # As the statistics are positive, the max possible value is 1
         return np.inf
 
-    def _estimate_score_numpy(self, observations, simulations):
-        """observations is an array of size (n_obs, p) (p being the dimensionality), while simulations is an array
-        of size (n_sim, p).
-        We estimate this by building an empirical unbiased estimate of Eq. (2) in Ziel and Berk 2019"""
-        n_obs = observations.shape[0]
-        n_sim, p = simulations.shape
-        diff_X_y = observations.reshape(n_obs, 1, -1) - simulations.reshape(1, n_sim, p)
-        # check (specifically in case n_sim==p):
-        # diff_X_y2 = np.zeros((observations.shape[0], *simulations.shape))
-        # for i in range(observations.shape[0]):
-        #     for j in range(n_sim):
-        #         diff_X_y2[i, j] = observations[i] - simulations[j]
-        # assert np.allclose(diff_X_y2, diff_X_y)
-        diff_X_y = np.einsum('ijk, ijk -> ij', diff_X_y, diff_X_y)
+    def _estimate_score(self, s_observations, s_simulations):
+        """
+        We estimate this by building an empirical unbiased estimate of Eq. (2) in Ziel and Berk 2019
 
-        diff_X_tildeX = simulations.reshape(1, n_sim, p) - simulations.reshape(n_sim, 1, p)
-        # check (specifically in case n_sim==p):
-        # diff_X_tildeX2 = np.zeros((n_sim, n_sim, p))
-        # for i in range(n_sim):
-        #     for j in range(n_sim):
-        #         diff_X_tildeX2[i, j] = simulations[j] - simulations[i]
-        # assert np.allclose(diff_X_tildeX2, diff_X_tildeX)
+        Parameters
+        ----------
+        s_observations: numpy array
+            The summary statistics of the observed data set. Shape is (n_obs, n_summary_stat).
+        s_simulations: numpy array
+            The summary statistics of the simulated data set. Shape is (n_sim, n_summary_stat).
+        """
+        n_obs = s_observations.shape[0]
+        n_sim, p = s_simulations.shape
+        diff_X_y = s_observations.reshape(n_obs, 1, -1) - s_simulations.reshape(1, n_sim, p)
+        diff_X_y = self.np.einsum('ijk, ijk -> ij', diff_X_y, diff_X_y)
+
+        diff_X_tildeX = s_simulations.reshape(1, n_sim, p) - s_simulations.reshape(n_sim, 1, p)
 
         # exclude diagonal elements which are zero:
-        diff_X_tildeX = np.einsum('ijk, ijk -> ij', diff_X_tildeX, diff_X_tildeX)
+        diff_X_tildeX = self.np.einsum('ijk, ijk -> ij', diff_X_tildeX, diff_X_tildeX)[~self.np.eye(n_sim, dtype=bool)]
         if self.beta_over_2 != 1:
             diff_X_y **= self.beta_over_2
             diff_X_tildeX **= self.beta_over_2
 
-        return 2 * np.sum(np.mean(diff_X_y, axis=1)) - n_obs * np.sum(diff_X_tildeX) / (n_sim * (n_sim - 1))
-        # here I am using an unbiased estimate; I could also use a biased estimate (dividing by n_sim**2). In the ABC
-        # with energy distance, they use the biased estimate for energy distance as it is always positive; not sure this
-        # is so important here however.
-
-    def _estimate_score_jax(self, observations, simulations):
-        """observations is an array of size (n_obs, p) (p being the dimensionality), while simulations is an array
-        of size (n_sim, p).
-        We estimate this by building an empirical unbiased estimate of Eq. (2) in Ziel and Berk 2019"""
-        n_obs = observations.shape[0]
-        n_sim, p = simulations.shape
-        diff_X_y = observations.reshape(n_obs, 1, -1) - simulations.reshape(1, n_sim, p)
-        diff_X_y = jnp.einsum('ijk, ijk -> ij', diff_X_y, diff_X_y)
-
-        diff_X_tildeX = simulations.reshape(1, n_sim, p) - simulations.reshape(n_sim, 1, p)
-
-        # exclude diagonal elements which are zero:
-        diff_X_tildeX = jnp.einsum('ijk, ijk -> ij', diff_X_tildeX, diff_X_tildeX)[~np.eye(n_sim, dtype=bool)]
-        if self.beta_over_2 != 1:
-            diff_X_y **= self.beta_over_2
-            diff_X_tildeX **= self.beta_over_2
-
-        return 2 * jnp.sum(jnp.mean(diff_X_y, axis=1)) - n_obs * jnp.sum(diff_X_tildeX) / (n_sim * (n_sim - 1))
+        return 2 * self.np.sum(self.np.mean(diff_X_y, axis=1)) - n_obs * self.np.sum(diff_X_tildeX) / (
+                    n_sim * (n_sim - 1))
 
 
 class KernelScore(ScoringRule):
@@ -730,13 +683,17 @@ class KernelScore(ScoringRule):
         self.kernel_vectorized = False
         self.use_jax = use_jax
 
+        if use_jax:
+            # define the gradient function with jax:
+            self._grad_estimate_score = grad(self._estimate_score, argnums=1)
+            self.np = jnp
+        else:
+            self.np = np
+
         # set up the kernel
         if isinstance(kernel, str):
             if kernel == "gaussian":
-                if use_jax:
-                    self.kernel = self.def_gaussian_kernel_jax(**kernel_kwargs)
-                else:
-                    self.kernel = self.def_gaussian_kernel_numpy(**kernel_kwargs)
+                self.kernel = self._def_gaussian_kernel(**kernel_kwargs)
                 self.kernel_vectorized = True  # the gaussian kernel is vectorized
             else:
                 raise NotImplementedError("The required kernel is not implemented.")
@@ -747,36 +704,7 @@ class KernelScore(ScoringRule):
             else:
                 self.kernel = kernel
 
-        if use_jax:
-            self._estimate_score = self._estimate_score_jax
-            # define the gradient function with jax:
-            self._grad_estimate_score = grad(self._estimate_score, argnums=1)
-        else:
-            self._estimate_score = self._estimate_score_numpy
-
         self.biased_estimator = biased_estimator
-
-    def score(self, observations, simulations):
-        """Parameters
-        ----------
-        observations: Python list
-            Contains n1 data points.
-        simulations: Python list
-            Contains n2 data points.
-
-        Returns
-        -------
-        numpy.ndarray
-            The score between the simulations and the observations.
-
-        Notes
-        -----
-        When running an ABC algorithm, the observed dataset is always passed first to the distance. Therefore, you can
-        save the statistics of the observed dataset inside this object, in order to not repeat computations.
-        """
-        s_observations, s_simulations = self._calculate_summary_stat(observations, simulations)
-
-        return self._estimate_score(s_observations, s_simulations)
 
     def score_gradient(self, observations, simulations, simulations_gradients):
         """
@@ -842,28 +770,25 @@ class KernelScore(ScoringRule):
         # As the statistics are positive, the max possible value is 1
         return np.inf
 
-    def _estimate_score_numpy(self, s_observations, s_simulations):
+    def _estimate_score(self, s_observations, s_simulations):
+        """
+        Parameters
+        ----------
+        s_observations: numpy array
+            The summary statistics of the observed data set. Shape is (n_obs, n_summary_stat).
+        s_simulations: numpy array
+            The summary statistics of the simulated data set. Shape is (n_sim, n_summary_stat).
+        """
         # compute the Gram matrix
-        K_sim_sim, K_obs_sim = self.compute_Gram_matrix(s_observations, s_simulations)
+        K_sim_sim, K_obs_sim = self._compute_Gram_matrix(s_observations, s_simulations)
 
         # Estimate MMD
         if self.biased_estimator:
-            return self.MMD_V_estimator_numpy(K_sim_sim, K_obs_sim)
+            return self._MMD_V_estimator(K_sim_sim, K_obs_sim)
         else:
-            return self.MMD_unbiased_numpy(K_sim_sim, K_obs_sim)
+            return self._MMD_unbiased(K_sim_sim, K_obs_sim)
 
-    def _estimate_score_jax(self, s_observations, s_simulations):
-        # compute the Gram matrix
-        K_sim_sim, K_obs_sim = self.compute_Gram_matrix(s_observations, s_simulations)
-
-        # Estimate MMD
-        if self.biased_estimator:
-            return self.MMD_V_estimator_jax(K_sim_sim, K_obs_sim)
-        else:
-            return self.MMD_unbiased_jax(K_sim_sim, K_obs_sim)
-
-    @staticmethod
-    def def_gaussian_kernel_numpy(sigma=1):
+    def _def_gaussian_kernel(self, sigma=1):
         # notice in the MMD paper they set sigma to a median value over the observation; check that.
         sigma_2 = 2 * sigma ** 2
 
@@ -876,34 +801,17 @@ class KernelScore(ScoringRule):
             """Here X and Y have shape (n_samples_x, n_features) and (n_samples_y, n_features);
             this directly computes the kernel for all pairwise components"""
             XY = X.reshape(X.shape[0], 1, -1) - Y.reshape(1, Y.shape[0], -1)  # pairwise differences
-            return np.exp(- np.einsum('xyi,xyi->xy', XY, XY) / sigma_2)
+            return self.np.exp(- self.np.einsum('xyi,xyi->xy', XY, XY) / sigma_2)
 
         return Gaussian_kernel_vectorized
 
-    @staticmethod
-    def def_gaussian_kernel_jax(sigma=1):
-        # notice in the MMD paper they set sigma to a median value over the observation; check that.
-        sigma_2 = 2 * sigma ** 2
-
-        # def Gaussian_kernel(x, y):
-        #     xy = x - y
-        #     # assert np.allclose(np.dot(xy, xy), np.linalg.norm(xy) ** 2)
-        #     return np.exp(- np.dot(xy, xy) / sigma_2)
-
-        def Gaussian_kernel_vectorized(X, Y):
-            """Here X and Y have shape (n_samples_x, n_features) and (n_samples_y, n_features);
-            this directly computes the kernel for all pairwise components"""
-            XY = X.reshape(X.shape[0], 1, -1) - Y.reshape(1, Y.shape[0], -1)  # pairwise differences
-            return jnp.exp(- jnp.einsum('xyi,xyi->xy', XY, XY) / sigma_2)
-
-        return Gaussian_kernel_vectorized
-
-    def compute_Gram_matrix(self, s_observations, s_simulations):
+    def _compute_Gram_matrix(self, s_observations, s_simulations):
 
         if self.kernel_vectorized:
             K_sim_sim = self.kernel(s_simulations, s_simulations)
             K_obs_sim = self.kernel(s_observations, s_simulations)
         else:
+            # this should not happen in case self.use_jax is True
             n_obs = s_observations.shape[0]
             n_sim = s_simulations.shape[0]
 
@@ -921,46 +829,22 @@ class KernelScore(ScoringRule):
 
         return K_sim_sim, K_obs_sim
 
-    @staticmethod
-    def MMD_unbiased_numpy(K_sim_sim, K_obs_sim):
+    def _MMD_unbiased(self, K_sim_sim, K_obs_sim):
         # Adapted from https://github.com/eugenium/MMD/blob/2fe67cbc7378f10f3b273cfd8d8bbd2135db5798/mmd.py
         # The estimate when distribution of x is not equal to y
         n_obs, n_sim = K_obs_sim.shape
 
-        t_obs_sim = (2. / n_sim) * np.sum(K_obs_sim)
-        t_sim_sim = (1. / (n_sim * (n_sim - 1))) * np.sum(K_sim_sim[~np.eye(n_sim, dtype=bool)])
+        t_obs_sim = (2. / n_sim) * self.np.sum(K_obs_sim)
+        t_sim_sim = (1. / (n_sim * (n_sim - 1))) * self.np.sum(K_sim_sim[~self.np.eye(n_sim, dtype=bool)])
 
         return n_obs * t_sim_sim - t_obs_sim
 
-    @staticmethod
-    def MMD_V_estimator_numpy(K_sim_sim, K_obs_sim):
+    def _MMD_V_estimator(self, K_sim_sim, K_obs_sim):
         # The estimate when distribution of x is not equal to y
         n_obs, n_sim = K_obs_sim.shape
 
-        t_obs_sim = (2. / n_sim) * np.sum(K_obs_sim)
-        t_sim_sim = (1. / (n_sim * n_sim)) * np.sum(K_sim_sim)
-
-        return n_obs * t_sim_sim - t_obs_sim
-
-    @staticmethod
-    def MMD_unbiased_jax(K_sim_sim, K_obs_sim):
-        # Adapted from https://github.com/eugenium/MMD/blob/2fe67cbc7378f10f3b273cfd8d8bbd2135db5798/mmd.py
-        # The estimate when distribution of x is not equal to y
-        n_obs, n_sim = K_obs_sim.shape
-
-        t_obs_sim = (2. / n_sim) * jnp.sum(K_obs_sim)
-        val = K_sim_sim[~jnp.eye(n_sim, dtype=bool)]
-        t_sim_sim = (1. / (n_sim * (n_sim - 1))) * jnp.sum(val)
-
-        return n_obs * t_sim_sim - t_obs_sim
-
-    @staticmethod
-    def MMD_V_estimator_jax(K_sim_sim, K_obs_sim):
-        # The estimate when distribution of x is not equal to y
-        n_obs, n_sim = K_obs_sim.shape
-
-        t_obs_sim = (2. / n_sim) * jnp.sum(K_obs_sim)
-        t_sim_sim = (1. / (n_sim * n_sim)) * jnp.sum(K_sim_sim)
+        t_obs_sim = (2. / n_sim) * self.np.sum(K_obs_sim)
+        t_sim_sim = (1. / (n_sim * n_sim)) * self.np.sum(K_sim_sim)
 
         return n_obs * t_sim_sim - t_obs_sim
 
