@@ -4,7 +4,7 @@ from glmnet import LogitNet
 from scipy.stats import gaussian_kde, rankdata, norm
 from sklearn.covariance import ledoit_wolf
 
-from jax import grad
+from jax import grad, vmap
 import jax.numpy as jnp
 
 from abcpy.graphtools import GraphTools
@@ -698,7 +698,8 @@ class EnergyScore(ScoringRule):
 
 class KernelScore(ScoringRule):
 
-    def __init__(self, statistics_calc, weight=1, kernel="gaussian", biased_estimator=False, **kernel_kwargs):
+    def __init__(self, statistics_calc, weight=1, kernel="gaussian", biased_estimator=False, use_jax=False,
+                 **kernel_kwargs):
         """
         Parameters
         ----------
@@ -709,26 +710,49 @@ class KernelScore(ScoringRule):
         kernel : str or callable, optional
             Can be a string denoting the kernel, or a function. If a string, only gaussian is implemented for now; in
             that case, you can also provide an additional keyword parameter 'sigma' which is used as the sigma in the
-            kernel.
+            kernel. If a function is provided it should take two arguments; additionally, it needs to be written in
+            jax if use_jax is True, otherwise gradient computation will not work.
         biased_estimator : bool, optional
             Whether to use the biased estimator or not. Default is False.
+        use_jax : bool, optional.
+            Whether to use JAX for the computation; in that case, you can compute unbiased gradient estimate
+            of the score with respect to parameters. Default is False.
         **kernel_kwargs : dict, optional
             Additional keyword arguments for the kernel.
         """
 
+        if not isinstance(kernel, str) and not callable(kernel):
+            raise RuntimeError("'kernel' must be either a string or a function of two variables returning a scalar. "
+                               "In that case, it must be written in JAX if use_jax is True.")
+
         super(KernelScore, self).__init__(statistics_calc, weight=weight)
 
         self.kernel_vectorized = False
-        if not isinstance(kernel, str) and not callable(kernel):
-            raise RuntimeError("'kernel' must be either a string or a function of two variables returning a scalar.")
+        self.use_jax = use_jax
+
+        # set up the kernel
         if isinstance(kernel, str):
             if kernel == "gaussian":
-                self.kernel = self.def_gaussian_kernel(**kernel_kwargs)
+                if use_jax:
+                    self.kernel = self.def_gaussian_kernel_jax(**kernel_kwargs)
+                else:
+                    self.kernel = self.def_gaussian_kernel_numpy(**kernel_kwargs)
                 self.kernel_vectorized = True  # the gaussian kernel is vectorized
             else:
                 raise NotImplementedError("The required kernel is not implemented.")
+        else:  # if kernel is a callable already
+            if use_jax:
+                self.kernel = self._all_pairs(kernel)  # this makes it a vectorized function
+                self.kernel_vectorized = True  # the gaussian kernel is vectorized
+            else:
+                self.kernel = kernel
+
+        if use_jax:
+            self._estimate_score = self._estimate_score_jax
+            # define the gradient function with jax:
+            self._grad_estimate_score = grad(self._estimate_score, argnums=1)
         else:
-            self.kernel = kernel  # if kernel is a callable already
+            self._estimate_score = self._estimate_score_numpy
 
         self.biased_estimator = biased_estimator
 
@@ -752,14 +776,60 @@ class KernelScore(ScoringRule):
         """
         s_observations, s_simulations = self._calculate_summary_stat(observations, simulations)
 
-        # compute the Gram matrix
-        K_sim_sim, K_obs_sim = self.compute_Gram_matrix(s_observations, s_simulations)
+        return self._estimate_score(s_observations, s_simulations)
 
-        # Estimate MMD
-        if self.biased_estimator:
-            return self.MMD_V_estimator(K_sim_sim, K_obs_sim)
-        else:
-            return self.MMD_unbiased(K_sim_sim, K_obs_sim)
+    def score_gradient(self, observations, simulations, simulations_gradients):
+        """
+        Computes gradient of the unbiased estimate of the score with respect to the parameters.
+
+        Parameters
+        ----------
+        observations: Python list
+            Contains n1 data points.
+        simulations: Python list
+            Contains n2 data points.
+        simulations_gradients: Python list
+            Contains n2 data points, each of which is the gradient of the simulations with respect to the
+            parameters (and is therefore of shape (simulation_dim, n_params)).
+
+        Returns
+        -------
+        numpy.ndarray
+            The gradient of the score with respect to the parameters.
+
+        Notes
+        -----
+        When running an ABC algorithm, the observed dataset is always passed first to the distance. Therefore, you can
+        save the statistics of the observed dataset inside this object, in order to not repeat computations.
+        """
+        if not self.use_jax:
+            raise RuntimeError("The gradient of the energy score is only available with jax.")
+
+        if not isinstance(self.statistics_calc,
+                          Identity) or self.statistics_calc.degree != 1 or self.statistics_calc.cross:
+            raise RuntimeError(
+                "The gradient of the energy score is only available for the identity statistics with degree="
+                "1 and cross=False.")
+
+        if not len(simulations) == len(simulations_gradients):
+            raise RuntimeError("The number of simulations and the number of gradients must be the same.")
+
+        s_observations, s_simulations = self._calculate_summary_stat(observations, simulations)
+
+        score_grad = self._grad_estimate_score(s_observations, s_simulations)
+        # score grad contains the gradients of the score with respect to the simulation statistics; it is therefore of
+        # shape (n_sim, simulation_dim)
+        simulations_gradients = np.array(simulations_gradients)
+        # simulations_gradients is of shape (n_sim, simulation_dim, n_params)
+
+        if not simulations_gradients.shape[1] == score_grad.shape[1]:
+            raise RuntimeError("The shape of the score gradient must be the"
+                               " same as the first two shapes of the simulations.")
+
+        # then need to multiply the gradients for each simulation along the simulation_dim axis and then average
+        # over n_dim; that leads to the gradient of the score with respect to the parameters:
+
+        return np.einsum('ij,ijk->k', score_grad, simulations_gradients)
 
     def score_max(self):
         """
@@ -772,8 +842,28 @@ class KernelScore(ScoringRule):
         # As the statistics are positive, the max possible value is 1
         return np.inf
 
+    def _estimate_score_numpy(self, s_observations, s_simulations):
+        # compute the Gram matrix
+        K_sim_sim, K_obs_sim = self.compute_Gram_matrix(s_observations, s_simulations)
+
+        # Estimate MMD
+        if self.biased_estimator:
+            return self.MMD_V_estimator_numpy(K_sim_sim, K_obs_sim)
+        else:
+            return self.MMD_unbiased_numpy(K_sim_sim, K_obs_sim)
+
+    def _estimate_score_jax(self, s_observations, s_simulations):
+        # compute the Gram matrix
+        K_sim_sim, K_obs_sim = self.compute_Gram_matrix(s_observations, s_simulations)
+
+        # Estimate MMD
+        if self.biased_estimator:
+            return self.MMD_V_estimator_jax(K_sim_sim, K_obs_sim)
+        else:
+            return self.MMD_unbiased_jax(K_sim_sim, K_obs_sim)
+
     @staticmethod
-    def def_gaussian_kernel(sigma=1):
+    def def_gaussian_kernel_numpy(sigma=1):
         # notice in the MMD paper they set sigma to a median value over the observation; check that.
         sigma_2 = 2 * sigma ** 2
 
@@ -787,6 +877,24 @@ class KernelScore(ScoringRule):
             this directly computes the kernel for all pairwise components"""
             XY = X.reshape(X.shape[0], 1, -1) - Y.reshape(1, Y.shape[0], -1)  # pairwise differences
             return np.exp(- np.einsum('xyi,xyi->xy', XY, XY) / sigma_2)
+
+        return Gaussian_kernel_vectorized
+
+    @staticmethod
+    def def_gaussian_kernel_jax(sigma=1):
+        # notice in the MMD paper they set sigma to a median value over the observation; check that.
+        sigma_2 = 2 * sigma ** 2
+
+        # def Gaussian_kernel(x, y):
+        #     xy = x - y
+        #     # assert np.allclose(np.dot(xy, xy), np.linalg.norm(xy) ** 2)
+        #     return np.exp(- np.dot(xy, xy) / sigma_2)
+
+        def Gaussian_kernel_vectorized(X, Y):
+            """Here X and Y have shape (n_samples_x, n_features) and (n_samples_y, n_features);
+            this directly computes the kernel for all pairwise components"""
+            XY = X.reshape(X.shape[0], 1, -1) - Y.reshape(1, Y.shape[0], -1)  # pairwise differences
+            return jnp.exp(- jnp.einsum('xyi,xyi->xy', XY, XY) / sigma_2)
 
         return Gaussian_kernel_vectorized
 
@@ -814,18 +922,18 @@ class KernelScore(ScoringRule):
         return K_sim_sim, K_obs_sim
 
     @staticmethod
-    def MMD_unbiased(K_sim_sim, K_obs_sim):
+    def MMD_unbiased_numpy(K_sim_sim, K_obs_sim):
         # Adapted from https://github.com/eugenium/MMD/blob/2fe67cbc7378f10f3b273cfd8d8bbd2135db5798/mmd.py
         # The estimate when distribution of x is not equal to y
         n_obs, n_sim = K_obs_sim.shape
 
         t_obs_sim = (2. / n_sim) * np.sum(K_obs_sim)
-        t_sim_sim = (1. / (n_sim * (n_sim - 1))) * np.sum(K_sim_sim - np.diag(np.diagonal(K_sim_sim)))
+        t_sim_sim = (1. / (n_sim * (n_sim - 1))) * np.sum(K_sim_sim[~np.eye(n_sim, dtype=bool)])
 
         return n_obs * t_sim_sim - t_obs_sim
 
     @staticmethod
-    def MMD_V_estimator(K_sim_sim, K_obs_sim):
+    def MMD_V_estimator_numpy(K_sim_sim, K_obs_sim):
         # The estimate when distribution of x is not equal to y
         n_obs, n_sim = K_obs_sim.shape
 
@@ -833,3 +941,32 @@ class KernelScore(ScoringRule):
         t_sim_sim = (1. / (n_sim * n_sim)) * np.sum(K_sim_sim)
 
         return n_obs * t_sim_sim - t_obs_sim
+
+    @staticmethod
+    def MMD_unbiased_jax(K_sim_sim, K_obs_sim):
+        # Adapted from https://github.com/eugenium/MMD/blob/2fe67cbc7378f10f3b273cfd8d8bbd2135db5798/mmd.py
+        # The estimate when distribution of x is not equal to y
+        n_obs, n_sim = K_obs_sim.shape
+
+        t_obs_sim = (2. / n_sim) * jnp.sum(K_obs_sim)
+        val = K_sim_sim[~jnp.eye(n_sim, dtype=bool)]
+        t_sim_sim = (1. / (n_sim * (n_sim - 1))) * jnp.sum(val)
+
+        return n_obs * t_sim_sim - t_obs_sim
+
+    @staticmethod
+    def MMD_V_estimator_jax(K_sim_sim, K_obs_sim):
+        # The estimate when distribution of x is not equal to y
+        n_obs, n_sim = K_obs_sim.shape
+
+        t_obs_sim = (2. / n_sim) * jnp.sum(K_obs_sim)
+        t_sim_sim = (1. / (n_sim * n_sim)) * jnp.sum(K_sim_sim)
+
+        return n_obs * t_sim_sim - t_obs_sim
+
+    @staticmethod
+    def _all_pairs(f):
+        """Used to apply a function of two elements to all possible pairs."""
+        f = vmap(f, in_axes=(None, 0))
+        f = vmap(f, in_axes=(0, None))
+        return f
