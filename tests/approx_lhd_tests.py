@@ -170,6 +170,8 @@ class EnergyScoreTests(unittest.TestCase):
         self.statistics_calc = Identity(degree=1)
         self.scoring_rule = EnergyScore(self.statistics_calc, beta=2)
         self.scoring_rule_beta1 = EnergyScore(self.statistics_calc, beta=1)
+        self.scoring_rule_jax = EnergyScore(self.statistics_calc, beta=2, use_jax=True)
+        self.scoring_rule_beta1_jax = EnergyScore(self.statistics_calc, beta=1, use_jax=True)
         self.crps = UnivariateContinuousRankedProbabilityScoreEstimate(self.statistics_calc)
         self.statistics_calc_2 = Identity(degree=2)
         self.scoring_rule_2 = EnergyScore(self.statistics_calc_2, beta=2)
@@ -221,6 +223,25 @@ class EnergyScoreTests(unittest.TestCase):
         comp_loglikelihood_two = self.scoring_rule_2.score(self.y_obs_double, self.y_sim)
 
         self.assertAlmostEqual(comp_loglikelihood_two, comp_loglikelihood_a + comp_loglikelihood_b)
+
+    def test_jax_numpy(self):
+        s_observations, s_simulations = self.scoring_rule._calculate_summary_stat(self.y_obs, self.y_sim)
+
+        # compute the score using numpy
+        numpy_score = self.scoring_rule.score(self.y_obs, self.y_sim)
+        # compute the score using jax
+        jax_score = self.scoring_rule_jax.score(self.y_obs, self.y_sim)
+        # check they are identical; notice jax uses reduced precision, so need to change a bit the tolerance
+        self.assertTrue(np.allclose(numpy_score, jax_score, atol=1e-5, rtol=1e-5))
+
+        # compute the score using numpy
+        numpy_score = self.scoring_rule_beta1.score(self.y_obs, self.y_sim)
+        # compute the score using jax
+        jax_score = self.scoring_rule_beta1_jax.score(self.y_obs, self.y_sim)
+        # check they are identical; notice jax uses reduced precision, so need to change a bit the tolerance
+        self.assertTrue(np.allclose(numpy_score, jax_score, atol=1e-5, rtol=1e-5))
+
+    # def test_grad(self):
 
 
 class KernelScoreTests(unittest.TestCase):

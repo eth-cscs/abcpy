@@ -4,6 +4,9 @@ from glmnet import LogitNet
 from scipy.stats import gaussian_kde, rankdata, norm
 from sklearn.covariance import ledoit_wolf
 
+from jax import grad
+import jax.numpy as jnp
+
 from abcpy.graphtools import GraphTools
 
 
@@ -526,7 +529,7 @@ class UnivariateContinuousRankedProbabilityScoreEstimate(ScoringRule):
 
 
 class EnergyScore(ScoringRule):
-    def __init__(self, statistics_calc, weight=1, beta=1):
+    def __init__(self, statistics_calc, weight=1, beta=1, use_jax=False):
         """ Estimates the EnergyScore. Here, I assume the observations and simulations are lists of
         length respectively n_obs and n_sim. Then, for each fixed observation the n_sim simulations are used to estimate the
         scoring rule. Subsequently, the values are summed over each of the n_obs observations.
@@ -544,6 +547,14 @@ class EnergyScore(ScoringRule):
 
         self.beta = beta
         self.beta_over_2 = 0.5 * beta
+
+        if use_jax:
+            self._estimate_energy_score = self._estimate_energy_score_jax
+            # define the gradient function with jax:
+            self.grad_estimate_energy_score = grad(self._estimate_energy_score, argnums=1)
+        else:
+            self._estimate_energy_score = self._estimate_energy_score_numpy
+
         super(EnergyScore, self).__init__(statistics_calc, weight=weight)
 
     def score(self, observations, simulations):
@@ -567,14 +578,14 @@ class EnergyScore(ScoringRule):
 
         s_observations, s_simulations = self._calculate_summary_stat(observations, simulations)
 
-        score = self.estimate_energy_score_new(s_observations, s_simulations)
+        score = self._estimate_energy_score(s_observations, s_simulations)
         return score
 
     def score_max(self):
         # As the statistics are positive, the max possible value is 1
         return np.inf
 
-    def estimate_energy_score_new(self, observations, simulations):
+    def _estimate_energy_score_numpy(self, observations, simulations):
         """observations is an array of size (n_obs, p) (p being the dimensionality), while simulations is an array
         of size (n_sim, p).
         We estimate this by building an empirical unbiased estimate of Eq. (2) in Ziel and Berk 2019"""
@@ -596,8 +607,9 @@ class EnergyScore(ScoringRule):
         #     for j in range(n_sim):
         #         diff_X_tildeX2[i, j] = simulations[j] - simulations[i]
         # assert np.allclose(diff_X_tildeX2, diff_X_tildeX)
-        diff_X_tildeX = np.einsum('ijk, ijk -> ij', diff_X_tildeX, diff_X_tildeX)
 
+        # exclude diagonal elements which are zero:
+        diff_X_tildeX = np.einsum('ijk, ijk -> ij', diff_X_tildeX, diff_X_tildeX)
         if self.beta_over_2 != 1:
             diff_X_y **= self.beta_over_2
             diff_X_tildeX **= self.beta_over_2
@@ -606,6 +618,26 @@ class EnergyScore(ScoringRule):
         # here I am using an unbiased estimate; I could also use a biased estimate (dividing by n_sim**2). In the ABC
         # with energy distance, they use the biased estimate for energy distance as it is always positive; not sure this
         # is so important here however.
+
+
+    def _estimate_energy_score_jax(self, observations, simulations):
+        """observations is an array of size (n_obs, p) (p being the dimensionality), while simulations is an array
+        of size (n_sim, p).
+        We estimate this by building an empirical unbiased estimate of Eq. (2) in Ziel and Berk 2019"""
+        n_obs = observations.shape[0]
+        n_sim, p = simulations.shape
+        diff_X_y = observations.reshape(n_obs, 1, -1) - simulations.reshape(1, n_sim, p)
+        diff_X_y = jnp.einsum('ijk, ijk -> ij', diff_X_y, diff_X_y)
+
+        diff_X_tildeX = simulations.reshape(1, n_sim, p) - simulations.reshape(n_sim, 1, p)
+
+        # exclude diagonal elements which are zero:
+        diff_X_tildeX = jnp.einsum('ijk, ijk -> ij', diff_X_tildeX, diff_X_tildeX)
+        if self.beta_over_2 != 1:
+            diff_X_y **= self.beta_over_2
+            diff_X_tildeX **= self.beta_over_2
+
+        return 2 * jnp.sum(jnp.mean(diff_X_y, axis=1)) - n_obs * jnp.sum(diff_X_tildeX) / (n_sim * (n_sim - 1))
 
 
 class KernelScore(ScoringRule):
