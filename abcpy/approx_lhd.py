@@ -8,6 +8,7 @@ from jax import grad
 import jax.numpy as jnp
 
 from abcpy.graphtools import GraphTools
+from abcpy.statistics import Identity
 
 
 class Approx_likelihood(metaclass=ABCMeta):
@@ -543,17 +544,21 @@ class EnergyScore(ScoringRule):
             Weight used in defining the scoring rule posterior. Default is 1.
         beta : int, optional.
             Power used to define the energy score. Default is 1.
+        use_jax : bool, optional.
+            Whether to use JAX for the computation; in that case, you can compute unbiased gradient estimate
+            of the score with respect to parameters. Default is False.
         """
 
         self.beta = beta
         self.beta_over_2 = 0.5 * beta
+        self.use_jax = use_jax
 
         if use_jax:
-            self._estimate_energy_score = self._estimate_energy_score_jax
+            self._estimate_score = self._estimate_score_jax
             # define the gradient function with jax:
-            self.grad_estimate_energy_score = grad(self._estimate_energy_score, argnums=1)
+            self._grad_estimate_score = grad(self._estimate_score, argnums=1)
         else:
-            self._estimate_energy_score = self._estimate_energy_score_numpy
+            self._estimate_score = self._estimate_score_numpy
 
         super(EnergyScore, self).__init__(statistics_calc, weight=weight)
 
@@ -578,14 +583,66 @@ class EnergyScore(ScoringRule):
 
         s_observations, s_simulations = self._calculate_summary_stat(observations, simulations)
 
-        score = self._estimate_energy_score(s_observations, s_simulations)
-        return score
+        return self._estimate_score(s_observations, s_simulations)
+
+    def score_gradient(self, observations, simulations, simulations_gradients):
+        """
+        Computes gradient of the unbiased estimate of the score with respect to the parameters.
+
+        Parameters
+        ----------
+        observations: Python list
+            Contains n1 data points.
+        simulations: Python list
+            Contains n2 data points.
+        simulations_gradients: Python list
+            Contains n2 data points, each of which is the gradient of the simulations with respect to the
+            parameters (and is therefore of shape (simulation_dim, n_params)).
+
+        Returns
+        -------
+        numpy.ndarray
+            The gradient of the score with respect to the parameters.
+
+        Notes
+        -----
+        When running an ABC algorithm, the observed dataset is always passed first to the distance. Therefore, you can
+        save the statistics of the observed dataset inside this object, in order to not repeat computations.
+        """
+        if not self.use_jax:
+            raise RuntimeError("The gradient of the energy score is only available with jax.")
+
+        if not isinstance(self.statistics_calc,
+                          Identity) or self.statistics_calc.degree != 1 or self.statistics_calc.cross:
+            raise RuntimeError(
+                "The gradient of the energy score is only available for the identity statistics with degree="
+                "1 and cross=False.")
+
+        if not len(simulations) == len(simulations_gradients):
+            raise RuntimeError("The number of simulations and the number of gradients must be the same.")
+
+        s_observations, s_simulations = self._calculate_summary_stat(observations, simulations)
+
+        score_grad = self._grad_estimate_score(s_observations, s_simulations)
+        # score grad contains the gradients of the score with respect to the simulation statistics; it is therefore of
+        # shape (n_sim, simulation_dim)
+        simulations_gradients = np.array(simulations_gradients)
+        # simulations_gradients is of shape (n_sim, simulation_dim, n_params)
+
+        if not simulations_gradients.shape[0:2] == score_grad.shape:
+            raise RuntimeError("The shape of the score gradient must be the"
+                               " same as the first two shapes of the simulations.")
+
+        # then need to multiply the gradients for each simulation along the simulation_dim axis and then average
+        # over n_dim; that leads to the gradient of the score with respect to the parameters:
+
+        return np.einsum('ij,ijk->k', score_grad, simulations_gradients)
 
     def score_max(self):
         # As the statistics are positive, the max possible value is 1
         return np.inf
 
-    def _estimate_energy_score_numpy(self, observations, simulations):
+    def _estimate_score_numpy(self, observations, simulations):
         """observations is an array of size (n_obs, p) (p being the dimensionality), while simulations is an array
         of size (n_sim, p).
         We estimate this by building an empirical unbiased estimate of Eq. (2) in Ziel and Berk 2019"""
@@ -619,8 +676,7 @@ class EnergyScore(ScoringRule):
         # with energy distance, they use the biased estimate for energy distance as it is always positive; not sure this
         # is so important here however.
 
-
-    def _estimate_energy_score_jax(self, observations, simulations):
+    def _estimate_score_jax(self, observations, simulations):
         """observations is an array of size (n_obs, p) (p being the dimensionality), while simulations is an array
         of size (n_sim, p).
         We estimate this by building an empirical unbiased estimate of Eq. (2) in Ziel and Berk 2019"""
@@ -632,7 +688,7 @@ class EnergyScore(ScoringRule):
         diff_X_tildeX = simulations.reshape(1, n_sim, p) - simulations.reshape(n_sim, 1, p)
 
         # exclude diagonal elements which are zero:
-        diff_X_tildeX = jnp.einsum('ijk, ijk -> ij', diff_X_tildeX, diff_X_tildeX)
+        diff_X_tildeX = jnp.einsum('ijk, ijk -> ij', diff_X_tildeX, diff_X_tildeX)[~np.eye(n_sim, dtype=bool)]
         if self.beta_over_2 != 1:
             diff_X_y **= self.beta_over_2
             diff_X_tildeX **= self.beta_over_2

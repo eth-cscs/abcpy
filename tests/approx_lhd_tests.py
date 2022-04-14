@@ -178,7 +178,8 @@ class EnergyScoreTests(unittest.TestCase):
         # create fake simulated data
         self.mu._fixed_values = [1.1]
         self.sigma._fixed_values = [1.0]
-        self.y_sim = self.model.forward_simulate(self.model.get_input_values(), 100, rng=np.random.RandomState(1))
+        self.y_sim, self.y_sim_grads = self.model.forward_simulate_and_gradient(self.model.get_input_values(), 100,
+                                                                                rng=np.random.RandomState(1))
         # create observed data
         self.y_obs = [1.8]
         self.y_obs_double = [1.8, 0.9]
@@ -212,21 +213,14 @@ class EnergyScoreTests(unittest.TestCase):
         self.assertAlmostEqual(comp_likelihood, np.exp(comp_loglikelihood))
 
     def test_score_additive(self):
-        comp_loglikelihood_a = self.scoring_rule.score([self.y_obs_double[0]], self.y_sim)
-        comp_loglikelihood_b = self.scoring_rule.score([self.y_obs_double[1]], self.y_sim)
-        comp_loglikelihood_two = self.scoring_rule.score(self.y_obs_double, self.y_sim)
+        for score in [self.scoring_rule, self.scoring_rule_beta1]:
+            comp_loglikelihood_a = score.score([self.y_obs_double[0]], self.y_sim)
+            comp_loglikelihood_b = score.score([self.y_obs_double[1]], self.y_sim)
+            comp_loglikelihood_two = score.score(self.y_obs_double, self.y_sim)
 
-        self.assertAlmostEqual(comp_loglikelihood_two, comp_loglikelihood_a + comp_loglikelihood_b)
-
-        comp_loglikelihood_a = self.scoring_rule_2.score([self.y_obs_double[0]], self.y_sim)
-        comp_loglikelihood_b = self.scoring_rule_2.score([self.y_obs_double[1]], self.y_sim)
-        comp_loglikelihood_two = self.scoring_rule_2.score(self.y_obs_double, self.y_sim)
-
-        self.assertAlmostEqual(comp_loglikelihood_two, comp_loglikelihood_a + comp_loglikelihood_b)
+            self.assertAlmostEqual(comp_loglikelihood_two, comp_loglikelihood_a + comp_loglikelihood_b)
 
     def test_jax_numpy(self):
-        s_observations, s_simulations = self.scoring_rule._calculate_summary_stat(self.y_obs, self.y_sim)
-
         # compute the score using numpy
         numpy_score = self.scoring_rule.score(self.y_obs, self.y_sim)
         # compute the score using jax
@@ -241,7 +235,29 @@ class EnergyScoreTests(unittest.TestCase):
         # check they are identical; notice jax uses reduced precision, so need to change a bit the tolerance
         self.assertTrue(np.allclose(numpy_score, jax_score, atol=1e-5, rtol=1e-5))
 
-    # def test_grad(self):
+    def test_grad(self):
+        # test if it raises RuntimeError if jax is not used
+        self.assertRaises(RuntimeError, self.scoring_rule.score_gradient, self.y_obs, self.y_sim, self.y_sim_grads)
+
+        # test if it raises RuntimeError when using the identity statistics with degree>1
+        self.assertRaises(RuntimeError, self.scoring_rule_2.score_gradient, self.y_obs, self.y_sim, self.y_sim_grads)
+
+        # test if it raises RuntimeError when the number of gradients is not equal to the number of simulations
+        self.assertRaises(RuntimeError, self.scoring_rule.score_gradient, self.y_obs, self.y_sim,
+                          self.y_sim_grads[0:-2])
+
+        # test now the gradient
+        for score in [self.scoring_rule_jax, self.scoring_rule_beta1_jax]:
+            score_grad = score.score_gradient(self.y_obs, self.y_sim, self.y_sim_grads)
+            # check the shape of the score:
+            self.assertEqual(score_grad.shape, (2,))
+
+    def test_grad_additive(self):
+        for score in [self.scoring_rule_jax, self.scoring_rule_beta1_jax]:
+            comp_grad_a = score.score_gradient([self.y_obs_double[0]], self.y_sim, self.y_sim_grads)
+            comp_grad_b = score.score_gradient([self.y_obs_double[1]], self.y_sim, self.y_sim_grads)
+            comp_grad_two = score.score_gradient(self.y_obs_double, self.y_sim, self.y_sim_grads)
+            self.assertTrue(np.allclose(comp_grad_two, comp_grad_a + comp_grad_b))
 
 
 class KernelScoreTests(unittest.TestCase):
