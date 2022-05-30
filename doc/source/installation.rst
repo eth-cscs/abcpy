@@ -84,3 +84,12 @@ In some cases, even the above may not be enough. A possibility is using ``conda`
 
 which however does not work with virtual environments.
 
+
+Installing on Windows
+~~~~~~~~~~~~~~~~~~~~~~
+
+``ABCpy`` is tested on Linux and MacOS machines. It is however possible to use it on Windows, albeit more care needs to be taken with installing the dependencies. Check `here
+<https://github.com/eth-cscs/abcpy/issues/105>`_
+for a guide on how that can be done.
+
+Often, troubles arise from the ``glmnet`` library, on which some of the inference schemes in ``ABCpy`` depend upon (i.e., ABC with classification accuracy based on Penalized Logistic Regression :py:class:`abcpy.distances.PenLogReg` and the approximate likelihood methods with Ratio Estimation based on Penalized Logistic Regression :py:class:`abcpy.approx_lhd.PenLogReg`). If you do not manage to install ``ABCpy`` via the method linked above, you can install a reduced version of ``ABCpy`` which does not depend on ``glmnet`` (i.e., all methods which depended on that have been removed); see `here <https://github.com/eth-cscs/abcpy/issues/97#issuecomment-981919114>`_ for details.
