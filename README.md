@@ -24,7 +24,7 @@ The above can be used with the following **distances**:
   * [Wasserstein Distance](https://rss.onlinelibrary.wiley.com/doi/abs/10.1111/rssb.12312)
   * [Sliced Wasserstein Distance](https://ieeexplore.ieee.org/abstract/document/9054735)
   * [Gamma Divergence](http://proceedings.mlr.press/v130/fujisawa21a/fujisawa21a.pdf)
-  * [Kullback Liebler Divergence](http://proceedings.mlr.press/v84/jiang18a/jiang18a.pdf)
+  * [Kullback Leibler Divergence](http://proceedings.mlr.press/v84/jiang18a/jiang18a.pdf)
   * [Maximum Mean Discrepancy](http://proceedings.mlr.press/v51/park16.pdf)
   * [Energy Distance](https://arxiv.org/abs/1905.05884)
   * [Squared Hellinger Distance](https://arxiv.org/pdf/2006.14126.pdf)
