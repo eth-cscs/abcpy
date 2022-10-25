@@ -4072,8 +4072,10 @@ class SMCABC(BaseDiscrepancy, InferenceMethod):
 
 class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
     """
-    Simple Metropolis-Hastings MCMC working with the approximate likelihood functions Approx_likelihood, with
+    Metropolis-Hastings MCMC working with the approximate likelihood functions Approx_likelihood, with
     multivariate normal proposals.
+
+    As the Approximate Likelihood is estimated from simulations from the data, this is a pseudo-marginal MCMC approach.
 
     Parameters
     ----------
@@ -4150,6 +4152,12 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
         use MCMC with transformed space, you need to specify lower and upper bounds in the corresponding parameters (see
         details in the description of `bounds`).
 
+        As the Approximate Likelihood is estimated from simulations from the data, this is a pseudo-marginal MCMC
+        approach. As pseudo-marginal can lead to sticky ``chains'', this method also implements correlated
+        pseudo-marginal MCMC [2], where the noise used to estimate the target at subsequent steps is correlated.
+        See the argument `n_groups_correlated_randomness` to learn more.
+
+
         The returned journal file contains also information on acceptance rates (in the configuration dictionary).
 
         [1] Haario, H., Saksman, E., & Tamminen, J. (2001). An adaptive Metropolis algorithm. Bernoulli, 7(2), 223-242.
@@ -4223,7 +4231,8 @@ class MCMCMetropoliHastings(BaseLikelihood, InferenceMethod):
             and was discussed in [2] for the Bayesian Synthetic Likelihood framework. Notice that, when
             n_groups_correlated_randomness > 0 and speedup_dummy is True, you obtain different results for different
             values of n_groups_correlated_randomness due to different ways of handling random seeds.
-            When None, we do not keep track of the random seeds. Default value is None.
+            When None, we do not keep track of the random seeds (i.e. it is a vanilla pseudo-marginal); the same is true
+            when n_groups_correlated_randomness=1. Default value is None.
         use_tqdm : boolean, optional
             Whether using tqdm or not to display progress. Defaults to True.
         journal_file: str, optional
