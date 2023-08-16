@@ -34,8 +34,8 @@ Make sure all requirements are installed
 To create a package and install it, do
 ::
 
-   make package
    pip3 install wheel
+   make package
    pip3 install build/dist/abcpy-0.6.3-py3-none-any.whl
 
 ``wheel`` is required to install in this way.
