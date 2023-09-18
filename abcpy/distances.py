@@ -1,7 +1,10 @@
 import numpy as np
 import warnings
 from abc import ABCMeta, abstractmethod
-from glmnet import LogitNet
+try:
+    from glmnet import LogitNet
+except:
+    pass
 from sklearn import linear_model
 from sklearn.neighbors import NearestNeighbors
 
