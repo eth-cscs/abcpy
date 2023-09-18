@@ -1,6 +1,9 @@
 import numpy as np
 from abc import ABCMeta, abstractmethod
-from glmnet import LogitNet
+try:
+    from glmnet import LogitNet
+except:
+    pass
 from scipy.stats import gaussian_kde, rankdata, norm
 from sklearn.covariance import ledoit_wolf
 

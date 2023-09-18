@@ -1,7 +1,7 @@
 numpy
 scipy
 scikit-learn>=0.23.1
-glmnet>=2.2.1
+glmnet>=2.2.1; platform_system != "Windows"
 sphinx
 sphinx_rtd_theme 
 coverage
