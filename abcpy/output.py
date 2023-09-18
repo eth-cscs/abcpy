@@ -660,13 +660,13 @@ class Journal:
                         ax.yaxis.set_visible(False)
 
                         # Set up ticks only on one side for the "edge" subplots...
-                        if ax.is_first_col():
+                        if ax.get_subplotspec().is_first_col():
                             ax.yaxis.set_ticks_position('left')
-                        if ax.is_last_col():
+                        if ax.get_subplotspec().is_last_col():
                             ax.yaxis.set_ticks_position('right')
-                        if ax.is_first_row():
+                        if ax.get_subplotspec().is_first_row():
                             ax.xaxis.set_ticks_position('top')
-                        if ax.is_last_row():
+                        if ax.get_subplotspec().is_last_row():
                             ax.xaxis.set_ticks_position('bottom')
 
                 # off diagonal plots:
