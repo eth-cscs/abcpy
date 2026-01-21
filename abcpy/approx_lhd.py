@@ -1,11 +1,12 @@
 import numpy as np
 from abc import ABCMeta, abstractmethod
-try:
-    from glmnet import LogitNet
-except:
-    pass
+# try:
+#     from glmnet import LogitNet
+# except:
+#     pass
 from scipy.stats import gaussian_kde, rankdata, norm
 from sklearn.covariance import ledoit_wolf
+from sklearn import linear_model
 
 from abcpy.graphtools import GraphTools
 
@@ -382,13 +383,26 @@ class PenLogReg(Approx_likelihood, GraphTools):
         # Compute the approximate likelihood for the y_obs given theta
         y = np.append(np.zeros(self.n_simulate), np.ones(self.n_simulate))
         X = np.array(np.concatenate((stat_sim, self.ref_data_stat), axis=0))
-        # define here groups for cross-validation:
-        groups = np.repeat(np.arange(self.n_folds), int(np.ceil(self.n_simulate / self.n_folds)))
-        groups = groups[:self.n_simulate].tolist()
-        groups += groups  # duplicate it as groups need to be defined for both datasets
-        m = LogitNet(alpha=1, n_splits=self.n_folds, max_iter=self.max_iter, random_state=self.seed, scoring="log_loss")
-        m = m.fit(X, y, groups=groups)
-        result = -np.sum((m.intercept_ + np.sum(np.multiply(m.coef_, stat_obs), axis=1)), axis=0)
+
+        # # ## Previously this was done using GLMNET, which has been deprecated
+        # # define here groups for cross-validation:
+        # groups = np.repeat(np.arange(self.n_folds), int(np.ceil(self.n_simulate / self.n_folds)))
+        # groups = groups[:self.n_simulate].tolist()
+        # groups += groups  # duplicate it as groups need to be defined for both datasets
+        # m = LogitNet(alpha=1, n_splits=self.n_folds, max_iter=self.max_iter, random_state=self.seed, scoring="log_loss")
+        # m = m.fit(X, y, groups=groups)
+        # result = -np.sum((m.intercept_ + np.sum(np.multiply(m.coef_, stat_obs), axis=1)), axis=0)
+
+        ### Setting reg_inv to 1 (anything other than np.inf) to make this unpenalized logistic regression ###
+        ## C = 1 #1e5
+        ## l1_ratio_choose makes it l1(1)/l2(0)/elasticnet(0<value_chosen<1)-penalized
+        ## This does not take C and l1_ratio as those are optimized via cross-validation
+        ## max_iter defines how many steps of optimization algorithm is run
+        log_reg_model = linear_model.LogisticRegressionCV(cv= self.n_folds, max_iter=1000, solver='saga',
+                                                        random_state=self.rng.randint(0, np.iinfo(np.uint32).max))
+        log_reg_model.fit(X, y)
+        result = -np.sum((log_reg_model.intercept_ + np.sum(np.multiply(log_reg_model.coef_, stat_obs), axis=1)), axis=0)
+
 
         return result
 

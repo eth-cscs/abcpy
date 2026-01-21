@@ -1,10 +1,10 @@
 import numpy as np
 import warnings
 from abc import ABCMeta, abstractmethod
-try:
-    from glmnet import LogitNet
-except:
-    pass
+# try:
+#     from glmnet import LogitNet
+# except:
+#     pass
 from sklearn import linear_model
 from sklearn.neighbors import NearestNeighbors
 import ot
@@ -265,12 +265,33 @@ class PenLogReg(Divergence):
         label_s2 = np.ones(shape=(len(s2), 1))
         training_set_labels = np.concatenate((label_s1, label_s2), axis=0).ravel()
 
-        groups = np.repeat(np.arange(self.n_folds), int(np.ceil(self.n_simulate / self.n_folds)))
-        groups = groups[:self.n_simulate].tolist()
-        groups += groups  # duplicate it as groups need to be defined for both datasets
-        m = LogitNet(alpha=1, n_splits=self.n_folds)  # note we are not using random seed here!
-        m = m.fit(training_set_features, training_set_labels, groups=groups)
-        distance = 2.0 * (m.cv_mean_score_[np.where(m.lambda_path_ == m.lambda_max_)[0][0]] - 0.5)
+        # groups = np.repeat(np.arange(self.n_folds), int(np.ceil(self.n_simulate / self.n_folds)))
+        # groups = groups[:self.n_simulate].tolist()
+        # groups += groups  # duplicate it as groups need to be defined for both datasets
+        # m = LogitNet(alpha=1, n_splits=self.n_folds)  # note we are not using random seed here!
+        # m = m.fit(training_set_features, training_set_labels, groups=groups)
+        # distance = 2.0 * (m.cv_mean_score_[np.where(m.lambda_path_ == m.lambda_max_)[0][0]] - 0.5)
+
+        # ### Setting reg_inv to 1 (anything other than np.inf) to make this unpenalized logistic regression ###
+        # reg_inv = 1 #1e5
+        # ## l1_ratio_choose makes it l1(1)/l2(0)/elasticnet(0<value_chosen<1)-penalized
+        # log_reg_model = linear_model.LogisticRegression(C=reg_inv, l1_ratio= 1, max_iter=1000, solver='saga',
+        #                                                 random_state=self.rng.randint(0, np.iinfo(np.uint32).max))
+        # log_reg_model.fit(training_set_features, training_set_labels)
+        # score = log_reg_model.score(training_set_features, training_set_labels)
+        # distance = 2.0 * (score - 0.5)
+
+
+        ### Setting reg_inv to 1 (anything other than np.inf) to make this unpenalized logistic regression ###
+        ## C = 1 #1e5
+        ## l1_ratio_choose makes it l1(1)/l2(0)/elasticnet(0<value_chosen<1)-penalized
+        ## This does not take C and l1_ratio as those are optimized via cross-validation
+        ## max_iter defines how many steps of optimization algorithm is run
+        log_reg_model = linear_model.LogisticRegressionCV(cv= self.n_folds, max_iter=1000, solver='saga',
+                                                        random_state=self.rng.randint(0, np.iinfo(np.uint32).max))
+        log_reg_model.fit(training_set_features, training_set_labels)
+        score = log_reg_model.score(training_set_features, training_set_labels)
+        distance = 2.0 * (score - 0.5)
 
         return distance
 
@@ -335,8 +356,17 @@ class LogReg(Divergence):
         label_s2 = np.ones(shape=(len(s2), 1))
         training_set_labels = np.concatenate((label_s1, label_s2), axis=0).ravel()
 
-        reg_inv = 1e5
-        log_reg_model = linear_model.LogisticRegression(C=reg_inv, penalty='l1', max_iter=1000, solver='liblinear',
+        # reg_inv = 1e5
+        # log_reg_model = linear_model.LogisticRegression(C=reg_inv, penalty='l1', max_iter=1000, solver='liblinear',
+        #                                                 random_state=self.rng.randint(0, np.iinfo(np.uint32).max))
+        # log_reg_model.fit(training_set_features, training_set_labels)
+        # score = log_reg_model.score(training_set_features, training_set_labels)
+        # distance = 2.0 * (score - 0.5)
+
+        ### Setting reg_inv to np.inf to make this unpenalized logistic regression ###
+        reg_inv = np.inf #1e5
+        ## l1_ratio = 1 makes it l1-penalized (but as we choose C=np.inf, it becomes unpenalized)
+        log_reg_model = linear_model.LogisticRegression(C=reg_inv, l1_ratio= 1, max_iter=1000, solver='saga',
                                                         random_state=self.rng.randint(0, np.iinfo(np.uint32).max))
         log_reg_model.fit(training_set_features, training_set_labels)
         score = log_reg_model.score(training_set_features, training_set_labels)
