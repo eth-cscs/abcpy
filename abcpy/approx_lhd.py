@@ -1,9 +1,5 @@
 import numpy as np
 from abc import ABCMeta, abstractmethod
-# try:
-#     from glmnet import LogitNet
-# except:
-#     pass
 from scipy.stats import gaussian_kde, rankdata, norm
 from sklearn.covariance import ledoit_wolf
 from sklearn import linear_model
@@ -392,6 +388,9 @@ class PenLogReg(Approx_likelihood, GraphTools):
         # m = LogitNet(alpha=1, n_splits=self.n_folds, max_iter=self.max_iter, random_state=self.seed, scoring="log_loss")
         # m = m.fit(X, y, groups=groups)
         # result = -np.sum((m.intercept_ + np.sum(np.multiply(m.coef_, stat_obs), axis=1)), axis=0)
+
+        import warnings
+        warnings.filterwarnings('ignore')
 
         ### Setting reg_inv to 1 (anything other than np.inf) to make this unpenalized logistic regression ###
         ## C = 1 #1e5

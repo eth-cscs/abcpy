@@ -40,27 +40,27 @@ class PenLogRegTests(unittest.TestCase):
         self.assertRaises(TypeError, self.likfun.loglikelihood, [2, 4], 3.4)
 
         # create observed data
-        comp_likelihood = self.likfun.loglikelihood(self.y_obs, self.y_sim)
-        expected_likelihood = 9.77317308598673e-08
+        comp_likelihood = self.likfun.likelihood(self.y_obs, self.y_sim)
+        expected_likelihood = 3.7984116760673435e-17
         # This checks whether it computes a correct value and dimension is right. Not correct as it does not check the
         # absolute value:
         # self.assertLess(comp_likelihood - expected_likelihood, 10e-2)
-        self.assertAlmostEqual(comp_likelihood, np.log(expected_likelihood))
+        self.assertAlmostEqual(comp_likelihood, expected_likelihood)
 
         # check if it returns the correct error when n_samples does not match:
         self.assertRaises(RuntimeError, self.likfun_wrong_n_sim.loglikelihood, self.y_obs, self.y_sim)
 
         # try now with the bivariate uniform model:
-        comp_likelihood_biv = self.likfun_bivariate.loglikelihood(self.y_obs_bivariate, self.y_sim_bivariate)
-        expected_likelihood_biv = 0.999999999999999
-        self.assertAlmostEqual(comp_likelihood_biv, np.log(expected_likelihood_biv))
+        comp_likelihood_biv = self.likfun_bivariate.likelihood(self.y_obs_bivariate, self.y_sim_bivariate)
+        expected_likelihood_biv = 0.9555503438924695
+        self.assertAlmostEqual(comp_likelihood_biv, expected_likelihood_biv)
 
     def test_likelihood_multiple_observations(self):
         comp_likelihood = self.likfun.likelihood(self.y_obs_double, self.y_sim)
-        expected_likelihood = 7.337876253225462e-10
+        expected_likelihood = 7.246706851459627e-23
         self.assertAlmostEqual(comp_likelihood, expected_likelihood)
 
-        expected_likelihood_biv = 0.9999999999999979
+        expected_likelihood_biv = 2.339151646524431
         comp_likelihood_biv = self.likfun_bivariate.likelihood(self.y_obs_bivariate_double, self.y_sim_bivariate)
         self.assertAlmostEqual(comp_likelihood_biv, expected_likelihood_biv)
 
